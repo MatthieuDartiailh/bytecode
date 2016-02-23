@@ -286,5 +286,11 @@ class FunctionalTests(unittest.TestCase):
         self.assertEqual(code_obj2.co_lnotab, code_obj.co_lnotab)
 
 
+class MiscTests(unittest.TestCase):
+    def test_version(self):
+        import setup
+        self.assertEqual(bytecode.__version__, setup.VERSION)
+
+
 if __name__ == "__main__":
     unittest.main()

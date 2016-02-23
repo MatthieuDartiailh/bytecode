@@ -3,9 +3,9 @@
 # Prepare a release:
 #
 #  - git pull --rebase
-#  - run tests: tox
 #  - update VERSION in setup.py
-#  - set release date in the changelog in doc/misc.rst
+#  - run tests: tox
+#  - set release date in the changelog
 #  - git commit -a
 #  - git push
 #
@@ -18,7 +18,7 @@
 # After the release:
 #
 #  - set version to n+1
-#  - git commit
+#  - git commit -a -m "post-release"
 #  - git push
 
 VERSION = '0.0'

@@ -4,7 +4,19 @@ bytecode
 
 ``bytecode`` is a Python module to modify bytecode.
 
-See also:
+Homepage: https://github.com/haypo/bytecode
+
+
+ChangeLog
+=========
+
+* 2016-02-23: Release 0.0
+
+  - First public release
+
+
+See also
+========
 
 * `codetransformer
   <https://pypi.python.org/pypi/codetransformer>`_
