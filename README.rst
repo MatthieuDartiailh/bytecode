@@ -27,6 +27,35 @@ ChangeLog
   - First public release
 
 
+Comparison with other modules
+=============================
+
+byteplay
+--------
+
+* SetLineno pseudo instruction to store line numbers.
+* Label pseudo instruction for jump targets.
+* Don't support blocks, but use labels for jumps.
+* An instruction is a tuple of 2 items: (name, arg)
+* There are functions to get properties of instructions.
+* LOAD_FAST uses the local variable name rather than the variable index:
+  (byteplay.LOAD_FAST, 'x').
+* LOAD_FAST uses directly the constant value rather than the variable index:
+  (byteplay.LOAD_CONST, 3.14).
+* Docstring has its own attribute.
+
+Note: it looks like duplicated constants of the same type are not removed,
+the code uses "x is y".
+
+codetransformer
+---------------
+
+* Line numbers are not first citizen: need to provide a raw mapping:
+  offset => line number
+* Jump targets are directly instructions.
+* Don't support blocks.
+
+
 See also
 ========
 

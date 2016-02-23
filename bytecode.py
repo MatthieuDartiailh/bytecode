@@ -192,6 +192,7 @@ class Code:
                     return False
         if self.consts != other.consts:
             return False
+        # FIXME: compare all other attributes
         return True
 
     def __len__(self):
