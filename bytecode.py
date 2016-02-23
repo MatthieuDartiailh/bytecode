@@ -69,10 +69,12 @@ class Instr(BaseInstr):
         return Instr(self.lineno, self.name, arg)
 
     def get_jump_target(self, instr_offset):
+        if isinstance(self._arg, Label):
+            raise ValueError("jump target is a label")
         if self._op in opcode.hasjrel:
-            return instr_offset + self._size + self.arg
+            return instr_offset + self._size + self._arg
         if self._op in opcode.hasjabs:
-            return self.arg
+            return self._arg
         return None
 
     def is_jump(self):
@@ -83,8 +85,8 @@ class Instr(BaseInstr):
         return 'JUMP_IF_' in self.name
 
     def assemble(self):
-        if self.arg is not None:
-            return struct.pack('<BH', self._op, self.arg)
+        if self._arg is not None:
+            return struct.pack('<BH', self._op, self._arg)
         else:
             return struct.pack('<B', self._op)
 

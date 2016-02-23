@@ -28,6 +28,25 @@ class TestInstr(unittest.TestCase):
         instr2 = bytecode.Instr(5, "LOAD_CONST", 3)
         self.assertEqual(instr1, instr2)
 
+    def test_get_jump_target(self):
+        jump_abs = bytecode.Instr(1, "JUMP_ABSOLUTE", 3)
+        self.assertEqual(jump_abs.get_jump_target(100), 3)
+
+        jump_forward = bytecode.Instr(1, "JUMP_FORWARD", 5)
+        self.assertEqual(jump_forward.get_jump_target(10), 18)
+
+        label = bytecode.Label()
+        jump_label = bytecode.Instr(1, "JUMP_FORWARD", label)
+        with self.assertRaises(ValueError):
+            jump_label.get_jump_target(10)
+
+    def test_is_jump(self):
+        jump = bytecode.Instr(1, "JUMP_ABSOLUTE", 3)
+        self.assertTrue(jump.is_jump())
+
+        instr = bytecode.Instr(1, "LOAD_FAST", 2)
+        self.assertFalse(jump.is_jump())
+
 
 class Tests(unittest.TestCase):
     def setUp(self):
@@ -94,6 +113,10 @@ class Tests(unittest.TestCase):
             # cannot create a label at the end of a block,
             # only between instructions
             code.create_label(0, 2)
+
+    # FIXME: test sassemble()
+    # FIXME: test disassemble()
+    # FIXME: test co_lnotab
 
 
 if __name__ == "__main__":
