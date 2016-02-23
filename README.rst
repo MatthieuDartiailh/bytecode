@@ -10,6 +10,9 @@ A code object is made of blocks and a block is a list of instructions. An
 instruction has 3 main attributes: lineno, name, arg. Jumps use labels to
 blocks, each block object has an unique label.
 
+It's possible to get a flat code with only one block and without labels:
+use Code.disassemble(code, use_labels=False).
+
 bytecode 0.0 has been written to reimplement the CPython 3.6 peephole optimizer
 in pure Python. This version only supports Python 3.6.
 

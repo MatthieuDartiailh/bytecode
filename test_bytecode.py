@@ -257,20 +257,38 @@ class FunctionalTests(unittest.TestCase):
         self.assertEqual(code2.co_code, code_obj.co_code)
 
     def test_disassemble(self):
-        code_obj = compile("x = 1", "<string>", "exec")
+        code_obj = compile("if test:\n x = 1\nelse:\n x = 2", "<string>", "exec")
         code = bytecode.Code.disassemble(code_obj)
-        self.assertEqual(len(code), 1)
-        self.assertEqual(code[0],
-                         [LOAD_CONST(0), STORE_NAME(0),
-                          LOAD_CONST(1), RETURN_VALUE()])
+        self.assertEqual(len(code), 3)
+        expected = [Instr(1, 'LOAD_NAME', 0),
+                    Instr(1, 'POP_JUMP_IF_FALSE', code[1].label),
+                    Instr(2, 'LOAD_CONST', 0),
+                    Instr(2, 'STORE_NAME', 1),
+                    Instr(2, 'JUMP_FORWARD', code[2].label)]
+        self.assertListEqual(code[0], expected)
 
-    def test_disassemble(self):
-        code_obj = compile("x = 1", "<string>", "exec")
-        code = bytecode.Code.disassemble(code_obj)
+        expected = [Instr(4, 'LOAD_CONST', 1),
+                    Instr(4, 'STORE_NAME', 1)]
+        self.assertListEqual(code[1], expected)
+
+        expected = [Instr(4, 'LOAD_CONST', 2),
+                    Instr(4, 'RETURN_VALUE')]
+        self.assertListEqual(code[2], expected)
+
+    def test_disassemble_no_label(self):
+        code_obj = compile("if test:\n x = 1\nelse:\n x = 2", "<string>", "exec")
+        code = bytecode.Code.disassemble(code_obj, use_labels=False)
         self.assertEqual(len(code), 1)
-        self.assertEqual(code[0],
-                         [LOAD_CONST(0), STORE_NAME(0),
-                          LOAD_CONST(1), RETURN_VALUE()])
+        expected = [Instr(1, 'LOAD_NAME', 0),
+                    Instr(1, 'POP_JUMP_IF_FALSE', 15),
+                    Instr(2, 'LOAD_CONST', 0),
+                    Instr(2, 'STORE_NAME', 1),
+                    Instr(2, 'JUMP_FORWARD', 6),
+                    Instr(4, 'LOAD_CONST', 1),
+                    Instr(4, 'STORE_NAME', 1),
+                    Instr(4, 'LOAD_CONST', 2),
+                    Instr(4, 'RETURN_VALUE')]
+        self.assertListEqual(code[0], expected)
 
     def test_lnotab(self):
         code_obj = compile("x = 1\ny = 2\nz = 3", "<string>", "exec")

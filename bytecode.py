@@ -242,27 +242,25 @@ class Code:
         return block2.label
 
     @classmethod
-    def disassemble(cls, code_obj):
+    def disassemble(cls, code_obj, *, use_labels=True):
         code = code_obj.co_code
         line_starts = dict(dis.findlinestarts(code_obj))
 
         # find block starts
         instructions = []
         block_starts = set()
-
         offset = 0
         lineno = code_obj.co_firstlineno
         while offset < len(code):
+            if offset in line_starts:
+                lineno = line_starts[offset]
+
             instr = Instr.disassemble(lineno, code, offset)
 
-            key = offset # + instr.size
-            if key in line_starts:
-                lineno = line_starts[key]
-                instr = Instr(lineno, instr.name, instr.arg)
-
-            target = instr.get_jump_target(offset)
-            if target is not None:
-                block_starts.add(target)
+            if use_labels:
+                target = instr.get_jump_target(offset)
+                if target is not None:
+                    block_starts.add(target)
 
             instructions.append(instr)
 
@@ -286,14 +284,15 @@ class Code:
         assert len(block) != 0
 
         # replace jump targets with blocks
-        offset = 0
-        for block in blocks:
-            for index, instr in enumerate(block):
-                target = instr.get_jump_target(offset)
-                if target is not None:
-                    target_block = label_to_block[target]
-                    block[index] = instr.replace_arg(target_block.label)
-                offset += instr.size
+        if use_labels:
+            offset = 0
+            for block in blocks:
+                for index, instr in enumerate(block):
+                    target = instr.get_jump_target(offset)
+                    if target is not None:
+                        target_block = label_to_block[target]
+                        block[index] = instr.replace_arg(target_block.label)
+                    offset += instr.size
 
         code = cls(code_obj.co_name,
                    code_obj.co_filename,
