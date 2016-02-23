@@ -115,17 +115,41 @@ class Block(list):
 
 class Code:
     def __init__(self, code_obj, blocks):
+        # FIXME: store all code_obj to individual attributes
         self.code_obj = code_obj
         self._blocks = blocks
         self._block_map = dict((block.label, block) for block in blocks)
         self.consts = list(self.code_obj.co_consts)
 
+    def __repr__(self):
+        return '<Code block#=%s>' % len(self._blocks)
+
     def __eq__(self, other):
         if not isinstance(other, Code):
             return False
-        # FIXME: compare block labels?
-        if self._blocks != other._blocks:
+        if len(self._blocks) != len(other._blocks):
             return False
+        targets1 = {}
+        for block_index, block in enumerate(self, 1):
+            targets1[block.label] = 'label%s' % block_index
+        targets2 = {}
+        for block_index, block in enumerate(other, 1):
+            targets2[block.label] = 'label%s' % block_index
+        for block1, block2 in zip(self._blocks, other._blocks):
+            if len(block1) != len(block2):
+                return False
+            for instr1, instr2 in zip(block1, block2):
+
+                arg1 = instr1._arg
+                arg1 = targets1.get(arg1, arg1)
+                key1 = (instr1._lineno, instr1._name, arg1)
+
+                arg2 = instr2._arg
+                arg2 = targets2.get(arg2, arg2)
+                key2 = (instr2._lineno, instr2._name, arg2)
+
+                if key1 != key2:
+                    return False
         if self.consts != other.consts:
             return False
         return True

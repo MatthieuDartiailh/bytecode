@@ -57,9 +57,13 @@ class CodeTests(unittest.TestCase):
             self.addCleanup(sys.set_code_transformers, transformers)
             sys.set_code_transformers([])
 
-    def sample_code(self):
-        code_obj = compile("x = 1", "<string>", "exec")
+    def disassemble(self, source):
+        code_obj = compile(source, "<string>", "exec")
         code = bytecode.Code.disassemble(code_obj)
+        return code
+
+    def sample_code(self):
+        code = self.disassemble('x = 1')
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter
         del code[0][2:]
@@ -68,10 +72,12 @@ class CodeTests(unittest.TestCase):
         return code
 
     def test_eq(self):
-        code1 = self.sample_code()
-        code2 = self.sample_code()
+        # compare codes with multiple blocks and labels,
+        # Code.__eq__() renumbers labels to get equal labels
+        source = 'x = 1 if test else 2'
+        code1 = self.disassemble(source)
+        code2 = self.disassemble(source)
         self.assertEqual(code1, code2)
-        # FIXME: test with labels
 
     def test_create_label_by_int_split(self):
         code = self.sample_code()
