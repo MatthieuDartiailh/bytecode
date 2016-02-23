@@ -53,6 +53,12 @@ class Tests(unittest.TestCase):
         self.assertListEqual(code[0], [LOAD_CONST(0), STORE_NAME(0)])
         return code
 
+    def test_eq(self):
+        code1 = self.sample_code()
+        code2 = self.sample_code()
+        self.assertEqual(code1, code2)
+        # FIXME: test with labels
+
     def test_create_label_by_int_split(self):
         code = self.sample_code()
         block_index = 0

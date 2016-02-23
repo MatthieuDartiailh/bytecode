@@ -118,6 +118,16 @@ class Code:
         self._block_map = dict((block.label, block) for block in blocks)
         self.consts = list(self.code_obj.co_consts)
 
+    def __eq__(self, other):
+        if not isinstance(other, Code):
+            return False
+        # FIXME: compare block labels?
+        if self._blocks != other._blocks:
+            return False
+        if self.consts != other.consts:
+            return False
+        return True
+
     def __len__(self):
         return len(self._blocks)
 
