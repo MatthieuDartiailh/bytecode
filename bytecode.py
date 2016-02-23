@@ -6,13 +6,43 @@ import types
 __version__ = '0.0'
 
 
-class BaseInstr:
+class Instr:
+    __slots__ = ('_lineno', '_name', '_arg', '_op', '_size')
+
     def __init__(self, lineno, name, arg=None):
-        assert isinstance(lineno, int)
+        if not isinstance(lineno, int):
+            raise TypeError("lineno must be an int")
+        if lineno < 1:
+            raise ValueError("invalid lineno")
+        if not isinstance(name, str):
+            raise TypeError("name must be a str")
+        try:
+            op = opcode.opmap[name]
+        except KeyError:
+            raise ValueError("invalid operation name")
+        if arg is not None:
+            if isinstance(arg, int):
+                if arg < 0:
+                    raise ValueError("arg must be positive")
+                if arg > 0xffffffff:
+                    raise ValueError("arg must be in range 0x00..0xffffffff")
+                # FIXME: handle extend arg
+                if arg > 0xffff:
+                    raise ValueError("extended arg not supported yet")
+            elif not isinstance(arg, Label):
+                raise TypeError("arg must be an int or a bytecode.Label")
+        size = 1
+        if arg is not None:
+            size += 2
+            # FIXME: handle EXTENDED_ARG
+            #if not isinstance(arg, Label) and arg > 0xffff:
+            #    size += 3
+
         self._lineno = lineno
-        assert isinstance(name, str)
         self._name = name
         self._arg = arg
+        self._op = op
+        self._size = size
 
     @property
     def lineno(self):
@@ -27,34 +57,6 @@ class BaseInstr:
         return self._arg
 
     @property
-    def size(self):
-        return 0
-
-    def __repr__(self):
-        if self.arg is not None:
-            return '<%s arg=%s lineno=%s>' % (self.name, self.arg, self.lineno)
-        else:
-            return '<%s lineno=%s>' % (self.name, self.lineno)
-
-    def __eq__(self, other):
-        if not isinstance(other, BaseInstr):
-            return False
-        key1 = (self._lineno, self._name, self._arg)
-        key2 = (other._lineno, other._name, other._arg)
-        return key1 == key2
-
-
-
-class Instr(BaseInstr):
-    def __init__(self, lineno, name, arg=None):
-        super().__init__(lineno, name, arg)
-        if self.arg is not None:
-            self._size = 3
-        else:
-            self._size = 1
-        self._op = opcode.opmap[self.name]
-
-    @property
     def op(self):
         return self._op
 
@@ -62,11 +64,24 @@ class Instr(BaseInstr):
     def size(self):
         return self._size
 
+    def __repr__(self):
+        if self._arg is not None:
+            return '<%s arg=%s lineno=%s>' % (self._name, self._arg, self._lineno)
+        else:
+            return '<%s lineno=%s>' % (self._name, self._lineno)
+
+    def __eq__(self, other):
+        if not isinstance(other, Instr):
+            return False
+        key1 = (self._lineno, self._name, self._arg)
+        key2 = (other._lineno, other._name, other._arg)
+        return key1 == key2
+
     def replace(self, name, arg=None):
-        return Instr(self.lineno, name, arg)
+        return Instr(self._lineno, name, arg)
 
     def replace_arg(self, arg=None):
-        return Instr(self.lineno, self.name, arg)
+        return Instr(self._lineno, self._name, arg)
 
     def get_jump_target(self, instr_offset):
         if isinstance(self._arg, Label):
@@ -82,7 +97,7 @@ class Instr(BaseInstr):
 
     def is_cond_jump(self):
         # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
-        return 'JUMP_IF_' in self.name
+        return ('JUMP_IF_' in self._name)
 
     def assemble(self):
         if self._arg is not None:

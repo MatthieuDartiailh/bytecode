@@ -1,5 +1,5 @@
 import bytecode
-import sys
+import opcode
 import textwrap
 import types
 import unittest
@@ -33,19 +33,57 @@ def disassemble(source, *, filename="<string>", function=False):
 
 
 class InstrTests(unittest.TestCase):
-    def test_instr(self):
+    def test_constructor(self):
+        # invalid line number
+        with self.assertRaises(TypeError):
+            bytecode.Instr("x", "NOP")
+        with self.assertRaises(ValueError):
+            bytecode.Instr(0, "NOP")
+
+        # invalid name
+        with self.assertRaises(TypeError):
+            bytecode.Instr(1, 1)
+        with self.assertRaises(ValueError):
+            bytecode.Instr(1, "xxx")
+
+        # invalid argument
+        with self.assertRaises(TypeError):
+            bytecode.Instr(1, "LOAD_CONST", 1.0)
+        with self.assertRaises(ValueError):
+            bytecode.Instr(1, "LOAD_CONST", -1)
+        with self.assertRaises(ValueError):
+            bytecode.Instr(1, "LOAD_CONST", 0x1000000)
+
+    def test_attr(self):
         instr = bytecode.Instr(5, "LOAD_CONST", 3)
         self.assertEqual(instr.lineno, 5)
         self.assertEqual(instr.name, 'LOAD_CONST')
         self.assertEqual(instr.arg, 3)
+        self.assertEqual(instr.size, 3)
+        self.assertEqual(instr.op, opcode.opmap['LOAD_CONST'])
         self.assertRaises(AttributeError, setattr, instr, 'lineno', 1)
         self.assertRaises(AttributeError, setattr, instr, 'name', 'LOAD_FAST')
         self.assertRaises(AttributeError, setattr, instr, 'arg', 2)
 
-    def test_instr_cmp(self):
-        instr1 = bytecode.Instr(5, "LOAD_CONST", 3)
-        instr2 = bytecode.Instr(5, "LOAD_CONST", 3)
-        self.assertEqual(instr1, instr2)
+        instr = bytecode.Instr(1, "ROT_TWO")
+        self.assertEqual(instr.size, 1)
+        self.assertIsNone(instr.arg)
+        self.assertEqual(instr.op, opcode.opmap['ROT_TWO'])
+
+        # FIXME: test EXTENDED_ARG
+
+    def test_slots(self):
+        instr = bytecode.Instr(1, "NOP")
+        with self.assertRaises(AttributeError):
+            instr.myattr = 1
+
+    def test_compare(self):
+        instr = bytecode.Instr(7, "LOAD_CONST", 3)
+        self.assertEqual(instr, bytecode.Instr(7, "LOAD_CONST", 3))
+
+        self.assertNotEqual(instr, bytecode.Instr(6, "LOAD_CONST", 3))
+        self.assertNotEqual(instr, bytecode.Instr(7, "LOAD_FAST", 3))
+        self.assertNotEqual(instr, bytecode.Instr(7, "LOAD_CONST", 4))
 
     def test_get_jump_target(self):
         jump_abs = bytecode.Instr(1, "JUMP_ABSOLUTE", 3)
@@ -65,6 +103,27 @@ class InstrTests(unittest.TestCase):
 
         instr = bytecode.Instr(1, "LOAD_FAST", 2)
         self.assertFalse(instr.is_jump())
+
+    def test_is_cond_jump(self):
+        jump = bytecode.Instr(1, "POP_JUMP_IF_TRUE", 3)
+        self.assertTrue(jump.is_cond_jump())
+
+        instr = bytecode.Instr(1, "LOAD_FAST", 2)
+        self.assertFalse(instr.is_cond_jump())
+
+    def test_assemble(self):
+        instr = bytecode.Instr(1, "NOP")
+        self.assertEqual(instr.assemble(), b'\t')
+
+        instr = bytecode.Instr(1, "LOAD_CONST", 3)
+        self.assertEqual(instr.assemble(), b'd\x03\x00')
+
+    def test_disassemble(self):
+        instr = bytecode.Instr.disassemble(1, b'\td\x03\x00', 0)
+        self.assertEqual(instr, bytecode.Instr(1, "NOP"))
+
+        instr = bytecode.Instr.disassemble(1, b'\td\x03\x00', 1)
+        self.assertEqual(instr, bytecode.Instr(1, "LOAD_CONST", 3))
 
 
 class CodeTests(unittest.TestCase):
@@ -120,13 +179,6 @@ class CodeTests(unittest.TestCase):
 
 
 class FunctionalTests(unittest.TestCase):
-    def setUp(self):
-        if hasattr(sys, 'get_code_transformers'):
-            # Python 3.6 and PEP 511
-            transformers = sys.get_code_transformers()
-            self.addCleanup(sys.set_code_transformers, transformers)
-            sys.set_code_transformers([])
-
     def sample_code(self):
         code = disassemble('x = 1')
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
