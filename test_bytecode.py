@@ -155,14 +155,15 @@ class CodeTests(unittest.TestCase):
         # FIXME: test non-empty cellvars
 
     def test_constructor(self):
-        code = bytecode.Code("name", "filename")
+        code = bytecode.Code("name", "filename", 123)
         self.assertEqual(code.name, "name")
         self.assertEqual(code.filename, "filename")
+        self.assertEqual(code.flags, 123)
         self.assertEqual(len(code), 1)
         self.assertEqual(code[0], [])
 
     def test_add_del_block(self):
-        code = bytecode.Code("name", "filename")
+        code = bytecode.Code("name", "filename", 0)
         code[0].append(LOAD_CONST(0))
 
         block = code.add_block()

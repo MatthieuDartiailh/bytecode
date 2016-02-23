@@ -44,6 +44,8 @@ class Instr:
         self._op = op
         self._size = size
 
+    # FIXME: stack effect
+
     @property
     def lineno(self):
         return self._lineno
@@ -129,15 +131,12 @@ class Block(list):
 
 
 class Code:
-    def __init__(self, name, filename):
-        self._blocks = []
-        self._label_to_index = {}
-
+    def __init__(self, name, filename, flags):
         self.argcount = 0
         self.kw_only_argcount = 0
         self._nlocals = 0
         self._stacksize = 0
-        self._flags = 0
+        self.flags = flags
         self.first_lineno = 1
         self.names = []
         self.varnames = []
@@ -146,6 +145,9 @@ class Code:
         self.freevars = []
         self.cellvars = []
         self.consts = []
+
+        self._blocks = []
+        self._label_to_index = {}
 
         self.add_block()
 
@@ -293,12 +295,13 @@ class Code:
                     block[index] = instr.replace_arg(target_block.label)
                 offset += instr.size
 
-        code = cls(code_obj.co_name, code_obj.co_filename)
+        code = cls(code_obj.co_name,
+                   code_obj.co_filename,
+                   code_obj.co_flags)
         code.argcount = code_obj.co_argcount
         code.kw_only_argcount = code_obj.co_kwonlyargcount
         code._nlocals = code_obj.co_nlocals
         code._stacksize = code_obj.co_stacksize
-        code._flags = code_obj.co_flags
         code.first_lineno = code_obj.co_firstlineno
         code.names = list(code_obj.co_names)
         code.varnames = list(code_obj.co_varnames)
@@ -315,6 +318,8 @@ class Code:
         targets = {}
         linenos = []
         blocks = [(block.label, list(block)) for block in self]
+
+        # FIXME: validate code?
 
         # find targets
         offset = 0
@@ -378,7 +383,7 @@ class Code:
                               self._nlocals,
                               # FIXME: compute stack size
                               self._stacksize,
-                              self._flags,
+                              self.flags,
                               code_str,
                               tuple(self.consts),
                               tuple(self.names),
@@ -391,7 +396,7 @@ class Code:
                               tuple(self.cellvars))
 
 
-def dump_code(code):
+def _dump_code(code):
     labels = {}
     for block_index, block in enumerate(code, 1):
         labels[block.label] = "[Block #%s]" % block_index
