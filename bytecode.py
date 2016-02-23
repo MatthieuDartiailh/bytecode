@@ -117,6 +117,24 @@ class Code:
     def __init__(self, code_obj, blocks):
         # FIXME: store all code_obj to individual attributes
         self.code_obj = code_obj
+
+        self._stacksize = code_obj.co_stacksize
+        self._nlocals = code_obj.co_nlocals
+        self._flags = code_obj.co_flags
+
+        self.argcount = code_obj.co_argcount
+        self.kw_only_argcount = code_obj.co_kwonlyargcount
+        self.first_lineno = code_obj.co_firstlineno
+
+        # FIXME: is there a link between names and varnames?
+        self.names = code_obj.co_names
+        self.varnames = code_obj.co_varnames
+
+        self.filename = code_obj.co_filename
+        self.name = code_obj.co_name
+        self.freevars = code_obj.co_freevars
+        self.cellvars = code_obj.co_cellvars
+
         self._blocks = blocks
         self._block_map = dict((block.label, block) for block in blocks)
         self.consts = list(self.code_obj.co_consts)
@@ -279,7 +297,7 @@ class Code:
 
         lnotab = []
         old_offset = 0
-        old_lineno = self.code_obj.co_firstlineno
+        old_lineno = self.first_lineno
         for offset, lineno in  linenos:
             dlineno = lineno - old_lineno
             if dlineno == 0:
@@ -309,22 +327,23 @@ class Code:
         code_str = b''.join(code_str)
         lnotab = b''.join(lnotab)
 
-        code = self.code_obj
-        return types.CodeType(code.co_argcount,
-                              code.co_kwonlyargcount,
-                              code.co_nlocals,
-                              code.co_stacksize,
-                              code.co_flags,
+        return types.CodeType(self.argcount,
+                              self.kw_only_argcount,
+                              # FIXME: compute number of locals
+                              self._nlocals,
+                              # FIXME: compute stack size
+                              self._stacksize,
+                              self._flags,
                               code_str,
                               tuple(self.consts),
-                              code.co_names,
-                              code.co_varnames,
-                              code.co_filename,
-                              code.co_name,
-                              code.co_firstlineno,
+                              self.names,
+                              self.varnames,
+                              self.filename,
+                              self.name,
+                              self.first_lineno,
                               lnotab,
-                              code.co_freevars,
-                              code.co_cellvars)
+                              self.freevars,
+                              self.cellvars)
 
 
 def dump_code(code):
