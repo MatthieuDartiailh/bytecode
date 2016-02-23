@@ -1,5 +1,7 @@
 import bytecode
 import sys
+import textwrap
+import types
 import unittest
 from bytecode import Instr
 
@@ -10,8 +12,24 @@ def LOAD_CONST(arg):
 def STORE_NAME(arg):
     return Instr(1, 'STORE_NAME', arg)
 
+def NOP():
+    return Instr(1, 'NOP')
+
 def RETURN_VALUE():
     return Instr(1, 'RETURN_VALUE')
+
+def disassemble(source, *, filename="<string>", function=False):
+    source = textwrap.dedent(source).strip()
+    code_obj = compile(source, filename, "exec")
+    if function:
+        sub_code = [const for const in code_obj.co_consts
+                    if isinstance(const, types.CodeType)]
+        if len(sub_code) != 1:
+            raise ValueError("unable to find function code")
+        code_obj = sub_code[0]
+
+    code = bytecode.Code.disassemble(code_obj)
+    return code
 
 
 class InstrTests(unittest.TestCase):
@@ -50,6 +68,58 @@ class InstrTests(unittest.TestCase):
 
 
 class CodeTests(unittest.TestCase):
+    def test_attr(self):
+        source = """
+            first_line = 1
+
+            def func(arg1, arg2, *, arg3):
+                x = 1
+                y = 2
+                return arg1
+        """
+        code = disassemble(source, filename="hello.py", function=True)
+        self.assertEqual(code.argcount, 2)
+        self.assertEqual(code.consts, [None, 1, 2])
+        self.assertEqual(code.filename, "hello.py")
+        self.assertEqual(code.first_lineno, 3)
+        self.assertEqual(code.kw_only_argcount, 1)
+        self.assertEqual(code.name, "func")
+        self.assertEqual(code.varnames, ["arg1", "arg2", "arg3", "x", "y"])
+        self.assertEqual(code.names, [])
+        self.assertEqual(code.freevars, [])
+        self.assertEqual(code.cellvars, [])
+
+        code = disassemble("a = 1; b = 2")
+        self.assertEqual(code.names, ["a", "b"])
+
+        # FIXME: test non-empty freevars
+        # FIXME: test non-empty cellvars
+
+    def test_constructor(self):
+        code = bytecode.Code("name", "filename")
+        self.assertEqual(code.name, "name")
+        self.assertEqual(code.filename, "filename")
+        self.assertEqual(len(code), 1)
+        self.assertEqual(code[0], [])
+
+    def test_add_del_block(self):
+        code = bytecode.Code("name", "filename")
+        code[0].append(LOAD_CONST(0))
+
+        block = code.add_block()
+        self.assertEqual(len(code), 2)
+        self.assertIs(block, code[1])
+
+        code[1].append(LOAD_CONST(2))
+        self.assertEqual(code[0], [LOAD_CONST(0)])
+        self.assertEqual(code[1], [LOAD_CONST(2)])
+
+        del code[0]
+        self.assertEqual(len(code), 1)
+        self.assertEqual(code[0], [LOAD_CONST(2)])
+
+
+class FunctionalTests(unittest.TestCase):
     def setUp(self):
         if hasattr(sys, 'get_code_transformers'):
             # Python 3.6 and PEP 511
@@ -57,13 +127,8 @@ class CodeTests(unittest.TestCase):
             self.addCleanup(sys.set_code_transformers, transformers)
             sys.set_code_transformers([])
 
-    def disassemble(self, source):
-        code_obj = compile(source, "<string>", "exec")
-        code = bytecode.Code.disassemble(code_obj)
-        return code
-
     def sample_code(self):
-        code = self.disassemble('x = 1')
+        code = disassemble('x = 1')
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter
         del code[0][2:]
@@ -75,19 +140,34 @@ class CodeTests(unittest.TestCase):
         # compare codes with multiple blocks and labels,
         # Code.__eq__() renumbers labels to get equal labels
         source = 'x = 1 if test else 2'
-        code1 = self.disassemble(source)
-        code2 = self.disassemble(source)
+        code1 = disassemble(source)
+        code2 = disassemble(source)
         self.assertEqual(code1, code2)
+
+    def check_getitem(self, code):
+        # check internal Code block indexes (index by index, index by label)
+        for block_index, block in enumerate(code):
+            self.assertIs(code[block_index], block)
+            self.assertIs(code[block.label], block)
 
     def test_create_label_by_int_split(self):
         code = self.sample_code()
-        block_index = 0
+        code[0].append(NOP())
 
-        label = code.create_label(block_index, 1)
+        label = code.create_label(0, 2)
         self.assertEqual(len(code), 2)
+        self.assertListEqual(code[0], [LOAD_CONST(0), STORE_NAME(0)])
+        self.assertListEqual(code[1], [NOP()])
+        self.assertEqual(label, code[1].label)
+        self.check_getitem(code)
+
+        label3 = code.create_label(0, 1)
+        self.assertEqual(len(code), 3)
         self.assertListEqual(code[0], [LOAD_CONST(0), ])
         self.assertListEqual(code[1], [STORE_NAME(0)])
-        self.assertEqual(label, code[1].label)
+        self.assertListEqual(code[2], [NOP()])
+        self.assertEqual(label, code[2].label)
+        self.check_getitem(code)
 
     def test_create_label_by_label_split(self):
         code = self.sample_code()
@@ -98,6 +178,7 @@ class CodeTests(unittest.TestCase):
         self.assertListEqual(code[0], [LOAD_CONST(0), ])
         self.assertListEqual(code[1], [STORE_NAME(0)])
         self.assertEqual(label, code[1].label)
+        self.check_getitem(code)
 
     def test_create_label_dont_split(self):
         code = self.sample_code()

@@ -114,30 +114,35 @@ class Block(list):
 
 
 class Code:
-    def __init__(self, code_obj, blocks):
-        # FIXME: store all code_obj to individual attributes
-        self.code_obj = code_obj
+    def __init__(self, name, filename):
+        self._blocks = []
+        self._label_to_index = {}
 
-        self._stacksize = code_obj.co_stacksize
-        self._nlocals = code_obj.co_nlocals
-        self._flags = code_obj.co_flags
+        self.argcount = 0
+        self.kw_only_argcount = 0
+        self._nlocals = 0
+        self._stacksize = 0
+        self._flags = 0
+        self.first_lineno = 1
+        self.names = []
+        self.varnames = []
+        self.filename = filename
+        self.name = name
+        self.freevars = []
+        self.cellvars = []
+        self.consts = []
 
-        self.argcount = code_obj.co_argcount
-        self.kw_only_argcount = code_obj.co_kwonlyargcount
-        self.first_lineno = code_obj.co_firstlineno
+        self.add_block()
 
-        # FIXME: is there a link between names and varnames?
-        self.names = code_obj.co_names
-        self.varnames = code_obj.co_varnames
+    def _add_block(self, block):
+        block_index = len(self._blocks)
+        self._blocks.append(block)
+        self._label_to_index[block.label] = block_index
 
-        self.filename = code_obj.co_filename
-        self.name = code_obj.co_name
-        self.freevars = code_obj.co_freevars
-        self.cellvars = code_obj.co_cellvars
-
-        self._blocks = blocks
-        self._block_map = dict((block.label, block) for block in blocks)
-        self.consts = list(self.code_obj.co_consts)
+    def add_block(self):
+        block = Block()
+        self._add_block(block)
+        return block
 
     def __repr__(self):
         return '<Code block#=%s>' % len(self._blocks)
@@ -178,17 +183,22 @@ class Code:
     def __iter__(self):
         return iter(self._blocks)
 
-    def __getitem__(self, index):
-        if isinstance(index, Label):
-            return self._block_map[index]
-        else:
-            return self._blocks[index]
+    def __getitem__(self, block_index):
+        if isinstance(block_index, Label):
+            block_index = self._label_to_index[block_index]
+        return self._blocks[block_index]
+
+    def __delitem__(self, block_index):
+        if isinstance(block_index, Label):
+            block_index = self._label_to_index[block_index]
+        block = self._blocks[block_index]
+        # Note: complexity of O(n) where n is the number of blocks
+        del self._blocks[block_index]
+        del self._label_to_index[block.label]
 
     def create_label(self, block_index, index):
         if isinstance(block_index, Label):
-            block = self._block_map[block_index]
-            # FIXME: O(n) complexity where n is the number of blocks
-            block_index = self._blocks.index(block)
+            block_index = self._label_to_index[block_index]
         elif block_index < 0:
             raise ValueError("block_index must be positive")
 
@@ -202,11 +212,15 @@ class Code:
         instructions = block[index:]
         if not instructions:
             raise ValueError("cannot create a label at the end of a block")
+        del block[index:]
+
         block2 = Block(instructions)
 
+        for block in self[block_index+1:]:
+            self._label_to_index[block.label] += 1
+
         self._blocks.insert(block_index+1, block2)
-        self._block_map[block2.label] = block2
-        del block[index:]
+        self._label_to_index[block2.label] = block_index + 1
 
         return block2.label
 
@@ -239,16 +253,16 @@ class Code:
 
         # split instructions in blocks
         blocks = []
-        block_map = {}
+        label_to_block = {}
         offset = 0
 
         block = Block()
         blocks.append(block)
-        block_map[offset] = block
+        label_to_block[offset] = block
         for instr in instructions:
             if offset != 0 and offset in block_starts:
                 block = Block()
-                block_map[offset] = block
+                label_to_block[offset] = block
                 blocks.append(block)
             block.append(instr)
             offset += instr.size
@@ -260,11 +274,27 @@ class Code:
             for index, instr in enumerate(block):
                 target = instr.get_jump_target(offset)
                 if target is not None:
-                    target_block = block_map[target]
+                    target_block = label_to_block[target]
                     block[index] = instr.replace_arg(target_block.label)
                 offset += instr.size
 
-        return cls(code_obj, blocks)
+        code = cls(code_obj.co_name, code_obj.co_filename)
+        code.argcount = code_obj.co_argcount
+        code.kw_only_argcount = code_obj.co_kwonlyargcount
+        code._nlocals = code_obj.co_nlocals
+        code._stacksize = code_obj.co_stacksize
+        code._flags = code_obj.co_flags
+        code.first_lineno = code_obj.co_firstlineno
+        code.names = list(code_obj.co_names)
+        code.varnames = list(code_obj.co_varnames)
+        code.freevars = list(code_obj.co_freevars)
+        code.cellvars = list(code_obj.co_cellvars)
+        code.consts = list(code_obj.co_consts)
+        # delete the first empty block
+        del code[0]
+        for block in blocks:
+            code._add_block(block)
+        return code
 
     def assemble(self):
         targets = {}
@@ -336,14 +366,14 @@ class Code:
                               self._flags,
                               code_str,
                               tuple(self.consts),
-                              self.names,
-                              self.varnames,
+                              tuple(self.names),
+                              tuple(self.varnames),
                               self.filename,
                               self.name,
                               self.first_lineno,
                               lnotab,
-                              self.freevars,
-                              self.cellvars)
+                              tuple(self.freevars),
+                              tuple(self.cellvars))
 
 
 def dump_code(code):
