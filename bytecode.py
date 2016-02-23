@@ -257,11 +257,13 @@ class Code:
         old_offset = 0
         old_lineno = self.code_obj.co_firstlineno
         for offset, lineno in  linenos:
+            dlineno = lineno - old_lineno
+            if dlineno == 0:
+                continue
+            old_lineno = lineno
+
             doff = offset - old_offset
             old_offset = offset
-
-            dlineno = lineno - old_lineno
-            old_lineno = lineno
 
             while doff > 255:
                 lnotab.append(b'\xff0')
@@ -278,8 +280,7 @@ class Code:
             assert 0 <= doff <= 255
             assert -127 <= dlineno <= 126
 
-            if doff or dlineno:
-                lnotab.append(struct.pack('Bb', doff, dlineno))
+            lnotab.append(struct.pack('Bb', doff, dlineno))
 
         code_str = b''.join(code_str)
         lnotab = b''.join(lnotab)

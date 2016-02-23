@@ -1,19 +1,20 @@
 import bytecode
 import sys
 import unittest
+from bytecode import Instr
 
-
-def instr(name, arg=None):
-    return bytecode.Instr(1, name, arg)
 
 def LOAD_CONST(arg):
-    return instr('LOAD_CONST', arg)
+    return Instr(1, 'LOAD_CONST', arg)
 
 def STORE_NAME(arg):
-    return instr('STORE_NAME', arg)
+    return Instr(1, 'STORE_NAME', arg)
+
+def RETURN_VALUE():
+    return Instr(1, 'RETURN_VALUE')
 
 
-class TestInstr(unittest.TestCase):
+class InstrTests(unittest.TestCase):
     def test_instr(self):
         instr = bytecode.Instr(5, "LOAD_CONST", 3)
         self.assertEqual(instr.lineno, 5)
@@ -45,22 +46,16 @@ class TestInstr(unittest.TestCase):
         self.assertTrue(jump.is_jump())
 
         instr = bytecode.Instr(1, "LOAD_FAST", 2)
-        self.assertFalse(jump.is_jump())
+        self.assertFalse(instr.is_jump())
 
 
-class Tests(unittest.TestCase):
+class CodeTests(unittest.TestCase):
     def setUp(self):
         if hasattr(sys, 'get_code_transformers'):
             # Python 3.6 and PEP 511
             transformers = sys.get_code_transformers()
             self.addCleanup(sys.set_code_transformers, transformers)
             sys.set_code_transformers([])
-
-    def test_resolve_jumps(self):
-        code_obj = compile("if x: x=2\nx=3", "<string>", "exec")
-        code = bytecode.Code.disassemble(code_obj)
-        code2 = code.assemble()
-        self.assertEqual(code2.co_code, code_obj.co_code)
 
     def sample_code(self):
         code_obj = compile("x = 1", "<string>", "exec")
@@ -114,9 +109,42 @@ class Tests(unittest.TestCase):
             # only between instructions
             code.create_label(0, 2)
 
-    # FIXME: test sassemble()
-    # FIXME: test disassemble()
-    # FIXME: test co_lnotab
+    def test_assemble(self):
+        # test resolution of jump labels
+        code_obj = compile("if x: x=2\nx=3", "<string>", "exec")
+        code = bytecode.Code.disassemble(code_obj)
+        code2 = code.assemble()
+        self.assertEqual(code2.co_code, code_obj.co_code)
+
+    def test_disassemble(self):
+        code_obj = compile("x = 1", "<string>", "exec")
+        code = bytecode.Code.disassemble(code_obj)
+        self.assertEqual(len(code), 1)
+        self.assertEqual(code[0],
+                         [LOAD_CONST(0), STORE_NAME(0),
+                          LOAD_CONST(1), RETURN_VALUE()])
+
+    def test_disassemble(self):
+        code_obj = compile("x = 1", "<string>", "exec")
+        code = bytecode.Code.disassemble(code_obj)
+        self.assertEqual(len(code), 1)
+        self.assertEqual(code[0],
+                         [LOAD_CONST(0), STORE_NAME(0),
+                          LOAD_CONST(1), RETURN_VALUE()])
+
+    def test_lnotab(self):
+        code_obj = compile("x = 1\ny = 2\nz = 3", "<string>", "exec")
+        code = bytecode.Code.disassemble(code_obj)
+        self.assertEqual(len(code), 1)
+        expected = [Instr(1, "LOAD_CONST", 0), Instr(1, "STORE_NAME", 0),
+                    Instr(2, "LOAD_CONST", 1), Instr(2, "STORE_NAME", 1),
+                    Instr(3, "LOAD_CONST", 2), Instr(3, "STORE_NAME", 2),
+                    Instr(3, "LOAD_CONST", 3), Instr(3, "RETURN_VALUE")]
+        self.assertListEqual(code[0], expected)
+        code_obj2 = code.assemble()
+
+        self.assertEqual(code_obj2.co_lnotab, b'\x06\x01\x06\x01')
+        self.assertEqual(code_obj2.co_lnotab, code_obj.co_lnotab)
 
 
 if __name__ == "__main__":
