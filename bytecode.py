@@ -24,16 +24,6 @@ class Instr:
             op = opcode.opmap[name]
         except KeyError:
             raise ValueError("invalid operation name")
-        if arg is not UNSET:
-            if isinstance(arg, int):
-                # FIXME: it looks like assemble_emit() allows negative argument
-                # (minimum=-2147483648) and use a maximum of 2147483647
-                if arg < 0:
-                    raise ValueError("arg must be positive")
-                if arg > 2147483647:
-                    raise ValueError("arg must be in range 0..2147483647")
-            elif not isinstance(arg, Label):
-                raise TypeError("arg must be an int or a bytecode.Label")
 
         extended_arg = False
         size = 1
@@ -107,20 +97,6 @@ class Instr:
         # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
         return ('JUMP_IF_' in self._name)
 
-    def assemble(self):
-        if self._arg is UNSET:
-            return struct.pack('<B', self._op)
-
-        arg = self._arg
-        if isinstance(arg, Label):
-            raise ValueError("arg is a label")
-        if arg > 0xffff:
-            return struct.pack('<BHBH',
-                               opcode.EXTENDED_ARG, arg >> 16,
-                               self._op, arg & 0xffff)
-        else:
-            return struct.pack('<BH', self._op, arg)
-
     @classmethod
     def disassemble(cls, lineno, code, offset, extended_arg_op=False):
         op = code[offset]
@@ -137,6 +113,39 @@ class Instr:
             instr = cls(lineno, instr2.name, arg)
 
         return instr
+
+
+class ConcreteInstr(Instr):
+    __slots__ = ()
+
+    def __init__(self, lineno, name, arg=UNSET):
+        if arg is not UNSET:
+            if isinstance(arg, int):
+                # FIXME: it looks like assemble_emit() allows negative argument
+                # (minimum=-2147483648) and use a maximum of 2147483647
+                if arg < 0:
+                    raise ValueError("arg must be positive")
+                if arg > 2147483647:
+                    raise ValueError("arg must be in range 0..2147483647")
+            elif not isinstance(arg, Label):
+                raise TypeError("arg must be an int or a bytecode.Label")
+
+        super().__init__(lineno, name, arg)
+
+    def assemble(self):
+        if self._arg is UNSET:
+            return struct.pack('<B', self._op)
+
+        arg = self._arg
+        if isinstance(arg, Label):
+            raise ValueError("arg is a label")
+        if arg > 0xffff:
+            return struct.pack('<BHBH',
+                               opcode.EXTENDED_ARG, arg >> 16,
+                               self._op, arg & 0xffff)
+        else:
+            return struct.pack('<BH', self._op, arg)
+
 
 
 class Label:
@@ -385,12 +394,14 @@ class Code:
         linenos = []
         for target, instructions in blocks:
             for instr in instructions:
-                if isinstance(instr.arg, Label):
-                    target_off = targets[instr.arg]
+                arg = instr.arg
+                if isinstance(arg, Label):
+                    target_off = targets[arg]
                     if instr.op in opcode.hasjrel:
                         target_off = target_off - (offset + instr.size)
-                    instr = instr.replace_arg(target_off)
+                    arg = target_off
 
+                instr = ConcreteInstr(instr.lineno, instr.name, arg)
                 code_str.append(instr.assemble())
                 linenos.append((offset, instr.lineno))
 

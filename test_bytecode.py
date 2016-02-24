@@ -61,18 +61,6 @@ class InstrTests(TestCase):
         with self.assertRaises(ValueError):
             Instr(1, "xxx")
 
-        # invalid argument
-        with self.assertRaises(TypeError):
-            Instr(1, "LOAD_CONST", 1.0)
-        with self.assertRaises(ValueError):
-            Instr(1, "LOAD_CONST", -1)
-        with self.assertRaises(ValueError):
-            Instr(1, "LOAD_CONST", 2147483647+1)
-
-        # test maximum argument
-        instr = Instr(1, "LOAD_CONST", 2147483647)
-        self.assertEqual(instr.arg, 2147483647)
-
     def test_attr(self):
         instr = Instr(5, "LOAD_CONST", 3)
         self.assertEqual(instr.lineno, 5)
@@ -92,7 +80,6 @@ class InstrTests(TestCase):
     def test_extended_arg(self):
         instr = Instr(1, "LOAD_CONST", 0x1234abcd)
         self.assertEqual(instr.arg, 0x1234abcd)
-        self.assertEqual(instr.assemble(), b'\x904\x12d\xcd\xab')
 
     def test_slots(self):
         instr = Instr(1, "NOP")
@@ -133,13 +120,6 @@ class InstrTests(TestCase):
         instr = Instr(1, "LOAD_FAST", 2)
         self.assertFalse(instr.is_cond_jump())
 
-    def test_assemble(self):
-        instr = Instr(1, "NOP")
-        self.assertEqual(instr.assemble(), b'\t')
-
-        instr = Instr(1, "LOAD_CONST", 3)
-        self.assertEqual(instr.assemble(), b'd\x03\x00')
-
     def test_disassemble(self):
         instr = Instr.disassemble(1, b'\td\x03\x00', 0)
         self.assertEqual(instr, Instr(1, "NOP"))
@@ -161,6 +141,31 @@ class InstrTests(TestCase):
         instr2 = Instr.disassemble(1, code, instr1.size,
                                             extended_arg_op=True)
         self.assertEqual(instr2, Instr(1, 'LOAD_CONST', 0xabcd))
+
+
+class ConcreteInstrTests(TestCase):
+    def test_constructor(self):
+        # invalid argument
+        with self.assertRaises(TypeError):
+            bytecode.ConcreteInstr(1, "LOAD_CONST", 1.0)
+        with self.assertRaises(ValueError):
+            bytecode.ConcreteInstr(1, "LOAD_CONST", -1)
+        with self.assertRaises(ValueError):
+            bytecode.ConcreteInstr(1, "LOAD_CONST", 2147483647+1)
+
+        # test maximum argument
+        instr = bytecode.ConcreteInstr(1, "LOAD_CONST", 2147483647)
+        self.assertEqual(instr.arg, 2147483647)
+
+    def test_assemble(self):
+        instr = bytecode.ConcreteInstr(1, "NOP")
+        self.assertEqual(instr.assemble(), b'\t')
+
+        instr = bytecode.ConcreteInstr(1, "LOAD_CONST", 3)
+        self.assertEqual(instr.assemble(), b'd\x03\x00')
+
+        instr = bytecode.ConcreteInstr(1, "LOAD_CONST", 0x1234abcd)
+        self.assertEqual(instr.assemble(), b'\x904\x12d\xcd\xab')
 
 
 class CodeTests(TestCase):

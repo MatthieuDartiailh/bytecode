@@ -24,6 +24,7 @@ ChangeLog
 
 * Version 0.1
 
+  - Add ConcreteInstr; Instr looks its assemble() method
   - Support EXTENDED_ARG
   - Add optional extended_arg_op parameter to Instr.disassemble()
     and Code.disassemble() class methods to use explicit EXTEND_ARG opcode
