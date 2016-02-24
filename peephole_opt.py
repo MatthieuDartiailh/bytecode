@@ -80,11 +80,10 @@ class _CodePeepholeOptimizer:
         # FIXME: remove temporary computed constants?
         # FIXME: or at least reuse existing constants?
 
-        const = len(self.code.consts)
         self.code.consts.append(result)
         self.in_consts = True
 
-        load_const = instr.replace('LOAD_CONST', const)
+        load_const = instr.replace('LOAD_CONST', result)
         start = self.index - nconst - 1
         self.block[start:self.index] = (load_const,)
         self.index -= nconst
@@ -96,7 +95,7 @@ class _CodePeepholeOptimizer:
 
     def eval_LOAD_CONST(self, instr):
         self.in_consts = True
-        value = self.code.consts[instr.arg]
+        value = instr.arg
         self.const_stack.append(value)
         self.in_consts = True
 

@@ -194,15 +194,16 @@ class Assembler:
                     # handled below
                     continue
 
-                arg = instr.arg
-                if instr.name == 'LOAD_CONST':
-                    arg = self.add_const(arg)
-                elif instr.name in ('LOAD_FAST', 'STORE_FAST'):
-                    arg = self.code.varnames.index(arg)
-                elif instr.name in ('LOAD_NAME', 'STORE_NAME'):
-                    arg = self.code.names.index(arg)
+                if not isinstance(instr, ConcreteInstr):
+                    arg = instr.arg
+                    if instr.name == 'LOAD_CONST':
+                        arg = self.add_const(arg)
+                    elif instr.name in ('LOAD_FAST', 'STORE_FAST'):
+                        arg = self.code.varnames.index(arg)
+                    elif instr.name in ('LOAD_NAME', 'STORE_NAME'):
+                        arg = self.code.names.index(arg)
 
-                instr = ConcreteInstr(instr.lineno, instr.name, arg)
+                    instr = ConcreteInstr(instr.lineno, instr.name, arg)
                 block[index] = instr
 
         # find targets

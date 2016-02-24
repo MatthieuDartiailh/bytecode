@@ -6,7 +6,7 @@ import sys
 import textwrap
 import types
 import unittest
-from bytecode import Instr
+from bytecode import Instr, ConcreteInstr
 from unittest import mock
 from test_utils import TestCase
 
@@ -49,6 +49,7 @@ class Tests(TestCase):
 
         return orig
 
+    # FIXME: move to test_utils
     def create_code(self, source, function=False):
         orig = self.compile(source, function=function)
 
@@ -58,7 +59,7 @@ class Tests(TestCase):
         if not function:
             block = code[-1]
             if not(block[-2].name == "LOAD_CONST"
-                   and block[-2].arg == code.consts.index(None)
+                   and block[-2].arg is None
                    and block[-1].name == "RETURN_VALUE"):
                 raise ValueError("unable to find implicit RETURN_VALUE <None>: %s"
                                  % block[-2:])
@@ -89,7 +90,7 @@ class Tests(TestCase):
     def test_unary_op(self):
         def check_unary_op(op, value, result):
             self.check('x = %s(%r)' % (op, value),
-                       (LOAD_CONST(2), STORE_NAME(0)),
+                       (LOAD_CONST(result), STORE_NAME('x')),
                        consts=(value, None, result))
 
         check_unary_op('+', 2, 2)
@@ -99,7 +100,7 @@ class Tests(TestCase):
     def test_bin_op(self):
         def check_bin_op(left, op, right, result):
             self.check('x = %r %s %r' % (left, op, right),
-                       (LOAD_CONST(3), STORE_NAME(0)),
+                       (LOAD_CONST(result), STORE_NAME('x')),
                        consts=(left, right, None, result))
 
         check_bin_op(10,  '+', 20, 30)
@@ -117,19 +118,19 @@ class Tests(TestCase):
 
     def test_combined_unary_bin_ops(self):
         self.check('x = 1 + 3 + 7',
-                   (LOAD_CONST(5), STORE_NAME(0)),
+                   (LOAD_CONST(11), STORE_NAME('x')),
                    consts=(1, 3, 7, None, 4, 11))
 
         self.check('x = ~(~(5))',
-                   (LOAD_CONST(3), STORE_NAME(0)),
+                   (LOAD_CONST(5), STORE_NAME('x')),
                    consts=(5, None, -6, 5))
 
-        self.check("events = [(0, 'call'), (1, 'line'), (-3, 'call')]",
-                   (LOAD_CONST(6),
-                    LOAD_CONST(7),
-                    LOAD_CONST(9),
+        self.check("events = [(0, 'call'), (1, 'line'), (-(3), 'call')]",
+                   (LOAD_CONST((0, 'call')),
+                    LOAD_CONST((1, 'line')),
+                    LOAD_CONST((-3, 'call')),
                     Instr(1, 'BUILD_LIST', 3),
-                    STORE_NAME(0)),
+                    STORE_NAME('events')),
                    consts=(0, 'call', 1, 'line', 3, None,
                            (0, 'call'), (1, 'line'),
                            -3, (-3, 'call')))
@@ -137,7 +138,7 @@ class Tests(TestCase):
         zeros = (0,) * 8
         result = (1,) + zeros
         self.check('x = (1,) + (0,) * 8',
-                   (LOAD_CONST(7), STORE_NAME(0)),
+                   (LOAD_CONST(result), STORE_NAME('x')),
                    consts=[1, 0, 8, None, (1,), (0,), zeros, result])
 
     def test_max_size(self):
@@ -147,17 +148,17 @@ class Tests(TestCase):
             size = max_size
             result = (9,) * size
             self.check('x = (9,) * %s' % size,
-                       (LOAD_CONST(4), STORE_NAME(0)),
+                       (LOAD_CONST(result), STORE_NAME('x')),
                        consts=(9, size, None, (9,), result),
                        names=['x'])
 
             # don't optimize  binary operation: size > maximum size
             size = (max_size + 1)
             self.check('x = (9,) * %s' % size,
-                       (LOAD_CONST(3),
-                        LOAD_CONST(1),
+                       (LOAD_CONST((9,)),
+                        LOAD_CONST(size),
                         Instr(1, 'BINARY_MULTIPLY'),
-                        STORE_NAME(0)),
+                        STORE_NAME('x')),
                        consts=(9, size, None, (9,)),
                        names=['x'])
 
@@ -169,62 +170,63 @@ class Tests(TestCase):
 
     def test_build_tuple(self):
         self.check('x = (1, 2, 3)',
-                   (LOAD_CONST(4), STORE_NAME(0)),
+                   (LOAD_CONST((1, 2, 3)), STORE_NAME('x')),
                    consts=(1, 2, 3, None, (1, 2, 3)),
                    names=['x'])
 
     def test_build_tuple_unpack_seq(self):
         self.check('x, = (a,)',
-                   (LOAD_NAME(0), STORE_NAME(1)),
+                   (LOAD_NAME('a'), STORE_NAME('x')),
                    names=['a','x'])
 
         self.check('x, y = (a, b)',
-                   (LOAD_NAME(0), LOAD_NAME(1),
+                   (LOAD_NAME('a'), LOAD_NAME('b'),
                     Instr(1, 'ROT_TWO'),
-                    STORE_NAME(2), STORE_NAME(3)),
+                    STORE_NAME('x'), STORE_NAME('y')),
                    names=['a', 'b', 'x', 'y'])
 
         self.check('x, y, z = (a, b, c)',
-                   (LOAD_NAME(0), LOAD_NAME(1), LOAD_NAME(2),
+                   (LOAD_NAME('a'), LOAD_NAME('b'), LOAD_NAME('c'),
                     Instr(1, 'ROT_THREE'),
                     Instr(1, 'ROT_TWO'),
-                    STORE_NAME(3), STORE_NAME(4), STORE_NAME(5)),
+                    STORE_NAME('x'), STORE_NAME('y'), STORE_NAME('z')),
                    names=['a', 'b', 'c', 'x', 'y', 'z'])
 
     def test_build_list(self):
         self.check('test = x in [1, 2, 3]',
-                   (LOAD_NAME(0),
-                    LOAD_CONST(4),
+                   (LOAD_NAME('x'),
+                    LOAD_CONST((1, 2, 3)),
                     Instr(1, 'COMPARE_OP', 6),
-                    STORE_NAME(1)),
+                    STORE_NAME('test')),
                    consts=(1, 2, 3, None, (1, 2, 3)),
                    names=['x', 'test'])
 
     def test_build_list_unpack_seq(self):
         self.check('x, = [a]',
-                   (LOAD_NAME(0), STORE_NAME(1)),
+                   (LOAD_NAME('a'), STORE_NAME('x')),
                    names=['a','x'])
 
         self.check('x, y = [a, b]',
-                   (LOAD_NAME(0), LOAD_NAME(1),
+                   (LOAD_NAME('a'), LOAD_NAME('b'),
                     Instr(1, 'ROT_TWO'),
-                    STORE_NAME(2), STORE_NAME(3)),
+                    STORE_NAME('x'), STORE_NAME('y')),
                    names=['a', 'b', 'x', 'y'])
 
         self.check('x, y, z = [a, b, c]',
-                   (LOAD_NAME(0), LOAD_NAME(1), LOAD_NAME(2),
+                   (LOAD_NAME('a'), LOAD_NAME('b'), LOAD_NAME('c'),
                     Instr(1, 'ROT_THREE'),
                     Instr(1, 'ROT_TWO'),
-                    STORE_NAME(3), STORE_NAME(4), STORE_NAME(5)),
+                    STORE_NAME('x'), STORE_NAME('y'), STORE_NAME('z')),
                    names=['a', 'b', 'c', 'x', 'y', 'z'])
 
     def test_build_set(self):
+        data = frozenset((1, 2, 3))
         self.check('test = x in {1, 2, 3}',
-                   (LOAD_NAME(0),
-                    LOAD_CONST(4),
+                   (LOAD_NAME('x'),
+                    LOAD_CONST(data),
                     Instr(1, 'COMPARE_OP', 6),
-                    STORE_NAME(1)),
-                   consts=(1, 2, 3, None, frozenset((1, 2, 3))),
+                    STORE_NAME('test')),
+                   consts=(1, 2, 3, None, data),
                    names=['x', 'test'])
 
     def test_compare_op_unary_not(self):
@@ -235,43 +237,43 @@ class Tests(TestCase):
             ('x = not(a is not b)', 8),
         ):
             self.check(source,
-                       (LOAD_NAME(0),
-                        LOAD_NAME(1),
+                       (LOAD_NAME('a'),
+                        LOAD_NAME('b'),
                         Instr(1, 'COMPARE_OP', op),
-                        STORE_NAME(2)))
+                        STORE_NAME('x')))
 
         # don't optimize
         self.check_dont_optimize('x = not (a and b is True)')
 
     def test_dont_optimize(self):
-        self.check('x = 1 < 2',
-                   (LOAD_CONST(0),
-                    LOAD_CONST(1),
+        self.check('x = 3 < 5',
+                   (LOAD_CONST(3),
+                    LOAD_CONST(5),
                     Instr(1, 'COMPARE_OP', 0),
-                    STORE_NAME(0)),
-                   consts=[1, 2, None])
+                    STORE_NAME('x')),
+                   consts=[3, 5, None])
 
         self.check('x = (10, 20, 30)[1:]',
-                   (LOAD_CONST(5),
-                    LOAD_CONST(3),
-                    LOAD_CONST(4),
+                   (LOAD_CONST((10, 20, 30)),
+                    LOAD_CONST(1),
+                    LOAD_CONST(None),
                     Instr(1, 'BUILD_SLICE', 2),
                     Instr(1, 'BINARY_SUBSCR'),
-                    STORE_NAME(0)),
+                    STORE_NAME('x')),
                    consts=[10, 20, 30, 1, None, (10, 20, 30)])
 
     def test_optimize_code_obj(self):
-        # x = 1 + 2
+        # x = 3 + 5
         block = [
-            Instr(1, 'LOAD_CONST', 0),
-            Instr(1, 'LOAD_CONST', 1),
+            Instr(1, 'LOAD_CONST', 3),
+            Instr(1, 'LOAD_CONST', 5),
             Instr(1, 'BINARY_ADD'),
-            Instr(1, 'STORE_NAME', 0),
-            Instr(1, 'LOAD_CONST', 2),
+            Instr(1, 'STORE_NAME', 'x'),
+            Instr(1, 'LOAD_CONST', None),
             Instr(1, 'RETURN_VALUE'),
         ]
         code_noopt = bytecode.Code('test', 'test.py', 0)
-        code_noopt.consts = [1, 2, None]
+        code_noopt.consts = [3, 5, None]
         code_noopt.names.append('x')
         code_noopt[0][:] = block
         noopt = code_noopt.assemble()
@@ -282,9 +284,9 @@ class Tests(TestCase):
         code = bytecode.Code.disassemble(optim)
 
         expected = [
-            Instr(1, 'LOAD_CONST', 3),
-            Instr(1, 'STORE_NAME', 0),
-            Instr(1, 'LOAD_CONST', 2),
+            Instr(1, 'LOAD_CONST', 8),
+            Instr(1, 'STORE_NAME', 'x'),
+            Instr(1, 'LOAD_CONST', None),
             Instr(1, 'RETURN_VALUE'),
         ]
         self.assertCodeEqual(code, expected)
@@ -332,17 +334,18 @@ class Tests(TestCase):
         with mock.patch.object(peephole_opt, 'MIMICK_C_IMPL', True):
             # create code with EXTENDED_ARG opcode
             block = [
-                Instr(1, 'LOAD_CONST', 3 << 16),
+                ConcreteInstr(1, 'LOAD_CONST', 3 << 16),
                 Instr(1, 'POP_TOP'),
                 Instr(1, 'LOAD_CONST', 0),
                 Instr(1, 'LOAD_CONST', 1),
                 Instr(1, 'BINARY_ADD'),
-                Instr(1, 'STORE_NAME', 0),
+                Instr(1, 'STORE_NAME', 'x'),
                 Instr(1, 'LOAD_CONST', 2),
                 Instr(1, 'RETURN_VALUE'),
             ]
             code_noopt = bytecode.Code('test', 'test.py', 0)
             code_noopt.consts = [1, 2, None]
+            code_noopt.names = ['x']
             code_noopt[0][:] = block
             noopt = code_noopt.assemble()
 
@@ -356,48 +359,48 @@ class Tests(TestCase):
         # return+return: remove second return
         source = """
             def func():
-                return 1
-                return 2
+                return 4
+                return 5
         """
         expected = [
-                Instr(2, 'LOAD_CONST', 1),
+                Instr(2, 'LOAD_CONST', 4),
                 Instr(2, 'RETURN_VALUE'),
         ]
         self.check(source, expected,
                    function=True,
-                   consts=(None, 1, 2))
+                   consts=(None, 4, 5))
 
         # return+return + return+return: remove second and fourth return
         source = """
             def func():
-                return 1
-                return 2
-                return 3
                 return 4
+                return 5
+                return 6
+                return 7
         """
         expected = [
-                Instr(2, 'LOAD_CONST', 1),
+                Instr(2, 'LOAD_CONST', 4),
                 Instr(2, 'RETURN_VALUE'),
-                Instr(4, 'LOAD_CONST', 3),
+                Instr(4, 'LOAD_CONST', 6),
                 Instr(4, 'RETURN_VALUE'),
         ]
         self.check(source, expected,
                    function=True,
-                   consts=(None, 1, 2, 3, 4))
+                   consts=(None, 4, 5, 6, 7))
 
         # return + JUMP_ABSOLUTE: remove JUMP_ABSOLUTE
         source = """
             def func():
                 while 1:
-                    return 1
+                    return 7
         """
         code = self._optimize(source, function=True)
         self.assertCodeEqual(code,
                    [Instr(2, 'SETUP_LOOP', code[2].label)],
-                   [Instr(3, 'LOAD_CONST', 1),
+                   [Instr(3, 'LOAD_CONST', 7),
                     Instr(3, 'RETURN_VALUE'),
                     Instr(3, 'POP_BLOCK')],
-                   [Instr(3, 'LOAD_CONST', 0),
+                   [Instr(3, 'LOAD_CONST', None),
                     Instr(3, 'RETURN_VALUE')])
 
 
@@ -405,28 +408,28 @@ class Tests(TestCase):
         # Replace UNARY_NOT+POP_JUMP_IF_FALSE with POP_JUMP_IF_TRUE
         source = '''
             if not x:
-                y = 1
-            y = 2
+                y = 9
+            y = 4
         '''
         code = self._optimize(source)
         self.assertCodeEqual(code,
-                   [Instr(1, 'LOAD_NAME', 0),
+                   [Instr(1, 'LOAD_NAME', 'x'),
                     Instr(1, 'POP_JUMP_IF_TRUE', code[1].label),
-                    Instr(2, 'LOAD_CONST', 0),
-                    Instr(2, 'STORE_NAME', 1)],
-                   [Instr(3, 'LOAD_CONST', 1),
-                    Instr(3, 'STORE_NAME', 1)])
+                    Instr(2, 'LOAD_CONST', 9),
+                    Instr(2, 'STORE_NAME', 'y')],
+                   [Instr(3, 'LOAD_CONST', 4),
+                    Instr(3, 'STORE_NAME', 'y')])
 
     def test_unconditional_jump_to_return(self):
         source = """
             def func():
                 if test:
                     if test2:
-                        x = 1
+                        x = 10
                     else:
-                        x = 2
+                        x = 20
                 else:
-                    x = 3
+                    x = 30
         """
         code = self._optimize(source, function=True)
         self.assertCodeEqual(code,
@@ -436,20 +439,20 @@ class Tests(TestCase):
                               Instr(3, 'LOAD_GLOBAL', 1),
                               Instr(3, 'POP_JUMP_IF_FALSE', code[1].label),
 
-                              Instr(4, 'LOAD_CONST', 1),
-                              Instr(4, 'STORE_FAST', 0),
+                              Instr(4, 'LOAD_CONST', 10),
+                              Instr(4, 'STORE_FAST', 'x'),
                               Instr(4, 'JUMP_ABSOLUTE', code[4].label)],
 
-                             [Instr(6, 'LOAD_CONST', 2),
-                              Instr(6, 'STORE_FAST', 0)],
+                             [Instr(6, 'LOAD_CONST', 20),
+                              Instr(6, 'STORE_FAST', 'x')],
 
                              # FIXME: optimize POP_JUMP_IF_FALSE+JUMP_FORWARD?
                              [Instr(6, 'JUMP_FORWARD', code[4].label)],
 
-                             [Instr(8, 'LOAD_CONST', 3),
-                              Instr(8, 'STORE_FAST', 0)],
+                             [Instr(8, 'LOAD_CONST', 30),
+                              Instr(8, 'STORE_FAST', 'x')],
 
-                             [Instr(8, 'LOAD_CONST', 0),
+                             [Instr(8, 'LOAD_CONST', None),
                               Instr(8, 'RETURN_VALUE')])
 
     def test_unconditional_jumps(self):
@@ -471,25 +474,24 @@ class Tests(TestCase):
                               Instr(4, 'CALL_FUNCTION', 0),
                               Instr(4, 'POP_TOP')],
 
-                             [Instr(4, 'LOAD_CONST', 0),
+                             [Instr(4, 'LOAD_CONST', None),
                               Instr(4, 'RETURN_VALUE')])
 
 
     def test_jump_to_return(self):
         source = """
             def func(condition):
-                return 1 if condition else 2
+                return 'yes' if condition else 'no'
         """
         code = self._optimize(source, function=True)
         self.assertCodeEqual(code,
-                             [Instr(2, 'LOAD_FAST', 0),
+                             [Instr(2, 'LOAD_FAST', 'condition'),
                               Instr(2, 'POP_JUMP_IF_FALSE', code[1].label),
 
-                              Instr(2, 'LOAD_CONST', 1),
+                              Instr(2, 'LOAD_CONST', 'yes'),
                               Instr(2, 'RETURN_VALUE')],
 
-                             [Instr(2, 'LOAD_CONST', 2)],
-
+                             [Instr(2, 'LOAD_CONST', 'no')],
                              [Instr(2, 'RETURN_VALUE')])
 
     # FIXME: test fails!
