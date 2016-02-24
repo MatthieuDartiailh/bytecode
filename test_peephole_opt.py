@@ -417,65 +417,98 @@ class Tests(TestCase):
                    [Instr(3, 'LOAD_CONST', 1),
                     Instr(3, 'STORE_NAME', 1)])
 
-#    def test_unconditional_jump_to_return(self):
-#        source = """
-#            def func():
-#                if test:
-#                    if test2:
-#                        x = 1
-#                    else:
-#                        x = 2
-#                else:
-#                    x = 3
-#        """
-#        self.check(source, function=True)
-#
-#    def test_unconditional_jumps(self):
-#        source = """
-#            def func():
-#                if x:
-#                    if y:
-#                        func()
-#        """
-#        self.check(source, function=True)
-#
-#    def test_jump_to_return(self):
-#        source = """
-#            def func(condition):
-#                return 1 if condition else 2
-#        """
-#        self.check(source, function=True)
-#
-#    def test_jump_if_true_to_jump_if_false(self):
-#        self.check('''
-#            if x or y:
-#                z = 1
-#        ''')
-#
-#    def test_jump_if_false_to_jump_if_false(self):
-#
-#        self.check("""
-#            while n > 0 and start > 3:
-#                func()
-#        """)
-#
-#    # uncomment to test the whole stdlib
-#    @unittest.skipIf(True, 'test is too slow')
-#    def test_stdlib(self):
-#        testdir = os.path.dirname(__file__)
-#        libdir = os.path.dirname(testdir)
-#
-#        files = glob.glob(os.path.join(testdir, '*.py'))
-#        files += glob.glob(os.path.join(libdir, '*.py'))
-#        files.sort()
-#
-#        for filename in files:
-#            if os.path.basename(filename).startswith('bad'):
-#                continue
-#            print(filename)
-#            with tokenize.open(filename) as fp:
-#                source = fp.read()
-#            self.check(source, filename=filename, check_nested=True)
+    def test_unconditional_jump_to_return(self):
+        source = """
+            def func():
+                if test:
+                    if test2:
+                        x = 1
+                    else:
+                        x = 2
+                else:
+                    x = 3
+        """
+        code = self._optimize(source, function=True)
+        self.assertCodeEqual(code,
+                             [Instr(2, 'LOAD_GLOBAL', 0),
+                              Instr(2, 'POP_JUMP_IF_FALSE', code[3].label),
+
+                              Instr(3, 'LOAD_GLOBAL', 1),
+                              Instr(3, 'POP_JUMP_IF_FALSE', code[1].label),
+
+                              Instr(4, 'LOAD_CONST', 1),
+                              Instr(4, 'STORE_FAST', 0),
+                              Instr(4, 'JUMP_ABSOLUTE', code[4].label)],
+
+                             [Instr(6, 'LOAD_CONST', 2),
+                              Instr(6, 'STORE_FAST', 0)],
+
+                             # FIXME: optimize POP_JUMP_IF_FALSE+JUMP_FORWARD?
+                             [Instr(6, 'JUMP_FORWARD', code[4].label)],
+
+                             [Instr(8, 'LOAD_CONST', 3),
+                              Instr(8, 'STORE_FAST', 0)],
+
+                             [Instr(8, 'LOAD_CONST', 0),
+                              Instr(8, 'RETURN_VALUE')])
+
+    def test_unconditional_jumps(self):
+        source = """
+            def func():
+                if x:
+                    if y:
+                        func()
+        """
+        code = self._optimize(source, function=True)
+        self.assertCodeEqual(code,
+                             [Instr(2, 'LOAD_GLOBAL', 0),
+                              Instr(2, 'POP_JUMP_IF_FALSE', code[1].label),
+
+                              Instr(3, 'LOAD_GLOBAL', 1),
+                              Instr(3, 'POP_JUMP_IF_FALSE', code[1].label),
+
+                              Instr(4, 'LOAD_GLOBAL', 2),
+                              Instr(4, 'CALL_FUNCTION', 0),
+                              Instr(4, 'POP_TOP')],
+
+                             [Instr(4, 'LOAD_CONST', 0),
+                              Instr(4, 'RETURN_VALUE')])
+
+
+    def test_jump_to_return(self):
+        source = """
+            def func(condition):
+                return 1 if condition else 2
+        """
+        code = self._optimize(source, function=True)
+        self.assertCodeEqual(code,
+                             [Instr(2, 'LOAD_FAST', 0),
+                              Instr(2, 'POP_JUMP_IF_FALSE', code[1].label),
+
+                              Instr(2, 'LOAD_CONST', 1),
+                              Instr(2, 'RETURN_VALUE')],
+
+                             [Instr(2, 'LOAD_CONST', 2)],
+
+                             [Instr(2, 'RETURN_VALUE')])
+
+    # FIXME: test fails!
+    #def test_jump_if_true_to_jump_if_false(self):
+    #    source = '''
+    #        if x or y:
+    #            z = 1
+    #    '''
+    #    code = self._optimize(source)
+    #    from test_utils import dump_code; dump_code(code)
+
+    # FIXME: test fails!
+    #def test_jump_if_false_to_jump_if_false(self):
+    #    source = """
+    #        while n > 0 and start > 3:
+    #            func()
+    #    """
+    #    code = self._optimize(source)
+    #    from test_utils import dump_code; dump_code(code)
 
 
 if __name__ == "__main__":

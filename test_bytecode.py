@@ -86,7 +86,7 @@ class InstrTests(TestCase):
 
         instr = Instr(1, "ROT_TWO")
         self.assertEqual(instr.size, 1)
-        self.assertIsNone(instr.arg)
+        self.assertIs(instr.arg, bytecode.UNSET)
         self.assertEqual(instr.op, opcode.opmap['ROT_TWO'])
 
     def test_extended_arg(self):
