@@ -7,7 +7,7 @@ __version__ = '0.0'
 
 
 # Prepare code to support None value as Instr.arg for LOAD_CONST(None)
-UNSET = None
+UNSET = object()
 
 
 class Instr:
@@ -90,15 +90,6 @@ class Instr:
     def replace_arg(self, arg=UNSET):
         return Instr(self._lineno, self._name, arg)
 
-    def get_jump_target(self, instr_offset):
-        if isinstance(self._arg, Label):
-            raise ValueError("jump target is a label")
-        if self._op in opcode.hasjrel:
-            return instr_offset + self._size + self._arg
-        if self._op in opcode.hasjabs:
-            return self._arg
-        return None
-
     def is_jump(self):
         return (self._op in opcode.hasjrel or self._op in opcode.hasjabs)
 
@@ -123,6 +114,15 @@ class ConcreteInstr(Instr):
                 raise TypeError("arg must be an int or a bytecode.Label")
 
         super().__init__(lineno, name, arg)
+
+    def get_jump_target(self, instr_offset):
+        if isinstance(self._arg, Label):
+            raise ValueError("jump target is a label")
+        if self._op in opcode.hasjrel:
+            return instr_offset + self._size + self._arg
+        if self._op in opcode.hasjabs:
+            return self._arg
+        return None
 
     def assemble(self):
         if self._arg is UNSET:
@@ -364,6 +364,7 @@ class Code:
                     target = instr.get_jump_target(offset)
                 else:
                     target = None
+
                 if target is not None:
                     target_block = label_to_block[target]
                     arg = target_block.label
@@ -375,6 +376,9 @@ class Code:
                     if extended_arg is not None:
                         arg = (extended_arg << 16) + arg
                         extended_arg = None
+
+                    #if instr.name == 'LOAD_CONST':
+                    #    arg = code_obj.co_consts[arg]
 
                 block[index] = Instr(instr.lineno, instr.name, arg)
 

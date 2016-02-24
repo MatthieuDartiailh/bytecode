@@ -22,6 +22,7 @@ def NOP():
 def RETURN_VALUE():
     return Instr(1, 'RETURN_VALUE')
 
+
 def disassemble(source, *, filename="<string>", function=False,
                 remove_last_return_none=False, use_labels=True):
     source = textwrap.dedent(source).strip()
@@ -100,18 +101,6 @@ class InstrTests(TestCase):
         self.assertNotEqual(instr, Instr(7, "LOAD_FAST", 3))
         self.assertNotEqual(instr, Instr(7, "LOAD_CONST", 4))
 
-    def test_get_jump_target(self):
-        jump_abs = Instr(1, "JUMP_ABSOLUTE", 3)
-        self.assertEqual(jump_abs.get_jump_target(100), 3)
-
-        jump_forward = Instr(1, "JUMP_FORWARD", 5)
-        self.assertEqual(jump_forward.get_jump_target(10), 18)
-
-        label = bytecode.Label()
-        jump_label = Instr(1, "JUMP_FORWARD", label)
-        with self.assertRaises(ValueError):
-            jump_label.get_jump_target(10)
-
     def test_is_jump(self):
         jump = Instr(1, "JUMP_ABSOLUTE", 3)
         self.assertTrue(jump.is_jump())
@@ -161,6 +150,18 @@ class ConcreteInstrTests(TestCase):
 
         instr = ConcreteInstr(1, "LOAD_CONST", 0x1234abcd)
         self.assertEqual(instr.assemble(), b'\x904\x12d\xcd\xab')
+
+    def test_get_jump_target(self):
+        jump_abs = ConcreteInstr(1, "JUMP_ABSOLUTE", 3)
+        self.assertEqual(jump_abs.get_jump_target(100), 3)
+
+        jump_forward = ConcreteInstr(1, "JUMP_FORWARD", 5)
+        self.assertEqual(jump_forward.get_jump_target(10), 18)
+
+        label = bytecode.Label()
+        jump_label = ConcreteInstr(1, "JUMP_FORWARD", label)
+        with self.assertRaises(ValueError):
+            jump_label.get_jump_target(10)
 
 
 class CodeTests(TestCase):
