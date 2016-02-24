@@ -169,14 +169,16 @@ class Block(list):
 class Assembler:
     def __init__(self, code):
         self.code = code
-        #self.consts = []
+        self.consts = []
 
-    def _find_const(self, value):
+    def add_const(self, value):
         key = _const_key(value)
-        for index, const in enumerate(self.code.consts):
+        for index, const in enumerate(self.consts):
             if _const_key(const) == key:
                 return index
-        raise ValueError("constant not found")
+        index = len(self.consts)
+        self.consts.append(value)
+        return index
 
     def _concrete_blocks(self):
         # FIXME: rewrite this code!?
@@ -194,7 +196,7 @@ class Assembler:
 
                 arg = instr.arg
                 if instr.name == 'LOAD_CONST':
-                    arg = self._find_const(arg)
+                    arg = self.add_const(arg)
                 elif instr.name in ('LOAD_FAST', 'STORE_FAST'):
                     arg = self.code.varnames.index(arg)
                 elif instr.name in ('LOAD_NAME', 'STORE_NAME'):
@@ -283,8 +285,19 @@ class Assembler:
 
         return b''.join(lnotab)
 
+    def _concrete_code(self):
+        first_const = self.code.docstring
+        if first_const is not UNSET:
+            self.add_const(first_const)
+
+        return self._concrete_blocks()
+
     def assemble(self):
         # FIXME: validate code?
+
+        first_const = self.code.docstring
+        if first_const is not UNSET:
+            self.add_const(first_const)
 
         blocks = self._concrete_blocks()
 
@@ -311,7 +324,7 @@ class Assembler:
                               self.code._stacksize,
                               self.code.flags,
                               code_str,
-                              tuple(self.code.consts),
+                              tuple(self.consts),
                               tuple(self.code.names),
                               tuple(self.code.varnames),
                               self.code.filename,
@@ -343,6 +356,8 @@ class BaseCode:
 
         self._blocks = []
         self._label_to_index = {}
+
+        self.docstring = UNSET
 
         self.add_block()
 
@@ -390,6 +405,8 @@ class BaseCode:
         const_keys1 = list(map(_const_key, self.consts))
         const_keys2 = list(map(_const_key, other.consts))
         if const_keys1 != const_keys2:
+            return False
+        if self.docstring != other.docstring:
             return False
 
         # Compare blocks (need to "renumber" labels)
@@ -578,6 +595,13 @@ class BaseCode:
         code.freevars = list(code_obj.co_freevars)
         code.cellvars = list(code_obj.co_cellvars)
         code.consts = list(code_obj.co_consts)
+
+        first_const = code.consts[0]
+        if isinstance(first_const, str):
+            code.docstring = first_const
+        elif first_const is None:
+            code.docstring = first_const
+
         # delete the first empty block
         del code[0]
         for block in blocks:
@@ -601,7 +625,7 @@ def _dump_code(code):
     lineno = None
     line_width = 3
 
-    blocks = Assembler(code)._concrete_blocks()
+    blocks = Assembler(code)._concrete_code()
 
     for block_index, block in enumerate(blocks, 1):
         print("[Block #%s]" % block_index)
