@@ -6,10 +6,14 @@ import types
 __version__ = '0.0'
 
 
+# Prepare code to support None value as Instr.arg for LOAD_CONST(None)
+UNSET = None
+
+
 class Instr:
     __slots__ = ('_lineno', '_name', '_arg', '_op', '_size', '_extended_arg')
 
-    def __init__(self, lineno, name, arg=None):
+    def __init__(self, lineno, name, arg=UNSET):
         if not isinstance(lineno, int):
             raise TypeError("lineno must be an int")
         if lineno < 1:
@@ -20,7 +24,7 @@ class Instr:
             op = opcode.opmap[name]
         except KeyError:
             raise ValueError("invalid operation name")
-        if arg is not None:
+        if arg is not UNSET:
             if isinstance(arg, int):
                 # FIXME: it looks like assemble_emit() allows negative argument
                 # (minimum=-2147483648) and use a maximum of 2147483647
@@ -33,7 +37,7 @@ class Instr:
 
         extended_arg = False
         size = 1
-        if arg is not None:
+        if arg is not UNSET:
             size += 2
             if not isinstance(arg, Label) and arg > 0xffff:
                 extended_arg = True
@@ -69,7 +73,7 @@ class Instr:
         return self._size
 
     def __repr__(self):
-        if self._arg is not None:
+        if self._arg is not UNSET:
             return '<%s arg=%s lineno=%s>' % (self._name, self._arg, self._lineno)
         else:
             return '<%s lineno=%s>' % (self._name, self._lineno)
@@ -81,10 +85,10 @@ class Instr:
         key2 = (other._lineno, other._name, other._arg)
         return key1 == key2
 
-    def replace(self, name, arg=None):
+    def replace(self, name, arg=UNSET):
         return Instr(self._lineno, name, arg)
 
-    def replace_arg(self, arg=None):
+    def replace_arg(self, arg=UNSET):
         return Instr(self._lineno, self._name, arg)
 
     def get_jump_target(self, instr_offset):
@@ -104,11 +108,13 @@ class Instr:
         return ('JUMP_IF_' in self._name)
 
     def assemble(self):
-        if self._arg is None:
+        if self._arg is UNSET:
             return struct.pack('<B', self._op)
 
         arg = self._arg
-        if self._extended_arg:
+        if isinstance(arg, Label):
+            raise ValueError("arg is a label")
+        if arg > 0xffff:
             return struct.pack('<BHBH',
                                opcode.EXTENDED_ARG, arg >> 16,
                                self._op, arg & 0xffff)
@@ -121,7 +127,7 @@ class Instr:
         if op >= opcode.HAVE_ARGUMENT:
             arg = code[offset + 1] + code[offset + 2] * 256
         else:
-            arg = None
+            arg = UNSET
         name = opcode.opname[op]
         instr = cls(lineno, name, arg)
 
@@ -457,7 +463,7 @@ def _dump_code(code):
 
             fields.append("% 3s    %s" % (offset, instr.name))
             arg = instr.arg
-            if arg is not None:
+            if arg is not UNSET:
                 if isinstance(arg, Label):
                     arg = '<block #%s>' % code._label_to_index[arg]
                 fields.append("(%s)" % arg)
