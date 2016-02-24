@@ -24,6 +24,7 @@ ChangeLog
 
 * Version 0.1
 
+  - LOAD_CONST argument is now directly the constant value
   - Add ConcreteInstr; Instr looks its assemble() method
   - Support EXTENDED_ARG
   - Add optional extended_arg_op parameter to Instr.disassemble()

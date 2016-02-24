@@ -68,12 +68,12 @@ class Instr:
 
     def __repr__(self):
         if self._arg is not UNSET:
-            return '<%s arg=%s lineno=%s>' % (self._name, self._arg, self._lineno)
+            return '<%s arg=%r lineno=%s>' % (self._name, self._arg, self._lineno)
         else:
             return '<%s lineno=%s>' % (self._name, self._lineno)
 
     def __eq__(self, other):
-        if not isinstance(other, Instr):
+        if type(self) != type(other):
             return False
         key1 = (self._lineno, self._name, _const_key(self._arg))
         key2 = (other._lineno, other._name, _const_key(other._arg))
@@ -308,7 +308,8 @@ class Code:
         return block2.label
 
     @classmethod
-    def disassemble(cls, code_obj, *, use_labels=True, extended_arg_op=False):
+    def disassemble(cls, code_obj, *,
+                    use_labels=True, extended_arg_op=False, concrete=False):
         code = code_obj.co_code
         line_starts = dict(dis.findlinestarts(code_obj))
 
@@ -381,10 +382,14 @@ class Code:
                         arg = (extended_arg << 16) + arg
                         extended_arg = None
 
-                    #if instr.name == 'LOAD_CONST':
-                    #    arg = code_obj.co_consts[arg]
+                    if not concrete:
+                        if instr.name == 'LOAD_CONST':
+                            arg = code_obj.co_consts[arg]
 
-                block[index] = Instr(instr.lineno, instr.name, arg)
+                if concrete:
+                    block[index] = ConcreteInstr(instr.lineno, instr.name, arg)
+                else:
+                    block[index] = Instr(instr.lineno, instr.name, arg)
 
                 offset += instr.size
                 index += 1
@@ -411,6 +416,13 @@ class Code:
             code._add_block(block)
         return code
 
+    def _find_const(self, value):
+        key = _const_key(value)
+        for index, const in enumerate(self.consts):
+            if _const_key(const) == key:
+                return index
+        raise ValueError("constant not found")
+
     def _concrete_blocks(self):
         # FIXME: rewrite this code!?
 
@@ -424,7 +436,12 @@ class Code:
                 if isinstance(instr.arg, Label):
                     # handled below
                     continue
-                instr = ConcreteInstr(instr.lineno, instr.name, instr.arg)
+
+                arg = instr.arg
+                if instr.name == 'LOAD_CONST':
+                    arg = self._find_const(arg)
+
+                instr = ConcreteInstr(instr.lineno, instr.name, arg)
                 block[index] = instr
 
         # find targets
