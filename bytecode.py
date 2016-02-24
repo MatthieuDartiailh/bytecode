@@ -38,10 +38,10 @@ class Instr:
         has_arg = (arg is not UNSET)
         if op >= opcode.HAVE_ARGUMENT:
             if not has_arg:
-                raise ValueError("%s requires an argument")
+                raise ValueError("%s opcode requires an argument" % name)
         else:
             if has_arg:
-                raise ValueError("%s has no argument")
+                raise ValueError("%s opcode has no argument" % name)
 
         self._lineno = lineno
         self._name = name
@@ -309,9 +309,14 @@ class Code:
 
     @classmethod
     def disassemble(cls, code_obj, *,
-                    use_labels=True, extended_arg_op=False, concrete=False):
+                    use_labels=None, extended_arg_op=False, concrete=False):
         code = code_obj.co_code
         line_starts = dict(dis.findlinestarts(code_obj))
+
+        if use_labels is None:
+            use_labels = True
+        elif concrete and use_labels:
+            raise ValueError("concrete and use_labels cannot be used together")
 
         # find block starts
         instructions = []
@@ -385,6 +390,10 @@ class Code:
                     if not concrete:
                         if instr.name == 'LOAD_CONST':
                             arg = code_obj.co_consts[arg]
+                        elif instr.name in ('LOAD_FAST', 'STORE_FAST'):
+                            arg = code_obj.co_varnames[arg]
+                        elif instr.name in ('LOAD_NAME', 'STORE_NAME'):
+                            arg = code_obj.co_names[arg]
 
                 if concrete:
                     block[index] = ConcreteInstr(instr.lineno, instr.name, arg)
@@ -440,6 +449,10 @@ class Code:
                 arg = instr.arg
                 if instr.name == 'LOAD_CONST':
                     arg = self._find_const(arg)
+                elif instr.name in ('LOAD_FAST', 'STORE_FAST'):
+                    arg = self.varnames.index(arg)
+                elif instr.name in ('LOAD_NAME', 'STORE_NAME'):
+                    arg = self.names.index(arg)
 
                 instr = ConcreteInstr(instr.lineno, instr.name, arg)
                 block[index] = instr

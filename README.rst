@@ -25,6 +25,8 @@ ChangeLog
 * Version 0.1
 
   - LOAD_CONST argument is now directly the constant value
+  - LOAD_FAST and STORE_FAST are now directly local variable names
+  - LOAD_NAME and STORE_NAME are now directly variable names
   - Add ConcreteInstr; Instr looks its assemble() method
   - Support EXTENDED_ARG
   - Add optional extended_arg_op parameter to Instr.disassemble()
