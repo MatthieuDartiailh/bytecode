@@ -73,14 +73,10 @@ class Tests(TestCase):
         optimizer._optimize(code)
         return code
 
-    def check(self, source, *expected_blocks, consts=(None,), names=None,
-              function=False):
+    def check(self, source, *expected_blocks, function=False):
         code = self._optimize(source, function=function)
 
         self.assertCodeEqual(code, *expected_blocks)
-        self.assertListEqual(code.consts, list(consts))
-        if names is not None:
-            self.assertListEqual(list(names), code.names)
 
     def check_dont_optimize(self, source):
         code = self.create_code(source)
@@ -90,8 +86,7 @@ class Tests(TestCase):
     def test_unary_op(self):
         def check_unary_op(op, value, result):
             self.check('x = %s(%r)' % (op, value),
-                       (LOAD_CONST(result), STORE_NAME('x')),
-                       consts=(value, None, result))
+                       (LOAD_CONST(result), STORE_NAME('x')))
 
         check_unary_op('+', 2, 2)
         check_unary_op('-', 3, -3)
@@ -100,8 +95,7 @@ class Tests(TestCase):
     def test_bin_op(self):
         def check_bin_op(left, op, right, result):
             self.check('x = %r %s %r' % (left, op, right),
-                       (LOAD_CONST(result), STORE_NAME('x')),
-                       consts=(left, right, None, result))
+                       (LOAD_CONST(result), STORE_NAME('x')))
 
         check_bin_op(10,  '+', 20, 30)
         check_bin_op(5, '-', 1, 4)
@@ -118,28 +112,22 @@ class Tests(TestCase):
 
     def test_combined_unary_bin_ops(self):
         self.check('x = 1 + 3 + 7',
-                   (LOAD_CONST(11), STORE_NAME('x')),
-                   consts=(1, 3, 7, None, 4, 11))
+                   (LOAD_CONST(11), STORE_NAME('x')))
 
         self.check('x = ~(~(5))',
-                   (LOAD_CONST(5), STORE_NAME('x')),
-                   consts=(5, None, -6, 5))
+                   (LOAD_CONST(5), STORE_NAME('x')))
 
         self.check("events = [(0, 'call'), (1, 'line'), (-(3), 'call')]",
                    (LOAD_CONST((0, 'call')),
                     LOAD_CONST((1, 'line')),
                     LOAD_CONST((-3, 'call')),
                     Instr(1, 'BUILD_LIST', 3),
-                    STORE_NAME('events')),
-                   consts=(0, 'call', 1, 'line', 3, None,
-                           (0, 'call'), (1, 'line'),
-                           -3, (-3, 'call')))
+                    STORE_NAME('events')))
 
         zeros = (0,) * 8
         result = (1,) + zeros
         self.check('x = (1,) + (0,) * 8',
-                   (LOAD_CONST(result), STORE_NAME('x')),
-                   consts=[1, 0, 8, None, (1,), (0,), zeros, result])
+                   (LOAD_CONST(result), STORE_NAME('x')))
 
     def test_max_size(self):
         max_size = 3
@@ -148,9 +136,7 @@ class Tests(TestCase):
             size = max_size
             result = (9,) * size
             self.check('x = (9,) * %s' % size,
-                       (LOAD_CONST(result), STORE_NAME('x')),
-                       consts=(9, size, None, (9,), result),
-                       names=['x'])
+                       (LOAD_CONST(result), STORE_NAME('x')))
 
             # don't optimize  binary operation: size > maximum size
             size = (max_size + 1)
@@ -158,9 +144,7 @@ class Tests(TestCase):
                        (LOAD_CONST((9,)),
                         LOAD_CONST(size),
                         Instr(1, 'BINARY_MULTIPLY'),
-                        STORE_NAME('x')),
-                       consts=(9, size, None, (9,)),
-                       names=['x'])
+                        STORE_NAME('x')))
 
     def test_bin_op_dont_optimize(self):
         self.check_dont_optimize('1 / 0')
@@ -170,54 +154,44 @@ class Tests(TestCase):
 
     def test_build_tuple(self):
         self.check('x = (1, 2, 3)',
-                   (LOAD_CONST((1, 2, 3)), STORE_NAME('x')),
-                   consts=(1, 2, 3, None, (1, 2, 3)),
-                   names=['x'])
+                   (LOAD_CONST((1, 2, 3)), STORE_NAME('x')))
 
     def test_build_tuple_unpack_seq(self):
         self.check('x, = (a,)',
-                   (LOAD_NAME('a'), STORE_NAME('x')),
-                   names=['a','x'])
+                   (LOAD_NAME('a'), STORE_NAME('x')))
 
         self.check('x, y = (a, b)',
                    (LOAD_NAME('a'), LOAD_NAME('b'),
                     Instr(1, 'ROT_TWO'),
-                    STORE_NAME('x'), STORE_NAME('y')),
-                   names=['a', 'b', 'x', 'y'])
+                    STORE_NAME('x'), STORE_NAME('y')))
 
         self.check('x, y, z = (a, b, c)',
                    (LOAD_NAME('a'), LOAD_NAME('b'), LOAD_NAME('c'),
                     Instr(1, 'ROT_THREE'),
                     Instr(1, 'ROT_TWO'),
-                    STORE_NAME('x'), STORE_NAME('y'), STORE_NAME('z')),
-                   names=['a', 'b', 'c', 'x', 'y', 'z'])
+                    STORE_NAME('x'), STORE_NAME('y'), STORE_NAME('z')))
 
     def test_build_list(self):
         self.check('test = x in [1, 2, 3]',
                    (LOAD_NAME('x'),
                     LOAD_CONST((1, 2, 3)),
                     Instr(1, 'COMPARE_OP', 6),
-                    STORE_NAME('test')),
-                   consts=(1, 2, 3, None, (1, 2, 3)),
-                   names=['x', 'test'])
+                    STORE_NAME('test')))
 
     def test_build_list_unpack_seq(self):
         self.check('x, = [a]',
-                   (LOAD_NAME('a'), STORE_NAME('x')),
-                   names=['a','x'])
+                   (LOAD_NAME('a'), STORE_NAME('x')))
 
         self.check('x, y = [a, b]',
                    (LOAD_NAME('a'), LOAD_NAME('b'),
                     Instr(1, 'ROT_TWO'),
-                    STORE_NAME('x'), STORE_NAME('y')),
-                   names=['a', 'b', 'x', 'y'])
+                    STORE_NAME('x'), STORE_NAME('y')))
 
         self.check('x, y, z = [a, b, c]',
                    (LOAD_NAME('a'), LOAD_NAME('b'), LOAD_NAME('c'),
                     Instr(1, 'ROT_THREE'),
                     Instr(1, 'ROT_TWO'),
-                    STORE_NAME('x'), STORE_NAME('y'), STORE_NAME('z')),
-                   names=['a', 'b', 'c', 'x', 'y', 'z'])
+                    STORE_NAME('x'), STORE_NAME('y'), STORE_NAME('z')))
 
     def test_build_set(self):
         data = frozenset((1, 2, 3))
@@ -225,9 +199,7 @@ class Tests(TestCase):
                    (LOAD_NAME('x'),
                     LOAD_CONST(data),
                     Instr(1, 'COMPARE_OP', 6),
-                    STORE_NAME('test')),
-                   consts=(1, 2, 3, None, data),
-                   names=['x', 'test'])
+                    STORE_NAME('test')))
 
     def test_compare_op_unary_not(self):
         for source, op in (
@@ -250,8 +222,7 @@ class Tests(TestCase):
                    (LOAD_CONST(3),
                     LOAD_CONST(5),
                     Instr(1, 'COMPARE_OP', 0),
-                    STORE_NAME('x')),
-                   consts=[3, 5, None])
+                    STORE_NAME('x')))
 
         self.check('x = (10, 20, 30)[1:]',
                    (LOAD_CONST((10, 20, 30)),
@@ -259,8 +230,7 @@ class Tests(TestCase):
                     LOAD_CONST(None),
                     Instr(1, 'BUILD_SLICE', 2),
                     Instr(1, 'BINARY_SUBSCR'),
-                    STORE_NAME('x')),
-                   consts=[10, 20, 30, 1, None, (10, 20, 30)])
+                    STORE_NAME('x')))
 
     def test_optimize_code_obj(self):
         # x = 3 + 5
@@ -273,8 +243,6 @@ class Tests(TestCase):
             Instr(1, 'RETURN_VALUE'),
         ]
         code_noopt = bytecode.Code('test', 'test.py', 0)
-        code_noopt.consts = [3, 5, None]
-        code_noopt.names.append('x')
         code_noopt[0][:] = block
         noopt = code_noopt.assemble()
 
@@ -367,8 +335,7 @@ class Tests(TestCase):
                 Instr(2, 'RETURN_VALUE'),
         ]
         self.check(source, expected,
-                   function=True,
-                   consts=(None, 4, 5))
+                   function=True)
 
         # return+return + return+return: remove second and fourth return
         source = """
@@ -384,9 +351,7 @@ class Tests(TestCase):
                 Instr(4, 'LOAD_CONST', 6),
                 Instr(4, 'RETURN_VALUE'),
         ]
-        self.check(source, expected,
-                   function=True,
-                   consts=(None, 4, 5, 6, 7))
+        self.check(source, expected, function=True)
 
         # return + JUMP_ABSOLUTE: remove JUMP_ABSOLUTE
         source = """
