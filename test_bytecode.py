@@ -6,7 +6,7 @@ import sys
 import textwrap
 import types
 import unittest
-from bytecode import Instr
+from bytecode import Instr, ConcreteInstr
 from test_utils import TestCase
 
 
@@ -60,6 +60,12 @@ class InstrTests(TestCase):
             Instr(1, 1)
         with self.assertRaises(ValueError):
             Instr(1, "xxx")
+
+        # argument?
+        with self.assertRaises(ValueError):
+            Instr(1, "LOAD_CONST")
+        with self.assertRaises(ValueError):
+            Instr(1, "ROT_TWO", 33)
 
     def test_attr(self):
         instr = Instr(5, "LOAD_CONST", 3)
@@ -120,51 +126,40 @@ class InstrTests(TestCase):
         instr = Instr(1, "LOAD_FAST", 2)
         self.assertFalse(instr.is_cond_jump())
 
-    def test_disassemble(self):
-        instr = Instr.disassemble(1, b'\td\x03\x00', 0)
-        self.assertEqual(instr, Instr(1, "NOP"))
-
-        instr = Instr.disassemble(1, b'\td\x03\x00', 1)
-        self.assertEqual(instr, Instr(1, "LOAD_CONST", 3))
-
-    def test_disassemble_extended_arg(self):
-        code = b'\x904\x12d\xcd\xab'
-        # without EXTENDED_ARG opcode
-        instr = Instr.disassemble(1, code, 0)
-        self.assertEqual(instr, Instr(1, "LOAD_CONST", 0x1234abcd))
-
-        # with EXTENDED_ARG opcode
-        instr1 = Instr.disassemble(1, code, 0,
-                                            extended_arg_op=True)
-        self.assertEqual(instr1, Instr(1, 'EXTENDED_ARG', 0x1234))
-
-        instr2 = Instr.disassemble(1, code, instr1.size,
-                                            extended_arg_op=True)
-        self.assertEqual(instr2, Instr(1, 'LOAD_CONST', 0xabcd))
-
 
 class ConcreteInstrTests(TestCase):
     def test_constructor(self):
         # invalid argument
         with self.assertRaises(TypeError):
-            bytecode.ConcreteInstr(1, "LOAD_CONST", 1.0)
+            ConcreteInstr(1, "LOAD_CONST", 1.0)
         with self.assertRaises(ValueError):
-            bytecode.ConcreteInstr(1, "LOAD_CONST", -1)
+            ConcreteInstr(1, "LOAD_CONST", -1)
         with self.assertRaises(ValueError):
-            bytecode.ConcreteInstr(1, "LOAD_CONST", 2147483647+1)
+            ConcreteInstr(1, "LOAD_CONST", 2147483647+1)
 
         # test maximum argument
-        instr = bytecode.ConcreteInstr(1, "LOAD_CONST", 2147483647)
+        instr = ConcreteInstr(1, "LOAD_CONST", 2147483647)
         self.assertEqual(instr.arg, 2147483647)
 
+    def test_disassemble(self):
+        instr = ConcreteInstr.disassemble(1, b'\td\x03\x00', 0)
+        self.assertEqual(instr, ConcreteInstr(1, "NOP"))
+
+        instr = ConcreteInstr.disassemble(1, b'\td\x03\x00', 1)
+        self.assertEqual(instr, ConcreteInstr(1, "LOAD_CONST", 3))
+
+        code = b'\x904\x12d\xcd\xab'
+        instr = ConcreteInstr.disassemble(1, code, 0)
+        self.assertEqual(instr, ConcreteInstr(1, 'EXTENDED_ARG', 0x1234))
+
     def test_assemble(self):
-        instr = bytecode.ConcreteInstr(1, "NOP")
+        instr = ConcreteInstr(1, "NOP")
         self.assertEqual(instr.assemble(), b'\t')
 
-        instr = bytecode.ConcreteInstr(1, "LOAD_CONST", 3)
+        instr = ConcreteInstr(1, "LOAD_CONST", 3)
         self.assertEqual(instr.assemble(), b'd\x03\x00')
 
-        instr = bytecode.ConcreteInstr(1, "LOAD_CONST", 0x1234abcd)
+        instr = ConcreteInstr(1, "LOAD_CONST", 0x1234abcd)
         self.assertEqual(instr.assemble(), b'\x904\x12d\xcd\xab')
 
 
@@ -378,6 +373,36 @@ class FunctionalTests(TestCase):
                     Instr(4, 'LOAD_CONST', 2),
                     Instr(4, 'RETURN_VALUE')]
         self.assertListEqual(code[0], expected)
+
+    def test_disassemble_extended_arg(self):
+        co_code = b'\x904\x12d\xcd\xab'
+        code = compile('x=1', '<string>', 'exec')
+        code_obj = types.CodeType(code.co_argcount,
+                              code.co_kwonlyargcount,
+                              code.co_nlocals,
+                              code.co_stacksize,
+                              code.co_flags,
+                              co_code,
+                              code.co_consts,
+                              code.co_names,
+                              code.co_varnames,
+                              code.co_filename,
+                              code.co_name,
+                              code.co_firstlineno,
+                              code.co_lnotab,
+                              code.co_freevars,
+                              code.co_cellvars)
+
+        # without EXTENDED_ARG opcode
+        code = bytecode.Code.disassemble(code_obj)
+        self.assertCodeEqual(code,
+                             [Instr(1, "LOAD_CONST", 0x1234abcd)])
+
+        # with EXTENDED_ARG opcode
+        code = bytecode.Code.disassemble(code_obj, extended_arg_op=True)
+        self.assertCodeEqual(code,
+                             [Instr(1, 'EXTENDED_ARG', 0x1234),
+                              Instr(1, 'LOAD_CONST', 0xabcd)])
 
     def test_lnotab(self):
         code = disassemble("""

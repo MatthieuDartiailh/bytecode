@@ -11,7 +11,11 @@ UNSET = None
 
 
 class Instr:
-    __slots__ = ('_lineno', '_name', '_arg', '_op', '_size', '_extended_arg')
+    """
+    Abstract instruction: argument can be any kind of object.
+    """
+
+    __slots__ = ('_lineno', '_name', '_arg', '_op', '_size')
 
     def __init__(self, lineno, name, arg=UNSET):
         if not isinstance(lineno, int):
@@ -25,12 +29,18 @@ class Instr:
         except KeyError:
             raise ValueError("invalid operation name")
 
-        extended_arg = False
+        has_arg = (arg is not UNSET)
+        if op >= opcode.HAVE_ARGUMENT:
+            if not has_arg:
+                raise ValueError("%s requires an argument")
+        else:
+            if has_arg:
+                raise ValueError("%s has no argument")
+
         size = 1
-        if arg is not UNSET:
+        if has_arg:
             size += 2
             if not isinstance(arg, Label) and arg > 0xffff:
-                extended_arg = True
                 size += 3
 
         self._lineno = lineno
@@ -38,7 +48,6 @@ class Instr:
         self._arg = arg
         self._op = op
         self._size = size
-        self._extended_arg = extended_arg
 
     # FIXME: stack effect
 
@@ -97,23 +106,6 @@ class Instr:
         # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
         return ('JUMP_IF_' in self._name)
 
-    @classmethod
-    def disassemble(cls, lineno, code, offset, extended_arg_op=False):
-        op = code[offset]
-        if op >= opcode.HAVE_ARGUMENT:
-            arg = code[offset + 1] + code[offset + 2] * 256
-        else:
-            arg = UNSET
-        name = opcode.opname[op]
-        instr = cls(lineno, name, arg)
-
-        if not extended_arg_op and name == 'EXTENDED_ARG':
-            instr2 = cls.disassemble(lineno, code, offset + instr.size)
-            arg = (instr.arg << 16) + instr2.arg
-            instr = cls(lineno, instr2.name, arg)
-
-        return instr
-
 
 class ConcreteInstr(Instr):
     __slots__ = ()
@@ -145,6 +137,16 @@ class ConcreteInstr(Instr):
                                self._op, arg & 0xffff)
         else:
             return struct.pack('<BH', self._op, arg)
+
+    @classmethod
+    def disassemble(cls, lineno, code, offset):
+        op = code[offset]
+        if op >= opcode.HAVE_ARGUMENT:
+            arg = code[offset + 1] + code[offset + 2] * 256
+        else:
+            arg = UNSET
+        name = opcode.opname[op]
+        return cls(lineno, name, arg)
 
 
 
@@ -315,8 +317,7 @@ class Code:
             if offset in line_starts:
                 lineno = line_starts[offset]
 
-            instr = Instr.disassemble(lineno, code, offset,
-                                      extended_arg_op=extended_arg_op)
+            instr = ConcreteInstr.disassemble(lineno, code, offset)
 
             if use_labels:
                 target = instr.get_jump_target(offset)
@@ -324,7 +325,6 @@ class Code:
                     block_starts.add(target)
 
             instructions.append(instr)
-
             offset += instr.size
 
         # split instructions in blocks
@@ -345,15 +345,44 @@ class Code:
         assert len(block) != 0
 
         # replace jump targets with blocks
-        if use_labels:
-            offset = 0
-            for block in blocks:
-                for index, instr in enumerate(block):
+        offset = 0
+        for block in blocks:
+            extended_arg = None
+            index = 0
+            while index < len(block):
+                instr = block[index]
+
+                if instr.name == 'EXTENDED_ARG' and not extended_arg_op:
+                    if extended_arg is not None:
+                        raise ValueError("EXTENDED_ARG followed "
+                                         "by EXTENDED_ARG")
+                    extended_arg = instr.arg
+                    del block[index]
+                    continue
+
+                if use_labels:
                     target = instr.get_jump_target(offset)
-                    if target is not None:
-                        target_block = label_to_block[target]
-                        block[index] = instr.replace_arg(target_block.label)
-                    offset += instr.size
+                else:
+                    target = None
+                if target is not None:
+                    target_block = label_to_block[target]
+                    arg = target_block.label
+                    if extended_arg is not None:
+                        raise ValueError("EXTENDED_ARG before %s"
+                                         % instr.name)
+                else:
+                    arg = instr.arg
+                    if extended_arg is not None:
+                        arg = (extended_arg << 16) + arg
+                        extended_arg = None
+
+                block[index] = Instr(instr.lineno, instr.name, arg)
+
+                offset += instr.size
+                index += 1
+
+            if extended_arg is not None:
+                raise ValueError("EXTENDED_ARG at the end of a block")
 
         code = cls(code_obj.co_name,
                    code_obj.co_filename,
