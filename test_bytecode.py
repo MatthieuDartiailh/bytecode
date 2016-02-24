@@ -63,21 +63,15 @@ class InstrTests(TestCase):
         with self.assertRaises(ValueError):
             Instr(1, "xxx")
 
-        # argument?
-        with self.assertRaises(ValueError):
-            Instr(1, "LOAD_CONST")
-        with self.assertRaises(ValueError):
-            Instr(1, "ROT_TWO", 33)
-
     def test_attr(self):
         instr = Instr(5, "LOAD_CONST", 3)
         self.assertEqual(instr.lineno, 5)
         self.assertEqual(instr.name, 'LOAD_CONST')
         self.assertEqual(instr.arg, 3)
         self.assertEqual(instr.op, opcode.opmap['LOAD_CONST'])
-        self.assertRaises(AttributeError, setattr, instr, 'lineno', 1)
-        self.assertRaises(AttributeError, setattr, instr, 'name', 'LOAD_FAST')
-        self.assertRaises(AttributeError, setattr, instr, 'arg', 2)
+        self.assertRaises(ValueError, setattr, instr, 'lineno', 0)
+        self.assertRaises(TypeError, setattr, instr, 'lineno', 1.0)
+        self.assertRaises(TypeError, setattr, instr, 'name', 5)
 
         instr = Instr(1, "ROT_TWO")
         self.assertIs(instr.arg, bytecode.UNSET)
@@ -117,6 +111,12 @@ class InstrTests(TestCase):
 
 class ConcreteInstrTests(TestCase):
     def test_constructor(self):
+        # argument?
+        with self.assertRaises(ValueError):
+            ConcreteInstr(1, "LOAD_CONST")
+        with self.assertRaises(ValueError):
+            ConcreteInstr(1, "ROT_TWO", 33)
+
         # invalid argument
         with self.assertRaises(TypeError):
             ConcreteInstr(1, "LOAD_CONST", 1.0)
@@ -128,6 +128,12 @@ class ConcreteInstrTests(TestCase):
         # test maximum argument
         instr = ConcreteInstr(1, "LOAD_CONST", 2147483647)
         self.assertEqual(instr.arg, 2147483647)
+
+    def test_attr(self):
+        instr = ConcreteInstr(1, "LOAD_CONST", 5)
+        self.assertRaises(AttributeError, setattr, instr, 'name', 'LOAD_FAST')
+        self.assertRaises(AttributeError, setattr, instr, 'lineno', 1)
+        self.assertRaises(AttributeError, setattr, instr, 'arg', 2)
 
     def test_size(self):
         self.assertEqual(ConcreteInstr(1, 'ROT_TWO').size, 1)

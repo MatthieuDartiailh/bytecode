@@ -16,51 +16,32 @@ def _const_key(obj):
     return (type(obj), obj)
 
 
-class Instr:
-    """
-    Abstract instruction: argument can be any kind of object.
-    """
-
+class BaseInstr:
     __slots__ = ('_lineno', '_name', '_arg', '_op')
 
     def __init__(self, lineno, name, arg=UNSET):
+        self._set_lineno(lineno)
+        self._set_name(name)
+        self._arg = arg
+
+    # FIXME: stack effect
+
+    def _set_lineno(self, lineno):
         if not isinstance(lineno, int):
             raise TypeError("lineno must be an int")
         if lineno < 1:
             raise ValueError("invalid lineno")
+        self._lineno = lineno
+
+    def _set_name(self, name):
         if not isinstance(name, str):
             raise TypeError("name must be a str")
         try:
             op = opcode.opmap[name]
         except KeyError:
             raise ValueError("invalid operation name")
-
-        has_arg = (arg is not UNSET)
-        if op >= opcode.HAVE_ARGUMENT:
-            if not has_arg:
-                raise ValueError("%s opcode requires an argument" % name)
-        else:
-            if has_arg:
-                raise ValueError("%s opcode has no argument" % name)
-
-        self._lineno = lineno
         self._name = name
-        self._arg = arg
         self._op = op
-
-    # FIXME: stack effect
-
-    @property
-    def lineno(self):
-        return self._lineno
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def arg(self):
-        return self._arg
 
     @property
     def op(self):
@@ -98,11 +79,48 @@ class Instr:
         return ('JUMP_IF_' in self._name)
 
 
-class ConcreteInstr(Instr):
+class Instr(BaseInstr):
+    """
+    Abstract instruction: argument can be any kind of object.
+    """
+
+    __slots__ = ()
+
+    @property
+    def lineno(self):
+        return self._lineno
+
+    @lineno.setter
+    def lineno(self, lineno):
+        self._set_lineno(lineno)
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._set_name(name)
+
+    @property
+    def arg(self):
+        return self._arg
+
+    @arg.setter
+    def arg(self, arg):
+        self._arg = arg
+
+
+class ConcreteInstr(BaseInstr):
     __slots__ = ('_size',)
 
     def __init__(self, lineno, name, arg=UNSET):
-        if arg is not UNSET:
+        super().__init__(lineno, name, arg)
+
+        if self._op >= opcode.HAVE_ARGUMENT:
+            if arg is UNSET:
+                raise ValueError("%s opcode requires an argument" % name)
+
             if isinstance(arg, int):
                 # FIXME: it looks like assemble_emit() allows negative argument
                 # (minimum=-2147483648) and use a maximum of 2147483647
@@ -112,6 +130,9 @@ class ConcreteInstr(Instr):
                     raise ValueError("arg must be in range 0..2147483647")
             else:
                 raise TypeError("arg must be an int")
+        else:
+            if arg is not UNSET:
+                raise ValueError("%s opcode has no argument" % name)
 
         size = 1
         if arg is not UNSET:
@@ -119,8 +140,19 @@ class ConcreteInstr(Instr):
             if arg > 0xffff:
                 size += 3
 
-        super().__init__(lineno, name, arg)
         self._size = size
+
+    @property
+    def lineno(self):
+        return self._lineno
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def arg(self):
+        return self._arg
 
     @property
     def size(self):
