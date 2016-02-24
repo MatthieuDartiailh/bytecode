@@ -182,6 +182,37 @@ class Code:
     def __eq__(self, other):
         if not isinstance(other, Code):
             return False
+
+        if self.argcount != other.argcount:
+            return False
+        if self.kw_only_argcount != other.kw_only_argcount:
+            return False
+        if self._nlocals != other._nlocals:
+            return False
+        if self._stacksize != other._stacksize:
+            return False
+        if self.flags != other.flags:
+            return False
+        if self.first_lineno != other.first_lineno:
+            return False
+        if self.names != other.names:
+            return False
+        if self.varnames != other.varnames:
+            return False
+        if self.filename != other.filename:
+            return False
+        if self.name != other.name:
+            return False
+        if self.freevars != other.freevars:
+            return False
+        if self.cellvars != other.cellvars:
+            return False
+        # FIXME: don't use == but a key function, 1 and 1.0 are not the same
+        # constant, see _PyCode_ConstantKey() in Objects/codeobject.c
+        if self.consts != other.consts:
+            return False
+
+        # Compare blocks (need to "renumber" labels)
         if len(self._blocks) != len(other._blocks):
             return False
         targets1 = {}
@@ -205,9 +236,7 @@ class Code:
 
                 if key1 != key2:
                     return False
-        if self.consts != other.consts:
-            return False
-        # FIXME: compare all other attributes
+
         return True
 
     def __len__(self):
