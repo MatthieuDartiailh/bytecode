@@ -444,6 +444,29 @@ class FunctionalTests(TestCase):
 
         self.assertEqual(output, expected)
 
+    def test_to_concrete_code(self):
+        code = disassemble("""
+            if test:
+                x = 12
+            else:
+                x = 37
+        """)
+        code = code.concrete_code()
+        self.assertEqual(len(code), 1)
+        expected = [ConcreteInstr(1, 'LOAD_NAME', 0),
+                    ConcreteInstr(1, 'POP_JUMP_IF_FALSE', 15),
+                    ConcreteInstr(2, 'LOAD_CONST', 0),
+                    ConcreteInstr(2, 'STORE_NAME', 1),
+                    ConcreteInstr(2, 'JUMP_FORWARD', 6),
+                    ConcreteInstr(4, 'LOAD_CONST', 1),
+                    ConcreteInstr(4, 'STORE_NAME', 1),
+                    ConcreteInstr(4, 'LOAD_CONST', 2),
+                    ConcreteInstr(4, 'RETURN_VALUE')]
+        self.assertListEqual(code[0], expected)
+        self.assertListEqual(code.consts, [12, 37, None])
+        self.assertListEqual(code.names, ['test', 'x'])
+        self.assertListEqual(code.varnames, [])
+
 
 class ConcreteCodeTests(TestCase):
     def test_attr(self):
@@ -452,6 +475,7 @@ class ConcreteCodeTests(TestCase):
         self.assertEqual(code.consts, [5, None])
         self.assertEqual(code.names, ['x'])
         self.assertEqual(code.varnames, [])
+        # FIXME: test other attributes
 
     def test_disassemble_concrete(self):
         code_obj = compile("x = 5", "<string>", "exec")

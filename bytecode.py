@@ -313,6 +313,24 @@ class Assembler:
         concrete = ConcreteCode(code.name,
                                 code.filename,
                                 code.flags)
+        # copy from abstract code
+        concrete.argcount = code.argcount
+        concrete.kw_only_argcount = code.kw_only_argcount
+        concrete._nlocals = code._nlocals
+        concrete._stacksize = code._stacksize
+        concrete.flags = code.flags
+        concrete.first_lineno = code.first_lineno
+        concrete.filename = code.filename
+        concrete.name = code.name
+        concrete.freevars = list(concrete.freevars)
+        concrete.cellvars = list(concrete.cellvars)
+
+        # copy from assembler
+        concrete.consts = self.consts
+        concrete.names = self.names
+        concrete.varnames = self.varnames
+
+        # copy instructions
         concrete[0][:] = instructions
         return concrete
 
@@ -333,11 +351,10 @@ class Assembler:
             code_str.append(instr.assemble())
             linenos.append((offset, instr.lineno))
             offset += instr.size
+        code_str = b''.join(code_str)
 
         # assemble lnotab
         lnotab = self._assemble_lnotab(linenos)
-
-        code_str = b''.join(code_str)
 
         return types.CodeType(self.code.argcount,
                               self.code.kw_only_argcount,
@@ -488,7 +505,6 @@ def _disassemble(code_obj, *,
     return code
 
 
-
 class BaseCode:
     def __init__(self, name, filename, flags):
         self.argcount = 0
@@ -629,14 +645,14 @@ class BaseCode:
 
 
 class Code(BaseCode):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
     @staticmethod
     def disassemble(code_obj, *, use_labels=None, extended_arg_op=False):
         return _disassemble(code_obj,
                             use_labels=use_labels,
                             extended_arg_op=extended_arg_op)
+
+    def concrete_code(self):
+        return Assembler(self).concrete_code()
 
 
 class ConcreteCode(BaseCode):
