@@ -47,6 +47,21 @@ class BaseInstr:
     def op(self):
         return self._op
 
+    @op.setter
+    def op(self, op):
+        if not isinstance(op, int):
+            raise TypeError("operator must be an int")
+        if 0 <= op <= 255:
+            name = opcode.opname[op]
+            valid = (name != '<%r>' % op)
+        else:
+            valid = False
+        if not valid:
+            raise ValueError("invalid operator")
+
+        self._name = name
+        self._op = op
+
     def __repr__(self):
         if self._arg is not UNSET:
             return '<%s arg=%r lineno=%s>' % (self._name, self._arg, self._lineno)

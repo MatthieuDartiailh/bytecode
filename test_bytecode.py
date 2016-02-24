@@ -72,6 +72,15 @@ class InstrTests(TestCase):
         self.assertRaises(ValueError, setattr, instr, 'lineno', 0)
         self.assertRaises(TypeError, setattr, instr, 'lineno', 1.0)
         self.assertRaises(TypeError, setattr, instr, 'name', 5)
+        self.assertRaises(TypeError, setattr, instr, 'op', 1.0)
+        self.assertRaises(ValueError, setattr, instr, 'op', -1)
+        self.assertRaises(ValueError, setattr, instr, 'op', 255)
+
+        # modify op
+        op = opcode.opmap['LOAD_FAST']
+        instr.op = op
+        self.assertEqual(instr.op, op)
+        self.assertEqual(instr.name, 'LOAD_FAST')
 
         instr = Instr(1, "ROT_TWO")
         self.assertIs(instr.arg, bytecode.UNSET)

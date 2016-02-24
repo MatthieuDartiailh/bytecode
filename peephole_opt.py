@@ -220,8 +220,8 @@ class _CodePeepholeOptimizer:
             del self.block[self.index-1:self.index+1]
         elif instr.arg == 2:
             # Replace BUILD_TUPLE 2 + UNPACK_SEQUENCE 2 with ROT_TWO
-            instr = bytecode.Instr(instr.lineno, 'ROT_TWO')
-            self.block[self.index - 1:self.index+1] = (instr,)
+            rot2 = bytecode.Instr(instr.lineno, 'ROT_TWO')
+            self.block[self.index - 1:self.index+1] = (rot2,)
             self.index -= 1
             self.const_stack.clear()
         elif instr.arg == 3:
