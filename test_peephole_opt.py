@@ -8,6 +8,7 @@ import types
 import unittest
 from bytecode import Instr
 from unittest import mock
+from test_utils import TestCase
 
 
 def LOAD_CONST(arg, lineno=1):
@@ -20,17 +21,20 @@ def STORE_NAME(arg, lineno=1):
     return Instr(lineno, 'STORE_NAME', arg)
 
 
-class Tests(unittest.TestCase):
+class Tests(TestCase):
     maxDiff = 80 * 100
+
+    @staticmethod
+    def setUpClass():
+        if not hasattr(sys, 'get_code_transformers'):
+            raise Exception("cannot disable the C peephole optimizer: "
+                            "need a Python patched with the PEP 511!")
 
     def setUp(self):
         # disable the C peephole optimizer
-        if hasattr(sys, 'get_code_transformers'):
-            transformers = sys.get_code_transformers()
-            self.addCleanup(sys.set_code_transformers, transformers)
-            sys.set_code_transformers([])
-        else:
-            raise Exception("cannot disable the C peephole optimizer")
+        transformers = sys.get_code_transformers()
+        self.addCleanup(sys.set_code_transformers, transformers)
+        sys.set_code_transformers([])
 
     def compile(self, source, function=False):
         source = textwrap.dedent(source).strip()
@@ -46,7 +50,7 @@ class Tests(unittest.TestCase):
         return orig
 
     def create_code(self, source, function=False):
-        orig = self.compile(source)
+        orig = self.compile(source, function=function)
 
         code = bytecode.Code.disassemble(orig)
         block = code[-1]
@@ -67,12 +71,6 @@ class Tests(unittest.TestCase):
         optimizer = peephole_opt._CodePeepholeOptimizer()
         optimizer._optimize(code)
         return code
-
-    def assertCodeEqual(self, code, *expected_blocks):
-        blocks = [list(block) for block in code]
-        self.assertEqual(len(blocks), len(expected_blocks))
-        for block, expected_block in zip(blocks, expected_blocks):
-            self.assertListEqual(block, list(expected_block))
 
     def check(self, source, *expected_blocks, consts=(None,), names=None,
               function=False):
@@ -117,7 +115,7 @@ class Tests(unittest.TestCase):
         check_bin_op(2, '|', 3, 3)
         check_bin_op(2, '^', 3, 1)
 
-    def test_chain_operations(self):
+    def test_combined_unary_bin_ops(self):
         self.check('x = 1 + 3 + 7',
                    (LOAD_CONST(5), STORE_NAME(0)),
                    consts=(1, 3, 7, None, 4, 11))
@@ -229,7 +227,7 @@ class Tests(unittest.TestCase):
                    consts=(1, 2, 3, None, frozenset((1, 2, 3))),
                    names=['x', 'test'])
 
-    def test_compare_not(self):
+    def test_compare_op_unary_not(self):
         for source, op in (
             ('x = not(a in b)', 7),
             ('x = not(a not in b)', 6),
@@ -241,6 +239,9 @@ class Tests(unittest.TestCase):
                         LOAD_NAME(1),
                         Instr(1, 'COMPARE_OP', op),
                         STORE_NAME(2)))
+
+        # don't optimize
+        self.check_dont_optimize('x = not (a and b is True)')
 
     def test_dont_optimize(self):
         self.check('x = 1 < 2',
@@ -350,6 +351,131 @@ class Tests(unittest.TestCase):
             optim = optimizer.optimize(noopt)
 
             self.assertIs(optim, noopt)
+
+    def test_return_value(self):
+        # return+return: remove second return
+        source = """
+            def func():
+                return 1
+                return 2
+        """
+        expected = [
+                Instr(2, 'LOAD_CONST', 1),
+                Instr(2, 'RETURN_VALUE'),
+        ]
+        self.check(source, expected,
+                   function=True,
+                   consts=(None, 1, 2))
+
+        # return+return + return+return: remove second and fourth return
+        source = """
+            def func():
+                return 1
+                return 2
+                return 3
+                return 4
+        """
+        expected = [
+                Instr(2, 'LOAD_CONST', 1),
+                Instr(2, 'RETURN_VALUE'),
+                Instr(4, 'LOAD_CONST', 3),
+                Instr(4, 'RETURN_VALUE'),
+        ]
+        self.check(source, expected,
+                   function=True,
+                   consts=(None, 1, 2, 3, 4))
+
+        # return + JUMP_ABSOLUTE: remove JUMP_ABSOLUTE
+        source = """
+            def func():
+                while 1:
+                    return 1
+        """
+        code = self._optimize(source, function=True)
+        self.assertCodeEqual(code,
+                   [Instr(2, 'SETUP_LOOP', code[2].label)],
+                   [Instr(3, 'LOAD_CONST', 1),
+                    Instr(3, 'RETURN_VALUE'),
+                    Instr(3, 'POP_BLOCK')],
+                   [Instr(3, 'LOAD_CONST', 0),
+                    Instr(3, 'RETURN_VALUE')])
+
+
+    def test_not_jump_if_false(self):
+        # Replace UNARY_NOT+POP_JUMP_IF_FALSE with POP_JUMP_IF_TRUE
+        source = '''
+            if not x:
+                y = 1
+            y = 2
+        '''
+        code = self._optimize(source)
+        self.assertCodeEqual(code,
+                   [Instr(1, 'LOAD_NAME', 0),
+                    Instr(1, 'POP_JUMP_IF_TRUE', code[1].label),
+                    Instr(2, 'LOAD_CONST', 0),
+                    Instr(2, 'STORE_NAME', 1)],
+                   [Instr(3, 'LOAD_CONST', 1),
+                    Instr(3, 'STORE_NAME', 1)])
+
+#    def test_unconditional_jump_to_return(self):
+#        source = """
+#            def func():
+#                if test:
+#                    if test2:
+#                        x = 1
+#                    else:
+#                        x = 2
+#                else:
+#                    x = 3
+#        """
+#        self.check(source, function=True)
+#
+#    def test_unconditional_jumps(self):
+#        source = """
+#            def func():
+#                if x:
+#                    if y:
+#                        func()
+#        """
+#        self.check(source, function=True)
+#
+#    def test_jump_to_return(self):
+#        source = """
+#            def func(condition):
+#                return 1 if condition else 2
+#        """
+#        self.check(source, function=True)
+#
+#    def test_jump_if_true_to_jump_if_false(self):
+#        self.check('''
+#            if x or y:
+#                z = 1
+#        ''')
+#
+#    def test_jump_if_false_to_jump_if_false(self):
+#
+#        self.check("""
+#            while n > 0 and start > 3:
+#                func()
+#        """)
+#
+#    # uncomment to test the whole stdlib
+#    @unittest.skipIf(True, 'test is too slow')
+#    def test_stdlib(self):
+#        testdir = os.path.dirname(__file__)
+#        libdir = os.path.dirname(testdir)
+#
+#        files = glob.glob(os.path.join(testdir, '*.py'))
+#        files += glob.glob(os.path.join(libdir, '*.py'))
+#        files.sort()
+#
+#        for filename in files:
+#            if os.path.basename(filename).startswith('bad'):
+#                continue
+#            print(filename)
+#            with tokenize.open(filename) as fp:
+#                source = fp.read()
+#            self.check(source, filename=filename, check_nested=True)
 
 
 if __name__ == "__main__":

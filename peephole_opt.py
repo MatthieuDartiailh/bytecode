@@ -234,6 +234,9 @@ class _CodePeepholeOptimizer:
             self.index -= 1
             self.const_stack.clear()
 
+        # FIXME: why not rewriting LOAD_CONST in the reverse order to support
+        # any number of aguments, rather than using ROT_TWO/ROT_THREE tricks?
+
     def build_tuple(self, instr, container_type):
         if instr.arg > len(self.const_stack):
             return
