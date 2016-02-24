@@ -10,12 +10,18 @@ __version__ = '0.0'
 UNSET = object()
 
 
+def _const_key(obj):
+    # FIXME: don't use == but a key function, 1 and 1.0 are not the same
+    # constant, see _PyCode_ConstantKey() in Objects/codeobject.c
+    return (type(obj), obj)
+
+
 class Instr:
     """
     Abstract instruction: argument can be any kind of object.
     """
 
-    __slots__ = ('_lineno', '_name', '_arg', '_op', '_size')
+    __slots__ = ('_lineno', '_name', '_arg', '_op')
 
     def __init__(self, lineno, name, arg=UNSET):
         if not isinstance(lineno, int):
@@ -37,17 +43,10 @@ class Instr:
             if has_arg:
                 raise ValueError("%s has no argument")
 
-        size = 1
-        if has_arg:
-            size += 2
-            if not isinstance(arg, Label) and arg > 0xffff:
-                size += 3
-
         self._lineno = lineno
         self._name = name
         self._arg = arg
         self._op = op
-        self._size = size
 
     # FIXME: stack effect
 
@@ -67,10 +66,6 @@ class Instr:
     def op(self):
         return self._op
 
-    @property
-    def size(self):
-        return self._size
-
     def __repr__(self):
         if self._arg is not UNSET:
             return '<%s arg=%s lineno=%s>' % (self._name, self._arg, self._lineno)
@@ -80,15 +75,15 @@ class Instr:
     def __eq__(self, other):
         if not isinstance(other, Instr):
             return False
-        key1 = (self._lineno, self._name, self._arg)
-        key2 = (other._lineno, other._name, other._arg)
+        key1 = (self._lineno, self._name, _const_key(self._arg))
+        key2 = (other._lineno, other._name, _const_key(other._arg))
         return key1 == key2
 
     def replace(self, name, arg=UNSET):
-        return Instr(self._lineno, name, arg)
+        return self.__class__(self._lineno, name, arg)
 
     def replace_arg(self, arg=UNSET):
-        return Instr(self._lineno, self._name, arg)
+        return self.__class__(self._lineno, self._name, arg)
 
     def is_jump(self):
         return (self._op in opcode.hasjrel or self._op in opcode.hasjabs)
@@ -99,7 +94,7 @@ class Instr:
 
 
 class ConcreteInstr(Instr):
-    __slots__ = ()
+    __slots__ = ('_size',)
 
     def __init__(self, lineno, name, arg=UNSET):
         if arg is not UNSET:
@@ -110,14 +105,23 @@ class ConcreteInstr(Instr):
                     raise ValueError("arg must be positive")
                 if arg > 2147483647:
                     raise ValueError("arg must be in range 0..2147483647")
-            elif not isinstance(arg, Label):
-                raise TypeError("arg must be an int or a bytecode.Label")
+            else:
+                raise TypeError("arg must be an int")
+
+        size = 1
+        if arg is not UNSET:
+            size += 2
+            if arg > 0xffff:
+                size += 3
 
         super().__init__(lineno, name, arg)
+        self._size = size
+
+    @property
+    def size(self):
+        return self._size
 
     def get_jump_target(self, instr_offset):
-        if isinstance(self._arg, Label):
-            raise ValueError("jump target is a label")
         if self._op in opcode.hasjrel:
             return instr_offset + self._size + self._arg
         if self._op in opcode.hasjabs:
@@ -224,9 +228,9 @@ class Code:
             return False
         if self.cellvars != other.cellvars:
             return False
-        # FIXME: don't use == but a key function, 1 and 1.0 are not the same
-        # constant, see _PyCode_ConstantKey() in Objects/codeobject.c
-        if self.consts != other.consts:
+        const_keys1 = list(map(_const_key, self.consts))
+        const_keys2 = list(map(_const_key, other.consts))
+        if const_keys1 != const_keys2:
             return False
 
         # Compare blocks (need to "renumber" labels)
@@ -408,6 +412,8 @@ class Code:
         return code
 
     def _concrete_blocks(self):
+        # FIXME: rewrite this code!?
+
         blocks = [list(block) for block in self]
         labels = [block.label for block in self]
 
@@ -442,8 +448,15 @@ class Code:
                 if isinstance(arg, Label):
                     target_off = targets[arg]
                     if instr.op in opcode.hasjrel:
+                        if isinstance(instr.arg, Label):
+                            # Make the assumption that the jump target fits
+                            # into 2 bytes (don't need EXTENDED_ARG)
+                            tmp_instr = ConcreteInstr(instr.lineno, instr.name, 0)
+                        else:
+                            tmp_instr = instr
+
                         # FIXME: instr can be an Instr
-                        target_off = target_off - (offset + instr.size)
+                        target_off = target_off - (offset + tmp_instr.size)
                     arg = target_off
 
                     # FIXME: reject negative offset?
@@ -537,7 +550,10 @@ def _dump_code(code):
     offset = 0
     lineno = None
     line_width = 3
-    for block_index, block in enumerate(code, 1):
+
+    blocks = code._concrete_blocks()
+
+    for block_index, block in enumerate(blocks, 1):
         print("[Block #%s]" % block_index)
         for instr in block:
             fields = []
@@ -548,11 +564,8 @@ def _dump_code(code):
                 fields.append(" " * line_width)
 
             fields.append("% 3s    %s" % (offset, instr.name))
-            arg = instr.arg
-            if arg is not UNSET:
-                if isinstance(arg, Label):
-                    arg = '<block #%s>' % code._label_to_index[arg]
-                fields.append("(%s)" % arg)
+            if instr.arg is not UNSET:
+                fields.append("(%s)" % instr.arg)
             print(''.join(fields))
 
             offset += instr.size

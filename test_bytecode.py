@@ -73,14 +73,12 @@ class InstrTests(TestCase):
         self.assertEqual(instr.lineno, 5)
         self.assertEqual(instr.name, 'LOAD_CONST')
         self.assertEqual(instr.arg, 3)
-        self.assertEqual(instr.size, 3)
         self.assertEqual(instr.op, opcode.opmap['LOAD_CONST'])
         self.assertRaises(AttributeError, setattr, instr, 'lineno', 1)
         self.assertRaises(AttributeError, setattr, instr, 'name', 'LOAD_FAST')
         self.assertRaises(AttributeError, setattr, instr, 'arg', 2)
 
         instr = Instr(1, "ROT_TWO")
-        self.assertEqual(instr.size, 1)
         self.assertIs(instr.arg, bytecode.UNSET)
         self.assertEqual(instr.op, opcode.opmap['ROT_TWO'])
 
@@ -130,6 +128,11 @@ class ConcreteInstrTests(TestCase):
         instr = ConcreteInstr(1, "LOAD_CONST", 2147483647)
         self.assertEqual(instr.arg, 2147483647)
 
+    def test_size(self):
+        self.assertEqual(ConcreteInstr(1, 'ROT_TWO').size, 1)
+        self.assertEqual(ConcreteInstr(1, 'LOAD_CONST', 3).size, 3)
+        self.assertEqual(ConcreteInstr(1, 'LOAD_CONST', 0x1234abcd).size, 6)
+
     def test_disassemble(self):
         instr = ConcreteInstr.disassemble(1, b'\td\x03\x00', 0)
         self.assertEqual(instr, ConcreteInstr(1, "NOP"))
@@ -157,11 +160,6 @@ class ConcreteInstrTests(TestCase):
 
         jump_forward = ConcreteInstr(1, "JUMP_FORWARD", 5)
         self.assertEqual(jump_forward.get_jump_target(10), 18)
-
-        label = bytecode.Label()
-        jump_label = ConcreteInstr(1, "JUMP_FORWARD", label)
-        with self.assertRaises(ValueError):
-            jump_label.get_jump_target(10)
 
 
 class CodeTests(TestCase):
@@ -451,7 +449,7 @@ class FunctionalTests(TestCase):
               2  0    LOAD_FAST(0)
                  3    LOAD_CONST(1)
                  6    COMPARE_OP(2)
-                 9    POP_JUMP_IF_FALSE(<block #1>)
+                 9    POP_JUMP_IF_FALSE(16)
               3 12    LOAD_CONST(1)
                 15    RETURN_VALUE
 
@@ -459,7 +457,7 @@ class FunctionalTests(TestCase):
               4 16    LOAD_FAST(0)
                 19    LOAD_CONST(2)
                 22    COMPARE_OP(2)
-                25    POP_JUMP_IF_FALSE(<block #2>)
+                25    POP_JUMP_IF_FALSE(32)
               5 28    LOAD_CONST(2)
                 31    RETURN_VALUE
 
