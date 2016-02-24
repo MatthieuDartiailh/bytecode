@@ -82,7 +82,7 @@ class _CodePeepholeOptimizer:
 
         self.in_consts = True
 
-        load_const = instr.replace('LOAD_CONST', result)
+        load_const = bytecode.Instr(instr.lineno, 'LOAD_CONST', result)
         start = self.index - nconst - 1
         self.block[start:self.index] = (load_const,)
         self.index -= nconst
@@ -125,7 +125,8 @@ class _CodePeepholeOptimizer:
         next_instr = self.block[self.index]
         if next_instr.name == 'POP_JUMP_IF_FALSE':
             # Replace UNARY_NOT+POP_JUMP_IF_FALSE with POP_JUMP_IF_TRUE
-            instr = instr.replace('POP_JUMP_IF_TRUE', next_instr.arg)
+            instr.name = 'POP_JUMP_IF_TRUE'
+            instr.arg = next_instr.arg
             self.block[self.index-1:self.index+1] = (instr,)
             self.index -= 1
 
@@ -291,7 +292,7 @@ class _CodePeepholeOptimizer:
         # not (a in b) -->  a not in b
         # not (a is not b) -->  a is b
         # not (a not in b) -->  a in b
-        instr = instr.replace_arg(new_arg)
+        instr.arg = new_arg
         self.block[self.index-1:self.index+1] = (instr,)
 
     def jump_if_or_pop(self, instr):
@@ -322,7 +323,8 @@ class _CodePeepholeOptimizer:
 
             target2 = target_instr.arg
             # The current opcode inherits its target's stack behaviour
-            instr = instr.replace(target_instr.name, arg=target2)
+            instr.name = target_instr.name
+            instr.arg = target2
             self.block[self.index-1] = instr
             self.index -= 1
         else:
@@ -337,7 +339,8 @@ class _CodePeepholeOptimizer:
 
             new_label = self.code.create_label(label, 1)
 
-            instr = instr.replace(opname, new_label)
+            instr.opname = opname
+            instr.arg = new_label
             self.block[self.index-1] = instr
             self.index -= 1
 
@@ -404,7 +407,8 @@ class _CodePeepholeOptimizer:
             #    # No backward relative jumps
             #    return
 
-            instr = instr.replace(name, jump_target2)
+            instr.name = name
+            instr.arg = jump_target2
             self.block[self.index-1] = instr
 
     def disassemble(self, block):

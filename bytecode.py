@@ -65,12 +65,6 @@ class BaseInstr:
             return False
         return self._cmp_key() == other._cmp_key()
 
-    def replace(self, name, arg=UNSET):
-        return self.__class__(self._lineno, name, arg)
-
-    def replace_arg(self, arg=UNSET):
-        return self.__class__(self._lineno, self._name, arg)
-
     def is_jump(self):
         return (self._op in opcode.hasjrel or self._op in opcode.hasjabs)
 
