@@ -5,6 +5,7 @@ import peephole_opt
 import sys
 import unittest
 from bytecode import Instr
+from unittest import mock
 
 
 def LOAD_CONST(arg, lineno=1):
@@ -58,6 +59,16 @@ class Tests(unittest.TestCase):
         code2 = self._optimize(source)
         self.assertEqual(code, code2)
 
+    def test_unary_op(self):
+        def check_unary_op(op, value, result):
+            self.check('x = %s(%r)' % (op, value),
+                       (LOAD_CONST(2), STORE_NAME(0)),
+                       consts=(value, None, result))
+
+        check_unary_op('+', 2, 2)
+        check_unary_op('-', 3, -3)
+        check_unary_op('~', 5, -6)
+
     def test_bin_op(self):
         def check_bin_op(left, op, right, result):
             self.check('x = %r %s %r' % (left, op, right),
@@ -103,37 +114,31 @@ class Tests(unittest.TestCase):
                    consts=[1, 0, 8, None, (1,), (0,), zeros, result])
 
     def test_max_size(self):
-        # optimized binary operation: 20 <= maximum size
-        result = (9,) * 20
-        self.check('x = (9,) * 20',
-                   (LOAD_CONST(4), STORE_NAME(0)),
-                   consts=(9, 20, None, (9,), result),
-                   names=['x'])
+        max_size = 3
+        with mock.patch.object(peephole_opt, 'MAX_SIZE', max_size):
+            # optimized binary operation: size <= maximum size
+            size = max_size
+            result = (9,) * size
+            self.check('x = (9,) * %s' % size,
+                       (LOAD_CONST(4), STORE_NAME(0)),
+                       consts=(9, size, None, (9,), result),
+                       names=['x'])
 
-        # don't optimize  binary operation: 21 > maximum size
-        self.check('x = (9,) * 21',
-                   (LOAD_CONST(3),
-                    LOAD_CONST(1),
-                    Instr(1, 'BINARY_MULTIPLY'),
-                    STORE_NAME(0)),
-                   consts=(9, 21, None, (9,)),
-                   names=['x'])
+            # don't optimize  binary operation: size > maximum size
+            size = (max_size + 1)
+            self.check('x = (9,) * %s' % size,
+                       (LOAD_CONST(3),
+                        LOAD_CONST(1),
+                        Instr(1, 'BINARY_MULTIPLY'),
+                        STORE_NAME(0)),
+                       consts=(9, size, None, (9,)),
+                       names=['x'])
 
     def test_bin_op_dont_optimize(self):
         self.check_dont_optimize('1 / 0')
         self.check_dont_optimize('1 // 0')
         self.check_dont_optimize('1 % 0')
         self.check_dont_optimize('1 % 1j')
-
-    def test_unary_op(self):
-        def check_unary_op(op, value, result):
-            self.check('x = %s(%r)' % (op, value),
-                       (LOAD_CONST(2), STORE_NAME(0)),
-                       consts=(value, None, result))
-
-        check_unary_op('+', 2, 2)
-        check_unary_op('-', 3, -3)
-        check_unary_op('~', 5, -6)
 
     def test_build_tuple(self):
         self.check('x = (1, 2, 3)',

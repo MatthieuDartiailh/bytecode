@@ -27,6 +27,8 @@ NOT_PyCmp = {
     PyCmp_IS_NOT: PyCmp_IS,
 }
 
+MAX_SIZE = 20
+
 
 class _CodePeepholeOptimizer:
     """Python reimplementation of the peephole optimizer.
@@ -67,7 +69,7 @@ class _CodePeepholeOptimizer:
             size = len(value)
         except TypeError:
             return True
-        return (size <= 20)
+        return (size <= MAX_SIZE)
 
     def replace_load_const(self, nconst, instr, result):
         # FIXME: remove temporary computed constants?
