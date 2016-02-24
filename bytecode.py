@@ -196,11 +196,11 @@ class Assembler:
 
                 if not isinstance(instr, ConcreteInstr):
                     arg = instr.arg
-                    if instr.name == 'LOAD_CONST':
+                    if instr.op in opcode.hasconst:
                         arg = self.add_const(arg)
-                    elif instr.name in ('LOAD_FAST', 'STORE_FAST'):
+                    elif instr.op in opcode.haslocal:
                         arg = self.code.varnames.index(arg)
-                    elif instr.name in ('LOAD_NAME', 'STORE_NAME'):
+                    elif instr.op in opcode.hasname:
                         arg = self.code.names.index(arg)
 
                     instr = ConcreteInstr(instr.lineno, instr.name, arg)
@@ -565,11 +565,11 @@ class BaseCode:
                         extended_arg = None
 
                     if not concrete:
-                        if instr.name == 'LOAD_CONST':
+                        if instr.op in opcode.hasconst:
                             arg = code_obj.co_consts[arg]
-                        elif instr.name in ('LOAD_FAST', 'STORE_FAST'):
+                        elif instr.op in opcode.haslocal:
                             arg = code_obj.co_varnames[arg]
-                        elif instr.name in ('LOAD_NAME', 'STORE_NAME'):
+                        elif instr.op in opcode.hasname:
                             arg = code_obj.co_names[arg]
 
                 if concrete:

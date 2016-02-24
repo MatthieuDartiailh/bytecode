@@ -433,10 +433,10 @@ class Tests(TestCase):
         """
         code = self._optimize(source, function=True)
         self.assertCodeEqual(code,
-                             [Instr(2, 'LOAD_GLOBAL', 0),
+                             [Instr(2, 'LOAD_GLOBAL', 'test'),
                               Instr(2, 'POP_JUMP_IF_FALSE', code[3].label),
 
-                              Instr(3, 'LOAD_GLOBAL', 1),
+                              Instr(3, 'LOAD_GLOBAL', 'test2'),
                               Instr(3, 'POP_JUMP_IF_FALSE', code[1].label),
 
                               Instr(4, 'LOAD_CONST', 10),
@@ -464,13 +464,13 @@ class Tests(TestCase):
         """
         code = self._optimize(source, function=True)
         self.assertCodeEqual(code,
-                             [Instr(2, 'LOAD_GLOBAL', 0),
+                             [Instr(2, 'LOAD_GLOBAL', 'x'),
                               Instr(2, 'POP_JUMP_IF_FALSE', code[1].label),
 
-                              Instr(3, 'LOAD_GLOBAL', 1),
+                              Instr(3, 'LOAD_GLOBAL', 'y'),
                               Instr(3, 'POP_JUMP_IF_FALSE', code[1].label),
 
-                              Instr(4, 'LOAD_GLOBAL', 2),
+                              Instr(4, 'LOAD_GLOBAL', 'func'),
                               Instr(4, 'CALL_FUNCTION', 0),
                               Instr(4, 'POP_TOP')],
 
