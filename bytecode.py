@@ -166,7 +166,164 @@ class Block(list):
             super().__init__(instructions)
 
 
-class Code:
+class Assembler:
+    def __init__(self, code):
+        self.code = code
+        #self.consts = []
+
+    def _find_const(self, value):
+        key = _const_key(value)
+        for index, const in enumerate(self.code.consts):
+            if _const_key(const) == key:
+                return index
+        raise ValueError("constant not found")
+
+    def _concrete_blocks(self):
+        # FIXME: rewrite this code!?
+
+        blocks = [list(block) for block in self.code]
+        labels = [block.label for block in self.code]
+
+        # convert abstract instructions to concrete instructions,
+        # but keep jump instructions using labels unchanged
+        for block in blocks:
+            for index, instr in enumerate(block):
+                if isinstance(instr.arg, Label):
+                    # handled below
+                    continue
+
+                arg = instr.arg
+                if instr.name == 'LOAD_CONST':
+                    arg = self._find_const(arg)
+                elif instr.name in ('LOAD_FAST', 'STORE_FAST'):
+                    arg = self.code.varnames.index(arg)
+                elif instr.name in ('LOAD_NAME', 'STORE_NAME'):
+                    arg = self.code.names.index(arg)
+
+                instr = ConcreteInstr(instr.lineno, instr.name, arg)
+                block[index] = instr
+
+        # find targets
+        targets = {}
+        offset = 0
+        for block_index, block in enumerate(blocks):
+            label = labels[block_index]
+            targets[label] = offset
+            for instr in block:
+                if isinstance(instr.arg, Label):
+                    # Make the assumption that the jump target fits
+                    # into 2 bytes (don't need EXTENDED_ARG)
+                    instr = ConcreteInstr(instr.lineno, instr.name, 0)
+                offset += instr.size
+
+        # replace abstract jumps with concrete jumps
+        offset = 0
+        for block in blocks:
+            for index, instr in enumerate(block):
+                arg = instr.arg
+                if isinstance(arg, Label):
+                    target_off = targets[arg]
+                    if instr.op in opcode.hasjrel:
+                        if isinstance(instr.arg, Label):
+                            # Make the assumption that the jump target fits
+                            # into 2 bytes (don't need EXTENDED_ARG)
+                            tmp_instr = ConcreteInstr(instr.lineno, instr.name, 0)
+                        else:
+                            tmp_instr = instr
+
+                        # FIXME: instr can be an Instr
+                        target_off = target_off - (offset + tmp_instr.size)
+                    arg = target_off
+
+                    # FIXME: reject negative offset?
+                    # (ex: JUMP_FORWARD arg must be positive)
+                    # ConcreteInstr already rejects negative argument
+
+                    if arg > 0xffff:
+                        # FIXME: should we supported this?
+                        raise ValueError("EXTENDED_ARG is not supported "
+                                         "for jumps")
+                    instr = ConcreteInstr(instr.lineno, instr.name, arg)
+
+                    block[index] = instr
+
+                offset += instr.size
+
+        return blocks
+
+    def _assemble_lnotab(self, linenos):
+        lnotab = []
+        old_offset = 0
+        old_lineno = self.code.first_lineno
+        for offset, lineno in linenos:
+            dlineno = lineno - old_lineno
+            if dlineno == 0:
+                continue
+            old_lineno = lineno
+
+            doff = offset - old_offset
+            old_offset = offset
+
+            while doff > 255:
+                lnotab.append(b'\xff0')
+                doff -= 255
+
+            while dlineno < -127:
+                lnotab.append(struct.pack('Bb', 0, -127))
+                dlineno -= -127
+
+            while dlineno > 126:
+                lnotab.append(struct.pack('Bb', 0, 126))
+                dlineno -= 126
+
+            assert 0 <= doff <= 255
+            assert -127 <= dlineno <= 126
+
+            lnotab.append(struct.pack('Bb', doff, dlineno))
+
+        return b''.join(lnotab)
+
+    def assemble(self):
+        # FIXME: validate code?
+
+        blocks = self._concrete_blocks()
+
+        # emit bytecode
+        offset = 0
+        code_str = []
+        linenos = []
+        for block in blocks:
+            for instr in block:
+                code_str.append(instr.assemble())
+                linenos.append((offset, instr.lineno))
+                offset += instr.size
+
+        # assemble lnotab
+        lnotab = self._assemble_lnotab(linenos)
+
+        code_str = b''.join(code_str)
+
+        return types.CodeType(self.code.argcount,
+                              self.code.kw_only_argcount,
+                              # FIXME: compute number of locals
+                              self.code._nlocals,
+                              # FIXME: compute stack size
+                              self.code._stacksize,
+                              self.code.flags,
+                              code_str,
+                              tuple(self.code.consts),
+                              tuple(self.code.names),
+                              tuple(self.code.varnames),
+                              self.code.filename,
+                              self.code.name,
+                              self.code.first_lineno,
+                              lnotab,
+                              tuple(self.code.freevars),
+                              tuple(self.code.cellvars))
+
+
+
+class BaseCode:
     def __init__(self, name, filename, flags):
         self.argcount = 0
         self.kw_only_argcount = 0
@@ -174,6 +331,8 @@ class Code:
         self._stacksize = 0
         self.flags = flags
         self.first_lineno = 1
+        # FIXME: remove names, varnames and consts to compute them
+        # from Instr instructions?
         self.names = []
         self.varnames = []
         self.filename = filename
@@ -201,7 +360,7 @@ class Code:
         return '<Code block#=%s>' % len(self._blocks)
 
     def __eq__(self, other):
-        if not isinstance(other, Code):
+        if type(self) != type(other):
             return False
 
         if self.argcount != other.argcount:
@@ -425,155 +584,16 @@ class Code:
             code._add_block(block)
         return code
 
-    def _find_const(self, value):
-        key = _const_key(value)
-        for index, const in enumerate(self.consts):
-            if _const_key(const) == key:
-                return index
-        raise ValueError("constant not found")
-
-    def _concrete_blocks(self):
-        # FIXME: rewrite this code!?
-
-        blocks = [list(block) for block in self]
-        labels = [block.label for block in self]
-
-        # convert abstract instructions to concrete instructions,
-        # but keep jump instructions using labels unchanged
-        for block in blocks:
-            for index, instr in enumerate(block):
-                if isinstance(instr.arg, Label):
-                    # handled below
-                    continue
-
-                arg = instr.arg
-                if instr.name == 'LOAD_CONST':
-                    arg = self._find_const(arg)
-                elif instr.name in ('LOAD_FAST', 'STORE_FAST'):
-                    arg = self.varnames.index(arg)
-                elif instr.name in ('LOAD_NAME', 'STORE_NAME'):
-                    arg = self.names.index(arg)
-
-                instr = ConcreteInstr(instr.lineno, instr.name, arg)
-                block[index] = instr
-
-        # find targets
-        targets = {}
-        offset = 0
-        for block_index, block in enumerate(blocks):
-            label = labels[block_index]
-            targets[label] = offset
-            for instr in block:
-                if isinstance(instr.arg, Label):
-                    # Make the assumption that the jump target fits
-                    # into 2 bytes (don't need EXTENDED_ARG)
-                    instr = ConcreteInstr(instr.lineno, instr.name, 0)
-                offset += instr.size
-
-        # replace abstract jumps with concrete jumps
-        offset = 0
-        for block in blocks:
-            for index, instr in enumerate(block):
-                arg = instr.arg
-                if isinstance(arg, Label):
-                    target_off = targets[arg]
-                    if instr.op in opcode.hasjrel:
-                        if isinstance(instr.arg, Label):
-                            # Make the assumption that the jump target fits
-                            # into 2 bytes (don't need EXTENDED_ARG)
-                            tmp_instr = ConcreteInstr(instr.lineno, instr.name, 0)
-                        else:
-                            tmp_instr = instr
-
-                        # FIXME: instr can be an Instr
-                        target_off = target_off - (offset + tmp_instr.size)
-                    arg = target_off
-
-                    # FIXME: reject negative offset?
-                    # (ex: JUMP_FORWARD arg must be positive)
-                    # ConcreteInstr already rejects negative argument
-
-                    if arg > 0xffff:
-                        # FIXME: should we supported this?
-                        raise ValueError("EXTENDED_ARG is not supported "
-                                         "for jumps")
-                    instr = ConcreteInstr(instr.lineno, instr.name, arg)
-
-                    block[index] = instr
-
-                offset += instr.size
-
-        return blocks
-
-    def _assemble_lnotab(self, linenos):
-        lnotab = []
-        old_offset = 0
-        old_lineno = self.first_lineno
-        for offset, lineno in linenos:
-            dlineno = lineno - old_lineno
-            if dlineno == 0:
-                continue
-            old_lineno = lineno
-
-            doff = offset - old_offset
-            old_offset = offset
-
-            while doff > 255:
-                lnotab.append(b'\xff0')
-                doff -= 255
-
-            while dlineno < -127:
-                lnotab.append(struct.pack('Bb', 0, -127))
-                dlineno -= -127
-
-            while dlineno > 126:
-                lnotab.append(struct.pack('Bb', 0, 126))
-                dlineno -= 126
-
-            assert 0 <= doff <= 255
-            assert -127 <= dlineno <= 126
-
-            lnotab.append(struct.pack('Bb', doff, dlineno))
-
-        return b''.join(lnotab)
-
     def assemble(self):
-        # FIXME: validate code?
+        return Assembler(self).assemble()
 
-        blocks = self._concrete_blocks()
 
-        # emit bytecode
-        offset = 0
-        code_str = []
-        linenos = []
-        for block in blocks:
-            for instr in block:
-                code_str.append(instr.assemble())
-                linenos.append((offset, instr.lineno))
-                offset += instr.size
+class Code(BaseCode):
+    pass
 
-        # assemble lnotab
-        lnotab = self._assemble_lnotab(linenos)
 
-        code_str = b''.join(code_str)
-
-        return types.CodeType(self.argcount,
-                              self.kw_only_argcount,
-                              # FIXME: compute number of locals
-                              self._nlocals,
-                              # FIXME: compute stack size
-                              self._stacksize,
-                              self.flags,
-                              code_str,
-                              tuple(self.consts),
-                              tuple(self.names),
-                              tuple(self.varnames),
-                              self.filename,
-                              self.name,
-                              self.first_lineno,
-                              lnotab,
-                              tuple(self.freevars),
-                              tuple(self.cellvars))
+class ConcreteCode(BaseCode):
+    pass
 
 
 def _dump_code(code):
@@ -581,7 +601,7 @@ def _dump_code(code):
     lineno = None
     line_width = 3
 
-    blocks = code._concrete_blocks()
+    blocks = Assembler(code)._concrete_blocks()
 
     for block_index, block in enumerate(blocks, 1):
         print("[Block #%s]" % block_index)
