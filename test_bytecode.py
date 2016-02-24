@@ -421,28 +421,22 @@ class FunctionalTests(TestCase):
                     return 2
                 return 3
         """
-        expected = textwrap.dedent("""
-            [Block #1]
-              2  0    LOAD_FAST(0)
-                 3    LOAD_CONST(1)
-                 6    COMPARE_OP(2)
-                 9    POP_JUMP_IF_FALSE(16)
-              3 12    LOAD_CONST(1)
-                15    RETURN_VALUE
-
-            [Block #2]
-              4 16    LOAD_FAST(0)
-                19    LOAD_CONST(2)
-                22    COMPARE_OP(2)
-                25    POP_JUMP_IF_FALSE(32)
-              5 28    LOAD_CONST(2)
-                31    RETURN_VALUE
-
-            [Block #3]
-              6 32    LOAD_CONST(3)
-                35    RETURN_VALUE
-
-        """).lstrip()
+        expected = """
+  2  0    LOAD_FAST(0)
+     3    LOAD_CONST(1)
+     6    COMPARE_OP(2)
+     9    POP_JUMP_IF_FALSE(16)
+  3 12    LOAD_CONST(1)
+    15    RETURN_VALUE
+  4 16    LOAD_FAST(0)
+    19    LOAD_CONST(2)
+    22    COMPARE_OP(2)
+    25    POP_JUMP_IF_FALSE(32)
+  5 28    LOAD_CONST(2)
+    31    RETURN_VALUE
+  6 32    LOAD_CONST(3)
+    35    RETURN_VALUE
+"""[1:]
         code = disassemble(source, function=True)
         with contextlib.redirect_stdout(io.StringIO()) as stderr:
             bytecode._dump_code(code)

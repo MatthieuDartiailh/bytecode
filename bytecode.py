@@ -196,7 +196,7 @@ class Assembler:
             names.append(name)
         return index
 
-    def _concrete_blocks(self):
+    def _concrete_instructions(self):
         # FIXME: rewrite this code!?
 
         blocks = [list(block) for block in self.code]
@@ -237,6 +237,7 @@ class Assembler:
 
         # replace abstract jumps with concrete jumps
         offset = 0
+        instructions = []
         for block in blocks:
             for index, instr in enumerate(block):
                 arg = instr.arg
@@ -265,9 +266,10 @@ class Assembler:
 
                     block[index] = instr
 
+                instructions.append(instr)
                 offset += instr.size
 
-        return blocks
+        return instructions
 
     def _assemble_lnotab(self, linenos):
         lnotab = []
@@ -301,12 +303,18 @@ class Assembler:
 
         return b''.join(lnotab)
 
-    def _concrete_code(self):
+    def concrete_code(self):
         first_const = self.code.docstring
         if first_const is not UNSET:
             self.add_const(first_const)
 
-        return self._concrete_blocks()
+        instructions = self._concrete_instructions()
+        code = self.code
+        concrete = ConcreteCode(code.name,
+                                code.filename,
+                                code.flags)
+        concrete[0][:] = instructions
+        return concrete
 
     def assemble(self):
         # FIXME: validate code?
@@ -315,17 +323,16 @@ class Assembler:
         if first_const is not UNSET:
             self.add_const(first_const)
 
-        blocks = self._concrete_blocks()
+        instructions = self._concrete_instructions()
 
         # emit bytecode
         offset = 0
         code_str = []
         linenos = []
-        for block in blocks:
-            for instr in block:
-                code_str.append(instr.assemble())
-                linenos.append((offset, instr.lineno))
-                offset += instr.size
+        for instr in instructions:
+            code_str.append(instr.assemble())
+            linenos.append((offset, instr.lineno))
+            offset += instr.size
 
         # assemble lnotab
         lnotab = self._assemble_lnotab(linenos)
@@ -666,11 +673,10 @@ def _dump_code(code):
     offset = 0
     lineno = None
     line_width = 3
+    write_blocks = isinstance(code, ConcreteCode)
 
-    blocks = Assembler(code)._concrete_code()
-
-    for block_index, block in enumerate(blocks, 1):
-        print("[Block #%s]" % block_index)
+    code = Assembler(code).concrete_code()
+    for block in code:
         for instr in block:
             fields = []
             if instr.lineno != lineno:
@@ -685,4 +691,3 @@ def _dump_code(code):
             print(''.join(fields))
 
             offset += instr.size
-        print()
