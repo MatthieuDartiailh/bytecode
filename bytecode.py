@@ -413,15 +413,26 @@ class Code:
 
 
 def _dump_code(code):
-    labels = {}
+    offset = 0
+    lineno = None
+    line_width = 3
     for block_index, block in enumerate(code, 1):
-        labels[block.label] = "[Block #%s]" % block_index
-    for block in code:
-        print(labels[block.label])
+        print("[Block #%s]" % block_index)
         for instr in block:
-            if isinstance(instr.arg, Label):
-                instr = instr.replace_arg(labels[instr.arg])
-            print("  %s" % instr)
+            fields = []
+            if instr.lineno != lineno:
+                fields.append(str(instr.lineno).rjust(line_width))
+                lineno = instr.lineno
+            else:
+                fields.append(" " * line_width)
+
+            fields.append("% 3s    %s" % (offset, instr.name))
+            arg = instr.arg
+            if arg is not None:
+                if isinstance(arg, Label):
+                    arg = '<block #%s>' % code._label_to_index[arg]
+                fields.append("(%s)" % arg)
+            print(''.join(fields))
+
+            offset += instr.size
         print()
-    print()
-    print()

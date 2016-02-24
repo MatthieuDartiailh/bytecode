@@ -1,9 +1,13 @@
 import bytecode
+import contextlib
+import io
 import opcode
+import sys
 import textwrap
 import types
 import unittest
 from bytecode import Instr
+from test_utils import TestCase
 
 
 def LOAD_CONST(arg):
@@ -43,7 +47,7 @@ def disassemble(source, *, filename="<string>", function=False,
     return code
 
 
-class InstrTests(unittest.TestCase):
+class InstrTests(TestCase):
     def test_constructor(self):
         # invalid line number
         with self.assertRaises(TypeError):
@@ -155,7 +159,7 @@ class InstrTests(unittest.TestCase):
         self.assertEqual(instr2, Instr(1, 'LOAD_CONST', 0xabcd))
 
 
-class CodeTests(unittest.TestCase):
+class CodeTests(TestCase):
     def test_attr(self):
         source = """
             first_line = 1
@@ -208,7 +212,7 @@ class CodeTests(unittest.TestCase):
         self.assertEqual(code[0], [LOAD_CONST(2)])
 
 
-class FunctionalTests(unittest.TestCase):
+class FunctionalTests(TestCase):
     def sample_code(self):
         code = disassemble('x = 1', remove_last_return_none=True)
         self.assertEqual(len(code), 1)
@@ -282,16 +286,46 @@ class FunctionalTests(unittest.TestCase):
                 x = 2
             x = 3
         """)
+        remove_jump_forward = sys.version_info >= (3, 5)
+        if remove_jump_forward:
+            blocks = [[Instr(1, 'LOAD_NAME', 0),
+                       Instr(1, 'POP_JUMP_IF_FALSE', code[1].label),
+                       Instr(2, 'LOAD_CONST', 0),
+                       Instr(2, 'STORE_NAME', 0)],
+                      [Instr(3, 'LOAD_CONST', 1),
+                       Instr(3, 'STORE_NAME', 0),
+                       Instr(3, 'LOAD_CONST', 2),
+                       Instr(3, 'RETURN_VALUE')]]
+            expected = (b'e\x00\x00'
+                        b'r\x0c\x00'
+                        b'd\x00\x00'
+                        b'Z\x00\x00'
+                        b'd\x01\x00'
+                        b'Z\x00\x00'
+                        b'd\x02\x00'
+                        b'S')
+        else:
+            blocks = [[Instr(1, 'LOAD_NAME', 0),
+                       Instr(1, 'POP_JUMP_IF_FALSE', code[1].label),
+                       Instr(2, 'LOAD_CONST', 0),
+                       Instr(2, 'STORE_NAME', 0),
+                       Instr(2, 'JUMP_FORWARD', code[1].label)],
+                      [Instr(3, 'LOAD_CONST', 1),
+                       Instr(3, 'STORE_NAME', 0),
+                       Instr(3, 'LOAD_CONST', 2),
+                       Instr(3, 'RETURN_VALUE')]]
+            expected = (b'e\x00\x00'
+                        b'r\x0f\x00'
+                        b'd\x00\x00'
+                        b'Z\x00\x00'
+                        b'n\x00\x00'
+                        b'd\x01\x00'
+                        b'Z\x00\x00'
+                        b'd\x02\x00'
+                        b'S')
+
+        self.assertCodeEqual(code, *blocks)
         code2 = code.assemble()
-        expected = (b'e\x00\x00'
-                    b'r\x0f\x00'
-                    b'd\x00\x00'
-                    b'Z\x00\x00'
-                    b'n\x00\x00'
-                    b'd\x01\x00'
-                    b'Z\x00\x00'
-                    b'd\x02\x00'
-                    b'S')
         self.assertEqual(code2.co_code, expected)
 
     def test_disassemble(self):
@@ -367,6 +401,44 @@ class FunctionalTests(unittest.TestCase):
                     Instr(1, "STORE_NAME", 1)]
         self.assertListEqual(code[0], expected)
         self.assertListEqual(code.names, ['int', 'foo'])
+
+    def test_dump_code(self):
+        source = """
+            def func(test):
+                if test == 1:
+                    return 1
+                elif test == 2:
+                    return 2
+                return 3
+        """
+        expected = textwrap.dedent("""
+            [Block #1]
+              2  0    LOAD_FAST(0)
+                 3    LOAD_CONST(1)
+                 6    COMPARE_OP(2)
+                 9    POP_JUMP_IF_FALSE(<block #1>)
+              3 12    LOAD_CONST(1)
+                15    RETURN_VALUE
+
+            [Block #2]
+              4 16    LOAD_FAST(0)
+                19    LOAD_CONST(2)
+                22    COMPARE_OP(2)
+                25    POP_JUMP_IF_FALSE(<block #2>)
+              5 28    LOAD_CONST(2)
+                31    RETURN_VALUE
+
+            [Block #3]
+              6 32    LOAD_CONST(3)
+                35    RETURN_VALUE
+
+        """).lstrip()
+        code = disassemble(source, function=True)
+        with contextlib.redirect_stdout(io.StringIO()) as stderr:
+            bytecode._dump_code(code)
+            output = stderr.getvalue()
+
+        self.assertEqual(output, expected)
 
 
 class MiscTests(unittest.TestCase):
