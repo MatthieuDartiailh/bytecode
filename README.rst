@@ -22,6 +22,12 @@ Homepage: https://github.com/haypo/bytecode
 ChangeLog
 =========
 
+* Version 0.1
+
+  - Support EXTENDED_ARG
+  - Add optional extended_arg_op parameter to Instr.disassemble()
+    and Code.disassemble() class methods to use explicit EXTEND_ARG opcode
+
 * 2016-02-23: Release 0.0
 
   - First public release

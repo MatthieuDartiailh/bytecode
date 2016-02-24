@@ -47,26 +47,26 @@ class InstrTests(unittest.TestCase):
     def test_constructor(self):
         # invalid line number
         with self.assertRaises(TypeError):
-            bytecode.Instr("x", "NOP")
+            Instr("x", "NOP")
         with self.assertRaises(ValueError):
-            bytecode.Instr(0, "NOP")
+            Instr(0, "NOP")
 
         # invalid name
         with self.assertRaises(TypeError):
-            bytecode.Instr(1, 1)
+            Instr(1, 1)
         with self.assertRaises(ValueError):
-            bytecode.Instr(1, "xxx")
+            Instr(1, "xxx")
 
         # invalid argument
         with self.assertRaises(TypeError):
-            bytecode.Instr(1, "LOAD_CONST", 1.0)
+            Instr(1, "LOAD_CONST", 1.0)
         with self.assertRaises(ValueError):
-            bytecode.Instr(1, "LOAD_CONST", -1)
+            Instr(1, "LOAD_CONST", -1)
         with self.assertRaises(ValueError):
-            bytecode.Instr(1, "LOAD_CONST", 0x1000000)
+            Instr(1, "LOAD_CONST", 0x100000000)
 
     def test_attr(self):
-        instr = bytecode.Instr(5, "LOAD_CONST", 3)
+        instr = Instr(5, "LOAD_CONST", 3)
         self.assertEqual(instr.lineno, 5)
         self.assertEqual(instr.name, 'LOAD_CONST')
         self.assertEqual(instr.arg, 3)
@@ -76,65 +76,83 @@ class InstrTests(unittest.TestCase):
         self.assertRaises(AttributeError, setattr, instr, 'name', 'LOAD_FAST')
         self.assertRaises(AttributeError, setattr, instr, 'arg', 2)
 
-        instr = bytecode.Instr(1, "ROT_TWO")
+        instr = Instr(1, "ROT_TWO")
         self.assertEqual(instr.size, 1)
         self.assertIsNone(instr.arg)
         self.assertEqual(instr.op, opcode.opmap['ROT_TWO'])
 
-        # FIXME: test EXTENDED_ARG
+    def test_extended_arg(self):
+        instr = Instr(1, "LOAD_CONST", 0x1234abcd)
+        self.assertEqual(instr.arg, 0x1234abcd)
+        self.assertEqual(instr.assemble(), b'\x904\x12d\xcd\xab')
 
     def test_slots(self):
-        instr = bytecode.Instr(1, "NOP")
+        instr = Instr(1, "NOP")
         with self.assertRaises(AttributeError):
             instr.myattr = 1
 
     def test_compare(self):
-        instr = bytecode.Instr(7, "LOAD_CONST", 3)
-        self.assertEqual(instr, bytecode.Instr(7, "LOAD_CONST", 3))
+        instr = Instr(7, "LOAD_CONST", 3)
+        self.assertEqual(instr, Instr(7, "LOAD_CONST", 3))
 
-        self.assertNotEqual(instr, bytecode.Instr(6, "LOAD_CONST", 3))
-        self.assertNotEqual(instr, bytecode.Instr(7, "LOAD_FAST", 3))
-        self.assertNotEqual(instr, bytecode.Instr(7, "LOAD_CONST", 4))
+        self.assertNotEqual(instr, Instr(6, "LOAD_CONST", 3))
+        self.assertNotEqual(instr, Instr(7, "LOAD_FAST", 3))
+        self.assertNotEqual(instr, Instr(7, "LOAD_CONST", 4))
 
     def test_get_jump_target(self):
-        jump_abs = bytecode.Instr(1, "JUMP_ABSOLUTE", 3)
+        jump_abs = Instr(1, "JUMP_ABSOLUTE", 3)
         self.assertEqual(jump_abs.get_jump_target(100), 3)
 
-        jump_forward = bytecode.Instr(1, "JUMP_FORWARD", 5)
+        jump_forward = Instr(1, "JUMP_FORWARD", 5)
         self.assertEqual(jump_forward.get_jump_target(10), 18)
 
         label = bytecode.Label()
-        jump_label = bytecode.Instr(1, "JUMP_FORWARD", label)
+        jump_label = Instr(1, "JUMP_FORWARD", label)
         with self.assertRaises(ValueError):
             jump_label.get_jump_target(10)
 
     def test_is_jump(self):
-        jump = bytecode.Instr(1, "JUMP_ABSOLUTE", 3)
+        jump = Instr(1, "JUMP_ABSOLUTE", 3)
         self.assertTrue(jump.is_jump())
 
-        instr = bytecode.Instr(1, "LOAD_FAST", 2)
+        instr = Instr(1, "LOAD_FAST", 2)
         self.assertFalse(instr.is_jump())
 
     def test_is_cond_jump(self):
-        jump = bytecode.Instr(1, "POP_JUMP_IF_TRUE", 3)
+        jump = Instr(1, "POP_JUMP_IF_TRUE", 3)
         self.assertTrue(jump.is_cond_jump())
 
-        instr = bytecode.Instr(1, "LOAD_FAST", 2)
+        instr = Instr(1, "LOAD_FAST", 2)
         self.assertFalse(instr.is_cond_jump())
 
     def test_assemble(self):
-        instr = bytecode.Instr(1, "NOP")
+        instr = Instr(1, "NOP")
         self.assertEqual(instr.assemble(), b'\t')
 
-        instr = bytecode.Instr(1, "LOAD_CONST", 3)
+        instr = Instr(1, "LOAD_CONST", 3)
         self.assertEqual(instr.assemble(), b'd\x03\x00')
 
     def test_disassemble(self):
-        instr = bytecode.Instr.disassemble(1, b'\td\x03\x00', 0)
-        self.assertEqual(instr, bytecode.Instr(1, "NOP"))
+        instr = Instr.disassemble(1, b'\td\x03\x00', 0)
+        self.assertEqual(instr, Instr(1, "NOP"))
 
-        instr = bytecode.Instr.disassemble(1, b'\td\x03\x00', 1)
-        self.assertEqual(instr, bytecode.Instr(1, "LOAD_CONST", 3))
+        instr = Instr.disassemble(1, b'\td\x03\x00', 1)
+        self.assertEqual(instr, Instr(1, "LOAD_CONST", 3))
+
+    def test_disassemble_extended_arg(self):
+        code = b'\x904\x12d\xcd\xab'
+        # without EXTENDED_ARG opcode
+        instr = Instr.disassemble(1, code, 0)
+        self.assertEqual(instr, Instr(1, "LOAD_CONST", 0x1234abcd))
+
+        # with EXTENDED_ARG opcode
+        instr1 = Instr.disassemble(1, code, 0,
+                                            extended_arg_op=True)
+        self.assertEqual(instr1, Instr(1, 'EXTENDED_ARG', 0x1234))
+
+        instr2 = Instr.disassemble(1, code, instr1.size,
+                                            extended_arg_op=True)
+        self.assertEqual(instr2, Instr(1, 'LOAD_CONST', 0xabcd))
 
 
 class CodeTests(unittest.TestCase):
@@ -345,8 +363,7 @@ class FunctionalTests(unittest.TestCase):
                     Instr(1, "LOAD_CONST", 0),
                     Instr(1, "LOAD_CONST", 1),
                     Instr(1, "LOAD_CONST", 2),
-                    Instr(1, "EXTENDED_ARG", 3),
-                    Instr(1, "MAKE_FUNCTION", 0),
+                    Instr(1, "MAKE_FUNCTION", 3 << 16),
                     Instr(1, "STORE_NAME", 1)]
         self.assertListEqual(code[0], expected)
         self.assertListEqual(code.names, ['int', 'foo'])

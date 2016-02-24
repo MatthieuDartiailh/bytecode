@@ -7,7 +7,7 @@ __version__ = '0.0'
 
 
 class Instr:
-    __slots__ = ('_lineno', '_name', '_arg', '_op', '_size')
+    __slots__ = ('_lineno', '_name', '_arg', '_op', '_size', '_extended_arg')
 
     def __init__(self, lineno, name, arg=None):
         if not isinstance(lineno, int):
@@ -26,23 +26,23 @@ class Instr:
                     raise ValueError("arg must be positive")
                 if arg > 0xffffffff:
                     raise ValueError("arg must be in range 0x00..0xffffffff")
-                # FIXME: handle extend arg
-                if arg > 0xffff:
-                    raise ValueError("extended arg not supported yet")
             elif not isinstance(arg, Label):
                 raise TypeError("arg must be an int or a bytecode.Label")
+
+        extended_arg = False
         size = 1
         if arg is not None:
             size += 2
-            # FIXME: handle EXTENDED_ARG
-            #if not isinstance(arg, Label) and arg > 0xffff:
-            #    size += 3
+            if not isinstance(arg, Label) and arg > 0xffff:
+                extended_arg = True
+                size += 3
 
         self._lineno = lineno
         self._name = name
         self._arg = arg
         self._op = op
         self._size = size
+        self._extended_arg = extended_arg
 
     # FIXME: stack effect
 
@@ -102,20 +102,33 @@ class Instr:
         return ('JUMP_IF_' in self._name)
 
     def assemble(self):
-        if self._arg is not None:
-            return struct.pack('<BH', self._op, self._arg)
-        else:
+        if self._arg is None:
             return struct.pack('<B', self._op)
 
+        arg = self._arg
+        if self._extended_arg:
+            return struct.pack('<BHBH',
+                               opcode.EXTENDED_ARG, arg >> 16,
+                               self._op, arg & 0xffff)
+        else:
+            return struct.pack('<BH', self._op, arg)
+
     @classmethod
-    def disassemble(cls, lineno, code, offset):
+    def disassemble(cls, lineno, code, offset, extended_arg_op=False):
         op = code[offset]
         if op >= opcode.HAVE_ARGUMENT:
             arg = code[offset + 1] + code[offset + 2] * 256
         else:
             arg = None
         name = opcode.opname[op]
-        return cls(lineno, name, arg)
+        instr = cls(lineno, name, arg)
+
+        if not extended_arg_op and name == 'EXTENDED_ARG':
+            instr2 = cls.disassemble(lineno, code, offset + instr.size)
+            arg = (instr.arg << 16) + instr2.arg
+            instr = cls(lineno, instr2.name, arg)
+
+        return instr
 
 
 class Label:
@@ -243,7 +256,7 @@ class Code:
         return block2.label
 
     @classmethod
-    def disassemble(cls, code_obj, *, use_labels=True):
+    def disassemble(cls, code_obj, *, use_labels=True, extended_arg_op=False):
         code = code_obj.co_code
         line_starts = dict(dis.findlinestarts(code_obj))
 
@@ -256,7 +269,8 @@ class Code:
             if offset in line_starts:
                 lineno = line_starts[offset]
 
-            instr = Instr.disassemble(lineno, code, offset)
+            instr = Instr.disassemble(lineno, code, offset,
+                                      extended_arg_op=extended_arg_op)
 
             if use_labels:
                 target = instr.get_jump_target(offset)
