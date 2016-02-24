@@ -67,7 +67,11 @@ class InstrTests(TestCase):
         with self.assertRaises(ValueError):
             Instr(1, "LOAD_CONST", -1)
         with self.assertRaises(ValueError):
-            Instr(1, "LOAD_CONST", 0x100000000)
+            Instr(1, "LOAD_CONST", 2147483647+1)
+
+        # test maximum argument
+        instr = Instr(1, "LOAD_CONST", 2147483647)
+        self.assertEqual(instr.arg, 2147483647)
 
     def test_attr(self):
         instr = Instr(5, "LOAD_CONST", 3)

@@ -26,8 +26,8 @@ class Instr:
                 # (minimum=-2147483648) and use a maximum of 2147483647
                 if arg < 0:
                     raise ValueError("arg must be positive")
-                if arg > 0xffffffff:
-                    raise ValueError("arg must be in range 0x00..0xffffffff")
+                if arg > 2147483647:
+                    raise ValueError("arg must be in range 0..2147483647")
             elif not isinstance(arg, Label):
                 raise TypeError("arg must be an int or a bytecode.Label")
 
