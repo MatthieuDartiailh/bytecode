@@ -407,43 +407,66 @@ class Code:
             code._add_block(block)
         return code
 
-    def assemble(self):
-        targets = {}
-        linenos = []
-        blocks = [(block.label, list(block)) for block in self]
+    def _concrete_blocks(self):
+        blocks = [list(block) for block in self]
+        labels = [block.label for block in self]
 
-        # FIXME: validate code?
+        # convert abstract instructions to concrete instructions,
+        # but keep jump instructions using labels unchanged
+        for block in blocks:
+            for index, instr in enumerate(block):
+                if isinstance(instr.arg, Label):
+                    # handled below
+                    continue
+                instr = ConcreteInstr(instr.lineno, instr.name, instr.arg)
+                block[index] = instr
 
         # find targets
+        targets = {}
         offset = 0
-        for label, instructions in blocks:
+        for block_index, block in enumerate(blocks):
+            label = labels[block_index]
             targets[label] = offset
-            for instr in instructions:
+            for instr in block:
+                if isinstance(instr.arg, Label):
+                    # Make the assumption that the jump target fits
+                    # into 2 bytes (don't need EXTENDED_ARG)
+                    instr = ConcreteInstr(instr.lineno, instr.name, 0)
                 offset += instr.size
 
-        # replace targets with offsets
+        # replace abstract jumps with concrete jumps
         offset = 0
-        code_str = []
-        linenos = []
-        for target, instructions in blocks:
-            for instr in instructions:
+        for block in blocks:
+            for index, instr in enumerate(block):
                 arg = instr.arg
                 if isinstance(arg, Label):
                     target_off = targets[arg]
                     if instr.op in opcode.hasjrel:
+                        # FIXME: instr can be an Instr
                         target_off = target_off - (offset + instr.size)
                     arg = target_off
 
-                instr = ConcreteInstr(instr.lineno, instr.name, arg)
-                code_str.append(instr.assemble())
-                linenos.append((offset, instr.lineno))
+                    # FIXME: reject negative offset?
+                    # (ex: JUMP_FORWARD arg must be positive)
+                    # ConcreteInstr already rejects negative argument
+
+                    if arg > 0xffff:
+                        # FIXME: should we supported this?
+                        raise ValueError("EXTENDED_ARG is not supported "
+                                         "for jumps")
+                    instr = ConcreteInstr(instr.lineno, instr.name, arg)
+
+                    block[index] = instr
 
                 offset += instr.size
 
+        return blocks
+
+    def _assemble_lnotab(self, linenos):
         lnotab = []
         old_offset = 0
         old_lineno = self.first_lineno
-        for offset, lineno in  linenos:
+        for offset, lineno in linenos:
             dlineno = lineno - old_lineno
             if dlineno == 0:
                 continue
@@ -469,8 +492,27 @@ class Code:
 
             lnotab.append(struct.pack('Bb', doff, dlineno))
 
+        return b''.join(lnotab)
+
+    def assemble(self):
+        # FIXME: validate code?
+
+        blocks = self._concrete_blocks()
+
+        # emit bytecode
+        offset = 0
+        code_str = []
+        linenos = []
+        for block in blocks:
+            for instr in block:
+                code_str.append(instr.assemble())
+                linenos.append((offset, instr.lineno))
+                offset += instr.size
+
+        # assemble lnotab
+        lnotab = self._assemble_lnotab(linenos)
+
         code_str = b''.join(code_str)
-        lnotab = b''.join(lnotab)
 
         return types.CodeType(self.argcount,
                               self.kw_only_argcount,
