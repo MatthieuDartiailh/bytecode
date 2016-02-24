@@ -30,6 +30,11 @@ NOT_PyCmp = {
 MAX_SIZE = 20
 
 
+class ExitUnchanged(Exception):
+    """Exception used to skip the peephole optimizer"""
+    pass
+
+
 class _CodePeepholeOptimizer:
     """Python reimplementation of the peephole optimizer.
 
@@ -341,10 +346,16 @@ class _CodePeepholeOptimizer:
     def eval_JUMP_IF_TRUE_OR_POP(self, instr):
         self.jump_if_or_pop(instr)
 
-    def check_bypass_optim(self, code_obj):
-        if not MIMICK_C_IMPL:
-            return False
+    def eval_EXTENDED_ARG(self, instr):
+        if MIMICK_C_IMPL:
+            next_instr = self.block[self.index]
+            if next_instr.name != 'MAKE_FUNCTION':
+                raise ExitUnchanged
+            print("DON'T VISIT")
+            # don't visit MAKE_FUNCTION as GETARG will be wrong
+            self.index += 1
 
+    def check_bypass_optim(self, code_obj):
         # Bypass optimization when the lnotab table is too complex
         if 255 in code_obj.co_lnotab:
             # 255 value are used for multibyte bytecode instructions
@@ -432,11 +443,20 @@ class _CodePeepholeOptimizer:
             self.optimize_block(block)
 
     def optimize(self, code_obj):
-        if self.check_bypass_optim(code_obj):
-            return code_obj
+        if MIMICK_C_IMPL:
+            if self.check_bypass_optim(code_obj):
+                return code_obj
 
-        code = bytecode.Code.disassemble(code_obj)
-        self._optimize(code)
+        if MIMICK_C_IMPL:
+            code = bytecode.Code.disassemble(code_obj, extended_arg_op=True)
+            try:
+                self._optimize(code)
+            except ExitUnchanged:
+                # needed to bypass optimization in eval_EXTENDED_ARG()
+                return code_obj
+        else:
+            code = bytecode.Code.disassemble(code_obj)
+            self._optimize(code)
 
         return code.assemble()
 

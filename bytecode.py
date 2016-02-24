@@ -22,6 +22,8 @@ class Instr:
             raise ValueError("invalid operation name")
         if arg is not None:
             if isinstance(arg, int):
+                # FIXME: it looks like assemble_emit() allows negative argument
+                # (minimum=-2147483648) and use a maximum of 2147483647
                 if arg < 0:
                     raise ValueError("arg must be positive")
                 if arg > 0xffffffff:

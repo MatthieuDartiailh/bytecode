@@ -3,6 +3,8 @@
 import bytecode
 import peephole_opt
 import sys
+import textwrap
+import types
 import unittest
 from bytecode import Instr
 from unittest import mock
@@ -19,6 +21,8 @@ def STORE_NAME(arg, lineno=1):
 
 
 class Tests(unittest.TestCase):
+    maxDiff = 80 * 100
+
     def setUp(self):
         # disable the C peephole optimizer
         if hasattr(sys, 'get_code_transformers'):
@@ -28,28 +32,53 @@ class Tests(unittest.TestCase):
         else:
             raise Exception("cannot disable the C peephole optimizer")
 
-    def create_code(self, source):
+    def compile(self, source, function=False):
+        source = textwrap.dedent(source).strip()
         orig = compile(source, '<string>', 'exec')
+
+        if function:
+            sub_code = [const for const in orig.co_consts
+                        if isinstance(const, types.CodeType)]
+            if len(sub_code) != 1:
+                raise ValueError("unable to find function code")
+            orig = sub_code[0]
+
+        return orig
+
+    def create_code(self, source, function=False):
+        orig = self.compile(source)
+
         code = bytecode.Code.disassemble(orig)
         block = code[-1]
-        self.assertEqual(block[-2].name, 'LOAD_CONST')
-        self.assertEqual(block[-1].name, 'RETURN_VALUE')
-        del block[-2:]
+
+        if not function:
+            block = code[-1]
+            if not(block[-2].name == "LOAD_CONST"
+                   and block[-2].arg == code.consts.index(None)
+                   and block[-1].name == "RETURN_VALUE"):
+                raise ValueError("unable to find implicit RETURN_VALUE <None>: %s"
+                                 % block[-2:])
+            del block[-2:]
+
         return code
 
-    def _optimize(self, source):
-        code = self.create_code(source)
+    def _optimize(self, source, function=False):
+        code = self.create_code(source, function=function)
         optimizer = peephole_opt._CodePeepholeOptimizer()
         optimizer._optimize(code)
         return code
 
-    def check(self, source, *expected_blocks, consts=(None,), names=None):
-        code = self._optimize(source)
-
+    def assertCodeEqual(self, code, *expected_blocks):
         blocks = [list(block) for block in code]
         self.assertEqual(len(blocks), len(expected_blocks))
         for block, expected_block in zip(blocks, expected_blocks):
             self.assertListEqual(block, list(expected_block))
+
+    def check(self, source, *expected_blocks, consts=(None,), names=None,
+              function=False):
+        code = self._optimize(source, function=function)
+
+        self.assertCodeEqual(code, *expected_blocks)
         self.assertListEqual(code.consts, list(consts))
         if names is not None:
             self.assertListEqual(list(names), code.names)
@@ -229,6 +258,98 @@ class Tests(unittest.TestCase):
                     Instr(1, 'BINARY_SUBSCR'),
                     STORE_NAME(0)),
                    consts=[10, 20, 30, 1, None, (10, 20, 30)])
+
+    def test_optimize_code_obj(self):
+        # x = 1 + 2
+        block = [
+            Instr(1, 'LOAD_CONST', 0),
+            Instr(1, 'LOAD_CONST', 1),
+            Instr(1, 'BINARY_ADD'),
+            Instr(1, 'STORE_NAME', 0),
+            Instr(1, 'LOAD_CONST', 2),
+            Instr(1, 'RETURN_VALUE'),
+        ]
+        code_noopt = bytecode.Code('test', 'test.py', 0)
+        code_noopt.consts = [1, 2, None]
+        code_noopt.names.append('x')
+        code_noopt[0][:] = block
+        noopt = code_noopt.assemble()
+
+        optimizer = peephole_opt._CodePeepholeOptimizer()
+        optim = optimizer.optimize(noopt)
+
+        code = bytecode.Code.disassemble(optim)
+
+        expected = [
+            Instr(1, 'LOAD_CONST', 3),
+            Instr(1, 'STORE_NAME', 0),
+            Instr(1, 'LOAD_CONST', 2),
+            Instr(1, 'RETURN_VALUE'),
+        ]
+        self.assertCodeEqual(code, expected)
+
+    def test_mimicks_c_impl_long_code(self):
+        with mock.patch.object(peephole_opt, 'MIMICK_C_IMPL', True):
+            source = 'x=1'
+            code = self.compile(source)
+            # -4 to ignore LOAD_CONST <None>; RETURN_VALUE
+            codelen = len(code.co_code) - 4
+
+            # create code bigger than 32,700 bytes
+            minlen = 32700
+            ninstr = minlen // codelen + 1
+            source = '; '.join('x=%s' % i for i in range(ninstr))
+            noopt = self.compile(source)
+            self.assertGreater(len(noopt.co_code), minlen)
+
+            # don't optimize if the code is bigger than 32,700 bytes
+            optimizer = peephole_opt._CodePeepholeOptimizer()
+            optim = optimizer.optimize(noopt)
+
+            self.assertIs(optim, noopt)
+
+    def test_mimicks_c_impl_no_return_value(self):
+        with mock.patch.object(peephole_opt, 'MIMICK_C_IMPL', True):
+            # create (invalid) code without RETURN_VALUE
+            block = [
+                Instr(1, 'LOAD_CONST', 0),
+                Instr(1, 'POP_TOP'),
+            ]
+            code_noopt = bytecode.Code('test', 'test.py', 0)
+            code_noopt.consts = [None]
+            code_noopt[0][:] = block
+            noopt = code_noopt.assemble()
+
+            # don't optimize if the last instruction of the code
+            # is not RETURN_VALUE
+            optimizer = peephole_opt._CodePeepholeOptimizer()
+            optim = optimizer.optimize(noopt)
+
+            self.assertIs(optim, noopt)
+
+    def test_mimicks_c_impl_extended_arg(self):
+        with mock.patch.object(peephole_opt, 'MIMICK_C_IMPL', True):
+            # create code with EXTENDED_ARG opcode
+            block = [
+                Instr(1, 'LOAD_CONST', 3 << 16),
+                Instr(1, 'POP_TOP'),
+                Instr(1, 'LOAD_CONST', 0),
+                Instr(1, 'LOAD_CONST', 1),
+                Instr(1, 'BINARY_ADD'),
+                Instr(1, 'STORE_NAME', 0),
+                Instr(1, 'LOAD_CONST', 2),
+                Instr(1, 'RETURN_VALUE'),
+            ]
+            code_noopt = bytecode.Code('test', 'test.py', 0)
+            code_noopt.consts = [1, 2, None]
+            code_noopt[0][:] = block
+            noopt = code_noopt.assemble()
+
+            # don't optimize if the code contains EXTENDED_ARG opcode
+            optimizer = peephole_opt._CodePeepholeOptimizer()
+            optim = optimizer.optimize(noopt)
+
+            self.assertIs(optim, noopt)
 
 
 if __name__ == "__main__":
