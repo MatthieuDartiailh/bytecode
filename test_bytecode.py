@@ -18,7 +18,8 @@ def NOP():
 def RETURN_VALUE():
     return Instr(1, 'RETURN_VALUE')
 
-def disassemble(source, *, filename="<string>", function=False):
+def disassemble(source, *, filename="<string>", function=False,
+                remove_last_return_none=False, use_labels=True):
     source = textwrap.dedent(source).strip()
     code_obj = compile(source, filename, "exec")
     if function:
@@ -28,7 +29,17 @@ def disassemble(source, *, filename="<string>", function=False):
             raise ValueError("unable to find function code")
         code_obj = sub_code[0]
 
-    code = bytecode.Code.disassemble(code_obj)
+    code = bytecode.Code.disassemble(code_obj, use_labels=use_labels)
+    if remove_last_return_none:
+        # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
+        # to make unit tests shorter
+        block = code[-1]
+        if not(block[-2].name == "LOAD_CONST"
+               and block[-2].arg == code.consts.index(None)
+               and block[-1].name == "RETURN_VALUE"):
+            raise ValueError("unable to find implicit RETURN_VALUE <None>: %s"
+                             % block[-2:])
+        del block[-2:]
     return code
 
 
@@ -181,10 +192,7 @@ class CodeTests(unittest.TestCase):
 
 class FunctionalTests(unittest.TestCase):
     def sample_code(self):
-        code = disassemble('x = 1')
-        # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
-        # to make unit tests shorter
-        del code[0][2:]
+        code = disassemble('x = 1', remove_last_return_none=True)
         self.assertEqual(len(code), 1)
         self.assertListEqual(code[0], [LOAD_CONST(0), STORE_NAME(0)])
         return code
@@ -251,14 +259,30 @@ class FunctionalTests(unittest.TestCase):
 
     def test_assemble(self):
         # test resolution of jump labels
-        code_obj = compile("if x: x=2\nx=3", "<string>", "exec")
-        code = bytecode.Code.disassemble(code_obj)
+        code = disassemble("""
+            if x:
+                x = 2
+            x = 3
+        """)
         code2 = code.assemble()
-        self.assertEqual(code2.co_code, code_obj.co_code)
+        expected = (b'e\x00\x00'
+                    b'r\x0f\x00'
+                    b'd\x00\x00'
+                    b'Z\x00\x00'
+                    b'n\x00\x00'
+                    b'd\x01\x00'
+                    b'Z\x00\x00'
+                    b'd\x02\x00'
+                    b'S')
+        self.assertEqual(code2.co_code, expected)
 
     def test_disassemble(self):
-        code_obj = compile("if test:\n x = 1\nelse:\n x = 2", "<string>", "exec")
-        code = bytecode.Code.disassemble(code_obj)
+        code = disassemble("""
+            if test:
+                x = 1
+            else:
+                x = 2
+        """)
         self.assertEqual(len(code), 3)
         expected = [Instr(1, 'LOAD_NAME', 0),
                     Instr(1, 'POP_JUMP_IF_FALSE', code[1].label),
@@ -275,9 +299,13 @@ class FunctionalTests(unittest.TestCase):
                     Instr(4, 'RETURN_VALUE')]
         self.assertListEqual(code[2], expected)
 
-    def test_disassemble_no_label(self):
-        code_obj = compile("if test:\n x = 1\nelse:\n x = 2", "<string>", "exec")
-        code = bytecode.Code.disassemble(code_obj, use_labels=False)
+    def test_disassemble_without_labels(self):
+        code = disassemble("""
+            if test:
+                x = 1
+            else:
+                x = 2
+        """, use_labels=False)
         self.assertEqual(len(code), 1)
         expected = [Instr(1, 'LOAD_NAME', 0),
                     Instr(1, 'POP_JUMP_IF_FALSE', 15),
@@ -291,18 +319,37 @@ class FunctionalTests(unittest.TestCase):
         self.assertListEqual(code[0], expected)
 
     def test_lnotab(self):
-        code_obj = compile("x = 1\ny = 2\nz = 3", "<string>", "exec")
-        code = bytecode.Code.disassemble(code_obj)
+        code = disassemble("""
+            x = 1
+            y = 2
+            z = 3
+        """, remove_last_return_none=True)
         self.assertEqual(len(code), 1)
         expected = [Instr(1, "LOAD_CONST", 0), Instr(1, "STORE_NAME", 0),
                     Instr(2, "LOAD_CONST", 1), Instr(2, "STORE_NAME", 1),
-                    Instr(3, "LOAD_CONST", 2), Instr(3, "STORE_NAME", 2),
-                    Instr(3, "LOAD_CONST", 3), Instr(3, "RETURN_VALUE")]
+                    Instr(3, "LOAD_CONST", 2), Instr(3, "STORE_NAME", 2)]
         self.assertListEqual(code[0], expected)
         code_obj2 = code.assemble()
 
         self.assertEqual(code_obj2.co_lnotab, b'\x06\x01\x06\x01')
-        self.assertEqual(code_obj2.co_lnotab, code_obj.co_lnotab)
+
+    def test_extended_arg_make_function(self):
+        source = '''
+            def foo(x: int, y: int):
+                pass
+        '''
+        code = disassemble(source, remove_last_return_none=True)
+        self.assertEqual(len(code), 1)
+        expected = [Instr(1, "LOAD_NAME", 0),
+                    Instr(1, "LOAD_NAME", 0),
+                    Instr(1, "LOAD_CONST", 0),
+                    Instr(1, "LOAD_CONST", 1),
+                    Instr(1, "LOAD_CONST", 2),
+                    Instr(1, "EXTENDED_ARG", 3),
+                    Instr(1, "MAKE_FUNCTION", 0),
+                    Instr(1, "STORE_NAME", 1)]
+        self.assertListEqual(code[0], expected)
+        self.assertListEqual(code.names, ['int', 'foo'])
 
 
 class MiscTests(unittest.TestCase):
