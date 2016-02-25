@@ -454,7 +454,7 @@ class _CodePeepholeOptimizer:
 
         if MIMICK_C_IMPL:
             bytecode = ConcreteBytecode.from_code(code_obj,
-                                                    extended_arg_op=True)
+                                                  extended_arg_op=True)
             bytecode = bytecode.to_bytecode_blocks()
             try:
                 self._optimize(bytecode)

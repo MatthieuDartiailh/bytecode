@@ -237,6 +237,34 @@ class BytecodeBlocksTests(TestCase):
         self.assertBlocksEqual(code,
                                [LOAD_CONST(2)])
 
+    def test_to_bytecode(self):
+        blocks = BytecodeBlocks()
+        label = blocks.add_block().label
+        blocks[0].extend([Instr(1, 'LOAD_NAME', 'test'),
+                          Instr(1, 'POP_JUMP_IF_FALSE', label),
+                          Instr(2, 'LOAD_CONST', 5),
+                          Instr(2, 'STORE_NAME', 'x'),
+                          Instr(2, 'JUMP_FORWARD', label),
+                          Instr(4, 'LOAD_CONST', 7),
+                          Instr(4, 'STORE_NAME', 'x')])
+        blocks[1].extend([Instr(4, 'LOAD_CONST', None),
+                          Instr(4, 'RETURN_VALUE')])
+
+        bytecode = blocks.to_bytecode()
+        label = Label()
+        self.assertEqual(bytecode,
+                         [Instr(1, 'LOAD_NAME', 'test'),
+                          Instr(1, 'POP_JUMP_IF_FALSE', label),
+                          Instr(2, 'LOAD_CONST', 5),
+                          Instr(2, 'STORE_NAME', 'x'),
+                          Instr(2, 'JUMP_FORWARD', label),
+                          Instr(4, 'LOAD_CONST', 7),
+                          Instr(4, 'STORE_NAME', 'x'),
+                          label,
+                          Instr(4, 'LOAD_CONST', None),
+                          Instr(4, 'RETURN_VALUE')])
+        # FIXME: test other attributes
+
 
 class BytecodeBlocksFunctionalTests(TestCase):
     def sample_code(self):
@@ -573,16 +601,18 @@ class BytecodeTests(TestCase):
                 x = 2
         """)
         bytecode = Bytecode.from_code(code)
-        label = Label()
+        label_else = Label()
+        label_exit = Label()
         self.assertEqual(bytecode,
                          [Instr(1, 'LOAD_NAME', 'test'),
-                          Instr(1, 'POP_JUMP_IF_FALSE', label),
+                          Instr(1, 'POP_JUMP_IF_FALSE', label_else),
                           Instr(2, 'LOAD_CONST', 1),
                           Instr(2, 'STORE_NAME', 'x'),
-                          Instr(2, 'JUMP_FORWARD', label),
-                          label,
+                          Instr(2, 'JUMP_FORWARD', label_exit),
+                          label_else,
                           Instr(4, 'LOAD_CONST', 2),
                           Instr(4, 'STORE_NAME', 'x'),
+                          label_exit,
                           Instr(4, 'LOAD_CONST', None),
                           Instr(4, 'RETURN_VALUE')])
 
@@ -615,7 +645,7 @@ class BytecodeTests(TestCase):
         self.assertListEqual(concrete.names, ['test', 'x'])
         self.assertListEqual(concrete.varnames, [])
 
-    def test_to_blocks(self):
+    def test_to_bytecode_blocks(self):
         bytecode = Bytecode()
         label = Label()
         bytecode.extend([Instr(1, 'LOAD_NAME', 'test'),
@@ -654,6 +684,42 @@ class DumpCodeTests(unittest.TestCase):
             output = stderr.getvalue()
 
         self.assertEqual(output, expected)
+
+    def test_bytecode(self):
+        source = """
+            def func(test):
+                if test == 1:
+                    return 1
+                elif test == 2:
+                    return 2
+                return 3
+        """
+        code = disassemble(source, function=True)
+        code = code.to_bytecode()
+
+        expected = textwrap.dedent("""
+label_instr0:
+    LOAD_FAST 'test'
+    LOAD_CONST 1
+    COMPARE_OP 2
+    POP_JUMP_IF_FALSE <label_instr7>
+    LOAD_CONST 1
+    RETURN_VALUE
+
+label_instr7:
+    LOAD_FAST 'test'
+    LOAD_CONST 2
+    COMPARE_OP 2
+    POP_JUMP_IF_FALSE <label_instr14>
+    LOAD_CONST 2
+    RETURN_VALUE
+
+label_instr14:
+    LOAD_CONST 3
+    RETURN_VALUE
+
+        """).lstrip()
+        self.check_dump_code(code, expected)
 
     def test_bytecode_blocks(self):
         source = """

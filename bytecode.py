@@ -229,6 +229,18 @@ class BaseBytecode(metaclass=abc.ABCMeta):
         self.freevars = []
         self.cellvars = []
 
+    def _copy_attr_from(self, bytecode):
+        self.argcount = bytecode.argcount
+        self.kw_only_argcount = bytecode.kw_only_argcount
+        self._stacksize = bytecode._stacksize
+        self.flags = bytecode.flags
+        self.first_lineno = bytecode.first_lineno
+        self.name = bytecode.name
+        self.filename = bytecode.filename
+        self.docstring = bytecode.docstring
+        self.freevars = list(bytecode.freevars)
+        self.cellvars = list(bytecode.cellvars)
+
     def __eq__(self, other):
         if type(self) != type(other):
             return False
@@ -466,15 +478,7 @@ class ConcreteBytecode(BaseBytecode, list):
             instr.arg = labels[jump_target]
 
         bytecode = Bytecode()
-        bytecode.name = self.name
-        bytecode.filename = self.filename
-        bytecode.flags = self.flags
-        bytecode.argcount = self.argcount
-        bytecode.kw_only_argcount = self.kw_only_argcount
-        bytecode._stacksize = self._stacksize
-        bytecode.first_lineno = self.first_lineno
-        bytecode.freevars = list(self.freevars)
-        bytecode.cellvars = list(self.cellvars)
+        bytecode._copy_attr_from(self)
 
         nargs = bytecode.argcount + bytecode.kw_only_argcount
         bytecode.argnames = self.varnames[:nargs]
@@ -524,9 +528,7 @@ class _InstrList(list):
         if not isinstance(other, _InstrList):
             other = _InstrList(other)
 
-        instrs1 = self._flat()
-        instrs2 = self._flat()
-        return (instrs1 == instrs2)
+        return (self._flat() == other._flat())
 
 
 class Block(_InstrList):
@@ -637,23 +639,8 @@ class _ConvertCodeToConcrete:
 
         instructions = self.concrete_instructions()
 
-        code = self.bytecode
         concrete = ConcreteBytecode()
-        concrete.name = code.name
-        concrete.filename = code.filename
-        concrete.flags = code.flags
-        # copy from abstract code
-        concrete.argcount = code.argcount
-        concrete.kw_only_argcount = code.kw_only_argcount
-        concrete._stacksize = code._stacksize
-        concrete.flags = code.flags
-        concrete.first_lineno = code.first_lineno
-        concrete.filename = code.filename
-        concrete.name = code.name
-        concrete.freevars = list(concrete.freevars)
-        concrete.cellvars = list(concrete.cellvars)
-
-        # copy from assembler
+        concrete._copy_attr_from(self.bytecode)
         concrete.consts = self.consts
         concrete.names = self.names
         concrete.varnames = self.varnames
@@ -700,17 +687,8 @@ class Bytecode(_InstrList, BaseBytecode):
             block_starts[index] = label
 
         bytecode = BytecodeBlocks()
-        bytecode.argcount = self.argcount
-        bytecode.kw_only_argcount = self.kw_only_argcount
-        bytecode._stacksize = self._stacksize
-        bytecode.flags = self.flags
-        bytecode.first_lineno = self.first_lineno
-        bytecode.name = self.name
-        bytecode.filename = self.filename
-        bytecode.freevars = list(self.freevars)
-        bytecode.cellvars = list(self.cellvars)
+        bytecode._copy_attr_from(self)
         bytecode.argnames = list(self.argnames)
-        bytecode.docstring = self.docstring
 
         # copy instructions, convert labels to block labels
         block = bytecode[0]
@@ -858,7 +836,34 @@ class BytecodeBlocks(BaseBytecode):
         return _ConvertCodeToConcrete(self).to_concrete_bytecode()
 
     def to_bytecode(self):
-        raise Exception("FIXME! not implemented")
+        labels = {}
+        jumps = []
+        instructions = []
+        for block in self:
+            new_label = Label()
+            labels[block.label] = new_label
+            instructions.append(new_label)
+
+            for instr in block:
+                if isinstance(instr, Label):
+                    old_label = instr
+                    new_label = Label()
+                    labels[old_label] = new_label
+                    instructions.append(new_label)
+                else:
+                    instr = Instr(instr.lineno, instr.name, instr.arg)
+                    if isinstance(instr.arg, Label):
+                        jumps.append(instr)
+                    instructions.append(instr)
+
+        for instr in jumps:
+            instr.arg = labels[instr.arg]
+
+        bytecode = Bytecode()
+        bytecode._copy_attr_from(self)
+        bytecode.argnames = list(self.argnames)
+        bytecode[:] = instructions
+        return bytecode
 
     def to_bytecode_blocks(self):
         return self
@@ -889,13 +894,20 @@ def _dump_code(code):
     if isinstance(code, ConcreteBytecode):
         _dump_concrete_bytecode(code)
     elif isinstance(code, Bytecode):
-        labels = code._labels()
-        for instr in code:
+        labels = {}
+        for index, instr in enumerate(code):
+            if isinstance(instr, Label):
+                labels[instr] = 'label_instr%s' % index
+
+        for index, instr in enumerate(code):
             if isinstance(instr, Label):
                 label = labels[instr]
-                print(label)
+                line = "%s:" % label
+                if index != 0:
+                    print()
             else:
-                print(instr.format(labels))
+                line = indent + instr.format(labels)
+            print(line)
         print()
     elif isinstance(code, BytecodeBlocks):
         labels = {}
