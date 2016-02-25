@@ -9,9 +9,9 @@ from bytecode.tests import disassemble
 
 
 class DumpCodeTests(unittest.TestCase):
-    def check_dump_code(self, code, expected):
+    def check_dump(self, code, expected):
         with contextlib.redirect_stdout(io.StringIO()) as stderr:
-            bytecode._dump_code(code)
+            bytecode.dump(code)
             output = stderr.getvalue()
 
         self.assertEqual(output, expected)
@@ -50,7 +50,7 @@ class DumpCodeTests(unittest.TestCase):
                 RETURN_VALUE
 
         """).lstrip()
-        self.check_dump_code(code, expected)
+        self.check_dump(code, expected)
 
     def test_bytecode_blocks(self):
         source = """
@@ -85,7 +85,7 @@ class DumpCodeTests(unittest.TestCase):
                 RETURN_VALUE
 
         """).lstrip()
-        self.check_dump_code(code, expected)
+        self.check_dump(code, expected)
 
     def test_concrete_bytecode(self):
         source = """
@@ -115,7 +115,7 @@ class DumpCodeTests(unittest.TestCase):
   6 32    LOAD_CONST(3)
     35    RETURN_VALUE
 """.lstrip("\n")
-        self.check_dump_code(code, expected)
+        self.check_dump(code, expected)
 
 
 class MiscTests(unittest.TestCase):

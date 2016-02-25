@@ -12,31 +12,27 @@ from bytecode.blocks import BytecodeBlocks
 
 
 # FIXME: move code into a submodule or inside Bytecode classes?
-def _dump_concrete_bytecode(code):
-    line_width = 3
-
-    offset = 0
-    lineno = None
-    for instr in code:
-        fields = []
-        if instr.lineno != lineno:
-            fields.append(str(instr.lineno).rjust(line_width))
-            lineno = instr.lineno
-        else:
-            fields.append(" " * line_width)
-
-        fields.append("% 3s    %s" % (offset, instr.name))
-        if instr.arg is not UNSET:
-            fields.append("(%s)" % instr.arg)
-        print(''.join(fields))
-
-        offset += instr.size
-
-
-def _dump_code(code):
+def dump(code):
     indent = ' ' * 4
     if isinstance(code, ConcreteBytecode):
-        _dump_concrete_bytecode(code)
+        line_width = 3
+
+        offset = 0
+        lineno = None
+        for instr in code:
+            fields = []
+            if instr.lineno != lineno:
+                fields.append(str(instr.lineno).rjust(line_width))
+                lineno = instr.lineno
+            else:
+                fields.append(" " * line_width)
+
+            fields.append("% 3s    %s" % (offset, instr.name))
+            if instr.arg is not UNSET:
+                fields.append("(%s)" % instr.arg)
+            print(''.join(fields))
+
+            offset += instr.size
     elif isinstance(code, Bytecode):
         labels = {}
         for index, instr in enumerate(code):
