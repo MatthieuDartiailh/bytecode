@@ -212,7 +212,7 @@ class Block(list):
             super().__init__(instructions)
 
 
-class Assembler:
+class _ConvertCodeToConcrete:
     def __init__(self, code):
         self.code = code
         self.consts = []
@@ -229,7 +229,7 @@ class Assembler:
         return index
 
     @staticmethod
-    def _add(names, name):
+    def add(names, name):
         try:
             index = names.index(name)
         except ValueError:
@@ -237,7 +237,7 @@ class Assembler:
             names.append(name)
         return index
 
-    def _concrete_instructions(self):
+    def concrete_instructions(self):
         # FIXME: rewrite this code!?
 
         blocks = [list(block) for block in self.code]
@@ -256,9 +256,9 @@ class Assembler:
                     if instr.op in opcode.hasconst:
                         arg = self.add_const(arg)
                     elif instr.op in opcode.haslocal:
-                        arg = self._add(self.varnames, arg)
+                        arg = self.add(self.varnames, arg)
                     elif instr.op in opcode.hasname:
-                        arg = self._add(self.names, arg)
+                        arg = self.add(self.names, arg)
 
                     instr = ConcreteInstr(instr.lineno, instr.name, arg)
                 block[index] = instr
@@ -312,44 +312,12 @@ class Assembler:
 
         return instructions
 
-    def _assemble_lnotab(self, linenos):
-        lnotab = []
-        old_offset = 0
-        old_lineno = self.code.first_lineno
-        for offset, lineno in linenos:
-            dlineno = lineno - old_lineno
-            if dlineno == 0:
-                continue
-            old_lineno = lineno
-
-            doff = offset - old_offset
-            old_offset = offset
-
-            while doff > 255:
-                lnotab.append(b'\xff0')
-                doff -= 255
-
-            while dlineno < -127:
-                lnotab.append(struct.pack('Bb', 0, -127))
-                dlineno -= -127
-
-            while dlineno > 126:
-                lnotab.append(struct.pack('Bb', 0, 126))
-                dlineno -= 126
-
-            assert 0 <= doff <= 255
-            assert -127 <= dlineno <= 126
-
-            lnotab.append(struct.pack('Bb', doff, dlineno))
-
-        return b''.join(lnotab)
-
     def concrete_code(self):
         first_const = self.code.docstring
         if first_const is not UNSET:
             self.add_const(first_const)
 
-        instructions = self._concrete_instructions()
+        instructions = self.concrete_instructions()
         code = self.code
         concrete = ConcreteCode(code.name,
                                 code.filename,
@@ -374,46 +342,6 @@ class Assembler:
         # copy instructions
         concrete[:] = instructions
         return concrete
-
-    def assemble(self):
-        # FIXME: validate code?
-
-        first_const = self.code.docstring
-        if first_const is not UNSET:
-            self.add_const(first_const)
-
-        instructions = self._concrete_instructions()
-
-        # emit bytecode
-        offset = 0
-        code_str = []
-        linenos = []
-        for instr in instructions:
-            code_str.append(instr.assemble())
-            linenos.append((offset, instr.lineno))
-            offset += instr.size
-        code_str = b''.join(code_str)
-
-        # assemble lnotab
-        lnotab = self._assemble_lnotab(linenos)
-
-        return types.CodeType(self.code.argcount,
-                              self.code.kw_only_argcount,
-                              # FIXME: compute number of locals
-                              self.code._nlocals,
-                              # FIXME: compute stack size
-                              self.code._stacksize,
-                              self.code.flags,
-                              code_str,
-                              tuple(self.consts),
-                              tuple(self.names),
-                              tuple(self.varnames),
-                              self.code.filename,
-                              self.code.name,
-                              self.code.first_lineno,
-                              lnotab,
-                              tuple(self.code.freevars),
-                              tuple(self.code.cellvars))
 
 
 def _disassemble(code_obj, *,
@@ -625,7 +553,7 @@ class Code(BaseCode):
                             extended_arg_op=extended_arg_op)
 
     def concrete_code(self):
-        return Assembler(self).concrete_code()
+        return _ConvertCodeToConcrete(self).concrete_code()
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -706,7 +634,7 @@ class Code(BaseCode):
         return block2.label
 
     def assemble(self):
-        return Assembler(self).assemble()
+        return self.concrete_code().assemble()
 
 
 class ConcreteCode(BaseCode, list):
@@ -738,6 +666,71 @@ class ConcreteCode(BaseCode, list):
 
         return super().__eq__(other)
 
+    def _assemble_code(self):
+        offset = 0
+        code_str = []
+        linenos = []
+        for instr in self:
+            code_str.append(instr.assemble())
+            linenos.append((offset, instr.lineno))
+            offset += instr.size
+        code_str = b''.join(code_str)
+        return (code_str, linenos)
+
+    @staticmethod
+    def _assemble_lnotab(first_lineno, linenos):
+        lnotab = []
+        old_offset = 0
+        old_lineno = first_lineno
+        for offset, lineno in linenos:
+            dlineno = lineno - old_lineno
+            if dlineno == 0:
+                continue
+            old_lineno = lineno
+
+            doff = offset - old_offset
+            old_offset = offset
+
+            while doff > 255:
+                lnotab.append(b'\xff0')
+                doff -= 255
+
+            while dlineno < -127:
+                lnotab.append(struct.pack('Bb', 0, -127))
+                dlineno -= -127
+
+            while dlineno > 126:
+                lnotab.append(struct.pack('Bb', 0, 126))
+                dlineno -= 126
+
+            assert 0 <= doff <= 255
+            assert -127 <= dlineno <= 126
+
+            lnotab.append(struct.pack('Bb', doff, dlineno))
+
+        return b''.join(lnotab)
+
+    def assemble(self):
+        code_str, linenos = self._assemble_code()
+        lnotab = self._assemble_lnotab(self.first_lineno, linenos)
+        return types.CodeType(self.argcount,
+                              self.kw_only_argcount,
+                              # FIXME: compute number of locals
+                              self._nlocals,
+                              # FIXME: compute stack size
+                              self._stacksize,
+                              self.flags,
+                              code_str,
+                              tuple(self.consts),
+                              tuple(self.names),
+                              tuple(self.varnames),
+                              self.filename,
+                              self.name,
+                              self.first_lineno,
+                              lnotab,
+                              tuple(self.freevars),
+                              tuple(self.cellvars))
+
 
 def _dump_code(code):
     offset = 0
@@ -745,7 +738,7 @@ def _dump_code(code):
     line_width = 3
     write_blocks = isinstance(code, ConcreteCode)
 
-    code = Assembler(code).concrete_code()
+    code = code.concrete_code()
     for instr in code:
         fields = []
         if instr.lineno != lineno:
