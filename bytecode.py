@@ -258,8 +258,72 @@ class ConcreteCode(BaseCode, list):
 
     @staticmethod
     def disassemble(code_obj, *, extended_arg_op=False):
-        return _disassemble(code_obj, True,
-                            extended_arg_op=extended_arg_op)
+        code = code_obj.co_code
+        line_starts = dict(dis.findlinestarts(code_obj))
+
+        # find block starts
+        instructions = []
+        offset = 0
+        lineno = code_obj.co_firstlineno
+        while offset < len(code):
+            if offset in line_starts:
+                lineno = line_starts[offset]
+
+            instr = ConcreteInstr.disassemble(lineno, code, offset)
+
+            instructions.append(instr)
+            offset += instr.size
+
+        # replace jump targets with blocks
+        if not extended_arg_op:
+            extended_arg = None
+            index = 0
+            while index < len(instructions):
+                instr = instructions[index]
+
+                if instr.name == 'EXTENDED_ARG' and not extended_arg_op:
+                    if extended_arg is not None:
+                        raise ValueError("EXTENDED_ARG followed "
+                                         "by EXTENDED_ARG")
+                    extended_arg = instr.arg
+                    del instructions[index]
+                    continue
+
+                arg = instr.arg
+                if extended_arg is not None:
+                    arg = (extended_arg << 16) + arg
+                    extended_arg = None
+
+                    instr = ConcreteInstr(instr.lineno, instr.name, arg)
+                    instructions[index] = instr
+
+                index += 1
+
+            if extended_arg is not None:
+                raise ValueError("EXTENDED_ARG at the end of the code")
+
+        code = ConcreteCode(code_obj.co_name,
+                            code_obj.co_filename,
+                            code_obj.co_flags)
+        code.argcount = code_obj.co_argcount
+        code.kw_only_argcount = code_obj.co_kwonlyargcount
+        code._nlocals = code_obj.co_nlocals
+        code._stacksize = code_obj.co_stacksize
+        code.first_lineno = code_obj.co_firstlineno
+        code.names = list(code_obj.co_names)
+        code.consts = list(code_obj.co_consts)
+        code.varnames = list(code_obj.co_varnames)
+        code.freevars = list(code_obj.co_freevars)
+        code.cellvars = list(code_obj.co_cellvars)
+
+        first_const = code_obj.co_consts[0]
+        if isinstance(first_const, str):
+            code.docstring = first_const
+        elif first_const is None:
+            code.docstring = first_const
+
+        code[:] = instructions
+        return code
 
     def __eq__(self, other):
         if type(self) != type(other):
