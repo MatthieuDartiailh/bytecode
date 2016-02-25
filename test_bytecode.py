@@ -380,6 +380,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
         self.assertBlocksEqual(bytecode, *blocks)
         code = bytecode.assemble()
+        self.assertEqual(code.co_consts, (None, 3))
         self.assertEqual(code.co_argcount, 3)
         self.assertEqual(code.co_kwonlyargcount, 2)
         self.assertEqual(code.co_nlocals, 1)

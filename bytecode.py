@@ -220,8 +220,8 @@ class BaseBytecode:
         self._stacksize = 0
         self.flags = 0
         self.first_lineno = 1
-        self.filename = '<string>'
         self.name = '<module>'
+        self.filename = '<string>'
         self.docstring = UNSET
 
         # FIXME: move to ConcreteBytecode
@@ -587,6 +587,7 @@ class _ConvertCodeToConcrete:
         return concrete
 
 
+# FIXME: move into Bytecode
 def _disassemble(code_obj, use_blocks, extended_arg_op):
     concrete = ConcreteBytecode.disassemble(code_obj,
                                             extended_arg_op=extended_arg_op)
@@ -721,10 +722,22 @@ class Bytecode(_InstrList, BaseBytecode):
             block_starts[index] = label
 
         bytecode = BytecodeBlocks()
+        bytecode.argcount = self.argcount
+        bytecode.kw_only_argcount = self.kw_only_argcount
+        bytecode._stacksize = self._stacksize
+        bytecode.flags = self.flags
+        bytecode.first_lineno = self.first_lineno
+        bytecode.name = self.name
+        bytecode.filename = self.filename
+        bytecode.freevars = list(self.freevars)
+        bytecode.cellvars = list(self.cellvars)
+        bytecode.argnames = list(self.argnames)
+        bytecode.docstring = self.docstring
+
+        # copy instructions, convert labels to block labels
         block = bytecode[0]
         labels = {}
         jumps = []
-        # FIXME: copy all attributes from self
         for index, instr in enumerate(self):
             if index != 0 and index in block_starts:
                 old_label = block_starts[index]
@@ -771,7 +784,8 @@ class BytecodeBlocks(BaseBytecode):
 
     @staticmethod
     def disassemble(code_obj, *, extended_arg_op=False):
-        return _disassemble(code_obj, True, extended_arg_op)
+        code = Bytecode.disassemble(code_obj, extended_arg_op=extended_arg_op)
+        return code.to_blocks()
 
     def concrete_code(self):
         return _ConvertCodeToConcrete(self).concrete_code()
