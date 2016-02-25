@@ -101,7 +101,8 @@ class BaseInstr:
         return self.name in {'JUMP_FORWARD', 'JUMP_ABSOLUTE'}
 
     def _is_final(self):
-        if self._name in {'RETURN_VALUE', 'RAISE_VARARGS'}:
+        if self._name in {'RETURN_VALUE', 'RAISE_VARARGS',
+                          'BREAK_LOOP', 'CONTINUE_LOOP'}:
             return True
         if self.is_uncond_jump():
             return True

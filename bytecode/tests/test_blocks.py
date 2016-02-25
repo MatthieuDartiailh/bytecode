@@ -2,7 +2,7 @@
 import sys
 import unittest
 from bytecode import Label, Instr, ConcreteInstr, Bytecode, BytecodeBlocks
-from bytecode.tests import LOAD_CONST, STORE_NAME, NOP, disassemble, TestCase
+from bytecode.tests import LOAD_CONST, STORE_NAME, NOP, disassemble, TestCase, get_code
 
 
 class BytecodeBlocksTests(TestCase):
@@ -89,6 +89,29 @@ class BytecodeBlocksTests(TestCase):
                           Instr(4, 'RETURN_VALUE')])
         # FIXME: test other attributes
 
+    def test_eq_labels(self):
+        # equal
+        code1 = BytecodeBlocks()
+        label1 = Label()
+        code1[0].extend([Instr(1, "JUMP_FORWARD", label1),
+                         Instr(1, "NOP"),
+                         label1])
+        code2 = BytecodeBlocks()
+        label2 = Label()
+        code2[0].extend([Instr(1, "JUMP_FORWARD", label2),
+                         Label(),   # unused label
+                         Instr(1, "NOP"),
+                         label2])
+        self.assertEqual(code2, code1)
+
+        # not equal
+        code3 = BytecodeBlocks()
+        label3 = Label()
+        code3[0].extend([Instr(1, "JUMP_FORWARD", label3),
+                         label3,
+                         Instr(1, "NOP")])
+        self.assertNotEqual(code3, code1)
+
     def test_bytecode_to_bytecode_blocks(self):
         bytecode = Bytecode()
         label = Label()
@@ -121,6 +144,63 @@ class BytecodeBlocksTests(TestCase):
                                 Instr(4, 'RETURN_VALUE')])
         # FIXME: test other attributes
 
+    def test_bytecode_to_bytecode_blocks_loop(self):
+        # for x in (1, 2, 3):
+        #     if x == 2:
+        #         break
+        #     continue
+
+        label_loop_start = Label()
+        label_loop_exit = Label()
+        label_loop_end = Label()
+
+        code = Bytecode()
+        code.extend((Instr(1, 'SETUP_LOOP', label_loop_end),
+                     Instr(1, 'LOAD_CONST', (1, 2, 3)),
+                     Instr(1, 'GET_ITER'),
+
+                     label_loop_start,
+                     Instr(1, 'FOR_ITER', label_loop_exit),
+                     Instr(1, 'STORE_NAME', 'x'),
+                     Instr(2, 'LOAD_NAME', 'x'),
+                     Instr(2, 'LOAD_CONST', 2),
+                     Instr(2, 'COMPARE_OP', 2),
+                     Instr(2, 'POP_JUMP_IF_FALSE', label_loop_start),
+                     Instr(3, 'BREAK_LOOP'),
+                     Instr(4, 'JUMP_ABSOLUTE', label_loop_start),
+
+                     Instr(4, 'JUMP_ABSOLUTE', label_loop_start),
+
+                     label_loop_exit,
+                     Instr(4, 'POP_BLOCK'),
+
+                     label_loop_end,
+                     Instr(4, 'LOAD_CONST', None),
+                     Instr(4, 'RETURN_VALUE'),
+        ))
+        blocks = code.to_bytecode_blocks()
+
+        self.assertBlocksEqual(blocks,
+                               [Instr(1, 'SETUP_LOOP', blocks[5].label),
+                                Instr(1, 'LOAD_CONST', (1, 2, 3)),
+                                Instr(1, 'GET_ITER')],
+
+                               [Instr(1, 'FOR_ITER', blocks[4].label),
+                                Instr(1, 'STORE_NAME', 'x'),
+                                Instr(2, 'LOAD_NAME', 'x'),
+                                Instr(2, 'LOAD_CONST', 2),
+                                Instr(2, 'COMPARE_OP', 2),
+                                Instr(2, 'POP_JUMP_IF_FALSE', blocks[1].label),
+                                Instr(3, 'BREAK_LOOP')],
+
+                               [Instr(4, 'JUMP_ABSOLUTE', blocks[1].label)],
+
+                               [Instr(4, 'JUMP_ABSOLUTE', blocks[1].label)],
+
+                               [Instr(4, 'POP_BLOCK')],
+
+                               [Instr(4, 'LOAD_CONST', None),
+                                Instr(4, 'RETURN_VALUE')])
 
 
 class BytecodeBlocksFunctionalTests(TestCase):
@@ -131,29 +211,6 @@ class BytecodeBlocksFunctionalTests(TestCase):
         code1 = disassemble(source)
         code2 = disassemble(source)
         self.assertEqual(code1, code2)
-
-    def test_eq_labels(self):
-        # equal
-        code1 = BytecodeBlocks()
-        label1 = Label()
-        code1[0][:] = [Instr(1, "JUMP_FORWARD", label1),
-                       Instr(1, "NOP"),
-                       label1]
-        code2 = BytecodeBlocks()
-        label2 = Label()
-        code2[0][:] = [Instr(1, "JUMP_FORWARD", label2),
-                       Label(),   # unused label
-                       Instr(1, "NOP"),
-                       label2]
-        self.assertEqual(code2, code1)
-
-        # not equal
-        code3 = BytecodeBlocks()
-        label3 = Label()
-        code3[0][:] = [Instr(1, "JUMP_FORWARD", label3),
-                       label3,
-                       Instr(1, "NOP")]
-        self.assertNotEqual(code3, code1)
 
     def check_getitem(self, code):
         # check internal Code block indexes (index by index, index by label)

@@ -14,7 +14,7 @@ class BytecodeTests(TestCase):
         self.assertEqual(code.flags, 0)
         self.assertEqual(code, [])
 
-    def test_disassemble(self):
+    def test_from_code(self):
         code = get_code("""
             if test:
                 x = 1

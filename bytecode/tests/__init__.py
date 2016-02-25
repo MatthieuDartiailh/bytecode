@@ -2,21 +2,46 @@ import textwrap
 import types
 import unittest
 
-import bytecode as _bytecode
+from bytecode import UNSET, Label, Instr, BytecodeBlocks
 
 
 def LOAD_CONST(arg):
-    return _bytecode.Instr(1, 'LOAD_CONST', arg)
+    return Instr(1, 'LOAD_CONST', arg)
 
 def STORE_NAME(arg):
-    return _bytecode.Instr(1, 'STORE_NAME', arg)
+    return Instr(1, 'STORE_NAME', arg)
 
 def NOP():
-    return _bytecode.Instr(1, 'NOP')
+    return Instr(1, 'NOP')
 
 def RETURN_VALUE():
-    return _bytecode.Instr(1, 'RETURN_VALUE')
+    return Instr(1, 'RETURN_VALUE')
 
+
+def dump_blocks(code):
+    """
+    Use this function to write unit tests: copy/paste its output to
+    write a self.assertBlocksEqual() check.
+    """
+    print()
+    for block_index, block in enumerate(code):
+        instr_list = []
+        for instr in block:
+            arg = instr.arg
+            if arg is not UNSET:
+                if isinstance(arg, Label):
+                    arg = 'code[%s].label' % code._label_to_index[arg]
+                else:
+                    arg = repr(arg)
+                text = 'Instr(%s, %r, %s)' % (instr.lineno, instr.name, arg)
+            else:
+                text = 'Instr(%s, %r)' % (instr.lineno, instr.name)
+            instr_list.append(text)
+        text = '[%s]'  % ',\n '.join(instr_list)
+        if block_index != len(code) - 1:
+            text += ','
+        print(text)
+        print()
 
 def get_code(source, *, filename="<string>", function=False):
     source = textwrap.dedent(source).strip()
@@ -33,7 +58,7 @@ def disassemble(source, *, filename="<string>", function=False,
                 remove_last_return_none=False):
     code = get_code(source, filename=filename, function=function)
 
-    bytecode = _bytecode.BytecodeBlocks.from_code(code)
+    bytecode = BytecodeBlocks.from_code(code)
     if remove_last_return_none:
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter
