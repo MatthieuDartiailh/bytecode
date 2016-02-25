@@ -90,8 +90,11 @@ class BaseInstr:
 
 
 class Instr(BaseInstr):
-    """
-    Abstract instruction: argument can be any kind of object.
+    """Abstract instruction.
+
+    lineno, name, op and arg attributes can be modified.
+
+    arg is not checked.
     """
 
     __slots__ = ()
@@ -199,6 +202,145 @@ class ConcreteInstr(BaseInstr):
         name = opcode.opname[op]
         return cls(lineno, name, arg)
 
+
+class BaseCode:
+    def __init__(self, name, filename, flags):
+        self.argcount = 0
+        self.kw_only_argcount = 0
+        self._nlocals = 0
+        self._stacksize = 0
+        self.flags = flags
+        self.first_lineno = 1
+        self.filename = filename
+        self.name = name
+        self.docstring = UNSET
+
+        # FIXME: move to ConcreteCode
+        self.freevars = []
+        self.cellvars = []
+
+    def __eq__(self, other):
+        if type(self) != type(other):
+            return False
+
+        if self.argcount != other.argcount:
+            return False
+        if self.kw_only_argcount != other.kw_only_argcount:
+            return False
+        if self._nlocals != other._nlocals:
+            return False
+        if self._stacksize != other._stacksize:
+            return False
+        if self.flags != other.flags:
+            return False
+        if self.first_lineno != other.first_lineno:
+            return False
+        if self.filename != other.filename:
+            return False
+        if self.name != other.name:
+            return False
+        if self.docstring != other.docstring:
+            return False
+        if self.freevars != other.freevars:
+            return False
+        if self.cellvars != other.cellvars:
+            return False
+
+        return True
+
+
+class ConcreteCode(BaseCode, list):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self.consts = []
+        self.names = []
+        self.varnames = []
+
+    @staticmethod
+    def disassemble(code_obj, *, extended_arg_op=False):
+        return _disassemble(code_obj, True,
+                            extended_arg_op=extended_arg_op)
+
+    def __eq__(self, other):
+        if type(self) != type(other):
+            return False
+
+        const_keys1 = list(map(_const_key, self.consts))
+        const_keys2 = list(map(_const_key, other.consts))
+        if const_keys1 != const_keys2:
+            return False
+
+        if self.names != other.names:
+            return False
+        if self.varnames != other.varnames:
+            return False
+
+        return super().__eq__(other)
+
+    def _assemble_code(self):
+        offset = 0
+        code_str = []
+        linenos = []
+        for instr in self:
+            code_str.append(instr.assemble())
+            linenos.append((offset, instr.lineno))
+            offset += instr.size
+        code_str = b''.join(code_str)
+        return (code_str, linenos)
+
+    @staticmethod
+    def _assemble_lnotab(first_lineno, linenos):
+        lnotab = []
+        old_offset = 0
+        old_lineno = first_lineno
+        for offset, lineno in linenos:
+            dlineno = lineno - old_lineno
+            if dlineno == 0:
+                continue
+            old_lineno = lineno
+
+            doff = offset - old_offset
+            old_offset = offset
+
+            while doff > 255:
+                lnotab.append(b'\xff0')
+                doff -= 255
+
+            while dlineno < -127:
+                lnotab.append(struct.pack('Bb', 0, -127))
+                dlineno -= -127
+
+            while dlineno > 126:
+                lnotab.append(struct.pack('Bb', 0, 126))
+                dlineno -= 126
+
+            assert 0 <= doff <= 255
+            assert -127 <= dlineno <= 126
+
+            lnotab.append(struct.pack('Bb', doff, dlineno))
+
+        return b''.join(lnotab)
+
+    def assemble(self):
+        code_str, linenos = self._assemble_code()
+        lnotab = self._assemble_lnotab(self.first_lineno, linenos)
+        return types.CodeType(self.argcount,
+                              self.kw_only_argcount,
+                              # FIXME: compute number of locals
+                              self._nlocals,
+                              # FIXME: compute stack size
+                              self._stacksize,
+                              self.flags,
+                              code_str,
+                              tuple(self.consts),
+                              tuple(self.names),
+                              tuple(self.varnames),
+                              self.filename,
+                              self.name,
+                              self.first_lineno,
+                              lnotab,
+                              tuple(self.freevars),
+                              tuple(self.cellvars))
 
 
 class Label:
@@ -476,52 +618,6 @@ def _disassemble(code_obj, concrete, use_labels=False, extended_arg_op=False):
     return code
 
 
-class BaseCode:
-    def __init__(self, name, filename, flags):
-        self.argcount = 0
-        self.kw_only_argcount = 0
-        self._nlocals = 0
-        self._stacksize = 0
-        self.flags = flags
-        self.first_lineno = 1
-        self.filename = filename
-        self.name = name
-        self.docstring = UNSET
-
-        # FIXME: move to ConcreteCode
-        self.freevars = []
-        self.cellvars = []
-
-    def __eq__(self, other):
-        if type(self) != type(other):
-            return False
-
-        if self.argcount != other.argcount:
-            return False
-        if self.kw_only_argcount != other.kw_only_argcount:
-            return False
-        if self._nlocals != other._nlocals:
-            return False
-        if self._stacksize != other._stacksize:
-            return False
-        if self.flags != other.flags:
-            return False
-        if self.first_lineno != other.first_lineno:
-            return False
-        if self.filename != other.filename:
-            return False
-        if self.name != other.name:
-            return False
-        if self.docstring != other.docstring:
-            return False
-        if self.freevars != other.freevars:
-            return False
-        if self.cellvars != other.cellvars:
-            return False
-
-        return True
-
-
 class Code(BaseCode):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -623,100 +719,6 @@ class Code(BaseCode):
 
     def assemble(self):
         return self.concrete_code().assemble()
-
-
-class ConcreteCode(BaseCode, list):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-        self.consts = []
-        self.names = []
-        self.varnames = []
-
-    @staticmethod
-    def disassemble(code_obj, *, extended_arg_op=False):
-        return _disassemble(code_obj, True,
-                            extended_arg_op=extended_arg_op)
-
-    def __eq__(self, other):
-        if type(self) != type(other):
-            return False
-
-        const_keys1 = list(map(_const_key, self.consts))
-        const_keys2 = list(map(_const_key, other.consts))
-        if const_keys1 != const_keys2:
-            return False
-
-        if self.names != other.names:
-            return False
-        if self.varnames != other.varnames:
-            return False
-
-        return super().__eq__(other)
-
-    def _assemble_code(self):
-        offset = 0
-        code_str = []
-        linenos = []
-        for instr in self:
-            code_str.append(instr.assemble())
-            linenos.append((offset, instr.lineno))
-            offset += instr.size
-        code_str = b''.join(code_str)
-        return (code_str, linenos)
-
-    @staticmethod
-    def _assemble_lnotab(first_lineno, linenos):
-        lnotab = []
-        old_offset = 0
-        old_lineno = first_lineno
-        for offset, lineno in linenos:
-            dlineno = lineno - old_lineno
-            if dlineno == 0:
-                continue
-            old_lineno = lineno
-
-            doff = offset - old_offset
-            old_offset = offset
-
-            while doff > 255:
-                lnotab.append(b'\xff0')
-                doff -= 255
-
-            while dlineno < -127:
-                lnotab.append(struct.pack('Bb', 0, -127))
-                dlineno -= -127
-
-            while dlineno > 126:
-                lnotab.append(struct.pack('Bb', 0, 126))
-                dlineno -= 126
-
-            assert 0 <= doff <= 255
-            assert -127 <= dlineno <= 126
-
-            lnotab.append(struct.pack('Bb', doff, dlineno))
-
-        return b''.join(lnotab)
-
-    def assemble(self):
-        code_str, linenos = self._assemble_code()
-        lnotab = self._assemble_lnotab(self.first_lineno, linenos)
-        return types.CodeType(self.argcount,
-                              self.kw_only_argcount,
-                              # FIXME: compute number of locals
-                              self._nlocals,
-                              # FIXME: compute stack size
-                              self._stacksize,
-                              self.flags,
-                              code_str,
-                              tuple(self.consts),
-                              tuple(self.names),
-                              tuple(self.varnames),
-                              self.filename,
-                              self.name,
-                              self.first_lineno,
-                              lnotab,
-                              tuple(self.freevars),
-                              tuple(self.cellvars))
 
 
 def _dump_code(code):
