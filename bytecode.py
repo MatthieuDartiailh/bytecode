@@ -344,15 +344,12 @@ class _ConvertCodeToConcrete:
         return concrete
 
 
-def _disassemble(code_obj, *,
-                 use_labels=None, extended_arg_op=False, concrete=False):
+def _disassemble(code_obj, concrete, use_labels=False, extended_arg_op=False):
     code = code_obj.co_code
     line_starts = dict(dis.findlinestarts(code_obj))
 
     if use_labels is None:
         use_labels = True
-    elif concrete and use_labels:
-        raise ValueError("concrete and use_labels cannot be used together")
 
     # find block starts
     instructions = []
@@ -488,11 +485,11 @@ class BaseCode:
         self.first_lineno = 1
         self.filename = filename
         self.name = name
+        self.docstring = UNSET
+
         # FIXME: move to ConcreteCode
         self.freevars = []
         self.cellvars = []
-
-        self.docstring = UNSET
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -514,11 +511,11 @@ class BaseCode:
             return False
         if self.name != other.name:
             return False
+        if self.docstring != other.docstring:
+            return False
         if self.freevars != other.freevars:
             return False
         if self.cellvars != other.cellvars:
-            return False
-        if self.docstring != other.docstring:
             return False
 
         return True
@@ -547,8 +544,8 @@ class Code(BaseCode):
         return '<Code block#=%s>' % len(self._blocks)
 
     @staticmethod
-    def disassemble(code_obj, *, use_labels=None, extended_arg_op=False):
-        return _disassemble(code_obj,
+    def disassemble(code_obj, *, use_labels=True, extended_arg_op=False):
+        return _disassemble(code_obj, False,
                             use_labels=use_labels,
                             extended_arg_op=extended_arg_op)
 
@@ -646,8 +643,7 @@ class ConcreteCode(BaseCode, list):
 
     @staticmethod
     def disassemble(code_obj, *, extended_arg_op=False):
-        return _disassemble(code_obj,
-                            concrete=True,
+        return _disassemble(code_obj, True,
                             extended_arg_op=extended_arg_op)
 
     def __eq__(self, other):
