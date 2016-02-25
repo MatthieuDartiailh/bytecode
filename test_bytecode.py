@@ -26,19 +26,19 @@ def RETURN_VALUE():
 def disassemble(source, *, filename="<string>", function=False,
                 remove_last_return_none=False, use_labels=True):
     source = textwrap.dedent(source).strip()
-    code_obj = compile(source, filename, "exec")
+    code = compile(source, filename, "exec")
     if function:
-        sub_code = [const for const in code_obj.co_consts
+        sub_code = [const for const in code.co_consts
                     if isinstance(const, types.CodeType)]
         if len(sub_code) != 1:
             raise ValueError("unable to find function code")
-        code_obj = sub_code[0]
+        code = sub_code[0]
 
-    code = Bytecode.disassemble(code_obj, use_labels=use_labels)
+    bytecode = Bytecode.disassemble(code, use_labels=use_labels)
     if remove_last_return_none:
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter
-        block = code[-1]
+        block = bytecode[-1]
         test = (block[-2].name == "LOAD_CONST"
                 and block[-2].arg is None
                 and block[-1].name == "RETURN_VALUE")
@@ -46,7 +46,7 @@ def disassemble(source, *, filename="<string>", function=False,
             raise ValueError("unable to find implicit RETURN_VALUE <None>: %s"
                              % block[-2:])
         del block[-2:]
-    return code
+    return bytecode
 
 
 class InstrTests(TestCase):
@@ -294,7 +294,7 @@ class FunctionalTests(TestCase):
 
     def test_assemble(self):
         # test resolution of jump labels
-        code = disassemble("""
+        bytecode = disassemble("""
             first_line = 1
 
             def func(arg, arg2, arg3, *, kwonly=1, kwonly2=1):
@@ -306,7 +306,7 @@ class FunctionalTests(TestCase):
         remove_jump_forward = sys.version_info >= (3, 5)
         if remove_jump_forward:
             blocks = [[Instr(4, 'LOAD_FAST', 'x'),
-                       Instr(4, 'POP_JUMP_IF_FALSE', code[1].label),
+                       Instr(4, 'POP_JUMP_IF_FALSE', bytecode[1].label),
                        Instr(5, 'LOAD_FAST', 'arg'),
                        Instr(5, 'STORE_FAST', 'x')],
                       [Instr(6, 'LOAD_CONST', 3),
@@ -323,10 +323,10 @@ class FunctionalTests(TestCase):
                         b'S')
         else:
             blocks = [[Instr(4, 'LOAD_FAST', 'x'),
-                       Instr(4, 'POP_JUMP_IF_FALSE', code[1].label),
+                       Instr(4, 'POP_JUMP_IF_FALSE', bytecode[1].label),
                        Instr(5, 'LOAD_FAST', 'arg'),
                        Instr(5, 'STORE_FAST', 'x'),
-                       Instr(5, 'JUMP_FORWARD', code[1].label)],
+                       Instr(5, 'JUMP_FORWARD', bytecode[1].label)],
                       [Instr(6, 'LOAD_CONST', 3),
                        Instr(6, 'STORE_FAST', 'x'),
                        Instr(7, 'LOAD_FAST', 'x'),
@@ -341,20 +341,20 @@ class FunctionalTests(TestCase):
                         b'|\x05\x00'
                         b'S')
 
-        self.assertCodeEqual(code, *blocks)
-        code_obj = code.assemble()
-        self.assertEqual(code_obj.co_argcount, 3)
-        self.assertEqual(code_obj.co_kwonlyargcount, 2)
-        self.assertEqual(code_obj.co_nlocals, 1)
-        self.assertEqual(code_obj.co_stacksize, 1)
+        self.assertCodeEqual(bytecode, *blocks)
+        code = bytecode.assemble()
+        self.assertEqual(code.co_argcount, 3)
+        self.assertEqual(code.co_kwonlyargcount, 2)
+        self.assertEqual(code.co_nlocals, 1)
+        self.assertEqual(code.co_stacksize, 1)
         # FIXME: don't use hardcoded constants
-        self.assertEqual(code_obj.co_flags, 0x43)
-        self.assertEqual(code_obj.co_code, expected)
-        self.assertEqual(code_obj.co_names, ())
-        self.assertEqual(code_obj.co_varnames, ('arg', 'arg2', 'arg3', 'kwonly', 'kwonly2', 'x'))
-        self.assertEqual(code_obj.co_filename, '<string>')
-        self.assertEqual(code_obj.co_name, 'func')
-        self.assertEqual(code_obj.co_firstlineno, 3)
+        self.assertEqual(code.co_flags, 0x43)
+        self.assertEqual(code.co_code, expected)
+        self.assertEqual(code.co_names, ())
+        self.assertEqual(code.co_varnames, ('arg', 'arg2', 'arg3', 'kwonly', 'kwonly2', 'x'))
+        self.assertEqual(code.co_filename, '<string>')
+        self.assertEqual(code.co_name, 'func')
+        self.assertEqual(code.co_firstlineno, 3)
 
     def test_disassemble(self):
         code = disassemble("""
@@ -512,28 +512,29 @@ class FunctionalTests(TestCase):
 
 class ConcreteBytecodeTests(TestCase):
     def test_attr(self):
-        code_obj = compile("x = 5", "<string>", "exec")
-        code = ConcreteBytecode.disassemble(code_obj)
-        self.assertEqual(code.consts, [5, None])
-        self.assertEqual(code.names, ['x'])
-        self.assertEqual(code.varnames, [])
+        code = compile("x = 5", "<string>", "exec")
+        bytecode = ConcreteBytecode.disassemble(code)
+        self.assertEqual(bytecode.consts, [5, None])
+        self.assertEqual(bytecode.names, ['x'])
+        self.assertEqual(bytecode.varnames, [])
         # FIXME: test other attributes
 
     def test_disassemble_concrete(self):
-        code_obj = compile("x = 5", "<string>", "exec")
-        code = ConcreteBytecode.disassemble(code_obj)
+        code = compile("x = 5", "<string>", "exec")
+        bytecode = ConcreteBytecode.disassemble(code)
         expected = [ConcreteInstr(1, 'LOAD_CONST', 0),
                     ConcreteInstr(1, 'STORE_NAME', 0),
                     ConcreteInstr(1, 'LOAD_CONST', 1),
                     ConcreteInstr(1, 'RETURN_VALUE')]
-        self.assertListEqual(list(code), expected)
-        self.assertEqual(code.consts, [5, None])
-        self.assertEqual(code.names, ['x'])
+        self.assertListEqual(list(bytecode), expected)
+        self.assertEqual(bytecode.consts, [5, None])
+        self.assertEqual(bytecode.names, ['x'])
 
     def test_disassemble_extended_arg(self):
+        # Create a code object from arbitrary bytecode
         co_code = b'\x904\x12d\xcd\xab'
         code = compile('x=1', '<string>', 'exec')
-        code_obj = types.CodeType(code.co_argcount,
+        code = types.CodeType(code.co_argcount,
                               code.co_kwonlyargcount,
                               code.co_nlocals,
                               code.co_stacksize,
@@ -550,13 +551,13 @@ class ConcreteBytecodeTests(TestCase):
                               code.co_cellvars)
 
         # without EXTENDED_ARG opcode
-        code = ConcreteBytecode.disassemble(code_obj)
-        self.assertListEqual(list(code),
+        bytecode = ConcreteBytecode.disassemble(code)
+        self.assertListEqual(list(bytecode),
                              [ConcreteInstr(1, "LOAD_CONST", 0x1234abcd)])
 
         # with EXTENDED_ARG opcode
-        code = ConcreteBytecode.disassemble(code_obj, extended_arg_op=True)
-        self.assertListEqual(list(code),
+        bytecode = ConcreteBytecode.disassemble(code, extended_arg_op=True)
+        self.assertListEqual(list(bytecode),
                              [ConcreteInstr(1, 'EXTENDED_ARG', 0x1234),
                               ConcreteInstr(1, 'LOAD_CONST', 0xabcd)])
 

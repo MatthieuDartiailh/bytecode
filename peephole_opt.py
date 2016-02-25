@@ -4,9 +4,9 @@ the bytecode module.
 
 Set MIMICK_C_IMPL to True to mimick the behaviour of the C implementation.
 """
-import bytecode
 import opcode
 import operator
+from bytecode import Instr, Bytecode, ConcreteBytecode, Label
 
 MIMICK_C_IMPL = False
 
@@ -82,7 +82,7 @@ class _CodePeepholeOptimizer:
 
         self.in_consts = True
 
-        load_const = bytecode.Instr(instr.lineno, 'LOAD_CONST', result)
+        load_const = Instr(instr.lineno, 'LOAD_CONST', result)
         start = self.index - nconst - 1
         self.block[start:self.index] = (load_const,)
         self.index -= nconst
@@ -220,15 +220,15 @@ class _CodePeepholeOptimizer:
             del self.block[self.index-1:self.index+1]
         elif instr.arg == 2:
             # Replace BUILD_TUPLE 2 + UNPACK_SEQUENCE 2 with ROT_TWO
-            rot2 = bytecode.Instr(instr.lineno, 'ROT_TWO')
+            rot2 = Instr(instr.lineno, 'ROT_TWO')
             self.block[self.index - 1:self.index+1] = (rot2,)
             self.index -= 1
             self.const_stack.clear()
         elif instr.arg == 3:
             # Replace BUILD_TUPLE 3 + UNPACK_SEQUENCE 3
             # with ROT_THREE + ROT_TWO
-            rot3 = bytecode.Instr(instr.lineno, 'ROT_THREE')
-            rot2 = bytecode.Instr(instr.lineno, 'ROT_TWO')
+            rot3 = Instr(instr.lineno, 'ROT_THREE')
+            rot2 = Instr(instr.lineno, 'ROT_TWO')
             self.block[self.index-1:self.index+1] = (rot3, rot2)
             self.index -= 1
             self.const_stack.clear()
@@ -385,7 +385,7 @@ class _CodePeepholeOptimizer:
     def optimize_jump_to_cond_jump(self, instr):
         # Replace jumps to unconditional jumps
         jump_label = instr.arg
-        assert isinstance(jump_label, bytecode.Label), jump_label
+        assert isinstance(jump_label, Label), jump_label
 
         target_instr = self.code[jump_label][0]
         if (instr.name in ('JUMP_FORWARD', 'JUMP_ABSOLUTE')
@@ -453,17 +453,17 @@ class _CodePeepholeOptimizer:
                 return code_obj
 
         if MIMICK_C_IMPL:
-            code = bytecode.Bytecode.disassemble(code_obj, extended_arg_op=True)
+            bytecode = Bytecode.disassemble(code_obj, extended_arg_op=True)
             try:
-                self._optimize(code)
+                self._optimize(bytecode)
             except ExitUnchanged:
                 # needed to bypass optimization in eval_EXTENDED_ARG()
                 return code_obj
         else:
-            code = bytecode.Bytecode.disassemble(code_obj)
-            self._optimize(code)
+            bytecode = Bytecode.disassemble(code_obj)
+            self._optimize(bytecode)
 
-        return code.assemble()
+        return bytecode.assemble()
 
 
 # Code transformer for the PEP 511

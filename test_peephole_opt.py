@@ -6,7 +6,7 @@ import sys
 import textwrap
 import types
 import unittest
-from bytecode import Instr, ConcreteInstr
+from bytecode import Instr, ConcreteInstr, Bytecode
 from unittest import mock
 from test_utils import TestCase
 
@@ -50,14 +50,13 @@ class Tests(TestCase):
         return orig
 
     # FIXME: move to test_utils
-    def create_code(self, source, function=False):
-        orig = self.compile(source, function=function)
+    def create_bytecode(self, source, function=False):
+        code = self.compile(source, function=function)
 
-        code = bytecode.Bytecode.disassemble(orig)
-        block = code[-1]
+        bytecode = Bytecode.disassemble(code)
 
         if not function:
-            block = code[-1]
+            block = bytecode[-1]
             if not(block[-2].name == "LOAD_CONST"
                    and block[-2].arg is None
                    and block[-1].name == "RETURN_VALUE"):
@@ -65,23 +64,23 @@ class Tests(TestCase):
                                  % block[-2:])
             del block[-2:]
 
-        return code
+        return bytecode
 
-    def _optimize(self, source, function=False):
-        code = self.create_code(source, function=function)
+    def optimize_bytecode(self, source, function=False):
+        bytecode = self.create_bytecode(source, function=function)
         optimizer = peephole_opt._CodePeepholeOptimizer()
-        optimizer._optimize(code)
-        return code
+        optimizer._optimize(bytecode)
+        return bytecode
 
     def check(self, source, *expected_blocks, function=False):
-        code = self._optimize(source, function=function)
+        bytecode = self.optimize_bytecode(source, function=function)
 
-        self.assertCodeEqual(code, *expected_blocks)
+        self.assertCodeEqual(bytecode, *expected_blocks)
 
     def check_dont_optimize(self, source):
-        code = self.create_code(source)
-        code2 = self._optimize(source)
-        self.assertEqual(code, code2)
+        noopt = self.create_bytecode(source)
+        optim = self.optimize_bytecode(source)
+        self.assertEqual(optim, noopt)
 
     def test_unary_op(self):
         def check_unary_op(op, value, result):
@@ -242,14 +241,14 @@ class Tests(TestCase):
             Instr(1, 'LOAD_CONST', None),
             Instr(1, 'RETURN_VALUE'),
         ]
-        code_noopt = bytecode.Bytecode('test', 'test.py', 0)
+        code_noopt = Bytecode('test', 'test.py', 0)
         code_noopt[0][:] = block
         noopt = code_noopt.assemble()
 
         optimizer = peephole_opt._CodePeepholeOptimizer()
         optim = optimizer.optimize(noopt)
 
-        code = bytecode.Bytecode.disassemble(optim)
+        code = Bytecode.disassemble(optim)
 
         expected = [
             Instr(1, 'LOAD_CONST', 8),
@@ -286,7 +285,7 @@ class Tests(TestCase):
                 Instr(1, 'LOAD_CONST', 0),
                 Instr(1, 'POP_TOP'),
             ]
-            code_noopt = bytecode.Bytecode('test', 'test.py', 0)
+            code_noopt = Bytecode('test', 'test.py', 0)
             code_noopt.consts = [None]
             code_noopt[0][:] = block
             noopt = code_noopt.assemble()
@@ -311,7 +310,7 @@ class Tests(TestCase):
                 Instr(1, 'LOAD_CONST', 2),
                 Instr(1, 'RETURN_VALUE'),
             ]
-            code_noopt = bytecode.Bytecode('test', 'test.py', 0)
+            code_noopt = Bytecode('test', 'test.py', 0)
             code_noopt.consts = [1, 2, None]
             code_noopt.names = ['x']
             code_noopt[0][:] = block
@@ -359,7 +358,7 @@ class Tests(TestCase):
                 while 1:
                     return 7
         """
-        code = self._optimize(source, function=True)
+        code = self.optimize_bytecode(source, function=True)
         self.assertCodeEqual(code,
                    [Instr(2, 'SETUP_LOOP', code[2].label)],
                    [Instr(3, 'LOAD_CONST', 7),
@@ -376,7 +375,7 @@ class Tests(TestCase):
                 y = 9
             y = 4
         '''
-        code = self._optimize(source)
+        code = self.optimize_bytecode(source)
         self.assertCodeEqual(code,
                    [Instr(1, 'LOAD_NAME', 'x'),
                     Instr(1, 'POP_JUMP_IF_TRUE', code[1].label),
@@ -396,7 +395,7 @@ class Tests(TestCase):
                 else:
                     x = 30
         """
-        code = self._optimize(source, function=True)
+        code = self.optimize_bytecode(source, function=True)
         self.assertCodeEqual(code,
                              [Instr(2, 'LOAD_GLOBAL', 'test'),
                               Instr(2, 'POP_JUMP_IF_FALSE', code[3].label),
@@ -427,7 +426,7 @@ class Tests(TestCase):
                     if y:
                         func()
         """
-        code = self._optimize(source, function=True)
+        code = self.optimize_bytecode(source, function=True)
         self.assertCodeEqual(code,
                              [Instr(2, 'LOAD_GLOBAL', 'x'),
                               Instr(2, 'POP_JUMP_IF_FALSE', code[1].label),
@@ -448,7 +447,7 @@ class Tests(TestCase):
             def func(condition):
                 return 'yes' if condition else 'no'
         """
-        code = self._optimize(source, function=True)
+        code = self.optimize_bytecode(source, function=True)
         self.assertCodeEqual(code,
                              [Instr(2, 'LOAD_FAST', 'condition'),
                               Instr(2, 'POP_JUMP_IF_FALSE', code[1].label),
@@ -465,7 +464,7 @@ class Tests(TestCase):
     #        if x or y:
     #            z = 1
     #    '''
-    #    code = self._optimize(source)
+    #    code = self.optimize_bytecode(source)
     #    from test_utils import dump_code; dump_code(code)
 
     # FIXME: test fails!
@@ -474,7 +473,7 @@ class Tests(TestCase):
     #        while n > 0 and start > 3:
     #            func()
     #    """
-    #    code = self._optimize(source)
+    #    code = self.optimize_bytecode(source)
     #    from test_utils import dump_code; dump_code(code)
 
 

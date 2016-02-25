@@ -253,19 +253,18 @@ class ConcreteBytecode(BaseBytecode, list):
         self.varnames = []
 
     @staticmethod
-    def disassemble(code_obj, *, extended_arg_op=False):
-        code = code_obj.co_code
-        line_starts = dict(dis.findlinestarts(code_obj))
+    def disassemble(code, *, extended_arg_op=False):
+        line_starts = dict(dis.findlinestarts(code))
 
         # find block starts
         instructions = []
         offset = 0
-        lineno = code_obj.co_firstlineno
-        while offset < len(code):
+        lineno = code.co_firstlineno
+        while offset < len(code.co_code):
             if offset in line_starts:
                 lineno = line_starts[offset]
 
-            instr = ConcreteInstr.disassemble(lineno, code, offset)
+            instr = ConcreteInstr.disassemble(lineno, code.co_code, offset)
 
             instructions.append(instr)
             offset += instr.size
@@ -297,27 +296,27 @@ class ConcreteBytecode(BaseBytecode, list):
             if extended_arg is not None:
                 raise ValueError("EXTENDED_ARG at the end of the code")
 
-        code = ConcreteBytecode(code_obj.co_name,
-                                code_obj.co_filename,
-                                code_obj.co_flags)
-        code.argcount = code_obj.co_argcount
-        code.kw_only_argcount = code_obj.co_kwonlyargcount
-        code._stacksize = code_obj.co_stacksize
-        code.first_lineno = code_obj.co_firstlineno
-        code.names = list(code_obj.co_names)
-        code.consts = list(code_obj.co_consts)
-        code.varnames = list(code_obj.co_varnames)
-        code.freevars = list(code_obj.co_freevars)
-        code.cellvars = list(code_obj.co_cellvars)
+        bytecode = ConcreteBytecode(code.co_name,
+                                    code.co_filename,
+                                    code.co_flags)
+        bytecode.argcount = code.co_argcount
+        bytecode.kw_only_argcount = code.co_kwonlyargcount
+        bytecode._stacksize = code.co_stacksize
+        bytecode.first_lineno = code.co_firstlineno
+        bytecode.names = list(code.co_names)
+        bytecode.consts = list(code.co_consts)
+        bytecode.varnames = list(code.co_varnames)
+        bytecode.freevars = list(code.co_freevars)
+        bytecode.cellvars = list(code.co_cellvars)
 
-        first_const = code_obj.co_consts[0]
+        first_const = code.co_consts[0]
         if isinstance(first_const, str):
-            code.docstring = first_const
+            bytecode.docstring = first_const
         elif first_const is None:
-            code.docstring = first_const
+            bytecode.docstring = first_const
 
-        code[:] = instructions
-        return code
+        bytecode[:] = instructions
+        return bytecode
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -415,7 +414,7 @@ class Block(list):
 
 class _ConvertCodeToConcrete:
     def __init__(self, code):
-        self.code = code
+        self.bytecode = code
         self.consts = []
         self.names = []
         self.varnames = []
@@ -441,8 +440,8 @@ class _ConvertCodeToConcrete:
     def concrete_instructions(self):
         # FIXME: rewrite this code!?
 
-        blocks = [list(block) for block in self.code]
-        labels = [block.label for block in self.code]
+        blocks = [list(block) for block in self.bytecode]
+        labels = [block.label for block in self.bytecode]
 
         # convert abstract instructions to concrete instructions,
         # but keep jump instructions using labels unchanged
@@ -515,26 +514,26 @@ class _ConvertCodeToConcrete:
         return instructions
 
     def concrete_code(self):
-        first_const = self.code.docstring
+        first_const = self.bytecode.docstring
         if first_const is not UNSET:
             self.add_const(first_const)
 
-        self.varnames.extend(self.code.argnames)
+        self.varnames.extend(self.bytecode.argnames)
 
         instructions = self.concrete_instructions()
 
-        code = self.code
-        concrete = ConcreteBytecode(code.name,
-                                    code.filename,
-                                    code.flags)
+        bytecode = self.bytecode
+        concrete = ConcreteBytecode(bytecode.name,
+                                    bytecode.filename,
+                                    bytecode.flags)
         # copy from abstract code
-        concrete.argcount = code.argcount
-        concrete.kw_only_argcount = code.kw_only_argcount
-        concrete._stacksize = code._stacksize
-        concrete.flags = code.flags
-        concrete.first_lineno = code.first_lineno
-        concrete.filename = code.filename
-        concrete.name = code.name
+        concrete.argcount = bytecode.argcount
+        concrete.kw_only_argcount = bytecode.kw_only_argcount
+        concrete._stacksize = bytecode._stacksize
+        concrete.flags = bytecode.flags
+        concrete.first_lineno = bytecode.first_lineno
+        concrete.filename = bytecode.filename
+        concrete.name = bytecode.name
         concrete.freevars = list(concrete.freevars)
         concrete.cellvars = list(concrete.cellvars)
 
@@ -573,14 +572,14 @@ class Bytecode(BaseBytecode):
 
     @staticmethod
     def disassemble(code_obj, *, use_labels=True, extended_arg_op=False):
-        code = ConcreteBytecode.disassemble(code_obj,
+        concrete = ConcreteBytecode.disassemble(code_obj,
                                         extended_arg_op=extended_arg_op)
 
         # find block starts
         if use_labels:
             block_starts = set()
             offset = 0
-            for instr in code:
+            for instr in concrete:
                 target = instr.get_jump_target(offset)
                 if target is not None:
                     block_starts.add(target)
@@ -596,7 +595,7 @@ class Bytecode(BaseBytecode):
         offset = 0
         label_to_block[offset] = block
 
-        for instr in code:
+        for instr in concrete:
             if use_labels:
                 if offset != 0 and offset in block_starts:
                     block = Block()
@@ -630,30 +629,30 @@ class Bytecode(BaseBytecode):
             target_block = label_to_block[target]
             instr.arg = target_block.label
 
-        code = Bytecode(code_obj.co_name,
+        bytecode = Bytecode(code_obj.co_name,
                         code_obj.co_filename,
                         code_obj.co_flags)
-        code.argcount = code_obj.co_argcount
-        code.kw_only_argcount = code_obj.co_kwonlyargcount
-        code._stacksize = code_obj.co_stacksize
-        code.first_lineno = code_obj.co_firstlineno
-        code.freevars = list(code_obj.co_freevars)
-        code.cellvars = list(code_obj.co_cellvars)
+        bytecode.argcount = code_obj.co_argcount
+        bytecode.kw_only_argcount = code_obj.co_kwonlyargcount
+        bytecode._stacksize = code_obj.co_stacksize
+        bytecode.first_lineno = code_obj.co_firstlineno
+        bytecode.freevars = list(code_obj.co_freevars)
+        bytecode.cellvars = list(code_obj.co_cellvars)
 
-        nargs = code.argcount + code.kw_only_argcount
-        code.argnames = code_obj.co_varnames[:nargs]
+        nargs = bytecode.argcount + bytecode.kw_only_argcount
+        bytecode.argnames = code_obj.co_varnames[:nargs]
 
         first_const = code_obj.co_consts[0]
         if isinstance(first_const, str):
-            code.docstring = first_const
+            bytecode.docstring = first_const
         elif first_const is None:
-            code.docstring = first_const
+            bytecode.docstring = first_const
 
         # delete the first empty block
-        del code[0]
+        del bytecode[0]
         for block in blocks:
-            code._add_block(block)
-        return code
+            bytecode._add_block(block)
+        return bytecode
 
     def concrete_code(self):
         return _ConvertCodeToConcrete(self).concrete_code()
