@@ -411,7 +411,7 @@ class _CodePeepholeOptimizer:
             instr.arg = jump_target2
             self.block[self.index-1] = instr
 
-    def disassemble(self, block):
+    def iterblock(self, block):
         self.block = block
         self.index = 0
         while self.index < len(block):
@@ -420,7 +420,7 @@ class _CodePeepholeOptimizer:
             yield instr
 
     def optimize_block(self, block):
-        for instr in self.disassemble(block):
+        for instr in self.iterblock(block):
             if not self.in_consts:
                 self.const_stack.clear()
             self.in_consts = False
@@ -453,17 +453,19 @@ class _CodePeepholeOptimizer:
                 return code_obj
 
         if MIMICK_C_IMPL:
-            bytecode = BytecodeBlocks.disassemble(code_obj, extended_arg_op=True)
+            bytecode = ConcreteBytecode.from_code(code_obj,
+                                                    extended_arg_op=True)
+            bytecode = bytecode.to_bytecode_blocks()
             try:
                 self._optimize(bytecode)
             except ExitUnchanged:
                 # needed to bypass optimization in eval_EXTENDED_ARG()
                 return code_obj
         else:
-            bytecode = BytecodeBlocks.disassemble(code_obj)
+            bytecode = BytecodeBlocks.from_code(code_obj)
             self._optimize(bytecode)
 
-        return bytecode.assemble()
+        return bytecode.to_code()
 
 
 # Code transformer for the PEP 511

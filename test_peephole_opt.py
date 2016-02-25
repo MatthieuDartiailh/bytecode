@@ -1,6 +1,5 @@
 # FIXME: these tests requires a Python patched with the PEP 511
 
-import bytecode
 import peephole_opt
 import sys
 import textwrap
@@ -53,7 +52,7 @@ class Tests(TestCase):
     def create_bytecode(self, source, function=False):
         code = self.compile(source, function=function)
 
-        bytecode = BytecodeBlocks.disassemble(code)
+        bytecode = BytecodeBlocks.from_code(code)
 
         if not function:
             block = bytecode[-1]
@@ -243,12 +242,12 @@ class Tests(TestCase):
         ]
         code_noopt = BytecodeBlocks()
         code_noopt[0][:] = block
-        noopt = code_noopt.assemble()
+        noopt = code_noopt.to_code()
 
         optimizer = peephole_opt._CodePeepholeOptimizer()
         optim = optimizer.optimize(noopt)
 
-        code = BytecodeBlocks.disassemble(optim)
+        code = BytecodeBlocks.from_code(optim)
 
         expected = [
             Instr(1, 'LOAD_CONST', 8),
@@ -288,7 +287,7 @@ class Tests(TestCase):
             code_noopt = BytecodeBlocks()
             code_noopt.consts = [None]
             code_noopt[0][:] = block
-            noopt = code_noopt.assemble()
+            noopt = code_noopt.to_code()
 
             # don't optimize if the last instruction of the code
             # is not RETURN_VALUE
@@ -314,7 +313,7 @@ class Tests(TestCase):
             code_noopt.consts = [1, 2, None]
             code_noopt.names = ['x']
             code_noopt[:] = block
-            noopt = code_noopt.assemble()
+            noopt = code_noopt.to_code()
 
             # don't optimize if the code contains EXTENDED_ARG opcode
             optimizer = peephole_opt._CodePeepholeOptimizer()

@@ -30,8 +30,8 @@ Instruction:
 Create instructions:
 
 * Instr(lineno, name, arg=UNSET)
-* Instr.disassemble(code, offset)
 * ConcreteInstr(lineno, name, arg=UNSET)
+* Instr.disassemble(code, offset)
 * ConcreteInstr.disassemble(code, offset)
 
 Bytecode:
@@ -42,21 +42,16 @@ Bytecode:
 
 Create bytecode:
 
-* Bytecode()
-* BytecodeBlocks()
-* ConcreteBytecode()
-* Bytecode.disassemble()
-* BytecodeBlocks.disassemble()
-* ConcreteBytecode.disassemble()
+* ``Bytecode.from_code(*, extended_arg_op=False)``
+* BytecodeBlocks.from_code()
+* ConcreteBytecode.from_code()
 
-Conversions
+Conversions:
 
-* code = ConcreteBytecode.assemble()
-* bytecode = ConcreteBytecode.to_bytecode()
-* blocks = Bytecode.to_blocks()
-* concrete = Bytecode.concrete_code()
-* concrete = BytecodeBlocks.concrete_code()
-
+* bytecode.to_bytecode() -> Bytecode
+* bytecode.to_concrete_bytecode() -> ConcreteBytecode
+* bytecode.to_bytecode_blocks() -> BytecodeBlocks
+* bytecode.to_code() -> types.CodeType
 
 
 ChangeLog
@@ -64,13 +59,7 @@ ChangeLog
 
 * Version 0.1
 
-  - LOAD_CONST argument is now directly the constant value
-  - LOAD_FAST and STORE_FAST are now directly local variable names
-  - LOAD_NAME and STORE_NAME are now directly variable names
-  - Add ConcreteInstr; Instr looks its assemble() method
-  - Support EXTENDED_ARG
-  - Add optional extended_arg_op parameter to Instr.disassemble()
-    and Code.disassemble() class methods to use explicit EXTEND_ARG opcode
+  - Rewrite completly the API...
 
 * 2016-02-23: Release 0.0
 

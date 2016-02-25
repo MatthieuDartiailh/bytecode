@@ -1,3 +1,4 @@
+import abc
 import dis
 import opcode
 import struct
@@ -213,7 +214,7 @@ class ConcreteInstr(BaseInstr):
         return cls(lineno, name, arg)
 
 
-class BaseBytecode:
+class BaseBytecode(metaclass=abc.ABCMeta):
     def __init__(self):
         self.argcount = 0
         self.kw_only_argcount = 0
@@ -266,8 +267,24 @@ class ConcreteBytecode(BaseBytecode, list):
     def __repr__(self):
         return '<ConcreteBytecode instr#=%s const#=%s>' % len(self)
 
+    def __eq__(self, other):
+        if type(self) != type(other):
+            return False
+
+        const_keys1 = list(map(_const_key, self.consts))
+        const_keys2 = list(map(_const_key, other.consts))
+        if const_keys1 != const_keys2:
+            return False
+
+        if self.names != other.names:
+            return False
+        if self.varnames != other.varnames:
+            return False
+
+        return super().__eq__(other)
+
     @staticmethod
-    def disassemble(code, *, extended_arg_op=False):
+    def from_code(code, *, extended_arg_op=False):
         line_starts = dict(dis.findlinestarts(code))
 
         # find block starts
@@ -333,22 +350,6 @@ class ConcreteBytecode(BaseBytecode, list):
         bytecode[:] = instructions
         return bytecode
 
-    def __eq__(self, other):
-        if type(self) != type(other):
-            return False
-
-        const_keys1 = list(map(_const_key, self.consts))
-        const_keys2 = list(map(_const_key, other.consts))
-        if const_keys1 != const_keys2:
-            return False
-
-        if self.names != other.names:
-            return False
-        if self.varnames != other.varnames:
-            return False
-
-        return super().__eq__(other)
-
     def _assemble_code(self):
         offset = 0
         code_str = []
@@ -393,7 +394,7 @@ class ConcreteBytecode(BaseBytecode, list):
 
         return b''.join(lnotab)
 
-    def assemble(self):
+    def to_code(self):
         code_str, linenos = self._assemble_code()
         lnotab = self._assemble_lnotab(self.first_lineno, linenos)
         nlocals = len(self.varnames) - self.argcount - self.kw_only_argcount
@@ -413,6 +414,9 @@ class ConcreteBytecode(BaseBytecode, list):
                               lnotab,
                               tuple(self.freevars),
                               tuple(self.cellvars))
+
+    def to_concrete_bytecode(self):
+        return self
 
     def to_bytecode(self):
         # find jump targets
@@ -483,6 +487,9 @@ class ConcreteBytecode(BaseBytecode, list):
 
         bytecode.extend(instructions)
         return bytecode
+
+    def to_bytecode_blocks(self):
+        return self.to_bytecode().to_bytecode_blocks()
 
 
 class Label:
@@ -621,7 +628,7 @@ class _ConvertCodeToConcrete:
 
         return instructions
 
-    def concrete_code(self):
+    def to_concrete_bytecode(self):
         first_const = self.bytecode.docstring
         if first_const is not UNSET:
             self.add_const(first_const)
@@ -662,15 +669,19 @@ class Bytecode(_InstrList, BaseBytecode):
         self.argnames = []
 
     @staticmethod
-    def disassemble(code_obj, *, extended_arg_op=False):
-        concrete = ConcreteBytecode.disassemble(code_obj,
-                                                extended_arg_op=extended_arg_op)
-        return concrete.to_bytecode()
+    def from_code(code):
+        return ConcreteBytecode.from_code(code).to_bytecode()
 
-    def concrete_code(self):
-        return _ConvertCodeToConcrete(self).concrete_code()
+    def to_code(self):
+        return self.to_concrete_bytecode().to_code()
 
-    def to_blocks(self):
+    def to_concrete_bytecode(self):
+        return _ConvertCodeToConcrete(self).to_concrete_bytecode()
+
+    def to_bytecode(self):
+        return self
+
+    def to_bytecode_blocks(self):
         # label => instruction index
         index_to_label = {}
         label_to_index = {}
@@ -746,18 +757,8 @@ class BytecodeBlocks(BaseBytecode):
         self._add_block(block)
         return block
 
-    # FIXME: implement to_list() method
-
     def __repr__(self):
         return '<BytecodeBlocks block#=%s>' % len(self._blocks)
-
-    @staticmethod
-    def disassemble(code_obj, *, extended_arg_op=False):
-        code = Bytecode.disassemble(code_obj, extended_arg_op=extended_arg_op)
-        return code.to_blocks()
-
-    def concrete_code(self):
-        return _ConvertCodeToConcrete(self).concrete_code()
 
     def _flat(self):
         instructions = []
@@ -846,8 +847,21 @@ class BytecodeBlocks(BaseBytecode):
 
         return block2.label
 
-    def assemble(self):
-        return self.concrete_code().assemble()
+    @staticmethod
+    def from_code(code):
+        return ConcreteBytecode.from_code(code).to_bytecode_blocks()
+
+    def to_code(self):
+        return self.to_concrete_bytecode().to_code()
+
+    def to_concrete_bytecode(self):
+        return _ConvertCodeToConcrete(self).to_concrete_bytecode()
+
+    def to_bytecode(self):
+        raise Exception("FIXME! not implemented")
+
+    def to_bytecode_blocks(self):
+        return self
 
 
 def _dump_concrete_bytecode(code):
