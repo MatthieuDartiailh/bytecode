@@ -6,7 +6,9 @@ import sys
 import textwrap
 import types
 import unittest
-from bytecode import Instr, ConcreteInstr, BytecodeBlocks, ConcreteBytecode, Label
+from bytecode import (
+    Instr, ConcreteInstr, Label,
+    Bytecode, BytecodeBlocks, ConcreteBytecode)
 from test_utils import TestCase
 
 
@@ -23,8 +25,7 @@ def RETURN_VALUE():
     return Instr(1, 'RETURN_VALUE')
 
 
-def disassemble(source, *, filename="<string>", function=False,
-                remove_last_return_none=False, use_labels=True):
+def get_code(source, *, filename="<string>", function=False):
     source = textwrap.dedent(source).strip()
     code = compile(source, filename, "exec")
     if function:
@@ -33,8 +34,13 @@ def disassemble(source, *, filename="<string>", function=False,
         if len(sub_code) != 1:
             raise ValueError("unable to find function code")
         code = sub_code[0]
+    return code
 
-    bytecode = BytecodeBlocks.disassemble(code, use_labels=use_labels)
+def disassemble(source, *, filename="<string>", function=False,
+                remove_last_return_none=False):
+    code = get_code(source, filename=filename, function=function)
+
+    bytecode = BytecodeBlocks.disassemble(code)
     if remove_last_return_none:
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter
@@ -178,7 +184,7 @@ class ConcreteInstrTests(TestCase):
         self.assertEqual(jump_forward.get_jump_target(10), 18)
 
 
-class CodeTests(TestCase):
+class BytecodeBlocksTests(TestCase):
     def test_attr(self):
         source = """
             first_line = 1
@@ -232,7 +238,7 @@ class CodeTests(TestCase):
                                [LOAD_CONST(2)])
 
 
-class FunctionalTests(TestCase):
+class BytecodeBlocksFunctionalTests(TestCase):
     def sample_code(self):
         code = disassemble('x = 1', remove_last_return_none=True)
         self.assertBlocksEqual(code,
@@ -407,25 +413,6 @@ class FunctionalTests(TestCase):
                              [Instr(4, 'LOAD_CONST', None),
                               Instr(4, 'RETURN_VALUE')])
 
-    def test_disassemble_without_labels(self):
-        code = disassemble("""
-            if test:
-                x = 1
-            else:
-                x = 2
-        """, use_labels=False)
-        self.assertEqual(len(code), 1)
-        expected = [Instr(1, 'LOAD_NAME', 'test'),
-                    Instr(1, 'POP_JUMP_IF_FALSE', 15),
-                    Instr(2, 'LOAD_CONST', 1),
-                    Instr(2, 'STORE_NAME', 'x'),
-                    Instr(2, 'JUMP_FORWARD', 6),
-                    Instr(4, 'LOAD_CONST', 2),
-                    Instr(4, 'STORE_NAME', 'x'),
-                    Instr(4, 'LOAD_CONST', None),
-                    Instr(4, 'RETURN_VALUE')]
-        self.assertBlocksEqual(code, expected)
-
     def test_load_fast(self):
         code = disassemble("""
             def func():
@@ -523,7 +510,7 @@ class FunctionalTests(TestCase):
 
 class ConcreteBytecodeTests(TestCase):
     def test_attr(self):
-        code = compile("x = 5", "<string>", "exec")
+        code = get_code("x = 5")
         bytecode = ConcreteBytecode.disassemble(code)
         self.assertEqual(bytecode.consts, [5, None])
         self.assertEqual(bytecode.names, ['x'])
@@ -531,7 +518,7 @@ class ConcreteBytecodeTests(TestCase):
         # FIXME: test other attributes
 
     def test_disassemble_concrete(self):
-        code = compile("x = 5", "<string>", "exec")
+        code = get_code("x = 5")
         bytecode = ConcreteBytecode.disassemble(code)
         expected = [ConcreteInstr(1, 'LOAD_CONST', 0),
                     ConcreteInstr(1, 'STORE_NAME', 0),
@@ -544,7 +531,7 @@ class ConcreteBytecodeTests(TestCase):
     def test_disassemble_extended_arg(self):
         # Create a code object from arbitrary bytecode
         co_code = b'\x904\x12d\xcd\xab'
-        code = compile('x=1', '<string>', 'exec')
+        code = get_code('x=1')
         code = types.CodeType(code.co_argcount,
                               code.co_kwonlyargcount,
                               code.co_nlocals,
@@ -571,6 +558,29 @@ class ConcreteBytecodeTests(TestCase):
         self.assertListEqual(list(bytecode),
                              [ConcreteInstr(1, 'EXTENDED_ARG', 0x1234),
                               ConcreteInstr(1, 'LOAD_CONST', 0xabcd)])
+
+
+class BytecodeTests(unittest.TestCase):
+    def test_disassemble(self):
+        code = get_code("""
+            if test:
+                x = 1
+            else:
+                x = 2
+        """)
+        bytecode = Bytecode.disassemble(code)
+        label = Label()
+        self.assertEqual(bytecode,
+                         [Instr(1, 'LOAD_NAME', 'test'),
+                          Instr(1, 'POP_JUMP_IF_FALSE', label),
+                          Instr(2, 'LOAD_CONST', 1),
+                          Instr(2, 'STORE_NAME', 'x'),
+                          Instr(2, 'JUMP_FORWARD', label),
+                          label,
+                          Instr(4, 'LOAD_CONST', 2),
+                          Instr(4, 'STORE_NAME', 'x'),
+                          Instr(4, 'LOAD_CONST', None),
+                          Instr(4, 'RETURN_VALUE')])
 
 
 class DumpCodeTests(unittest.TestCase):
