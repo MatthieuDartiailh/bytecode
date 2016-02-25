@@ -441,75 +441,55 @@ class _ConvertCodeToConcrete:
         # FIXME: rewrite this code!?
 
         blocks = [list(block) for block in self.bytecode]
-        labels = [block.label for block in self.bytecode]
+        block_labels = [block.label for block in self.bytecode]
 
-        # convert abstract instructions to concrete instructions,
-        # but keep jump instructions using labels unchanged
-        for block in blocks:
+        targets = {}
+        jumps = []
+
+        # convert abstract instructions to concrete instructions
+        instructions = []
+        offset = 0
+        for block in self.bytecode:
+            label = block.label
+            targets[label] = offset
+
             for index, instr in enumerate(block):
-                if isinstance(instr.arg, Label):
-                    # handled below
-                    continue
-
                 if not isinstance(instr, ConcreteInstr):
                     arg = instr.arg
-                    if instr.op in opcode.hasconst:
+                    is_jump = isinstance(arg, Label)
+                    if is_jump:
+                        label = arg
+                        arg = 0
+                    elif instr.op in opcode.hasconst:
                         arg = self.add_const(arg)
                     elif instr.op in opcode.haslocal:
                         arg = self.add(self.varnames, arg)
                     elif instr.op in opcode.hasname:
                         arg = self.add(self.names, arg)
-                    # FIXME: hasfree
 
                     instr = ConcreteInstr(instr.lineno, instr.name, arg)
-                block[index] = instr
-
-        # find targets
-        targets = {}
-        offset = 0
-        for block_index, block in enumerate(blocks):
-            label = labels[block_index]
-            targets[label] = offset
-            for instr in block:
-                if isinstance(instr.arg, Label):
-                    # Make the assumption that the jump target fits
-                    # into 2 bytes (don't need EXTENDED_ARG)
-                    instr = ConcreteInstr(instr.lineno, instr.name, 0)
-                offset += instr.size
-
-        # replace abstract jumps with concrete jumps
-        offset = 0
-        instructions = []
-        for block in blocks:
-            for index, instr in enumerate(block):
-                arg = instr.arg
-                if isinstance(arg, Label):
-                    target_off = targets[arg]
-                    if instr.op in opcode.hasjrel:
-                        if isinstance(instr.arg, Label):
-                            # Make the assumption that the jump target fits
-                            # into 2 bytes (don't need EXTENDED_ARG)
-                            tmp_instr = ConcreteInstr(instr.lineno, instr.name, 0)
-                        else:
-                            tmp_instr = instr
-
-                        target_off = target_off - (offset + tmp_instr.size)
-                    arg = target_off
-
-                    # FIXME: reject negative offset?
-                    # (ex: JUMP_FORWARD arg must be positive)
-                    # ConcreteInstr already rejects negative argument
-
-                    if arg > 0xffff:
-                        # FIXME: should we supported this?
-                        raise ValueError("EXTENDED_ARG is not supported "
-                                         "for jumps")
-                    instr = ConcreteInstr(instr.lineno, instr.name, arg)
-
-                    block[index] = instr
+                    if is_jump:
+                        jumps.append((offset, len(instructions), instr, label))
 
                 instructions.append(instr)
                 offset += instr.size
+
+        # fix argument of jump instructions: resolve labels
+        for instr_offset, index, instr, label in jumps:
+            offset = targets[label]
+            if instr.op in opcode.hasjrel:
+                offset = offset - (instr_offset + instr.size)
+
+            if offset > 0xffff:
+                # FIXME: should we supported this?
+                raise ValueError("EXTENDED_ARG is not supported for jumps")
+
+            # FIXME: reject negative offset?
+            # (ex: JUMP_FORWARD arg must be positive)
+            # ConcreteInstr._set_arg() already rejects negative argument
+
+            instr = ConcreteInstr(instr.lineno, instr.name, offset)
+            instructions[index] = instr
 
         return instructions
 
@@ -615,6 +595,7 @@ class Bytecode(BaseBytecode):
                 arg = code_obj.co_varnames[arg]
             elif instr.op in opcode.hasname:
                 arg = code_obj.co_names[arg]
+            # FIXME: hasfree
             instr = Instr(instr.lineno, instr.name, arg)
 
             if target is not None:
