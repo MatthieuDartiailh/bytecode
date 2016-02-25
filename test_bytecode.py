@@ -24,7 +24,7 @@ def RETURN_VALUE():
 
 
 def disassemble(source, *, filename="<string>", function=False,
-                remove_last_return_none=False, use_labels=None):
+                remove_last_return_none=False, use_labels=True):
     source = textwrap.dedent(source).strip()
     code_obj = compile(source, filename, "exec")
     if function:

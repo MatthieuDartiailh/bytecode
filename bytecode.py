@@ -551,137 +551,6 @@ class _ConvertCodeToConcrete:
         return concrete
 
 
-def _disassemble(code_obj, concrete, use_labels=False, extended_arg_op=False):
-    code = code_obj.co_code
-    line_starts = dict(dis.findlinestarts(code_obj))
-
-    if use_labels is None:
-        use_labels = True
-
-    # find block starts
-    instructions = []
-    block_starts = set()
-    offset = 0
-    lineno = code_obj.co_firstlineno
-    while offset < len(code):
-        if offset in line_starts:
-            lineno = line_starts[offset]
-
-        instr = ConcreteInstr.disassemble(lineno, code, offset)
-
-        if use_labels:
-            target = instr.get_jump_target(offset)
-            if target is not None:
-                block_starts.add(target)
-
-        instructions.append(instr)
-        offset += instr.size
-
-    # split instructions in blocks
-    blocks = []
-    label_to_block = {}
-    offset = 0
-
-    block = Block()
-    blocks.append(block)
-    label_to_block[offset] = block
-    for instr in instructions:
-        if offset != 0 and offset in block_starts:
-            block = Block()
-            label_to_block[offset] = block
-            blocks.append(block)
-        block.append(instr)
-        offset += instr.size
-    assert len(block) != 0
-
-    # replace jump targets with blocks
-    offset = 0
-    for block in blocks:
-        extended_arg = None
-        index = 0
-        while index < len(block):
-            instr = block[index]
-
-            if instr.name == 'EXTENDED_ARG' and not extended_arg_op:
-                if extended_arg is not None:
-                    raise ValueError("EXTENDED_ARG followed "
-                                     "by EXTENDED_ARG")
-                extended_arg = instr.arg
-                del block[index]
-                continue
-
-            if use_labels:
-                target = instr.get_jump_target(offset)
-            else:
-                target = None
-
-            if target is not None:
-                target_block = label_to_block[target]
-                arg = target_block.label
-                if extended_arg is not None:
-                    raise ValueError("EXTENDED_ARG before %s"
-                                     % instr.name)
-            else:
-                arg = instr.arg
-                if extended_arg is not None:
-                    arg = (extended_arg << 16) + arg
-                    extended_arg = None
-
-                if not concrete:
-                    if instr.op in opcode.hasconst:
-                        arg = code_obj.co_consts[arg]
-                    elif instr.op in opcode.haslocal:
-                        arg = code_obj.co_varnames[arg]
-                    elif instr.op in opcode.hasname:
-                        arg = code_obj.co_names[arg]
-
-            if concrete:
-                block[index] = ConcreteInstr(instr.lineno, instr.name, arg)
-            else:
-                block[index] = Instr(instr.lineno, instr.name, arg)
-
-            offset += instr.size
-            index += 1
-
-        if extended_arg is not None:
-            raise ValueError("EXTENDED_ARG at the end of a block")
-
-    if concrete:
-        cls = ConcreteCode
-    else:
-        cls = Code
-    code = cls(code_obj.co_name,
-               code_obj.co_filename,
-               code_obj.co_flags)
-    code.argcount = code_obj.co_argcount
-    code.kw_only_argcount = code_obj.co_kwonlyargcount
-    code._nlocals = code_obj.co_nlocals
-    code._stacksize = code_obj.co_stacksize
-    code.first_lineno = code_obj.co_firstlineno
-    if concrete:
-        code.names = list(code_obj.co_names)
-        code.consts = list(code_obj.co_consts)
-        code.varnames = list(code_obj.co_varnames)
-    code.freevars = list(code_obj.co_freevars)
-    code.cellvars = list(code_obj.co_cellvars)
-
-    first_const = code_obj.co_consts[0]
-    if isinstance(first_const, str):
-        code.docstring = first_const
-    elif first_const is None:
-        code.docstring = first_const
-
-    if concrete:
-        assert len(blocks) == 1
-        code[:] = blocks[0]
-    else:
-        # delete the first empty block
-        del code[0]
-        for block in blocks:
-            code._add_block(block)
-    return code
-
-
 class Code(BaseCode):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -706,9 +575,91 @@ class Code(BaseCode):
 
     @staticmethod
     def disassemble(code_obj, *, use_labels=True, extended_arg_op=False):
-        return _disassemble(code_obj, False,
-                            use_labels=use_labels,
-                            extended_arg_op=extended_arg_op)
+        code = ConcreteCode.disassemble(code_obj,
+                                        extended_arg_op=extended_arg_op)
+
+        # find block starts
+        block_starts = set()
+        if use_labels:
+            offset = 0
+            for instr in code:
+                target = instr.get_jump_target(offset)
+                if target is not None:
+                    block_starts.add(target)
+                offset += instr.size
+
+        # split instructions in blocks
+        blocks = []
+        label_to_block = {}
+
+        block = Block()
+        blocks.append(block)
+        if use_labels:
+            offset = 0
+            label_to_block[offset] = block
+            for instr in code:
+                if offset != 0 and offset in block_starts:
+                    block = Block()
+                    label_to_block[offset] = block
+                    blocks.append(block)
+                block.append(instr)
+                offset += instr.size
+        else:
+            block[:] = list(code)
+        assert len(block) != 0
+
+        # replace jump targets with blocks
+        offset = 0
+        for block in blocks:
+            index = 0
+            while index < len(block):
+                instr = block[index]
+
+                if use_labels:
+                    target = instr.get_jump_target(offset)
+                else:
+                    target = None
+
+                if target is not None:
+                    target_block = label_to_block[target]
+                    arg = target_block.label
+                else:
+                    arg = instr.arg
+
+                    if instr.op in opcode.hasconst:
+                        arg = code_obj.co_consts[arg]
+                    elif instr.op in opcode.haslocal:
+                        arg = code_obj.co_varnames[arg]
+                    elif instr.op in opcode.hasname:
+                        arg = code_obj.co_names[arg]
+
+                block[index] = Instr(instr.lineno, instr.name, arg)
+
+                offset += instr.size
+                index += 1
+
+        code = Code(code_obj.co_name,
+                    code_obj.co_filename,
+                    code_obj.co_flags)
+        code.argcount = code_obj.co_argcount
+        code.kw_only_argcount = code_obj.co_kwonlyargcount
+        code._nlocals = code_obj.co_nlocals
+        code._stacksize = code_obj.co_stacksize
+        code.first_lineno = code_obj.co_firstlineno
+        code.freevars = list(code_obj.co_freevars)
+        code.cellvars = list(code_obj.co_cellvars)
+
+        first_const = code_obj.co_consts[0]
+        if isinstance(first_const, str):
+            code.docstring = first_const
+        elif first_const is None:
+            code.docstring = first_const
+
+        # delete the first empty block
+        del code[0]
+        for block in blocks:
+            code._add_block(block)
+        return code
 
     def concrete_code(self):
         return _ConvertCodeToConcrete(self).concrete_code()
