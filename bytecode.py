@@ -61,6 +61,17 @@ class BaseInstr:
         self._name = name
         self._op = op
 
+    def format(self, labels):
+        text = self.name
+        arg = self._arg
+        if arg is not UNSET:
+            if isinstance(arg, Label):
+                arg = '<%s>' % labels[arg]
+            else:
+                arg = repr(arg)
+            text = '%s %s' % (text, arg)
+        return text
+
     def __repr__(self):
         if self._arg is not UNSET:
             return '<%s arg=%r lineno=%s>' % (self._name, self._arg, self._lineno)
@@ -252,6 +263,9 @@ class ConcreteBytecode(BaseBytecode, list):
         self.names = []
         self.varnames = []
 
+    def __repr__(self):
+        return '<ConcreteBytecode instr#=%s const#=%s>' % len(self)
+
     @staticmethod
     def disassemble(code, *, extended_arg_op=False):
         line_starts = dict(dis.findlinestarts(code))
@@ -404,11 +418,44 @@ class ConcreteBytecode(BaseBytecode, list):
 class Label:
     __slots__ = ()
 
-    def _cmp_key(self, labels):
-        return labels[self]
+
+class _InstrList(list):
+    def _flat(self):
+        instructions = []
+        labels = {}
+        jumps = []
+        offset = 0
+
+        for index, instr in enumerate(self):
+            if isinstance(instr, Label):
+                labels[instr] = offset
+            else:
+                offset += 1
+                if isinstance(instr.arg, Label):
+                    # copy the instruction to be able to modify
+                    # its argument above
+                    instr = Instr(instr.lineno, instr.name, instr.arg)
+                    jumps.append(instr)
+                instructions.append(instr)
+
+        for instr in jumps:
+            instr.arg = labels[instr.arg]
+
+        return instructions
+
+    def __eq__(self, other):
+        if not isinstance(other, _InstrList):
+            other = _InstrList(other)
+
+        instrs1 = self._flat()
+        instrs2 = self._flat()
+        if instrs1 != instrs2:
+            return False
+
+        return super().__eq__(other)
 
 
-class Block(list):
+class Block(_InstrList):
     def __init__(self, instructions=None):
         # create a unique object as label
         self.label = Label()
@@ -539,7 +586,13 @@ class _ConvertCodeToConcrete:
         return concrete
 
 
-class Bytecode(BaseBytecode):
+class Bytecode(BaseBytecode, _InstrList):
+    def __init__(self):
+        super().__init__()
+        self.argnames = []
+
+
+class BytecodeBlocks(BaseBytecode):
     def __init__(self):
         super().__init__()
         self._blocks = []
@@ -553,13 +606,13 @@ class Bytecode(BaseBytecode):
         self._blocks.append(block)
         self._label_to_index[block.label] = block_index
 
-    def add_block(self):
-        block = Block()
+    def add_block(self, instructions=None):
+        block = Block(instructions)
         self._add_block(block)
         return block
 
     def __repr__(self):
-        return '<Bytecode block#=%s>' % len(self._blocks)
+        return '<BytecodeBlocks block#=%s>' % len(self._blocks)
 
     @staticmethod
     def disassemble(code_obj, *, use_labels=True, extended_arg_op=False):
@@ -623,7 +676,7 @@ class Bytecode(BaseBytecode):
             target_block = label_to_block[target]
             instr.arg = target_block.label
 
-        bytecode = Bytecode()
+        bytecode = BytecodeBlocks()
         bytecode.name = code_obj.co_name
         bytecode.filename = code_obj.co_filename
         bytecode.flags = code_obj.co_flags
@@ -652,15 +705,31 @@ class Bytecode(BaseBytecode):
     def concrete_code(self):
         return _ConvertCodeToConcrete(self).concrete_code()
 
-    def _eq_labels(self):
+    def _flat(self):
+        instructions = []
         labels = {}
+        jumps = []
+        offset = 0
+
         for block_index, block in enumerate(self, 1):
-            labels[block.label] = 'label_block%s' % block_index
+            labels[block.label] = offset
+
             for index, instr in enumerate(block):
                 if isinstance(instr, Label):
-                    key = 'label_block%s_instr%s' % (block_index, index)
-                    labels[instr] = key
-        return labels
+                    labels[instr] = offset
+                else:
+                    offset += 1
+                    if isinstance(instr.arg, Label):
+                        # copy the instruction to be able to modify
+                        # its argument above
+                        instr = Instr(instr.lineno, instr.name, instr.arg)
+                        jumps.append(instr)
+                    instructions.append(instr)
+
+        for instr in jumps:
+            instr.arg = labels[instr.arg]
+
+        return instructions
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -669,19 +738,11 @@ class Bytecode(BaseBytecode):
         if self.argnames != other.argnames:
             return False
 
-        # Compare blocks (need to "renumber" labels)
-        if len(self._blocks) != len(other._blocks):
+        instrs1 = self._flat()
+        instrs2 = other._flat()
+
+        if instrs1 != instrs2:
             return False
-
-        labels1 = self._eq_labels()
-        labels2 = other._eq_labels()
-
-        for block1, block2 in zip(self._blocks, other._blocks):
-            if len(block1) != len(block2):
-                return False
-            for instr1, instr2 in zip(block1, block2):
-                if instr1._cmp_key(labels1) != instr2._cmp_key(labels2):
-                    return False
 
         return super().__eq__(other)
 
@@ -735,9 +796,8 @@ class Bytecode(BaseBytecode):
         return self.concrete_code().assemble()
 
 
-def _dump_code(code):
+def _dump_concrete_bytecode(code):
     line_width = 3
-    code = code.concrete_code()
 
     offset = 0
     lineno = None
@@ -755,3 +815,39 @@ def _dump_code(code):
         print(''.join(fields))
 
         offset += instr.size
+
+def _dump_code(code):
+    indent = ' ' * 4
+    if isinstance(code, ConcreteBytecode):
+        _dump_concrete_bytecode(code)
+    elif isinstance(code, Bytecode):
+        labels = code._labels()
+        for instr in code:
+            if isinstance(instr, Label):
+                label = labels[instr]
+                print(label)
+            else:
+                print(instr.format(labels))
+        print()
+    elif isinstance(code, BytecodeBlocks):
+        labels = {}
+        for block_index, block in enumerate(code, 1):
+            block_label = 'label_block%s' % block_index
+            labels[block.label] = block_label
+
+            for index, instr in enumerate(block):
+                if isinstance(instr, Label):
+                    labels[instr] = '%s_instr%s' % (block_label, index)
+
+        for block_index, block in enumerate(code, 1):
+            print('%s:' % labels[block.label])
+            for instr in block:
+                if isinstance(instr, Label):
+                    label = labels[instr]
+                    line = '%s:' % label
+                else:
+                    line = indent + instr.format(labels)
+                print(line)
+            print()
+    else:
+        raise TypeError("unknown bycode code")

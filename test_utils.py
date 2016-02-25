@@ -23,8 +23,24 @@ def dump_code(code):
 
 
 class TestCase(unittest.TestCase):
-    def assertCodeEqual(self, code, *expected_blocks):
+    def assertBlocksEqual(self, code, *expected_blocks):
         blocks = [list(block) for block in code]
         self.assertEqual(len(blocks), len(expected_blocks))
         for block, expected_block in zip(blocks, expected_blocks):
             self.assertListEqual(block, list(expected_block))
+
+    def assertBytecodeEqual(self, code, *expected_blocks):
+        expected = bytecode.BytecodeBlocks()
+        expected.argnames = code.argnames
+
+        del expected[0]
+        for block in expected_blocks:
+            expected.add_block(block)
+
+        bytecode._dump_code(code)
+        print("*")
+        bytecode._dump_code(expected)
+        print(type(code))
+        print(type(expected))
+        self.assertEqual(code, expected)
+

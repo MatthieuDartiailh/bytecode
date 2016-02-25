@@ -6,7 +6,7 @@ Set MIMICK_C_IMPL to True to mimick the behaviour of the C implementation.
 """
 import opcode
 import operator
-from bytecode import Instr, Bytecode, ConcreteBytecode, Label
+from bytecode import Instr, BytecodeBlocks, ConcreteBytecode, Label
 
 MIMICK_C_IMPL = False
 
@@ -59,7 +59,7 @@ class _CodePeepholeOptimizer:
     """
 
     def __init__(self):
-        # bytecode.Bytecode instance
+        # bytecode.BytecodeBlocks instance
         self.code = None
         self.const_stack = None
         self.block_index = None
@@ -453,14 +453,14 @@ class _CodePeepholeOptimizer:
                 return code_obj
 
         if MIMICK_C_IMPL:
-            bytecode = Bytecode.disassemble(code_obj, extended_arg_op=True)
+            bytecode = BytecodeBlocks.disassemble(code_obj, extended_arg_op=True)
             try:
                 self._optimize(bytecode)
             except ExitUnchanged:
                 # needed to bypass optimization in eval_EXTENDED_ARG()
                 return code_obj
         else:
-            bytecode = Bytecode.disassemble(code_obj)
+            bytecode = BytecodeBlocks.disassemble(code_obj)
             self._optimize(bytecode)
 
         return bytecode.assemble()

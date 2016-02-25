@@ -6,7 +6,7 @@ import sys
 import textwrap
 import types
 import unittest
-from bytecode import Instr, ConcreteInstr, Bytecode, ConcreteBytecode, Label
+from bytecode import Instr, ConcreteInstr, BytecodeBlocks, ConcreteBytecode, Label
 from test_utils import TestCase
 
 
@@ -34,7 +34,7 @@ def disassemble(source, *, filename="<string>", function=False,
             raise ValueError("unable to find function code")
         code = sub_code[0]
 
-    bytecode = Bytecode.disassemble(code, use_labels=use_labels)
+    bytecode = BytecodeBlocks.disassemble(code, use_labels=use_labels)
     if remove_last_return_none:
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter
@@ -208,15 +208,14 @@ class CodeTests(TestCase):
         # FIXME: test non-empty cellvars
 
     def test_constructor(self):
-        code = Bytecode()
+        code = BytecodeBlocks()
         self.assertEqual(code.name, "<module>")
         self.assertEqual(code.filename, "<string>")
         self.assertEqual(code.flags, 0)
-        self.assertEqual(len(code), 1)
-        self.assertEqual(code[0], [])
+        self.assertBlocksEqual(code, [])
 
     def test_add_del_block(self):
-        code = Bytecode()
+        code = BytecodeBlocks()
         code[0].append(LOAD_CONST(0))
 
         block = code.add_block()
@@ -224,19 +223,20 @@ class CodeTests(TestCase):
         self.assertIs(block, code[1])
 
         code[1].append(LOAD_CONST(2))
-        self.assertEqual(code[0], [LOAD_CONST(0)])
-        self.assertEqual(code[1], [LOAD_CONST(2)])
+        self.assertBlocksEqual(code,
+                               [LOAD_CONST(0)],
+                               [LOAD_CONST(2)])
 
         del code[0]
-        self.assertEqual(len(code), 1)
-        self.assertEqual(code[0], [LOAD_CONST(2)])
+        self.assertBlocksEqual(code,
+                               [LOAD_CONST(2)])
 
 
 class FunctionalTests(TestCase):
     def sample_code(self):
         code = disassemble('x = 1', remove_last_return_none=True)
-        self.assertEqual(len(code), 1)
-        self.assertListEqual(code[0], [LOAD_CONST(1), STORE_NAME('x')])
+        self.assertBlocksEqual(code,
+                               [LOAD_CONST(1), STORE_NAME('x')])
         return code
 
     def test_eq(self):
@@ -249,15 +249,25 @@ class FunctionalTests(TestCase):
 
     def test_eq_labels(self):
         # equal
-        code1 = Bytecode()
-        code1[0][:] = [Instr(1, "LOAD_CONST", "abc"), Label()]
-        code2 = Bytecode()
-        code2[0][:] = [Instr(1, "LOAD_CONST", "abc"), Label()]
+        code1 = BytecodeBlocks()
+        label1 = Label()
+        code1[0][:] = [Instr(1, "JUMP_FORWARD", label1),
+                       Instr(1, "NOP"),
+                       label1]
+        code2 = BytecodeBlocks()
+        label2 = Label()
+        code2[0][:] = [Instr(1, "JUMP_FORWARD", label2),
+                       Label(),   # unused label
+                       Instr(1, "NOP"),
+                       label2]
         self.assertEqual(code2, code1)
 
         # not equal
-        code3 = Bytecode()
-        code3[0][:] = [Label(), Instr(1, "LOAD_CONST", "abc")]
+        code3 = BytecodeBlocks()
+        label3 = Label()
+        code3[0][:] = [Instr(1, "JUMP_FORWARD", label3),
+                       label3,
+                       Instr(1, "NOP")]
         self.assertNotEqual(code3, code1)
 
     def check_getitem(self, code):
@@ -271,17 +281,17 @@ class FunctionalTests(TestCase):
         code[0].append(NOP())
 
         label = code.create_label(0, 2)
-        self.assertEqual(len(code), 2)
-        self.assertListEqual(code[0], [LOAD_CONST(1), STORE_NAME('x')])
-        self.assertListEqual(code[1], [NOP()])
+        self.assertBlocksEqual(code,
+                               [LOAD_CONST(1), STORE_NAME('x')],
+                               [NOP()])
         self.assertEqual(label, code[1].label)
         self.check_getitem(code)
 
         label3 = code.create_label(0, 1)
-        self.assertEqual(len(code), 3)
-        self.assertListEqual(code[0], [LOAD_CONST(1)])
-        self.assertListEqual(code[1], [STORE_NAME('x')])
-        self.assertListEqual(code[2], [NOP()])
+        self.assertBlocksEqual(code,
+                               [LOAD_CONST(1)],
+                               [STORE_NAME('x')],
+                               [NOP()])
         self.assertEqual(label, code[2].label)
         self.check_getitem(code)
 
@@ -291,8 +301,9 @@ class FunctionalTests(TestCase):
 
         label = code.create_label(block_index, 1)
         self.assertEqual(len(code), 2)
-        self.assertListEqual(code[0], [LOAD_CONST(1), ])
-        self.assertListEqual(code[1], [STORE_NAME('x')])
+        self.assertBlocksEqual(code,
+                               [LOAD_CONST(1), ],
+                               [STORE_NAME('x')])
         self.assertEqual(label, code[1].label)
         self.check_getitem(code)
 
@@ -300,8 +311,7 @@ class FunctionalTests(TestCase):
         code = self.sample_code()
 
         label = code.create_label(0, 0)
-        self.assertEqual(len(code), 1)
-        self.assertListEqual(code[0], [LOAD_CONST(1), STORE_NAME('x')])
+        self.assertBlocksEqual(code, [LOAD_CONST(1), STORE_NAME('x')])
         self.assertEqual(label, code[0].label)
 
     def test_create_label_error(self):
@@ -324,9 +334,10 @@ class FunctionalTests(TestCase):
                 return x
         """, function=True)
         remove_jump_forward = sys.version_info >= (3, 5)
+        label = bytecode[1].label
         if remove_jump_forward:
             blocks = [[Instr(4, 'LOAD_FAST', 'x'),
-                       Instr(4, 'POP_JUMP_IF_FALSE', bytecode[1].label),
+                       Instr(4, 'POP_JUMP_IF_FALSE', label),
                        Instr(5, 'LOAD_FAST', 'arg'),
                        Instr(5, 'STORE_FAST', 'x')],
                       [Instr(6, 'LOAD_CONST', 3),
@@ -346,7 +357,7 @@ class FunctionalTests(TestCase):
                        Instr(4, 'POP_JUMP_IF_FALSE', bytecode[1].label),
                        Instr(5, 'LOAD_FAST', 'arg'),
                        Instr(5, 'STORE_FAST', 'x'),
-                       Instr(5, 'JUMP_FORWARD', bytecode[1].label)],
+                       Instr(5, 'JUMP_FORWARD', label)],
                       [Instr(6, 'LOAD_CONST', 3),
                        Instr(6, 'STORE_FAST', 'x'),
                        Instr(7, 'LOAD_FAST', 'x'),
@@ -361,7 +372,7 @@ class FunctionalTests(TestCase):
                         b'|\x05\x00'
                         b'S')
 
-        self.assertCodeEqual(bytecode, *blocks)
+        self.assertBlocksEqual(bytecode, *blocks)
         code = bytecode.assemble()
         self.assertEqual(code.co_argcount, 3)
         self.assertEqual(code.co_kwonlyargcount, 2)
@@ -383,21 +394,18 @@ class FunctionalTests(TestCase):
             else:
                 x = 2
         """)
-        self.assertEqual(len(code), 3)
-        expected = [Instr(1, 'LOAD_NAME', 'test'),
-                    Instr(1, 'POP_JUMP_IF_FALSE', code[1].label),
-                    Instr(2, 'LOAD_CONST', 1),
-                    Instr(2, 'STORE_NAME', 'x'),
-                    Instr(2, 'JUMP_FORWARD', code[2].label)]
-        self.assertListEqual(code[0], expected)
+        self.assertBlocksEqual(code,
+                             [Instr(1, 'LOAD_NAME', 'test'),
+                              Instr(1, 'POP_JUMP_IF_FALSE', code[1].label),
+                              Instr(2, 'LOAD_CONST', 1),
+                              Instr(2, 'STORE_NAME', 'x'),
+                              Instr(2, 'JUMP_FORWARD', code[2].label)],
 
-        expected = [Instr(4, 'LOAD_CONST', 2),
-                    Instr(4, 'STORE_NAME', 'x')]
-        self.assertListEqual(code[1], expected)
+                             [Instr(4, 'LOAD_CONST', 2),
+                              Instr(4, 'STORE_NAME', 'x')],
 
-        expected = [Instr(4, 'LOAD_CONST', None),
-                    Instr(4, 'RETURN_VALUE')]
-        self.assertListEqual(code[2], expected)
+                             [Instr(4, 'LOAD_CONST', None),
+                              Instr(4, 'RETURN_VALUE')])
 
     def test_disassemble_without_labels(self):
         code = disassemble("""
@@ -416,7 +424,7 @@ class FunctionalTests(TestCase):
                     Instr(4, 'STORE_NAME', 'x'),
                     Instr(4, 'LOAD_CONST', None),
                     Instr(4, 'RETURN_VALUE')]
-        self.assertListEqual(code[0], expected)
+        self.assertBlocksEqual(code, expected)
 
     def test_load_fast(self):
         code = disassemble("""
@@ -424,7 +432,7 @@ class FunctionalTests(TestCase):
                 x = 33
                 y = x
         """, function=True, remove_last_return_none=True)
-        self.assertCodeEqual(code,
+        self.assertBlocksEqual(code,
                              [Instr(2, 'LOAD_CONST', 33),
                               Instr(2, 'STORE_FAST', 'x'),
                               Instr(3, 'LOAD_FAST', 'x'),
@@ -440,7 +448,7 @@ class FunctionalTests(TestCase):
         expected = [Instr(1, "LOAD_CONST", 1), Instr(1, "STORE_NAME", 'x'),
                     Instr(2, "LOAD_CONST", 2), Instr(2, "STORE_NAME", 'y'),
                     Instr(3, "LOAD_CONST", 3), Instr(3, "STORE_NAME", 'z')]
-        self.assertListEqual(code[0], expected)
+        self.assertBlocksEqual(code, expected)
         code_obj2 = code.assemble()
 
         self.assertEqual(code_obj2.co_lnotab, b'\x06\x01\x06\x01')
@@ -460,39 +468,7 @@ class FunctionalTests(TestCase):
                     Instr(1, "LOAD_CONST", 'foo'),
                     Instr(1, "MAKE_FUNCTION", 3 << 16),
                     Instr(1, "STORE_NAME", 'foo')]
-        self.assertListEqual(code[0], expected)
-
-    def test_dump_code(self):
-        source = """
-            def func(test):
-                if test == 1:
-                    return 1
-                elif test == 2:
-                    return 2
-                return 3
-        """
-        expected = """
-  2  0    LOAD_FAST(0)
-     3    LOAD_CONST(1)
-     6    COMPARE_OP(2)
-     9    POP_JUMP_IF_FALSE(16)
-  3 12    LOAD_CONST(1)
-    15    RETURN_VALUE
-  4 16    LOAD_FAST(0)
-    19    LOAD_CONST(2)
-    22    COMPARE_OP(2)
-    25    POP_JUMP_IF_FALSE(32)
-  5 28    LOAD_CONST(2)
-    31    RETURN_VALUE
-  6 32    LOAD_CONST(3)
-    35    RETURN_VALUE
-"""[1:]
-        code = disassemble(source, function=True)
-        with contextlib.redirect_stdout(io.StringIO()) as stderr:
-            bytecode._dump_code(code)
-            output = stderr.getvalue()
-
-        self.assertEqual(output, expected)
+        self.assertBlocksEqual(code, expected)
 
     def test_concrete_code(self):
         code = disassemble("""
@@ -518,7 +494,7 @@ class FunctionalTests(TestCase):
 
     def test_concrete_code_dont_merge_constants(self):
         # test two constants which are equal but have a different type
-        code = Bytecode()
+        code = BytecodeBlocks()
         block = code[0]
         block.append(Instr(1, 'LOAD_CONST', 5))
         block.append(Instr(1, 'LOAD_CONST', 5.0))
@@ -530,7 +506,7 @@ class FunctionalTests(TestCase):
         self.assertListEqual(code.consts, [5, 5.0])
 
     def test_concrete_code_labels(self):
-        code = Bytecode()
+        code = BytecodeBlocks()
         label = Label()
         code[0].append(Instr(1, 'LOAD_CONST', 'hello'))
         code[0].append(Instr(1, 'JUMP_FORWARD', label))
@@ -595,6 +571,80 @@ class ConcreteBytecodeTests(TestCase):
         self.assertListEqual(list(bytecode),
                              [ConcreteInstr(1, 'EXTENDED_ARG', 0x1234),
                               ConcreteInstr(1, 'LOAD_CONST', 0xabcd)])
+
+
+class DumpCodeTests(unittest.TestCase):
+    def check_dump_code(self, code, expected):
+        with contextlib.redirect_stdout(io.StringIO()) as stderr:
+            bytecode._dump_code(code)
+            output = stderr.getvalue()
+
+        self.assertEqual(output, expected)
+
+    def test_bytecode_blocks(self):
+        source = """
+            def func(test):
+                if test == 1:
+                    return 1
+                elif test == 2:
+                    return 2
+                return 3
+        """
+        code = disassemble(source, function=True)
+
+        expected = textwrap.dedent("""
+            label_block1:
+                LOAD_FAST 'test'
+                LOAD_CONST 1
+                COMPARE_OP 2
+                POP_JUMP_IF_FALSE <label_block2>
+                LOAD_CONST 1
+                RETURN_VALUE
+
+            label_block2:
+                LOAD_FAST 'test'
+                LOAD_CONST 2
+                COMPARE_OP 2
+                POP_JUMP_IF_FALSE <label_block3>
+                LOAD_CONST 2
+                RETURN_VALUE
+
+            label_block3:
+                LOAD_CONST 3
+                RETURN_VALUE
+
+        """).lstrip()
+        self.check_dump_code(code, expected)
+
+    def test_concrete_bytecode(self):
+        source = """
+            def func(test):
+                if test == 1:
+                    return 1
+                elif test == 2:
+                    return 2
+                return 3
+        """
+        code = disassemble(source, function=True)
+        code = code.concrete_code()
+
+        expected = """
+  2  0    LOAD_FAST(0)
+     3    LOAD_CONST(1)
+     6    COMPARE_OP(2)
+     9    POP_JUMP_IF_FALSE(16)
+  3 12    LOAD_CONST(1)
+    15    RETURN_VALUE
+  4 16    LOAD_FAST(0)
+    19    LOAD_CONST(2)
+    22    COMPARE_OP(2)
+    25    POP_JUMP_IF_FALSE(32)
+  5 28    LOAD_CONST(2)
+    31    RETURN_VALUE
+  6 32    LOAD_CONST(3)
+    35    RETURN_VALUE
+""".lstrip("\n")
+        self.check_dump_code(code, expected)
 
 
 class MiscTests(unittest.TestCase):

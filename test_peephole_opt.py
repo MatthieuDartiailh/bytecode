@@ -6,7 +6,7 @@ import sys
 import textwrap
 import types
 import unittest
-from bytecode import Instr, ConcreteInstr, Bytecode, ConcreteBytecode
+from bytecode import Instr, ConcreteInstr, BytecodeBlocks, ConcreteBytecode
 from unittest import mock
 from test_utils import TestCase
 
@@ -53,7 +53,7 @@ class Tests(TestCase):
     def create_bytecode(self, source, function=False):
         code = self.compile(source, function=function)
 
-        bytecode = Bytecode.disassemble(code)
+        bytecode = BytecodeBlocks.disassemble(code)
 
         if not function:
             block = bytecode[-1]
@@ -75,7 +75,7 @@ class Tests(TestCase):
     def check(self, source, *expected_blocks, function=False):
         bytecode = self.optimize_bytecode(source, function=function)
 
-        self.assertCodeEqual(bytecode, *expected_blocks)
+        self.assertBlocksEqual(bytecode, *expected_blocks)
 
     def check_dont_optimize(self, source):
         noopt = self.create_bytecode(source)
@@ -241,14 +241,14 @@ class Tests(TestCase):
             Instr(1, 'LOAD_CONST', None),
             Instr(1, 'RETURN_VALUE'),
         ]
-        code_noopt = Bytecode()
+        code_noopt = BytecodeBlocks()
         code_noopt[0][:] = block
         noopt = code_noopt.assemble()
 
         optimizer = peephole_opt._CodePeepholeOptimizer()
         optim = optimizer.optimize(noopt)
 
-        code = Bytecode.disassemble(optim)
+        code = BytecodeBlocks.disassemble(optim)
 
         expected = [
             Instr(1, 'LOAD_CONST', 8),
@@ -256,7 +256,7 @@ class Tests(TestCase):
             Instr(1, 'LOAD_CONST', None),
             Instr(1, 'RETURN_VALUE'),
         ]
-        self.assertCodeEqual(code, expected)
+        self.assertBlocksEqual(code, expected)
 
     def test_mimicks_c_impl_long_code(self):
         with mock.patch.object(peephole_opt, 'MIMICK_C_IMPL', True):
@@ -285,7 +285,7 @@ class Tests(TestCase):
                 Instr(1, 'LOAD_CONST', 0),
                 Instr(1, 'POP_TOP'),
             ]
-            code_noopt = Bytecode()
+            code_noopt = BytecodeBlocks()
             code_noopt.consts = [None]
             code_noopt[0][:] = block
             noopt = code_noopt.assemble()
@@ -359,7 +359,7 @@ class Tests(TestCase):
                     return 7
         """
         code = self.optimize_bytecode(source, function=True)
-        self.assertCodeEqual(code,
+        self.assertBlocksEqual(code,
                    [Instr(2, 'SETUP_LOOP', code[2].label)],
                    [Instr(3, 'LOAD_CONST', 7),
                     Instr(3, 'RETURN_VALUE'),
@@ -376,7 +376,7 @@ class Tests(TestCase):
             y = 4
         '''
         code = self.optimize_bytecode(source)
-        self.assertCodeEqual(code,
+        self.assertBlocksEqual(code,
                    [Instr(1, 'LOAD_NAME', 'x'),
                     Instr(1, 'POP_JUMP_IF_TRUE', code[1].label),
                     Instr(2, 'LOAD_CONST', 9),
@@ -396,7 +396,7 @@ class Tests(TestCase):
                     x = 30
         """
         code = self.optimize_bytecode(source, function=True)
-        self.assertCodeEqual(code,
+        self.assertBlocksEqual(code,
                              [Instr(2, 'LOAD_GLOBAL', 'test'),
                               Instr(2, 'POP_JUMP_IF_FALSE', code[3].label),
 
@@ -427,7 +427,7 @@ class Tests(TestCase):
                         func()
         """
         code = self.optimize_bytecode(source, function=True)
-        self.assertCodeEqual(code,
+        self.assertBlocksEqual(code,
                              [Instr(2, 'LOAD_GLOBAL', 'x'),
                               Instr(2, 'POP_JUMP_IF_FALSE', code[1].label),
 
@@ -448,7 +448,7 @@ class Tests(TestCase):
                 return 'yes' if condition else 'no'
         """
         code = self.optimize_bytecode(source, function=True)
-        self.assertCodeEqual(code,
+        self.assertBlocksEqual(code,
                              [Instr(2, 'LOAD_FAST', 'condition'),
                               Instr(2, 'POP_JUMP_IF_FALSE', code[1].label),
 
