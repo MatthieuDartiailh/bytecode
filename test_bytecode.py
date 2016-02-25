@@ -295,51 +295,66 @@ class FunctionalTests(TestCase):
     def test_assemble(self):
         # test resolution of jump labels
         code = disassemble("""
-            if x:
-                x = 2
-            x = 3
-        """)
+            first_line = 1
+
+            def func(arg, arg2, arg3, *, kwonly=1, kwonly2=1):
+                if x:
+                    x = arg
+                x = 3
+                return x
+        """, function=True)
         remove_jump_forward = sys.version_info >= (3, 5)
         if remove_jump_forward:
-            blocks = [[Instr(1, 'LOAD_NAME', 'x'),
-                       Instr(1, 'POP_JUMP_IF_FALSE', code[1].label),
-                       Instr(2, 'LOAD_CONST', 2),
-                       Instr(2, 'STORE_NAME', 'x')],
-                      [Instr(3, 'LOAD_CONST', 3),
-                       Instr(3, 'STORE_NAME', 'x'),
-                       Instr(3, 'LOAD_CONST', None),
-                       Instr(3, 'RETURN_VALUE')]]
-            expected = (b'e\x00\x00'
+            blocks = [[Instr(4, 'LOAD_FAST', 'x'),
+                       Instr(4, 'POP_JUMP_IF_FALSE', code[1].label),
+                       Instr(5, 'LOAD_FAST', 'arg'),
+                       Instr(5, 'STORE_FAST', 'x')],
+                      [Instr(6, 'LOAD_CONST', 3),
+                       Instr(6, 'STORE_FAST', 'x'),
+                       Instr(7, 'LOAD_FAST', 'x'),
+                       Instr(7, 'RETURN_VALUE')]]
+            expected = (b'|\x05\x00'
                         b'r\x0c\x00'
-                        b'd\x00\x00'
-                        b'Z\x00\x00'
+                        b'|\x00\x00'
+                        b'}\x05\x00'
                         b'd\x01\x00'
-                        b'Z\x00\x00'
-                        b'd\x02\x00'
+                        b'}\x05\x00'
+                        b'|\x05\x00'
                         b'S')
         else:
-            blocks = [[Instr(1, 'LOAD_NAME', 'x'),
-                       Instr(1, 'POP_JUMP_IF_FALSE', code[1].label),
-                       Instr(2, 'LOAD_CONST', 2),
-                       Instr(2, 'STORE_NAME', 'x'),
-                       Instr(2, 'JUMP_FORWARD', code[1].label)],
-                      [Instr(3, 'LOAD_CONST', 3),
-                       Instr(3, 'STORE_NAME', 'x'),
-                       Instr(3, 'LOAD_CONST', None),
-                       Instr(3, 'RETURN_VALUE')]]
-            expected = (b'e\x00\x00'
+            blocks = [[Instr(4, 'LOAD_FAST', 'x'),
+                       Instr(4, 'POP_JUMP_IF_FALSE', code[1].label),
+                       Instr(5, 'LOAD_FAST', 'arg'),
+                       Instr(5, 'STORE_FAST', 'x'),
+                       Instr(5, 'JUMP_FORWARD', code[1].label)],
+                      [Instr(6, 'LOAD_CONST', 3),
+                       Instr(6, 'STORE_FAST', 'x'),
+                       Instr(7, 'LOAD_FAST', 'x'),
+                       Instr(7, 'RETURN_VALUE')]]
+            expected = (b'|\x05\x00'
                         b'r\x0f\x00'
-                        b'd\x00\x00'
-                        b'Z\x00\x00'
+                        b'|\x00\x00'
+                        b'}\x05\x00'
                         b'n\x00\x00'
                         b'd\x01\x00'
-                        b'Z\x00\x00'
-                        b'd\x02\x00'
+                        b'}\x05\x00'
+                        b'|\x05\x00'
                         b'S')
 
         self.assertCodeEqual(code, *blocks)
-        code2 = code.assemble()
-        self.assertEqual(code2.co_code, expected)
+        code_obj = code.assemble()
+        self.assertEqual(code_obj.co_argcount, 3)
+        self.assertEqual(code_obj.co_kwonlyargcount, 2)
+        self.assertEqual(code_obj.co_nlocals, 1)
+        self.assertEqual(code_obj.co_stacksize, 1)
+        # FIXME: don't use hardcoded constants
+        self.assertEqual(code_obj.co_flags, 0x43)
+        self.assertEqual(code_obj.co_code, expected)
+        self.assertEqual(code_obj.co_names, ())
+        self.assertEqual(code_obj.co_varnames, ('arg', 'arg2', 'arg3', 'kwonly', 'kwonly2', 'x'))
+        self.assertEqual(code_obj.co_filename, '<string>')
+        self.assertEqual(code_obj.co_name, 'func')
+        self.assertEqual(code_obj.co_firstlineno, 3)
 
     def test_disassemble(self):
         code = disassemble("""

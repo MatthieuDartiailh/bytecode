@@ -382,10 +382,10 @@ class ConcreteCode(BaseCode, list):
     def assemble(self):
         code_str, linenos = self._assemble_code()
         lnotab = self._assemble_lnotab(self.first_lineno, linenos)
+        nlocals = len(self.varnames) - self.argcount - self.kw_only_argcount
         return types.CodeType(self.argcount,
                               self.kw_only_argcount,
-                              # FIXME: compute number of locals
-                              len(self.varnames),
+                              nlocals,
                               # FIXME: compute stack size
                               self._stacksize,
                               self.flags,
@@ -519,7 +519,10 @@ class _ConvertCodeToConcrete:
         if first_const is not UNSET:
             self.add_const(first_const)
 
+        self.varnames.extend(self.code.argnames)
+
         instructions = self.concrete_instructions()
+
         code = self.code
         concrete = ConcreteCode(code.name,
                                 code.filename,
@@ -551,6 +554,7 @@ class Code(BaseCode):
 
         self._blocks = []
         self._label_to_index = {}
+        self.argnames = []
 
         self.add_block()
 
@@ -636,6 +640,9 @@ class Code(BaseCode):
         code.freevars = list(code_obj.co_freevars)
         code.cellvars = list(code_obj.co_cellvars)
 
+        nargs = code.argcount + code.kw_only_argcount
+        code.argnames = code_obj.co_varnames[:nargs]
+
         first_const = code_obj.co_consts[0]
         if isinstance(first_const, str):
             code.docstring = first_const
@@ -653,6 +660,9 @@ class Code(BaseCode):
 
     def __eq__(self, other):
         if type(self) != type(other):
+            return False
+
+        if self.argnames != other.argnames:
             return False
 
         # Compare blocks (need to "renumber" labels)
