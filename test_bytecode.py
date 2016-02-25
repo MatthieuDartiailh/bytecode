@@ -467,7 +467,6 @@ class FunctionalTests(TestCase):
                 x = 37
         """)
         code = code.concrete_code()
-        self.assertEqual(len(code), 1)
         expected = [ConcreteInstr(1, 'LOAD_NAME', 0),
                     ConcreteInstr(1, 'POP_JUMP_IF_FALSE', 15),
                     ConcreteInstr(2, 'LOAD_CONST', 0),
@@ -477,7 +476,7 @@ class FunctionalTests(TestCase):
                     ConcreteInstr(4, 'STORE_NAME', 1),
                     ConcreteInstr(4, 'LOAD_CONST', 2),
                     ConcreteInstr(4, 'RETURN_VALUE')]
-        self.assertListEqual(code[0], expected)
+        self.assertListEqual(list(code), expected)
         self.assertListEqual(code.consts, [12, 37, None])
         self.assertListEqual(code.names, ['test', 'x'])
         self.assertListEqual(code.varnames, [])
@@ -499,7 +498,7 @@ class ConcreteCodeTests(TestCase):
                     ConcreteInstr(1, 'STORE_NAME', 0),
                     ConcreteInstr(1, 'LOAD_CONST', 1),
                     ConcreteInstr(1, 'RETURN_VALUE')]
-        self.assertCodeEqual(code, expected)
+        self.assertListEqual(list(code), expected)
         self.assertEqual(code.consts, [5, None])
         self.assertEqual(code.names, ['x'])
 
@@ -524,13 +523,13 @@ class ConcreteCodeTests(TestCase):
 
         # without EXTENDED_ARG opcode
         code = bytecode.ConcreteCode.disassemble(code_obj)
-        self.assertCodeEqual(code,
+        self.assertListEqual(list(code),
                              [ConcreteInstr(1, "LOAD_CONST", 0x1234abcd)])
 
         # with EXTENDED_ARG opcode
         code = bytecode.ConcreteCode.disassemble(code_obj,
                                                  extended_arg_op=True)
-        self.assertCodeEqual(code,
+        self.assertListEqual(list(code),
                              [ConcreteInstr(1, 'EXTENDED_ARG', 0x1234),
                               ConcreteInstr(1, 'LOAD_CONST', 0xabcd)])
 

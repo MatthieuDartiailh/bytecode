@@ -372,7 +372,7 @@ class Assembler:
         concrete.varnames = self.varnames
 
         # copy instructions
-        concrete[0][:] = instructions
+        concrete[:] = instructions
         return concrete
 
     def assemble(self):
@@ -539,10 +539,14 @@ def _disassemble(code_obj, *,
     elif first_const is None:
         code.docstring = first_const
 
-    # delete the first empty block
-    del code[0]
-    for block in blocks:
-        code._add_block(block)
+    if concrete:
+        assert len(blocks) == 1
+        code[:] = blocks[0]
+    else:
+        # delete the first empty block
+        del code[0]
+        for block in blocks:
+            code._add_block(block)
     return code
 
 
@@ -560,25 +564,7 @@ class BaseCode:
         self.freevars = []
         self.cellvars = []
 
-        self._blocks = []
-        self._label_to_index = {}
-
         self.docstring = UNSET
-
-        self.add_block()
-
-    def _add_block(self, block):
-        block_index = len(self._blocks)
-        self._blocks.append(block)
-        self._label_to_index[block.label] = block_index
-
-    def add_block(self):
-        block = Block()
-        self._add_block(block)
-        return block
-
-    def __repr__(self):
-        return '<Code block#=%s>' % len(self._blocks)
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -607,6 +593,44 @@ class BaseCode:
         if self.docstring != other.docstring:
             return False
 
+        return True
+
+
+class Code(BaseCode):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+
+        self._blocks = []
+        self._label_to_index = {}
+
+        self.add_block()
+
+    def _add_block(self, block):
+        block_index = len(self._blocks)
+        self._blocks.append(block)
+        self._label_to_index[block.label] = block_index
+
+    def add_block(self):
+        block = Block()
+        self._add_block(block)
+        return block
+
+    def __repr__(self):
+        return '<Code block#=%s>' % len(self._blocks)
+
+    @staticmethod
+    def disassemble(code_obj, *, use_labels=None, extended_arg_op=False):
+        return _disassemble(code_obj,
+                            use_labels=use_labels,
+                            extended_arg_op=extended_arg_op)
+
+    def concrete_code(self):
+        return Assembler(self).concrete_code()
+
+    def __eq__(self, other):
+        if type(self) != type(other):
+            return False
+
         # Compare blocks (need to "renumber" labels)
         if len(self._blocks) != len(other._blocks):
             return False
@@ -632,7 +656,7 @@ class BaseCode:
                 if key1 != key2:
                     return False
 
-        return True
+        return super().__eq__(other)
 
     def __len__(self):
         return len(self._blocks)
@@ -685,18 +709,7 @@ class BaseCode:
         return Assembler(self).assemble()
 
 
-class Code(BaseCode):
-    @staticmethod
-    def disassemble(code_obj, *, use_labels=None, extended_arg_op=False):
-        return _disassemble(code_obj,
-                            use_labels=use_labels,
-                            extended_arg_op=extended_arg_op)
-
-    def concrete_code(self):
-        return Assembler(self).concrete_code()
-
-
-class ConcreteCode(BaseCode):
+class ConcreteCode(BaseCode, list):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.consts = []
@@ -733,18 +746,17 @@ def _dump_code(code):
     write_blocks = isinstance(code, ConcreteCode)
 
     code = Assembler(code).concrete_code()
-    for block in code:
-        for instr in block:
-            fields = []
-            if instr.lineno != lineno:
-                fields.append(str(instr.lineno).rjust(line_width))
-                lineno = instr.lineno
-            else:
-                fields.append(" " * line_width)
+    for instr in code:
+        fields = []
+        if instr.lineno != lineno:
+            fields.append(str(instr.lineno).rjust(line_width))
+            lineno = instr.lineno
+        else:
+            fields.append(" " * line_width)
 
-            fields.append("% 3s    %s" % (offset, instr.name))
-            if instr.arg is not UNSET:
-                fields.append("(%s)" % instr.arg)
-            print(''.join(fields))
+        fields.append("% 3s    %s" % (offset, instr.name))
+        if instr.arg is not UNSET:
+            fields.append("(%s)" % instr.arg)
+        print(''.join(fields))
 
-            offset += instr.size
+        offset += instr.size
