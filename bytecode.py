@@ -414,6 +414,76 @@ class ConcreteBytecode(BaseBytecode, list):
                               tuple(self.freevars),
                               tuple(self.cellvars))
 
+    def to_bytecode(self):
+        # find jump targets
+        jump_targets = set()
+        offset = 0
+        for instr in self:
+            target = instr.get_jump_target(offset)
+            if target is not None:
+                jump_targets.add(target)
+            offset += instr.size
+
+        # create labels
+        jumps = []
+        instructions = []
+        labels = {}
+        offset = 0
+
+        for instr in self:
+            if offset in jump_targets:
+                label = Label()
+                labels[offset] = label
+                instructions.append(label)
+
+            jump_target = instr.get_jump_target(offset)
+            size = instr.size
+
+            arg = instr.arg
+            # FIXME: better error reporting
+            if instr.op in opcode.hasconst:
+                arg = self.consts[arg]
+            elif instr.op in opcode.haslocal:
+                arg = self.varnames[arg]
+            elif instr.op in opcode.hasname:
+                arg = self.names[arg]
+            # FIXME: hasfree
+
+            instr = Instr(instr.lineno, instr.name, arg)
+            instructions.append(instr)
+            offset += size
+
+            if jump_target is not None:
+                jumps.append((instr, jump_target))
+
+        # replace jump targets with blocks
+        for instr, jump_target in jumps:
+            # FIXME: better error reporting on missing label
+            instr.arg = labels[jump_target]
+
+        bytecode = Bytecode()
+        bytecode.name = self.name
+        bytecode.filename = self.filename
+        bytecode.flags = self.flags
+        bytecode.argcount = self.argcount
+        bytecode.kw_only_argcount = self.kw_only_argcount
+        bytecode._stacksize = self._stacksize
+        bytecode.first_lineno = self.first_lineno
+        bytecode.freevars = list(self.freevars)
+        bytecode.cellvars = list(self.cellvars)
+
+        nargs = bytecode.argcount + bytecode.kw_only_argcount
+        bytecode.argnames = self.varnames[:nargs]
+
+        first_const = self.consts[0]
+        if isinstance(first_const, str):
+            bytecode.docstring = first_const
+        elif first_const is None:
+            bytecode.docstring = first_const
+
+        bytecode.extend(instructions)
+        return bytecode
+
 
 class Label:
     __slots__ = ()
@@ -486,7 +556,6 @@ class _ConvertCodeToConcrete:
         return index
 
     def concrete_instructions(self):
-        # FIXME: rewrite this code!?
         use_blocks = isinstance(self.bytecode, BytecodeBlocks)
 
         if use_blocks:
@@ -594,78 +663,9 @@ class Bytecode(_InstrList, BaseBytecode):
 
     @staticmethod
     def disassemble(code_obj, *, extended_arg_op=False):
-        use_blocks = False
         concrete = ConcreteBytecode.disassemble(code_obj,
                                                 extended_arg_op=extended_arg_op)
-
-        # find jump targets
-        jump_targets = set()
-        offset = 0
-        for instr in concrete:
-            target = instr.get_jump_target(offset)
-            if target is not None:
-                jump_targets.add(target)
-            offset += instr.size
-
-        # create labels
-        jumps = []
-        instructions = []
-        labels = {}
-        offset = 0
-
-        for instr in concrete:
-            if offset in jump_targets:
-                label = Label()
-                labels[offset] = label
-                instructions.append(label)
-
-            jump_target = instr.get_jump_target(offset)
-            size = instr.size
-
-            arg = instr.arg
-            # FIXME: better error reporting
-            if instr.op in opcode.hasconst:
-                arg = code_obj.co_consts[arg]
-            elif instr.op in opcode.haslocal:
-                arg = code_obj.co_varnames[arg]
-            elif instr.op in opcode.hasname:
-                arg = code_obj.co_names[arg]
-            # FIXME: hasfree
-
-            instr = Instr(instr.lineno, instr.name, arg)
-            instructions.append(instr)
-            offset += size
-
-            if jump_target is not None:
-                jumps.append((instr, jump_target))
-
-        # replace jump targets with blocks
-        for instr, jump_target in jumps:
-            # FIXME: better error reporting on missing label
-            instr.arg = labels[jump_target]
-
-        bytecode = Bytecode()
-        bytecode.name = code_obj.co_name
-        bytecode.filename = code_obj.co_filename
-        bytecode.flags = code_obj.co_flags
-        bytecode.argcount = code_obj.co_argcount
-        bytecode.kw_only_argcount = code_obj.co_kwonlyargcount
-        bytecode._stacksize = code_obj.co_stacksize
-        bytecode.first_lineno = code_obj.co_firstlineno
-        bytecode.freevars = list(code_obj.co_freevars)
-        bytecode.cellvars = list(code_obj.co_cellvars)
-
-        nargs = bytecode.argcount + bytecode.kw_only_argcount
-        bytecode.argnames = code_obj.co_varnames[:nargs]
-
-        first_const = code_obj.co_consts[0]
-        if isinstance(first_const, str):
-            bytecode.docstring = first_const
-        elif first_const is None:
-            bytecode.docstring = first_const
-
-        bytecode.extend(instructions)
-        return bytecode
+        return concrete.to_bytecode()
 
     def concrete_code(self):
         return _ConvertCodeToConcrete(self).concrete_code()

@@ -19,6 +19,46 @@ in pure Python. This version only supports Python 3.6.
 Homepage: https://github.com/haypo/bytecode
 
 
+API
+===
+
+Instruction:
+
+* Instr: abstract instruction, argument is not validated
+* ConcreteInstr: concrete instruction, argument must be an integer
+
+Create instructions:
+
+* Instr(lineno, name, arg=UNSET)
+* Instr.disassemble(code, offset)
+* ConcreteInstr(lineno, name, arg=UNSET)
+* ConcreteInstr.disassemble(code, offset)
+
+Bytecode:
+
+* Bytecode: list of Instr
+* BytecodeBlocks: list of blocks, a block is a list of Instr and has a label
+* ConcreteBytecode: list of ConcreteInstr
+
+Create bytecode:
+
+* Bytecode()
+* BytecodeBlocks()
+* ConcreteBytecode()
+* Bytecode.disassemble()
+* BytecodeBlocks.disassemble()
+* ConcreteBytecode.disassemble()
+
+Conversions
+
+* code = ConcreteBytecode.assemble()
+* bytecode = ConcreteBytecode.to_bytecode()
+* blocks = Bytecode.to_blocks()
+* concrete = Bytecode.concrete_code()
+* concrete = BytecodeBlocks.concrete_code()
+
+
+
 ChangeLog
 =========
 
