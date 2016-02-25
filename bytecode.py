@@ -206,7 +206,6 @@ class BaseCode:
     def __init__(self, name, filename, flags):
         self.argcount = 0
         self.kw_only_argcount = 0
-        self._nlocals = 0
         self._stacksize = 0
         self.flags = flags
         self.first_lineno = 1
@@ -225,8 +224,6 @@ class BaseCode:
         if self.argcount != other.argcount:
             return False
         if self.kw_only_argcount != other.kw_only_argcount:
-            return False
-        if self._nlocals != other._nlocals:
             return False
         if self._stacksize != other._stacksize:
             return False
@@ -305,7 +302,6 @@ class ConcreteCode(BaseCode, list):
                             code_obj.co_flags)
         code.argcount = code_obj.co_argcount
         code.kw_only_argcount = code_obj.co_kwonlyargcount
-        code._nlocals = code_obj.co_nlocals
         code._stacksize = code_obj.co_stacksize
         code.first_lineno = code_obj.co_firstlineno
         code.names = list(code_obj.co_names)
@@ -389,7 +385,7 @@ class ConcreteCode(BaseCode, list):
         return types.CodeType(self.argcount,
                               self.kw_only_argcount,
                               # FIXME: compute number of locals
-                              self._nlocals,
+                              len(self.varnames),
                               # FIXME: compute stack size
                               self._stacksize,
                               self.flags,
@@ -464,6 +460,7 @@ class _ConvertCodeToConcrete:
                         arg = self.add(self.varnames, arg)
                     elif instr.op in opcode.hasname:
                         arg = self.add(self.names, arg)
+                    # FIXME: hasfree
 
                     instr = ConcreteInstr(instr.lineno, instr.name, arg)
                 block[index] = instr
@@ -530,7 +527,6 @@ class _ConvertCodeToConcrete:
         # copy from abstract code
         concrete.argcount = code.argcount
         concrete.kw_only_argcount = code.kw_only_argcount
-        concrete._nlocals = code._nlocals
         concrete._stacksize = code._stacksize
         concrete.flags = code.flags
         concrete.first_lineno = code.first_lineno
@@ -635,7 +631,6 @@ class Code(BaseCode):
                     code_obj.co_flags)
         code.argcount = code_obj.co_argcount
         code.kw_only_argcount = code_obj.co_kwonlyargcount
-        code._nlocals = code_obj.co_nlocals
         code._stacksize = code_obj.co_stacksize
         code.first_lineno = code_obj.co_firstlineno
         code.freevars = list(code_obj.co_freevars)
