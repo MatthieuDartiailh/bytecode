@@ -487,9 +487,12 @@ class _ConvertCodeToConcrete:
 
     def concrete_instructions(self):
         # FIXME: rewrite this code!?
+        use_blocks = isinstance(self.bytecode, BytecodeBlocks)
 
-        blocks = [list(block) for block in self.bytecode]
-        block_labels = [block.label for block in self.bytecode]
+        if use_blocks:
+            blocks = self.bytecode
+        else:
+            blocks = (self.bytecode,)
 
         targets = {}
         jumps = []
@@ -497,11 +500,12 @@ class _ConvertCodeToConcrete:
         # convert abstract instructions to concrete instructions
         instructions = []
         offset = 0
-        for block in self.bytecode:
-            label = block.label
-            targets[label] = offset
+        for block in blocks:
+            if use_blocks:
+                label = block.label
+                targets[label] = offset
 
-            for index, instr in enumerate(block):
+            for instr in block:
                 if isinstance(instr, Label):
                     targets[instr] = offset
                     continue
@@ -557,19 +561,19 @@ class _ConvertCodeToConcrete:
 
         instructions = self.concrete_instructions()
 
-        bytecode = self.bytecode
+        code = self.bytecode
         concrete = ConcreteBytecode()
-        concrete.name = bytecode.name
-        concrete.filename = bytecode.filename
-        concrete.flags = bytecode.flags
+        concrete.name = code.name
+        concrete.filename = code.filename
+        concrete.flags = code.flags
         # copy from abstract code
-        concrete.argcount = bytecode.argcount
-        concrete.kw_only_argcount = bytecode.kw_only_argcount
-        concrete._stacksize = bytecode._stacksize
-        concrete.flags = bytecode.flags
-        concrete.first_lineno = bytecode.first_lineno
-        concrete.filename = bytecode.filename
-        concrete.name = bytecode.name
+        concrete.argcount = code.argcount
+        concrete.kw_only_argcount = code.kw_only_argcount
+        concrete._stacksize = code._stacksize
+        concrete.flags = code.flags
+        concrete.first_lineno = code.first_lineno
+        concrete.filename = code.filename
+        concrete.name = code.name
         concrete.freevars = list(concrete.freevars)
         concrete.cellvars = list(concrete.cellvars)
 
@@ -688,12 +692,15 @@ def _disassemble(code_obj, use_blocks, extended_arg_op):
 
 class Bytecode(_InstrList, BaseBytecode):
     def __init__(self):
-        super().__init__()
+        BaseBytecode.__init__(self)
         self.argnames = []
 
     @staticmethod
     def disassemble(code_obj, *, extended_arg_op=False):
         return _disassemble(code_obj, False, extended_arg_op)
+
+    def concrete_code(self):
+        return _ConvertCodeToConcrete(self).concrete_code()
 
 
 class BytecodeBlocks(BaseBytecode):

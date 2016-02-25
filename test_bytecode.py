@@ -582,6 +582,35 @@ class BytecodeTests(unittest.TestCase):
                           Instr(4, 'LOAD_CONST', None),
                           Instr(4, 'RETURN_VALUE')])
 
+    def test_concrete_code(self):
+        bytecode = Bytecode()
+        label = Label()
+        bytecode.extend([Instr(1, 'LOAD_NAME', 'test'),
+                         Instr(1, 'POP_JUMP_IF_FALSE', label),
+                         Instr(2, 'LOAD_CONST', 5),
+                         Instr(2, 'STORE_NAME', 'x'),
+                         Instr(2, 'JUMP_FORWARD', label),
+                         Instr(4, 'LOAD_CONST', 7),
+                         Instr(4, 'STORE_NAME', 'x'),
+                         label,
+                         Instr(4, 'LOAD_CONST', None),
+                         Instr(4, 'RETURN_VALUE')])
+
+        concrete = bytecode.concrete_code()
+        expected = [ConcreteInstr(1, 'LOAD_NAME', 0),
+                    ConcreteInstr(1, 'POP_JUMP_IF_FALSE', 21),
+                    ConcreteInstr(2, 'LOAD_CONST', 0),
+                    ConcreteInstr(2, 'STORE_NAME', 1),
+                    ConcreteInstr(2, 'JUMP_FORWARD', 6),
+                    ConcreteInstr(4, 'LOAD_CONST', 1),
+                    ConcreteInstr(4, 'STORE_NAME', 1),
+                    ConcreteInstr(4, 'LOAD_CONST', 2),
+                    ConcreteInstr(4, 'RETURN_VALUE')]
+        self.assertListEqual(list(concrete), expected)
+        self.assertListEqual(concrete.consts, [5, 7, None])
+        self.assertListEqual(concrete.names, ['test', 'x'])
+        self.assertListEqual(concrete.varnames, [])
+
 
 class DumpCodeTests(unittest.TestCase):
     def check_dump_code(self, code, expected):
