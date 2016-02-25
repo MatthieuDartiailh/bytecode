@@ -6,7 +6,7 @@ import sys
 import textwrap
 import types
 import unittest
-from bytecode import Instr, ConcreteInstr, Bytecode
+from bytecode import Instr, ConcreteInstr, Bytecode, ConcreteBytecode
 from unittest import mock
 from test_utils import TestCase
 
@@ -241,7 +241,7 @@ class Tests(TestCase):
             Instr(1, 'LOAD_CONST', None),
             Instr(1, 'RETURN_VALUE'),
         ]
-        code_noopt = Bytecode('test', 'test.py', 0)
+        code_noopt = Bytecode()
         code_noopt[0][:] = block
         noopt = code_noopt.assemble()
 
@@ -285,7 +285,7 @@ class Tests(TestCase):
                 Instr(1, 'LOAD_CONST', 0),
                 Instr(1, 'POP_TOP'),
             ]
-            code_noopt = Bytecode('test', 'test.py', 0)
+            code_noopt = Bytecode()
             code_noopt.consts = [None]
             code_noopt[0][:] = block
             noopt = code_noopt.assemble()
@@ -302,18 +302,18 @@ class Tests(TestCase):
             # create code with EXTENDED_ARG opcode
             block = [
                 ConcreteInstr(1, 'LOAD_CONST', 3 << 16),
-                Instr(1, 'POP_TOP'),
-                Instr(1, 'LOAD_CONST', 0),
-                Instr(1, 'LOAD_CONST', 1),
-                Instr(1, 'BINARY_ADD'),
-                Instr(1, 'STORE_NAME', 'x'),
-                Instr(1, 'LOAD_CONST', 2),
-                Instr(1, 'RETURN_VALUE'),
+                ConcreteInstr(1, 'POP_TOP'),
+                ConcreteInstr(1, 'LOAD_CONST', 0),
+                ConcreteInstr(1, 'LOAD_CONST', 1),
+                ConcreteInstr(1, 'BINARY_ADD'),
+                ConcreteInstr(1, 'STORE_NAME', 0),
+                ConcreteInstr(1, 'LOAD_CONST', 2),
+                ConcreteInstr(1, 'RETURN_VALUE'),
             ]
-            code_noopt = Bytecode('test', 'test.py', 0)
+            code_noopt = ConcreteBytecode()
             code_noopt.consts = [1, 2, None]
             code_noopt.names = ['x']
-            code_noopt[0][:] = block
+            code_noopt[:] = block
             noopt = code_noopt.assemble()
 
             # don't optimize if the code contains EXTENDED_ARG opcode

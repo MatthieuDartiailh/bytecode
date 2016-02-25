@@ -6,7 +6,7 @@ import sys
 import textwrap
 import types
 import unittest
-from bytecode import Instr, ConcreteInstr, Bytecode, ConcreteBytecode
+from bytecode import Instr, ConcreteInstr, Bytecode, ConcreteBytecode, Label
 from test_utils import TestCase
 
 
@@ -197,19 +197,26 @@ class CodeTests(TestCase):
         self.assertEqual(code.freevars, [])
         self.assertEqual(code.cellvars, [])
 
+        code.name = "name"
+        code.filename = "filename"
+        code.flags = 123
+        self.assertEqual(code.name, "name")
+        self.assertEqual(code.filename, "filename")
+        self.assertEqual(code.flags, 123)
+
         # FIXME: test non-empty freevars
         # FIXME: test non-empty cellvars
 
     def test_constructor(self):
-        code = Bytecode("name", "filename", 123)
-        self.assertEqual(code.name, "name")
-        self.assertEqual(code.filename, "filename")
-        self.assertEqual(code.flags, 123)
+        code = Bytecode()
+        self.assertEqual(code.name, "<module>")
+        self.assertEqual(code.filename, "<string>")
+        self.assertEqual(code.flags, 0)
         self.assertEqual(len(code), 1)
         self.assertEqual(code[0], [])
 
     def test_add_del_block(self):
-        code = Bytecode("name", "filename", 0)
+        code = Bytecode()
         code[0].append(LOAD_CONST(0))
 
         block = code.add_block()
@@ -498,7 +505,7 @@ class FunctionalTests(TestCase):
 
     def test_concrete_code_dont_merge_constants(self):
         # test two constants which are equal but have a different type
-        code = Bytecode('name', 'filename', 0)
+        code = Bytecode()
         block = code[0]
         block.append(Instr(1, 'LOAD_CONST', 5))
         block.append(Instr(1, 'LOAD_CONST', 5.0))
@@ -508,6 +515,21 @@ class FunctionalTests(TestCase):
                     ConcreteInstr(1, 'LOAD_CONST', 1)]
         self.assertListEqual(list(code), expected)
         self.assertListEqual(code.consts, [5, 5.0])
+
+    def test_concrete_code_labels(self):
+        code = Bytecode()
+        label = Label()
+        code[0].append(Instr(1, 'LOAD_CONST', 'hello'))
+        code[0].append(Instr(1, 'JUMP_FORWARD', label))
+        code[0].append(label)
+        code[0].append(Instr(1, 'POP_TOP'))
+
+        code = code.concrete_code()
+        expected = [ConcreteInstr(1, 'LOAD_CONST', 0),
+                    ConcreteInstr(1, 'JUMP_FORWARD', 0),
+                    ConcreteInstr(1, 'POP_TOP')]
+        self.assertListEqual(list(code), expected)
+        self.assertListEqual(code.consts, ['hello'])
 
 
 class ConcreteBytecodeTests(TestCase):

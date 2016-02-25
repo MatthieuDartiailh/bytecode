@@ -203,14 +203,14 @@ class ConcreteInstr(BaseInstr):
 
 
 class BaseBytecode:
-    def __init__(self, name, filename, flags):
+    def __init__(self):
         self.argcount = 0
         self.kw_only_argcount = 0
         self._stacksize = 0
-        self.flags = flags
+        self.flags = 0
         self.first_lineno = 1
-        self.filename = filename
-        self.name = name
+        self.filename = '<string>'
+        self.name = '<module>'
         self.docstring = UNSET
 
         # FIXME: move to ConcreteBytecode
@@ -246,8 +246,8 @@ class BaseBytecode:
 
 
 class ConcreteBytecode(BaseBytecode, list):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
+    def __init__(self):
+        super().__init__()
         self.consts = []
         self.names = []
         self.varnames = []
@@ -296,9 +296,10 @@ class ConcreteBytecode(BaseBytecode, list):
             if extended_arg is not None:
                 raise ValueError("EXTENDED_ARG at the end of the code")
 
-        bytecode = ConcreteBytecode(code.co_name,
-                                    code.co_filename,
-                                    code.co_flags)
+        bytecode = ConcreteBytecode()
+        bytecode.name = code.co_name
+        bytecode.filename = code.co_filename
+        bytecode.flags = code.co_flags
         bytecode.argcount = code.co_argcount
         bytecode.kw_only_argcount = code.co_kwonlyargcount
         bytecode._stacksize = code.co_stacksize
@@ -454,22 +455,29 @@ class _ConvertCodeToConcrete:
             targets[label] = offset
 
             for index, instr in enumerate(block):
-                if not isinstance(instr, ConcreteInstr):
-                    arg = instr.arg
-                    is_jump = isinstance(arg, Label)
-                    if is_jump:
-                        label = arg
-                        arg = 0
-                    elif instr.op in opcode.hasconst:
-                        arg = self.add_const(arg)
-                    elif instr.op in opcode.haslocal:
-                        arg = self.add(self.varnames, arg)
-                    elif instr.op in opcode.hasname:
-                        arg = self.add(self.names, arg)
+                if isinstance(instr, Label):
+                    targets[instr] = offset
+                    continue
 
-                    instr = ConcreteInstr(instr.lineno, instr.name, arg)
-                    if is_jump:
-                        jumps.append((offset, len(instructions), instr, label))
+                if not isinstance(instr, Instr):
+                    raise ValueError("expect Instr, got %s"
+                                     % instr.__class__.__name__)
+
+                arg = instr.arg
+                is_jump = isinstance(arg, Label)
+                if is_jump:
+                    label = arg
+                    arg = 0
+                elif instr.op in opcode.hasconst:
+                    arg = self.add_const(arg)
+                elif instr.op in opcode.haslocal:
+                    arg = self.add(self.varnames, arg)
+                elif instr.op in opcode.hasname:
+                    arg = self.add(self.names, arg)
+
+                instr = ConcreteInstr(instr.lineno, instr.name, arg)
+                if is_jump:
+                    jumps.append((offset, len(instructions), instr, label))
 
                 instructions.append(instr)
                 offset += instr.size
@@ -503,9 +511,10 @@ class _ConvertCodeToConcrete:
         instructions = self.concrete_instructions()
 
         bytecode = self.bytecode
-        concrete = ConcreteBytecode(bytecode.name,
-                                    bytecode.filename,
-                                    bytecode.flags)
+        concrete = ConcreteBytecode()
+        concrete.name = bytecode.name
+        concrete.filename = bytecode.filename
+        concrete.flags = bytecode.flags
         # copy from abstract code
         concrete.argcount = bytecode.argcount
         concrete.kw_only_argcount = bytecode.kw_only_argcount
@@ -528,9 +537,8 @@ class _ConvertCodeToConcrete:
 
 
 class Bytecode(BaseBytecode):
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-
+    def __init__(self):
+        super().__init__()
         self._blocks = []
         self._label_to_index = {}
         self.argnames = []
@@ -553,7 +561,7 @@ class Bytecode(BaseBytecode):
     @staticmethod
     def disassemble(code_obj, *, use_labels=True, extended_arg_op=False):
         concrete = ConcreteBytecode.disassemble(code_obj,
-                                        extended_arg_op=extended_arg_op)
+                                                extended_arg_op=extended_arg_op)
 
         # find block starts
         if use_labels:
@@ -589,6 +597,7 @@ class Bytecode(BaseBytecode):
             size = instr.size
 
             arg = instr.arg
+            # FIXME: better error reporting
             if instr.op in opcode.hasconst:
                 arg = code_obj.co_consts[arg]
             elif instr.op in opcode.haslocal:
@@ -607,12 +616,14 @@ class Bytecode(BaseBytecode):
 
         # replace jump targets with blocks
         for instr, target in jumps:
+            # FIXME: better error reporting on missing label
             target_block = label_to_block[target]
             instr.arg = target_block.label
 
-        bytecode = Bytecode(code_obj.co_name,
-                        code_obj.co_filename,
-                        code_obj.co_flags)
+        bytecode = Bytecode()
+        bytecode.name = code_obj.co_name
+        bytecode.filename = code_obj.co_filename
+        bytecode.flags = code_obj.co_flags
         bytecode.argcount = code_obj.co_argcount
         bytecode.kw_only_argcount = code_obj.co_kwonlyargcount
         bytecode._stacksize = code_obj.co_stacksize
