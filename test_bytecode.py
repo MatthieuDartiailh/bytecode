@@ -247,6 +247,19 @@ class FunctionalTests(TestCase):
         code2 = disassemble(source)
         self.assertEqual(code1, code2)
 
+    def test_eq_labels(self):
+        # equal
+        code1 = Bytecode()
+        code1[0][:] = [Instr(1, "LOAD_CONST", "abc"), Label()]
+        code2 = Bytecode()
+        code2[0][:] = [Instr(1, "LOAD_CONST", "abc"), Label()]
+        self.assertEqual(code2, code1)
+
+        # not equal
+        code3 = Bytecode()
+        code3[0][:] = [Label(), Instr(1, "LOAD_CONST", "abc")]
+        self.assertNotEqual(code3, code1)
+
     def check_getitem(self, code):
         # check internal Code block indexes (index by index, index by label)
         for block_index, block in enumerate(code):

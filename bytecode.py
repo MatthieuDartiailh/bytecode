@@ -404,6 +404,9 @@ class ConcreteBytecode(BaseBytecode, list):
 class Label:
     __slots__ = ()
 
+    def _cmp_key(self, labels):
+        return labels[self]
+
 
 class Block(list):
     def __init__(self, instructions=None):
@@ -649,6 +652,16 @@ class Bytecode(BaseBytecode):
     def concrete_code(self):
         return _ConvertCodeToConcrete(self).concrete_code()
 
+    def _eq_labels(self):
+        labels = {}
+        for block_index, block in enumerate(self, 1):
+            labels[block.label] = 'label_block%s' % block_index
+            for index, instr in enumerate(block):
+                if isinstance(instr, Label):
+                    key = 'label_block%s_instr%s' % (block_index, index)
+                    labels[instr] = key
+        return labels
+
     def __eq__(self, other):
         if type(self) != type(other):
             return False
@@ -660,10 +673,8 @@ class Bytecode(BaseBytecode):
         if len(self._blocks) != len(other._blocks):
             return False
 
-        labels1 = {block.label: 'label%s' % block_index
-                   for block_index, block in enumerate(self, 1)}
-        labels2 = {block.label: 'label%s' % block_index
-                   for block_index, block in enumerate(other, 1)}
+        labels1 = self._eq_labels()
+        labels2 = other._eq_labels()
 
         for block1, block2 in zip(self._blocks, other._blocks):
             if len(block1) != len(block2):
