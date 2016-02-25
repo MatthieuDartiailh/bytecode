@@ -579,8 +579,8 @@ class Code(BaseCode):
                                         extended_arg_op=extended_arg_op)
 
         # find block starts
-        block_starts = set()
         if use_labels:
+            block_starts = set()
             offset = 0
             for instr in code:
                 target = instr.get_jump_target(offset)
@@ -591,52 +591,46 @@ class Code(BaseCode):
         # split instructions in blocks
         blocks = []
         label_to_block = {}
+        jumps = []
 
         block = Block()
         blocks.append(block)
-        if use_labels:
-            offset = 0
-            label_to_block[offset] = block
-            for instr in code:
+        offset = 0
+        label_to_block[offset] = block
+
+        for instr in code:
+            if use_labels:
                 if offset != 0 and offset in block_starts:
                     block = Block()
                     label_to_block[offset] = block
                     blocks.append(block)
-                block.append(instr)
-                offset += instr.size
-        else:
-            block[:] = list(code)
+
+            if use_labels:
+                target = instr.get_jump_target(offset)
+            else:
+                target = None
+            size = instr.size
+
+            arg = instr.arg
+            if instr.op in opcode.hasconst:
+                arg = code_obj.co_consts[arg]
+            elif instr.op in opcode.haslocal:
+                arg = code_obj.co_varnames[arg]
+            elif instr.op in opcode.hasname:
+                arg = code_obj.co_names[arg]
+            instr = Instr(instr.lineno, instr.name, arg)
+
+            if target is not None:
+                jumps.append((instr, target))
+
+            block.append(instr)
+            offset += size
         assert len(block) != 0
 
         # replace jump targets with blocks
-        offset = 0
-        for block in blocks:
-            index = 0
-            while index < len(block):
-                instr = block[index]
-
-                if use_labels:
-                    target = instr.get_jump_target(offset)
-                else:
-                    target = None
-
-                if target is not None:
-                    target_block = label_to_block[target]
-                    arg = target_block.label
-                else:
-                    arg = instr.arg
-
-                    if instr.op in opcode.hasconst:
-                        arg = code_obj.co_consts[arg]
-                    elif instr.op in opcode.haslocal:
-                        arg = code_obj.co_varnames[arg]
-                    elif instr.op in opcode.hasname:
-                        arg = code_obj.co_names[arg]
-
-                block[index] = Instr(instr.lineno, instr.name, arg)
-
-                offset += instr.size
-                index += 1
+        for instr, target in jumps:
+            target_block = label_to_block[target]
+            instr.arg = target_block.label
 
         code = Code(code_obj.co_name,
                     code_obj.co_filename,
