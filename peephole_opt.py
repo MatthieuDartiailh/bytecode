@@ -59,7 +59,7 @@ class _CodePeepholeOptimizer:
     """
 
     def __init__(self):
-        # bytecode.Code instance
+        # bytecode.Bytecode instance
         self.code = None
         self.const_stack = None
         self.block_index = None
@@ -453,14 +453,14 @@ class _CodePeepholeOptimizer:
                 return code_obj
 
         if MIMICK_C_IMPL:
-            code = bytecode.Code.disassemble(code_obj, extended_arg_op=True)
+            code = bytecode.Bytecode.disassemble(code_obj, extended_arg_op=True)
             try:
                 self._optimize(code)
             except ExitUnchanged:
                 # needed to bypass optimization in eval_EXTENDED_ARG()
                 return code_obj
         else:
-            code = bytecode.Code.disassemble(code_obj)
+            code = bytecode.Bytecode.disassemble(code_obj)
             self._optimize(code)
 
         return code.assemble()

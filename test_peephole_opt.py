@@ -53,7 +53,7 @@ class Tests(TestCase):
     def create_code(self, source, function=False):
         orig = self.compile(source, function=function)
 
-        code = bytecode.Code.disassemble(orig)
+        code = bytecode.Bytecode.disassemble(orig)
         block = code[-1]
 
         if not function:
@@ -242,14 +242,14 @@ class Tests(TestCase):
             Instr(1, 'LOAD_CONST', None),
             Instr(1, 'RETURN_VALUE'),
         ]
-        code_noopt = bytecode.Code('test', 'test.py', 0)
+        code_noopt = bytecode.Bytecode('test', 'test.py', 0)
         code_noopt[0][:] = block
         noopt = code_noopt.assemble()
 
         optimizer = peephole_opt._CodePeepholeOptimizer()
         optim = optimizer.optimize(noopt)
 
-        code = bytecode.Code.disassemble(optim)
+        code = bytecode.Bytecode.disassemble(optim)
 
         expected = [
             Instr(1, 'LOAD_CONST', 8),
@@ -286,7 +286,7 @@ class Tests(TestCase):
                 Instr(1, 'LOAD_CONST', 0),
                 Instr(1, 'POP_TOP'),
             ]
-            code_noopt = bytecode.Code('test', 'test.py', 0)
+            code_noopt = bytecode.Bytecode('test', 'test.py', 0)
             code_noopt.consts = [None]
             code_noopt[0][:] = block
             noopt = code_noopt.assemble()
@@ -311,7 +311,7 @@ class Tests(TestCase):
                 Instr(1, 'LOAD_CONST', 2),
                 Instr(1, 'RETURN_VALUE'),
             ]
-            code_noopt = bytecode.Code('test', 'test.py', 0)
+            code_noopt = bytecode.Bytecode('test', 'test.py', 0)
             code_noopt.consts = [1, 2, None]
             code_noopt.names = ['x']
             code_noopt[0][:] = block

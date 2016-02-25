@@ -6,7 +6,7 @@ import sys
 import textwrap
 import types
 import unittest
-from bytecode import Instr, ConcreteInstr
+from bytecode import Instr, ConcreteInstr, Bytecode, ConcreteBytecode
 from test_utils import TestCase
 
 
@@ -34,7 +34,7 @@ def disassemble(source, *, filename="<string>", function=False,
             raise ValueError("unable to find function code")
         code_obj = sub_code[0]
 
-    code = bytecode.Code.disassemble(code_obj, use_labels=use_labels)
+    code = Bytecode.disassemble(code_obj, use_labels=use_labels)
     if remove_last_return_none:
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter
@@ -201,7 +201,7 @@ class CodeTests(TestCase):
         # FIXME: test non-empty cellvars
 
     def test_constructor(self):
-        code = bytecode.Code("name", "filename", 123)
+        code = Bytecode("name", "filename", 123)
         self.assertEqual(code.name, "name")
         self.assertEqual(code.filename, "filename")
         self.assertEqual(code.flags, 123)
@@ -209,7 +209,7 @@ class CodeTests(TestCase):
         self.assertEqual(code[0], [])
 
     def test_add_del_block(self):
-        code = bytecode.Code("name", "filename", 0)
+        code = Bytecode("name", "filename", 0)
         code[0].append(LOAD_CONST(0))
 
         block = code.add_block()
@@ -498,7 +498,7 @@ class FunctionalTests(TestCase):
 
     def test_concrete_code_dont_merge_constants(self):
         # test two constants which are equal but have a different type
-        code = bytecode.Code('name', 'filename', 0)
+        code = Bytecode('name', 'filename', 0)
         block = code[0]
         block.append(Instr(1, 'LOAD_CONST', 5))
         block.append(Instr(1, 'LOAD_CONST', 5.0))
@@ -510,10 +510,10 @@ class FunctionalTests(TestCase):
         self.assertListEqual(code.consts, [5, 5.0])
 
 
-class ConcreteCodeTests(TestCase):
+class ConcreteBytecodeTests(TestCase):
     def test_attr(self):
         code_obj = compile("x = 5", "<string>", "exec")
-        code = bytecode.ConcreteCode.disassemble(code_obj)
+        code = ConcreteBytecode.disassemble(code_obj)
         self.assertEqual(code.consts, [5, None])
         self.assertEqual(code.names, ['x'])
         self.assertEqual(code.varnames, [])
@@ -521,7 +521,7 @@ class ConcreteCodeTests(TestCase):
 
     def test_disassemble_concrete(self):
         code_obj = compile("x = 5", "<string>", "exec")
-        code = bytecode.ConcreteCode.disassemble(code_obj)
+        code = ConcreteBytecode.disassemble(code_obj)
         expected = [ConcreteInstr(1, 'LOAD_CONST', 0),
                     ConcreteInstr(1, 'STORE_NAME', 0),
                     ConcreteInstr(1, 'LOAD_CONST', 1),
@@ -550,13 +550,12 @@ class ConcreteCodeTests(TestCase):
                               code.co_cellvars)
 
         # without EXTENDED_ARG opcode
-        code = bytecode.ConcreteCode.disassemble(code_obj)
+        code = ConcreteBytecode.disassemble(code_obj)
         self.assertListEqual(list(code),
                              [ConcreteInstr(1, "LOAD_CONST", 0x1234abcd)])
 
         # with EXTENDED_ARG opcode
-        code = bytecode.ConcreteCode.disassemble(code_obj,
-                                                 extended_arg_op=True)
+        code = ConcreteBytecode.disassemble(code_obj, extended_arg_op=True)
         self.assertListEqual(list(code),
                              [ConcreteInstr(1, 'EXTENDED_ARG', 0x1234),
                               ConcreteInstr(1, 'LOAD_CONST', 0xabcd)])

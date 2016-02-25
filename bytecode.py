@@ -202,7 +202,7 @@ class ConcreteInstr(BaseInstr):
         return cls(lineno, name, arg)
 
 
-class BaseCode:
+class BaseBytecode:
     def __init__(self, name, filename, flags):
         self.argcount = 0
         self.kw_only_argcount = 0
@@ -213,7 +213,7 @@ class BaseCode:
         self.name = name
         self.docstring = UNSET
 
-        # FIXME: move to ConcreteCode
+        # FIXME: move to ConcreteBytecode
         self.freevars = []
         self.cellvars = []
 
@@ -245,7 +245,7 @@ class BaseCode:
         return True
 
 
-class ConcreteCode(BaseCode, list):
+class ConcreteBytecode(BaseBytecode, list):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.consts = []
@@ -297,9 +297,9 @@ class ConcreteCode(BaseCode, list):
             if extended_arg is not None:
                 raise ValueError("EXTENDED_ARG at the end of the code")
 
-        code = ConcreteCode(code_obj.co_name,
-                            code_obj.co_filename,
-                            code_obj.co_flags)
+        code = ConcreteBytecode(code_obj.co_name,
+                                code_obj.co_filename,
+                                code_obj.co_flags)
         code.argcount = code_obj.co_argcount
         code.kw_only_argcount = code_obj.co_kwonlyargcount
         code._stacksize = code_obj.co_stacksize
@@ -524,9 +524,9 @@ class _ConvertCodeToConcrete:
         instructions = self.concrete_instructions()
 
         code = self.code
-        concrete = ConcreteCode(code.name,
-                                code.filename,
-                                code.flags)
+        concrete = ConcreteBytecode(code.name,
+                                    code.filename,
+                                    code.flags)
         # copy from abstract code
         concrete.argcount = code.argcount
         concrete.kw_only_argcount = code.kw_only_argcount
@@ -548,7 +548,7 @@ class _ConvertCodeToConcrete:
         return concrete
 
 
-class Code(BaseCode):
+class Bytecode(BaseBytecode):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
 
@@ -569,11 +569,11 @@ class Code(BaseCode):
         return block
 
     def __repr__(self):
-        return '<Code block#=%s>' % len(self._blocks)
+        return '<Bytecode block#=%s>' % len(self._blocks)
 
     @staticmethod
     def disassemble(code_obj, *, use_labels=True, extended_arg_op=False):
-        code = ConcreteCode.disassemble(code_obj,
+        code = ConcreteBytecode.disassemble(code_obj,
                                         extended_arg_op=extended_arg_op)
 
         # find block starts
@@ -630,9 +630,9 @@ class Code(BaseCode):
             target_block = label_to_block[target]
             instr.arg = target_block.label
 
-        code = Code(code_obj.co_name,
-                    code_obj.co_filename,
-                    code_obj.co_flags)
+        code = Bytecode(code_obj.co_name,
+                        code_obj.co_filename,
+                        code_obj.co_flags)
         code.argcount = code_obj.co_argcount
         code.kw_only_argcount = code_obj.co_kwonlyargcount
         code._stacksize = code_obj.co_stacksize
@@ -734,12 +734,11 @@ class Code(BaseCode):
 
 
 def _dump_code(code):
+    line_width = 3
+    code = code.concrete_code()
+
     offset = 0
     lineno = None
-    line_width = 3
-    write_blocks = isinstance(code, ConcreteCode)
-
-    code = code.concrete_code()
     for instr in code:
         fields = []
         if instr.lineno != lineno:
