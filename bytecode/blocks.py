@@ -124,6 +124,51 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
     def from_code(code):
         return _bytecode.ConcreteBytecode.from_code(code).to_bytecode_blocks()
 
+    @staticmethod
+    def _from_bytecode(bytecode):
+        # label => instruction index
+        label_to_index = {}
+        jumps = []
+        for index, instr in enumerate(bytecode):
+            if isinstance(instr, Label):
+                label = instr
+                label_to_index[label] = index
+            elif isinstance(instr.arg, Label):
+                jumps.append(instr.arg)
+
+        block_starts = {}
+        for label in jumps:
+            index = label_to_index[label]
+            block_starts[index] = label
+
+        bytecode_blocks = _bytecode.BytecodeBlocks()
+        bytecode_blocks._copy_attr_from(bytecode)
+        bytecode_blocks.argnames = list(bytecode.argnames)
+
+        # copy instructions, convert labels to block labels
+        block = bytecode_blocks[0]
+        labels = {}
+        jumps = []
+        for index, instr in enumerate(bytecode):
+            if index != 0 and index in block_starts:
+                old_label = block_starts[index]
+                block = bytecode_blocks.add_block()
+                labels[old_label] = block.label
+
+            if isinstance(instr, Label):
+                pass
+            else:
+                instr = Instr(instr.lineno, instr.name, instr.arg)
+                if isinstance(instr.arg, Label):
+                    jumps.append(instr)
+                block.append(instr)
+
+        for instr in jumps:
+            label = instr.arg
+            instr.arg = labels[label]
+
+        return bytecode_blocks
+
     def to_code(self):
         return self.to_concrete_bytecode().to_code()
 

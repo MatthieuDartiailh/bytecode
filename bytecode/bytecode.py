@@ -108,48 +108,4 @@ class Bytecode(_InstrList, BaseBytecode):
         return self
 
     def to_bytecode_blocks(self):
-        # label => instruction index
-        index_to_label = {}
-        label_to_index = {}
-        jumps = []
-        for index, instr in enumerate(self):
-            if isinstance(instr, Label):
-                label = instr
-                label_to_index[label] = index
-                index_to_label[index] = label
-            elif isinstance(instr.arg, Label):
-                jumps.append(instr.arg)
-
-        block_starts = {}
-        for label in jumps:
-            index = label_to_index[label]
-            block_starts[index] = label
-
-        bytecode = _bytecode.BytecodeBlocks()
-        bytecode._copy_attr_from(self)
-        bytecode.argnames = list(self.argnames)
-
-        # copy instructions, convert labels to block labels
-        block = bytecode[0]
-        labels = {}
-        jumps = []
-        for index, instr in enumerate(self):
-            if index != 0 and index in block_starts:
-                old_label = block_starts[index]
-                block = bytecode.add_block()
-                labels[old_label] = block.label
-                # FIXME: remap labels
-
-            if isinstance(instr, Label):
-                pass
-            else:
-                instr = Instr(instr.lineno, instr.name, instr.arg)
-                if isinstance(instr.arg, Label):
-                    jumps.append(instr)
-                block.append(instr)
-
-        for instr in jumps:
-            label = instr.arg
-            instr.arg = labels[label]
-
-        return bytecode
+        return _bytecode.BytecodeBlocks._from_bytecode(self)
