@@ -56,7 +56,7 @@ def main():
         'author': 'Victor Stinner',
         'author_email': 'victor.stinner@gmail.com',
         'classifiers': CLASSIFIERS,
-        'packages': ['bytecode'],
+        'packages': ['bytecode', 'bytecode.tests'],
     }
     setup(**options)
 

@@ -7,7 +7,7 @@ import types
 import unittest
 from bytecode import Instr, ConcreteInstr, BytecodeBlocks, ConcreteBytecode
 from unittest import mock
-from test_utils import TestCase
+from bytecode.tests import TestCase
 
 
 def LOAD_CONST(arg, lineno=1):
