@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import unittest
-from bytecode import Label, Instr, ConcreteInstr, BytecodeBlocks
+from bytecode import Label, Instr, ConcreteInstr, Bytecode, BytecodeBlocks
 from bytecode.tests import LOAD_CONST, STORE_NAME, NOP, disassemble, TestCase
 
 
@@ -88,6 +88,39 @@ class BytecodeBlocksTests(TestCase):
                           Instr(4, 'LOAD_CONST', None),
                           Instr(4, 'RETURN_VALUE')])
         # FIXME: test other attributes
+
+    def test_bytecode_to_bytecode_blocks(self):
+        bytecode = Bytecode()
+        label = Label()
+        bytecode.extend([Instr(1, 'LOAD_NAME', 'test'),
+                         Instr(1, 'POP_JUMP_IF_FALSE', label),
+                         Instr(2, 'LOAD_CONST', 5),
+                         Instr(2, 'STORE_NAME', 'x'),
+                         Instr(2, 'JUMP_FORWARD', label),
+                             # dead code!
+                             Instr(4, 'LOAD_CONST', 7),
+                             Instr(4, 'STORE_NAME', 'x'),
+                             Label(),  # unused label
+                         label,
+                             Label(),  # unused label
+                             Instr(4, 'LOAD_CONST', None),
+                             Instr(4, 'RETURN_VALUE')])
+
+        blocks = bytecode.to_bytecode_blocks()
+        label2 = blocks[2].label
+        self.assertIsNot(label2, label)
+        self.assertBlocksEqual(blocks,
+                               [Instr(1, 'LOAD_NAME', 'test'),
+                                Instr(1, 'POP_JUMP_IF_FALSE', label2),
+                                Instr(2, 'LOAD_CONST', 5),
+                                Instr(2, 'STORE_NAME', 'x'),
+                                Instr(2, 'JUMP_FORWARD', label2)],
+                               [Instr(4, 'LOAD_CONST', 7),
+                                Instr(4, 'STORE_NAME', 'x')],
+                               [Instr(4, 'LOAD_CONST', None),
+                                Instr(4, 'RETURN_VALUE')])
+        # FIXME: test other attributes
+
 
 
 class BytecodeBlocksFunctionalTests(TestCase):

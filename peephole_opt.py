@@ -388,12 +388,12 @@ class _CodePeepholeOptimizer:
         assert isinstance(jump_label, Label), jump_label
 
         target_instr = self.code[jump_label][0]
-        if (instr.name in ('JUMP_FORWARD', 'JUMP_ABSOLUTE')
+        if (instr.is_uncond_jump()
            and target_instr.name == 'RETURN_VALUE'):
             # Replace JUMP_ABSOLUTE => RETURN_VALUE with RETURN_VALUE
             self.block[self.index-1] = target_instr
 
-        elif target_instr.name in ('JUMP_FORWARD', 'JUMP_ABSOLUTE'):
+        elif target_instr.is_uncond_jump():
             # Replace JUMP_FORWARD t1 => JUMP_FORWARD t2
             # with JUMP_FORWARD t2 (and keep JUMP_FORWARD t2)
             jump_target2 = target_instr.arg

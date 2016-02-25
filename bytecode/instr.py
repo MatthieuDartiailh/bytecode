@@ -96,6 +96,17 @@ class BaseInstr:
         # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
         return ('JUMP_IF_' in self._name)
 
+    def is_uncond_jump(self):
+        """Is an unconditiona jump?"""
+        return self.name in {'JUMP_FORWARD', 'JUMP_ABSOLUTE'}
+
+    def _is_final(self):
+        if self._name in {'RETURN_VALUE', 'RAISE_VARARGS'}:
+            return True
+        if self.is_uncond_jump():
+            return True
+        return False
+
 
 class Instr(BaseInstr):
     """Abstract instruction.

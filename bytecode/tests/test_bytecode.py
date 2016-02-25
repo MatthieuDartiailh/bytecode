@@ -66,37 +66,6 @@ class BytecodeTests(TestCase):
         self.assertListEqual(concrete.names, ['test', 'x'])
         self.assertListEqual(concrete.varnames, [])
 
-    def test_to_bytecode_blocks(self):
-        bytecode = Bytecode()
-        label = Label()
-        bytecode.extend([Instr(1, 'LOAD_NAME', 'test'),
-                         Instr(1, 'POP_JUMP_IF_FALSE', label),
-                         Instr(2, 'LOAD_CONST', 5),
-                         Instr(2, 'STORE_NAME', 'x'),
-                         Instr(2, 'JUMP_FORWARD', label),
-                         Instr(4, 'LOAD_CONST', 7),
-                         Instr(4, 'STORE_NAME', 'x'),
-                         Label(),  # unused label
-                         label,
-                         Label(),  # unused label
-                         Instr(4, 'LOAD_CONST', None),
-                         Instr(4, 'RETURN_VALUE')])
-
-        blocks = bytecode.to_bytecode_blocks()
-        label2 = blocks[1].label
-        self.assertIsNot(label2, label)
-        self.assertBlocksEqual(blocks,
-                               [Instr(1, 'LOAD_NAME', 'test'),
-                                Instr(1, 'POP_JUMP_IF_FALSE', label2),
-                                Instr(2, 'LOAD_CONST', 5),
-                                Instr(2, 'STORE_NAME', 'x'),
-                                Instr(2, 'JUMP_FORWARD', label2),
-                                Instr(4, 'LOAD_CONST', 7),
-                                Instr(4, 'STORE_NAME', 'x')],
-                               [Instr(4, 'LOAD_CONST', None),
-                                Instr(4, 'RETURN_VALUE')])
-        # FIXME: test other attributes
-
     def test_to_concrete_bytecode(self):
         code = disassemble("""
             if test:

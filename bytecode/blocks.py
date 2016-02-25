@@ -129,14 +129,18 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         # label => instruction index
         label_to_index = {}
         jumps = []
+        block_starts = {}
+
         for index, instr in enumerate(bytecode):
             if isinstance(instr, Label):
                 label = instr
                 label_to_index[label] = index
-            elif isinstance(instr.arg, Label):
-                jumps.append(instr.arg)
+            else:
+                if isinstance(instr.arg, Label):
+                    jumps.append(instr.arg)
+                if instr._is_final():
+                    block_starts[index+1] = None
 
-        block_starts = {}
         for label in jumps:
             index = label_to_index[label]
             block_starts[index] = label
@@ -153,7 +157,8 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
             if index != 0 and index in block_starts:
                 old_label = block_starts[index]
                 block = bytecode_blocks.add_block()
-                labels[old_label] = block.label
+                if old_label is not None:
+                    labels[old_label] = block.label
 
             if isinstance(instr, Label):
                 pass
