@@ -6,6 +6,13 @@ from bytecode.tests import LOAD_CONST, STORE_NAME, NOP, disassemble, TestCase
 
 
 class BytecodeBlocksTests(TestCase):
+    def test_constructor(self):
+        code = BytecodeBlocks()
+        self.assertEqual(code.name, "<module>")
+        self.assertEqual(code.filename, "<string>")
+        self.assertEqual(code.flags, 0)
+        self.assertBlocksEqual(code, [])
+
     def test_attr(self):
         source = """
             first_line = 1
@@ -34,13 +41,6 @@ class BytecodeBlocksTests(TestCase):
         # FIXME: test non-empty freevars
         # FIXME: test non-empty cellvars
 
-    def test_constructor(self):
-        code = BytecodeBlocks()
-        self.assertEqual(code.name, "<module>")
-        self.assertEqual(code.filename, "<string>")
-        self.assertEqual(code.flags, 0)
-        self.assertBlocksEqual(code, [])
-
     def test_add_del_block(self):
         code = BytecodeBlocks()
         code[0].append(LOAD_CONST(0))
@@ -57,6 +57,9 @@ class BytecodeBlocksTests(TestCase):
         del code[0]
         self.assertBlocksEqual(code,
                                [LOAD_CONST(2)])
+
+        del code[0]
+        self.assertEqual(len(code), 0)
 
     def test_to_bytecode(self):
         blocks = BytecodeBlocks()
@@ -88,12 +91,6 @@ class BytecodeBlocksTests(TestCase):
 
 
 class BytecodeBlocksFunctionalTests(TestCase):
-    def sample_code(self):
-        code = disassemble('x = 1', remove_last_return_none=True)
-        self.assertBlocksEqual(code,
-                               [LOAD_CONST(1), STORE_NAME('x')])
-        return code
-
     def test_eq(self):
         # compare codes with multiple blocks and labels,
         # Code.__eq__() renumbers labels to get equal labels
@@ -130,6 +127,12 @@ class BytecodeBlocksFunctionalTests(TestCase):
         for block_index, block in enumerate(code):
             self.assertIs(code[block_index], block)
             self.assertIs(code[block.label], block)
+
+    def sample_code(self):
+        code = disassemble('x = 1', remove_last_return_none=True)
+        self.assertBlocksEqual(code,
+                               [LOAD_CONST(1), STORE_NAME('x')])
+        return code
 
     def test_create_label_by_int_split(self):
         code = self.sample_code()
@@ -308,7 +311,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
                     Instr(1, "STORE_NAME", 'foo')]
         self.assertBlocksEqual(code, expected)
 
-    def test_concrete_code(self):
+    def test_to_concrete_bytecode(self):
         code = disassemble("""
             if test:
                 x = 12
@@ -329,34 +332,6 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertListEqual(code.consts, [12, 37, None])
         self.assertListEqual(code.names, ['test', 'x'])
         self.assertListEqual(code.varnames, [])
-
-    def test_concrete_code_dont_merge_constants(self):
-        # test two constants which are equal but have a different type
-        code = BytecodeBlocks()
-        block = code[0]
-        block.append(Instr(1, 'LOAD_CONST', 5))
-        block.append(Instr(1, 'LOAD_CONST', 5.0))
-
-        code = code.to_concrete_bytecode()
-        expected = [ConcreteInstr(1, 'LOAD_CONST', 0),
-                    ConcreteInstr(1, 'LOAD_CONST', 1)]
-        self.assertListEqual(list(code), expected)
-        self.assertListEqual(code.consts, [5, 5.0])
-
-    def test_concrete_code_labels(self):
-        code = BytecodeBlocks()
-        label = Label()
-        code[0].append(Instr(1, 'LOAD_CONST', 'hello'))
-        code[0].append(Instr(1, 'JUMP_FORWARD', label))
-        code[0].append(label)
-        code[0].append(Instr(1, 'POP_TOP'))
-
-        code = code.to_concrete_bytecode()
-        expected = [ConcreteInstr(1, 'LOAD_CONST', 0),
-                    ConcreteInstr(1, 'JUMP_FORWARD', 0),
-                    ConcreteInstr(1, 'POP_TOP')]
-        self.assertListEqual(list(code), expected)
-        self.assertListEqual(code.consts, ['hello'])
 
 
 if __name__ == "__main__":
