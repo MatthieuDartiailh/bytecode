@@ -68,11 +68,12 @@ class BaseInstr:
         else:
             return '<%s lineno=%s>' % (self._name, self._lineno)
 
-    def _cmp_key(self):
+    def _cmp_key(self, labels=None):
+        arg = self._arg
         if self._op in opcode.hasconst:
-            arg = _const_key(self._arg)
-        else:
-            arg = self._arg
+            arg = _const_key(arg)
+        elif isinstance(arg, Label) and labels is not None:
+            arg = labels[arg]
         return (self._lineno, self._name, arg)
 
     def __eq__(self, other):
@@ -559,26 +560,17 @@ class Code(BaseCode):
         # Compare blocks (need to "renumber" labels)
         if len(self._blocks) != len(other._blocks):
             return False
-        targets1 = {}
-        for block_index, block in enumerate(self, 1):
-            targets1[block.label] = 'label%s' % block_index
-        targets2 = {}
-        for block_index, block in enumerate(other, 1):
-            targets2[block.label] = 'label%s' % block_index
+
+        labels1 = {block.label: 'label%s' % block_index
+                   for block_index, block in enumerate(self, 1)}
+        labels2 = {block.label: 'label%s' % block_index
+                   for block_index, block in enumerate(other, 1)}
+
         for block1, block2 in zip(self._blocks, other._blocks):
             if len(block1) != len(block2):
                 return False
             for instr1, instr2 in zip(block1, block2):
-
-                arg1 = instr1._arg
-                arg1 = targets1.get(arg1, arg1)
-                key1 = (instr1._lineno, instr1._name, arg1)
-
-                arg2 = instr2._arg
-                arg2 = targets2.get(arg2, arg2)
-                key2 = (instr2._lineno, instr2._name, arg2)
-
-                if key1 != key2:
+                if instr1._cmp_key(labels1) != instr2._cmp_key(labels2):
                     return False
 
         return super().__eq__(other)
@@ -598,7 +590,6 @@ class Code(BaseCode):
         if isinstance(block_index, Label):
             block_index = self._label_to_index[block_index]
         block = self._blocks[block_index]
-        # Note: complexity of O(n) where n is the number of blocks
         del self._blocks[block_index]
         del self._label_to_index[block.label]
 

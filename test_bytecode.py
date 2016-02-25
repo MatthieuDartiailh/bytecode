@@ -459,7 +459,7 @@ class FunctionalTests(TestCase):
 
         self.assertEqual(output, expected)
 
-    def test_to_concrete_code(self):
+    def test_concrete_code(self):
         code = disassemble("""
             if test:
                 x = 12
@@ -480,6 +480,19 @@ class FunctionalTests(TestCase):
         self.assertListEqual(code.consts, [12, 37, None])
         self.assertListEqual(code.names, ['test', 'x'])
         self.assertListEqual(code.varnames, [])
+
+    def test_concrete_code_dont_merge_constants(self):
+        # test two constants which are equal but have a different type
+        code = bytecode.Code('name', 'filename', 0)
+        block = code[0]
+        block.append(Instr(1, 'LOAD_CONST', 5))
+        block.append(Instr(1, 'LOAD_CONST', 5.0))
+
+        code = code.concrete_code()
+        expected = [ConcreteInstr(1, 'LOAD_CONST', 0),
+                    ConcreteInstr(1, 'LOAD_CONST', 1)]
+        self.assertListEqual(list(code), expected)
+        self.assertListEqual(code.consts, [5, 5.0])
 
 
 class ConcreteCodeTests(TestCase):
