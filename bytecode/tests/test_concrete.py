@@ -18,10 +18,11 @@ class ConcreteInstrTests(TestCase):
             ConcreteInstr(1, "LOAD_CONST", 1.0)
         with self.assertRaises(ValueError):
             ConcreteInstr(1, "LOAD_CONST", -1)
+
+        # test maximum argument
         with self.assertRaises(ValueError):
             ConcreteInstr(1, "LOAD_CONST", 2147483647+1)
 
-        # test maximum argument
         instr = ConcreteInstr(1, "LOAD_CONST", 2147483647)
         self.assertEqual(instr.arg, 2147483647)
 
@@ -74,7 +75,7 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(bytecode.varnames, [])
         # FIXME: test other attributes
 
-    def test_disassemble_concrete(self):
+    def test_from_code(self):
         code = get_code("x = 5")
         bytecode = ConcreteBytecode.from_code(code)
         expected = [ConcreteInstr(1, 'LOAD_CONST', 0),
@@ -85,7 +86,7 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(bytecode.consts, [5, None])
         self.assertEqual(bytecode.names, ['x'])
 
-    def test_disassemble_extended_arg(self):
+    def test_from_code_extended_arg(self):
         # Create a code object from arbitrary bytecode
         co_code = b'\x904\x12d\xcd\xab'
         code = get_code('x=1')

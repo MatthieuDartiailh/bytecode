@@ -59,7 +59,7 @@ ChangeLog
 
 * Version 0.1
 
-  - Rewrite completly the API...
+  - Rewrite completely the API...
 
 * 2016-02-23: Release 0.0
 

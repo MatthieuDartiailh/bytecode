@@ -29,25 +29,25 @@ class DumpCodeTests(unittest.TestCase):
         code = code.to_bytecode()
 
         expected = textwrap.dedent("""
-label_instr0:
-    LOAD_FAST 'test'
-    LOAD_CONST 1
-    COMPARE_OP 2
-    POP_JUMP_IF_FALSE <label_instr7>
-    LOAD_CONST 1
-    RETURN_VALUE
+            label_instr0:
+                LOAD_FAST 'test'
+                LOAD_CONST 1
+                COMPARE_OP 2
+                POP_JUMP_IF_FALSE <label_instr7>
+                LOAD_CONST 1
+                RETURN_VALUE
 
-label_instr7:
-    LOAD_FAST 'test'
-    LOAD_CONST 2
-    COMPARE_OP 2
-    POP_JUMP_IF_FALSE <label_instr14>
-    LOAD_CONST 2
-    RETURN_VALUE
+            label_instr7:
+                LOAD_FAST 'test'
+                LOAD_CONST 2
+                COMPARE_OP 2
+                POP_JUMP_IF_FALSE <label_instr14>
+                LOAD_CONST 2
+                RETURN_VALUE
 
-label_instr14:
-    LOAD_CONST 3
-    RETURN_VALUE
+            label_instr14:
+                LOAD_CONST 3
+                RETURN_VALUE
 
         """).lstrip()
         self.check_dump_code(code, expected)
