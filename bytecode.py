@@ -289,9 +289,8 @@ class ConcreteCode(BaseCode, list):
                     del instructions[index]
                     continue
 
-                arg = instr.arg
                 if extended_arg is not None:
-                    arg = (extended_arg << 16) + arg
+                    arg = (extended_arg << 16) + instr.arg
                     extended_arg = None
 
                     instr = ConcreteInstr(instr.lineno, instr.name, arg)
@@ -367,7 +366,7 @@ class ConcreteCode(BaseCode, list):
             old_offset = offset
 
             while doff > 255:
-                lnotab.append(b'\xff0')
+                lnotab.append(b'\xff\x00')
                 doff -= 255
 
             while dlineno < -127:
