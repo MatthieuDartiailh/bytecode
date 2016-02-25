@@ -6,7 +6,6 @@ import types
 __version__ = '0.0'
 
 
-# Prepare code to support None value as Instr.arg for LOAD_CONST(None)
 UNSET = object()
 
 
