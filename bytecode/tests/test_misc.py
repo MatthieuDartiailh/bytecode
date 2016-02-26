@@ -9,6 +9,8 @@ from bytecode.tests import disassemble
 
 
 class DumpCodeTests(unittest.TestCase):
+    maxDiff = 80 * 100
+
     def check_dump(self, code, expected):
         with contextlib.redirect_stdout(io.StringIO()) as stderr:
             bytecode.dump(code)
@@ -28,28 +30,28 @@ class DumpCodeTests(unittest.TestCase):
         code = disassemble(source, function=True)
         code = code.to_bytecode()
 
-        expected = textwrap.dedent("""
-            label_instr0:
-                LOAD_FAST 'test'
-                LOAD_CONST 1
-                COMPARE_OP 2
-                POP_JUMP_IF_FALSE <label_instr7>
-                LOAD_CONST 1
-                RETURN_VALUE
+        expected = """
+    LOAD_FAST 'test'
+    LOAD_CONST 1
+    COMPARE_OP 2
+    POP_JUMP_IF_FALSE <label_instr6>
+    LOAD_CONST 1
+    RETURN_VALUE
 
-            label_instr7:
-                LOAD_FAST 'test'
-                LOAD_CONST 2
-                COMPARE_OP 2
-                POP_JUMP_IF_FALSE <label_instr14>
-                LOAD_CONST 2
-                RETURN_VALUE
+label_instr6:
+    LOAD_FAST 'test'
+    LOAD_CONST 2
+    COMPARE_OP 2
+    POP_JUMP_IF_FALSE <label_instr13>
+    LOAD_CONST 2
+    RETURN_VALUE
 
-            label_instr14:
-                LOAD_CONST 3
-                RETURN_VALUE
+label_instr13:
+    LOAD_CONST 3
+    RETURN_VALUE
 
-        """).lstrip()
+        """[1:].rstrip(" ")
+        print(expected)
         self.check_dump(code, expected)
 
     def test_bytecode_blocks(self):

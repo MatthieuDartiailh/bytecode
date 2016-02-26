@@ -75,12 +75,9 @@ class BytecodeBlocksTests(TestCase):
 
         bytecode = blocks.to_bytecode()
 
-        label0 = Label()
         label = Label()
         self.assertEqual(bytecode,
-                         # FIXME: don't generate this useless label
-                         [label0,
-                          Instr('LOAD_NAME', 'test', lineno=1),
+                         [Instr('LOAD_NAME', 'test', lineno=1),
                           Instr('POP_JUMP_IF_FALSE', label, lineno=1),
                           Instr('LOAD_CONST', 5, lineno=2),
                           Instr('STORE_NAME', 'x', lineno=2),

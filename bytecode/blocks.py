@@ -185,20 +185,34 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         return _bytecode._ConvertCodeToConcrete(self).to_concrete_bytecode()
 
     def to_bytecode(self):
+        """Convert to Bytecode.
+
+        Unused labels are removed.
+        """
+        used_labels = set()
+        for block in self:
+            for instr in block:
+                if (not isinstance(instr, Label)
+                   and isinstance(instr.arg, Label)):
+                    used_labels.add(instr.arg)
+
         labels = {}
         jumps = []
         instructions = []
+
         for block in self:
-            new_label = Label()
-            labels[block.label] = new_label
-            instructions.append(new_label)
+            if block.label in used_labels:
+                new_label = Label()
+                labels[block.label] = new_label
+                instructions.append(new_label)
 
             for instr in block:
                 if isinstance(instr, Label):
                     old_label = instr
-                    new_label = Label()
-                    labels[old_label] = new_label
-                    instructions.append(new_label)
+                    if old_label in used_labels:
+                        new_label = Label()
+                        labels[old_label] = new_label
+                        instructions.append(new_label)
                 else:
                     instr = instr.copy()
                     if isinstance(instr.arg, Label):
