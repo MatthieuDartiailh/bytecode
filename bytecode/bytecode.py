@@ -92,9 +92,18 @@ class _InstrList(list):
 
 
 class Bytecode(_InstrList, BaseBytecode):
-    def __init__(self):
+    def __init__(self, instructions=None):
         BaseBytecode.__init__(self)
+        if instructions is not None:
+            self.extend(instructions)
         self.argnames = []
+
+    def copy(self):
+        obj = Bytecode()
+        obj._copy_attr_from(self)
+        obj.extend(self)
+        obj.argnames = list(self.argnames)
+        return obj
 
     @staticmethod
     def from_code(code):

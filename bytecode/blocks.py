@@ -20,6 +20,10 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
 
         self.add_block()
 
+    def copy(self):
+        # FIXME: write faster implementation
+        return self.to_bytecode().to_bytecode_blocks()
+
     def _add_block(self, block):
         block_index = len(self._blocks)
         self._blocks.append(block)

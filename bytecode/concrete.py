@@ -93,6 +93,15 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         self.names = []
         self.varnames = []
 
+    def copy(self):
+        obj = ConcreteBytecode()
+        obj._copy_attr_from(self)
+        obj.extend(self)
+        obj.consts = list(self.consts)
+        obj.names = list(self.names)
+        obj.varnames = list(self.varnames)
+        return obj
+
     def __repr__(self):
         return '<ConcreteBytecode instr#=%s>' % len(self)
 
@@ -276,6 +285,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
             elif instr.op in opcode.hasname:
                 arg = self.names[arg]
             # FIXME: hasfree
+            # FIXME: COMPARE_OP operator
 
             instr = Instr(instr.name, arg, lineno=instr.lineno)
             instructions.append(instr)

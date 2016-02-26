@@ -68,6 +68,11 @@ Bytecode
 * ``BytecodeBlocks``: list of blocks, a block is a list of Instr and has a label
 * ``ConcreteBytecode``: list of ConcreteInstr
 
+Bytecode methods
+----------------
+
+* ``bytecode.copy()``: duplicate a bytecode object
+
 Create bytecode
 ---------------
 
@@ -87,8 +92,9 @@ Conversions
 ChangeLog
 =========
 
-* Version 0.1.1
+* Version 0.2
 
+  - Add copy() methods
   - Fix ConcreteBytecode for code with no constant (empty list of constants)
   - Fix argnames in ConcreteBytecode.to_bytecode(): use CO_VARARGS and
     CO_VARKEYWORDS flags to count the number of arguments
