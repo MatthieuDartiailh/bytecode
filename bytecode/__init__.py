@@ -12,7 +12,7 @@ from bytecode.blocks import BytecodeBlocks
 
 
 # FIXME: move code into a submodule or inside Bytecode classes?
-def dump(code):
+def dump_code(code):
     indent = ' ' * 4
     if isinstance(code, ConcreteBytecode):
         line_width = 3
