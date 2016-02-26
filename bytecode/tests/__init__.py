@@ -2,7 +2,7 @@ import textwrap
 import types
 import unittest
 
-from bytecode import UNSET, Label, Instr, BytecodeBlocks
+from bytecode import UNSET, Label, Instr, Bytecode, BytecodeBlocks
 
 
 # FIXME: remove these functions
@@ -19,30 +19,55 @@ def RETURN_VALUE():
     return Instr('RETURN_VALUE', lineno=1)
 
 
-def dump_blocks(code):
+def _format_instr_list(block, labels):
+    instr_list = []
+    for instr in block:
+        if not isinstance(instr, Label):
+            arg = instr.arg
+            if arg is not UNSET:
+                if isinstance(arg, Label):
+                    arg = labels[arg]
+                else:
+                    arg = repr(arg)
+                text = 'Instr(%r, %s, lineno=%s)' % (instr.name, arg, instr.lineno)
+            else:
+                text = 'Instr(%r, lineno=%s)' % (instr.name, instr.lineno)
+        else:
+            text = labels[instr]
+        instr_list.append(text)
+    return '[%s]'  % ',\n '.join(instr_list)
+
+def dump_code(code):
     """
     Use this function to write unit tests: copy/paste its output to
     write a self.assertBlocksEqual() check.
     """
     print()
-    for block_index, block in enumerate(code):
-        instr_list = []
-        for instr in block:
-            arg = instr.arg
-            if arg is not UNSET:
-                if isinstance(arg, Label):
-                    arg = 'code[%s].label' % code._label_to_index[arg]
-                else:
-                    arg = repr(arg)
-                text = 'Instr(%s, %r, %s)' % (instr.lineno, instr.name, arg)
-            else:
-                text = 'Instr(%s, %r)' % (instr.lineno, instr.name)
-            instr_list.append(text)
-        text = '[%s]'  % ',\n '.join(instr_list)
-        if block_index != len(code) - 1:
-            text += ','
+
+    if isinstance(code, Bytecode):
+        labels = {}
+        for index, instr in enumerate(code):
+            if isinstance(instr, Label):
+                name = 'label_instr%s' % index
+                labels[instr] = name
+
+        for name in sorted(labels.values()):
+            print('%s = Label()' % name)
+
+        text = _format_instr_list(code, labels)
         print(text)
         print()
+    else:
+        labels = {}
+        for block_index, block in enumerate(code):
+            labels[block.label] = 'code[%s].label' % block_index
+
+        for block_index, block in enumerate(code):
+            text = _format_instr_list(block, labels)
+            if block_index != len(code) - 1:
+                text += ','
+            print(text)
+            print()
 
 def get_code(source, *, filename="<string>", function=False):
     source = textwrap.dedent(source).strip()
