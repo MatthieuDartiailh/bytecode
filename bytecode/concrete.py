@@ -220,7 +220,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
     def to_code(self):
         code_str, linenos = self._assemble_code()
         lnotab = self._assemble_lnotab(self.first_lineno, linenos)
-        nlocals = len(self.varnames) - self.argcount - self.kw_only_argcount
+        nlocals = len(self.varnames)
         return types.CodeType(self.argcount,
                               self.kw_only_argcount,
                               nlocals,
