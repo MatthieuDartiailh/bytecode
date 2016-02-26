@@ -7,7 +7,9 @@ class BaseBytecode:
     def __init__(self):
         self.argcount = 0
         self.kw_only_argcount = 0
-        self._stacksize = 0
+        # FIXME: insane and safe value until _ConvertCodeToConcrete is able
+        # to compute the value itself
+        self._stacksize = 256
         self.flags = 0
         self.first_lineno = 1
         self.name = '<module>'
