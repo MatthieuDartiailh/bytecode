@@ -328,17 +328,17 @@ class BytecodeToConcreteTests(TestCase):
         # test two constants which are equal but have a different type
         code = Bytecode()
         code.extend([Instr('LOAD_CONST', 5, lineno=1),
-                     Instr('LOAD_CONST', 5.0, lineno=1)])
-                     # FIXME: float -0.0, +0.0
-                     # FIXME: complex
-                     # FIXME: tuple, nested tuple
-                     # FIXME: frozenset, nested frozenset
+                     Instr('LOAD_CONST', 5.0, lineno=1),
+                     Instr('LOAD_CONST', -0.0, lineno=1),
+                     Instr('LOAD_CONST', +0.0, lineno=1)])
 
         code = code.to_concrete_bytecode()
         expected = [ConcreteInstr('LOAD_CONST', 0, lineno=1),
-                    ConcreteInstr('LOAD_CONST', 1, lineno=1)]
+                    ConcreteInstr('LOAD_CONST', 1, lineno=1),
+                    ConcreteInstr('LOAD_CONST', 2, lineno=1),
+                    ConcreteInstr('LOAD_CONST', 3, lineno=1)]
         self.assertListEqual(list(code), expected)
-        self.assertListEqual(code.consts, [5, 5.0])
+        self.assertListEqual(code.consts, [5, 5.0, -0.0, +0.0])
 
 
 if __name__ == "__main__":
