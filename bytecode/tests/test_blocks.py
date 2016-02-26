@@ -75,9 +75,19 @@ class BytecodeBlocksTests(TestCase):
                           Instr('RETURN_VALUE', lineno=4)])
 
         bytecode = blocks.to_bytecode()
+
+        from bytecode.tests import dump_code
+        dump_code(blocks)
+        print("*")
+        dump_code(bytecode)
+
+
+        label0 = Label()
         label = Label()
         self.assertEqual(bytecode,
-                         [Instr('LOAD_NAME', 'test', lineno=1),
+                         # FIXME: don't generate this useless label
+                         [label0,
+                          Instr('LOAD_NAME', 'test', lineno=1),
                           Instr('POP_JUMP_IF_FALSE', label, lineno=1),
                           Instr('LOAD_CONST', 5, lineno=2),
                           Instr('STORE_NAME', 'x', lineno=2),
