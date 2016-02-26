@@ -474,7 +474,7 @@ class _CodePeepholeOptimizer:
 
 
 # Code transformer for the PEP 511
-class CodePeepholeOptimizer:
+class CodeTransformer:
     name = "pyopt"
 
     def code_transformer(self, code, context):
