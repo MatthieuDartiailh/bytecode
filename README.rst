@@ -103,5 +103,6 @@ See also
   <https://pypi.python.org/pypi/codetransformer>`_
 * `byteplay
   <https://github.com/serprex/byteplay>`_
+* `BytecodeAssembler <https://pypi.python.org/pypi/BytecodeAssembler>`_
 * `PEP 511 -- API for code transformers
   <https://www.python.org/dev/peps/pep-0511/>`_
