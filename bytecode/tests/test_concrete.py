@@ -60,20 +60,20 @@ class ConcreteInstrTests(TestCase):
         self.assertEqual(instr, ConcreteInstr('EXTENDED_ARG', 0x1234, lineno=1))
 
     def test_assemble(self):
-        instr = ConcreteInstr("NOP", lineno=1)
+        instr = ConcreteInstr("NOP")
         self.assertEqual(instr.assemble(), b'\t')
 
-        instr = ConcreteInstr("LOAD_CONST", 3, lineno=1)
+        instr = ConcreteInstr("LOAD_CONST", 3)
         self.assertEqual(instr.assemble(), b'd\x03\x00')
 
-        instr = ConcreteInstr("LOAD_CONST", 0x1234abcd, lineno=1)
+        instr = ConcreteInstr("LOAD_CONST", 0x1234abcd)
         self.assertEqual(instr.assemble(), b'\x904\x12d\xcd\xab')
 
     def test_get_jump_target(self):
-        jump_abs = ConcreteInstr("JUMP_ABSOLUTE", 3, lineno=1)
+        jump_abs = ConcreteInstr("JUMP_ABSOLUTE", 3)
         self.assertEqual(jump_abs.get_jump_target(100), 3)
 
-        jump_forward = ConcreteInstr("JUMP_FORWARD", 5, lineno=1)
+        jump_forward = ConcreteInstr("JUMP_FORWARD", 5)
         self.assertEqual(jump_forward.get_jump_target(10), 18)
 
 

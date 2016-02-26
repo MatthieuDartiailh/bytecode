@@ -15,9 +15,9 @@ class InstrTests(TestCase):
 
         # invalid name
         with self.assertRaises(TypeError):
-            Instr(1, lineno=1)
+            Instr(1)
         with self.assertRaises(ValueError):
-            Instr("xxx", lineno=1)
+            Instr("xxx")
 
     def test_attr(self):
         instr = Instr("LOAD_CONST", 3, lineno=5)
@@ -44,7 +44,7 @@ class InstrTests(TestCase):
         self.assertIs(instr.arg, UNSET)
 
     def test_modify_op(self):
-        instr = Instr("LOAD_CONST", 3, lineno=5)
+        instr = Instr("LOAD_CONST", 3)
         load_fast = opcode.opmap['LOAD_FAST']
         instr.op = load_fast
         self.assertEqual(instr.name, 'LOAD_FAST')
@@ -55,7 +55,7 @@ class InstrTests(TestCase):
         self.assertEqual(instr.arg, 0x1234abcd)
 
     def test_slots(self):
-        instr = Instr("NOP", lineno=1)
+        instr = Instr("NOP")
         with self.assertRaises(AttributeError):
             instr.myattr = 1
 
@@ -63,9 +63,12 @@ class InstrTests(TestCase):
         instr = Instr("LOAD_CONST", 3, lineno=7)
         self.assertEqual(instr, Instr("LOAD_CONST", 3, lineno=7))
 
+        # different lineno
         self.assertNotEqual(instr, Instr("LOAD_CONST", 3))
         self.assertNotEqual(instr, Instr("LOAD_CONST", 3, lineno=6))
+        # different op
         self.assertNotEqual(instr, Instr("LOAD_FAST", 3, lineno=7))
+        # different arg
         self.assertNotEqual(instr, Instr("LOAD_CONST", 4, lineno=7))
 
     def test_is_jump(self):
