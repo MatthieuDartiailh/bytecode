@@ -82,6 +82,7 @@ class Tests(TestCase):
         self.assertBlocksEqual(bytecode, *expected_blocks)
 
     def check2(self, code, *expected_blocks, function=False):
+        code = code.to_bytecode_blocks()
         optimizer = peephole_opt._CodePeepholeOptimizer()
         optimizer._optimize(code)
 
@@ -94,30 +95,45 @@ class Tests(TestCase):
 
     def test_unary_op(self):
         def check_unary_op(op, value, result):
-            self.check('x = %s(%r)' % (op, value),
+            code = ConcreteBytecode()
+            code.consts = [value]
+            code.names = ['x']
+            code.extend([ConcreteInstr('LOAD_CONST', 0, lineno=1),
+                         ConcreteInstr(op, lineno=1),
+                         ConcreteInstr('STORE_NAME', 0, lineno=1)])
+
+            self.check2(code,
                        (LOAD_CONST(result), STORE_NAME('x')))
 
-        check_unary_op('+', 2, 2)
-        check_unary_op('-', 3, -3)
-        check_unary_op('~', 5, -6)
+        check_unary_op('UNARY_POSITIVE', 2, 2)
+        check_unary_op('UNARY_NEGATIVE', 3, -3)
+        check_unary_op('UNARY_INVERT', 5, -6)
 
-    def test_bin_op(self):
+    def test_binary_op(self):
         def check_bin_op(left, op, right, result):
-            self.check('x = %r %s %r' % (left, op, right),
+            code = ConcreteBytecode()
+            code.consts = [left, right]
+            code.names = ['x']
+            code.extend([ConcreteInstr('LOAD_CONST', 0, lineno=1),
+                         ConcreteInstr('LOAD_CONST', 1, lineno=1),
+                         ConcreteInstr(op, lineno=1),
+                         ConcreteInstr('STORE_NAME', 0, lineno=1)])
+
+            self.check2(code,
                        (LOAD_CONST(result), STORE_NAME('x')))
 
-        check_bin_op(10,  '+', 20, 30)
-        check_bin_op(5, '-', 1, 4)
-        check_bin_op(5, '*', 3, 15)
-        check_bin_op(10, '/', 3, 10 / 3)
-        check_bin_op(10, '//', 3, 3)
-        check_bin_op(10, '%', 3, 1)
-        check_bin_op(2, '**', 8, 256)
-        check_bin_op(1, '<<', 3, 8)
-        check_bin_op(16, '>>', 3, 2)
-        check_bin_op(10, '&', 3, 2)
-        check_bin_op(2, '|', 3, 3)
-        check_bin_op(2, '^', 3, 1)
+        check_bin_op(10, 'BINARY_ADD', 20, 30)
+        check_bin_op(5, 'BINARY_SUBTRACT', 1, 4)
+        check_bin_op(5, 'BINARY_MULTIPLY', 3, 15)
+        check_bin_op(10, 'BINARY_TRUE_DIVIDE', 3, 10 / 3)
+        check_bin_op(10, 'BINARY_FLOOR_DIVIDE', 3, 3)
+        check_bin_op(10, 'BINARY_MODULO', 3, 1)
+        check_bin_op(2, 'BINARY_POWER', 8, 256)
+        check_bin_op(1, 'BINARY_LSHIFT', 3, 8)
+        check_bin_op(16, 'BINARY_RSHIFT', 3, 2)
+        check_bin_op(10, 'BINARY_AND', 3, 2)
+        check_bin_op(2, 'BINARY_OR', 3, 3)
+        check_bin_op(2, 'BINARY_XOR', 3, 1)
 
     def test_combined_unary_bin_ops(self):
         self.check('x = 1 + 3 + 7',
