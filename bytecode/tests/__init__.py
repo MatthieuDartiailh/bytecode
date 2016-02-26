@@ -6,20 +6,6 @@ from bytecode import (UNSET, Label, Instr, ConcreteInstr,
                       Bytecode, BytecodeBlocks, ConcreteBytecode)
 
 
-# FIXME: remove these functions
-def LOAD_CONST(arg):
-    return Instr('LOAD_CONST', arg, lineno=1)
-
-def STORE_NAME(arg):
-    return Instr('STORE_NAME', arg, lineno=1)
-
-def NOP():
-    return Instr('NOP', lineno=1)
-
-def RETURN_VALUE():
-    return Instr('RETURN_VALUE', lineno=1)
-
-
 def _format_instr_list(block, labels):
     instr_list = []
     for instr in block:

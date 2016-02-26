@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import unittest
 from bytecode import Label, Instr, ConcreteInstr, Bytecode, BytecodeBlocks
-from bytecode.tests import LOAD_CONST, STORE_NAME, NOP, disassemble, TestCase, get_code
+from bytecode.tests import disassemble, TestCase, get_code
 
 
 class BytecodeBlocksTests(TestCase):
@@ -42,20 +42,20 @@ class BytecodeBlocksTests(TestCase):
 
     def test_add_del_block(self):
         code = BytecodeBlocks()
-        code[0].append(LOAD_CONST(0))
+        code[0].append(Instr('LOAD_CONST', 0))
 
         block = code.add_block()
         self.assertEqual(len(code), 2)
         self.assertIs(block, code[1])
 
-        code[1].append(LOAD_CONST(2))
+        code[1].append(Instr('LOAD_CONST', 2))
         self.assertBlocksEqual(code,
-                               [LOAD_CONST(0)],
-                               [LOAD_CONST(2)])
+                               [Instr('LOAD_CONST', 0)],
+                               [Instr('LOAD_CONST', 2)])
 
         del code[0]
         self.assertBlocksEqual(code,
-                               [LOAD_CONST(2)])
+                               [Instr('LOAD_CONST', 2)])
 
         del code[0]
         self.assertEqual(len(code), 0)
@@ -224,25 +224,27 @@ class BytecodeBlocksFunctionalTests(TestCase):
     def sample_code(self):
         code = disassemble('x = 1', remove_last_return_none=True)
         self.assertBlocksEqual(code,
-                               [LOAD_CONST(1), STORE_NAME('x')])
+                               [Instr('LOAD_CONST', 1, lineno=1),
+                                Instr('STORE_NAME', 'x', lineno=1)])
         return code
 
     def test_create_label_by_int_split(self):
         code = self.sample_code()
-        code[0].append(NOP())
+        code[0].append(Instr('NOP', lineno=1))
 
         label = code.create_label(0, 2)
         self.assertBlocksEqual(code,
-                               [LOAD_CONST(1), STORE_NAME('x')],
-                               [NOP()])
+                               [Instr('LOAD_CONST', 1, lineno=1),
+                                Instr('STORE_NAME', 'x', lineno=1)],
+                               [Instr('NOP', lineno=1)])
         self.assertIs(label, code[1].label)
         self.check_getitem(code)
 
         label2 = code.create_label(0, 1)
         self.assertBlocksEqual(code,
-                               [LOAD_CONST(1)],
-                               [STORE_NAME('x')],
-                               [NOP()])
+                               [Instr('LOAD_CONST', 1, lineno=1)],
+                               [Instr('STORE_NAME', 'x', lineno=1)],
+                               [Instr('NOP', lineno=1)])
         self.assertIs(label2, code[1].label)
         self.assertIs(label, code[2].label)
         self.check_getitem(code)
@@ -254,8 +256,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
         label = code.create_label(block_index, 1)
         self.assertEqual(len(code), 2)
         self.assertBlocksEqual(code,
-                               [LOAD_CONST(1), ],
-                               [STORE_NAME('x')])
+                               [Instr('LOAD_CONST', 1, lineno=1)],
+                               [Instr('STORE_NAME', 'x', lineno=1)])
         self.assertEqual(label, code[1].label)
         self.check_getitem(code)
 
@@ -263,7 +265,9 @@ class BytecodeBlocksFunctionalTests(TestCase):
         code = self.sample_code()
 
         label = code.create_label(0, 0)
-        self.assertBlocksEqual(code, [LOAD_CONST(1), STORE_NAME('x')])
+        self.assertBlocksEqual(code,
+                              [Instr('LOAD_CONST', 1, lineno=1),
+                               Instr('STORE_NAME', 'x', lineno=1)])
         self.assertEqual(label, code[0].label)
 
     def test_create_label_error(self):
