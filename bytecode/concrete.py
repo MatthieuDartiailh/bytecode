@@ -8,6 +8,16 @@ import bytecode as _bytecode
 from bytecode.instr import BaseInstr, Instr, Label, SetLineno, const_key, UNSET
 
 
+def _set_docstring(code, consts):
+    if not consts:
+        return
+    first_const = consts[0]
+    if isinstance(first_const, str):
+        code.docstring = first_const
+    elif first_const is None:
+        code.docstring = first_const
+
+
 class ConcreteInstr(BaseInstr):
     __slots__ = ('_size',)
 
@@ -158,12 +168,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode.varnames = list(code.co_varnames)
         bytecode.freevars = list(code.co_freevars)
         bytecode.cellvars = list(code.co_cellvars)
-
-        first_const = code.co_consts[0]
-        if isinstance(first_const, str):
-            bytecode.docstring = first_const
-        elif first_const is None:
-            bytecode.docstring = first_const
+        _set_docstring(bytecode, code.co_consts)
 
         bytecode[:] = instructions
         return bytecode
@@ -288,12 +293,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
         nargs = bytecode.argcount + bytecode.kw_only_argcount
         bytecode.argnames = self.varnames[:nargs]
-
-        first_const = self.consts[0]
-        if isinstance(first_const, str):
-            bytecode.docstring = first_const
-        elif first_const is None:
-            bytecode.docstring = first_const
+        _set_docstring(bytecode, self.consts)
 
         bytecode.extend(instructions)
         return bytecode
