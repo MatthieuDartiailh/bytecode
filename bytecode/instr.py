@@ -29,12 +29,28 @@ class Label:
 
 
 class BaseInstr:
-    __slots__ = ('_lineno', '_name', '_arg', '_op')
+    __slots__ = ('_name', '_op', '_arg', '_lineno')
 
     def __init__(self, name, arg=UNSET, *, lineno=None):
-        self._set_lineno(lineno)
         self._set_name(name)
         self._arg = arg
+        self._set_lineno(lineno)
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def op(self):
+        return self._op
+
+    @property
+    def arg(self):
+        return self._arg
+
+    @property
+    def lineno(self):
+        return self._lineno
 
     def copy(self):
         return self.__class__(self._name, self._arg, lineno=self._lineno)
@@ -53,25 +69,6 @@ class BaseInstr:
             op = opcode.opmap[name]
         except KeyError:
             raise ValueError("invalid operation name")
-        self._name = name
-        self._op = op
-
-    @property
-    def op(self):
-        return self._op
-
-    @op.setter
-    def op(self, op):
-        if not isinstance(op, int):
-            raise TypeError("operator must be an int")
-        if 0 <= op <= 255:
-            name = opcode.opname[op]
-            valid = (name != '<%r>' % op)
-        else:
-            valid = False
-        if not valid:
-            raise ValueError("invalid operator")
-
         self._name = name
         self._op = op
 
@@ -136,14 +133,6 @@ class Instr(BaseInstr):
     __slots__ = ()
 
     @property
-    def lineno(self):
-        return self._lineno
-
-    @lineno.setter
-    def lineno(self, lineno):
-        self._set_lineno(lineno)
-
-    @property
     def name(self):
         return self._name
 
@@ -152,9 +141,36 @@ class Instr(BaseInstr):
         self._set_name(name)
 
     @property
+    def op(self):
+        return self._op
+
+    @op.setter
+    def op(self, op):
+        if not isinstance(op, int):
+            raise TypeError("operator must be an int")
+        if 0 <= op <= 255:
+            name = opcode.opname[op]
+            valid = (name != '<%r>' % op)
+        else:
+            valid = False
+        if not valid:
+            raise ValueError("invalid operator")
+
+        self._name = name
+        self._op = op
+
+    @property
     def arg(self):
         return self._arg
 
     @arg.setter
     def arg(self, arg):
         self._arg = arg
+
+    @property
+    def lineno(self):
+        return self._lineno
+
+    @lineno.setter
+    def lineno(self, lineno):
+        self._set_lineno(lineno)

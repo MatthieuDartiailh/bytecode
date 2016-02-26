@@ -21,10 +21,12 @@ class InstrTests(TestCase):
 
     def test_attr(self):
         instr = Instr("LOAD_CONST", 3, lineno=5)
-        self.assertEqual(instr.lineno, 5)
         self.assertEqual(instr.name, 'LOAD_CONST')
+        self.assertEqual(instr.op, 100)
         self.assertEqual(instr.arg, 3)
-        self.assertEqual(instr.op, opcode.opmap['LOAD_CONST'])
+        self.assertEqual(instr.lineno, 5)
+
+        # invalid values/types
         self.assertRaises(ValueError, setattr, instr, 'lineno', 0)
         self.assertRaises(TypeError, setattr, instr, 'lineno', 1.0)
         self.assertRaises(TypeError, setattr, instr, 'name', 5)
@@ -32,15 +34,21 @@ class InstrTests(TestCase):
         self.assertRaises(ValueError, setattr, instr, 'op', -1)
         self.assertRaises(ValueError, setattr, instr, 'op', 255)
 
-        # modify op
-        op = opcode.opmap['LOAD_FAST']
-        instr.op = op
-        self.assertEqual(instr.op, op)
-        self.assertEqual(instr.name, 'LOAD_FAST')
+        # arg can take any attribute but cannot be deleted
+        instr.arg = -8
+        instr.arg = object()
+        self.assertRaises(AttributeError, delattr, instr, 'arg')
 
-        instr = Instr("ROT_TWO", lineno=1)
+        # no argument
+        instr = Instr("ROT_TWO")
         self.assertIs(instr.arg, UNSET)
-        self.assertEqual(instr.op, opcode.opmap['ROT_TWO'])
+
+    def test_modify_op(self):
+        instr = Instr("LOAD_CONST", 3, lineno=5)
+        load_fast = opcode.opmap['LOAD_FAST']
+        instr.op = load_fast
+        self.assertEqual(instr.name, 'LOAD_FAST')
+        self.assertEqual(instr.op, load_fast)
 
     def test_extended_arg(self):
         instr = Instr("LOAD_CONST", 0x1234abcd)

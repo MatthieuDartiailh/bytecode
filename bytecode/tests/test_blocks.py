@@ -96,23 +96,23 @@ class BytecodeBlocksTests(TestCase):
         # equal
         code1 = BytecodeBlocks()
         label1 = Label()
-        code1[0].extend([Instr("JUMP_FORWARD", label1, lineno=1),
-                         Instr("NOP", lineno=1),
+        code1[0].extend([Instr("JUMP_FORWARD", label1),
+                         Instr("NOP"),
                          label1])
         code2 = BytecodeBlocks()
         label2 = Label()
-        code2[0].extend([Instr("JUMP_FORWARD", label2, lineno=1),
+        code2[0].extend([Instr("JUMP_FORWARD", label2),
                          Label(),   # unused label
-                         Instr("NOP", lineno=1),
+                         Instr("NOP"),
                          label2])
         self.assertEqual(code2, code1)
 
         # not equal
         code3 = BytecodeBlocks()
         label3 = Label()
-        code3[0].extend([Instr("JUMP_FORWARD", label3, lineno=1),
+        code3[0].extend([Instr("JUMP_FORWARD", label3),
                          label3,
-                         Instr("NOP", lineno=1)])
+                         Instr("NOP")])
         self.assertNotEqual(code3, code1)
 
     def test_bytecode_to_bytecode_blocks(self):
@@ -183,27 +183,27 @@ class BytecodeBlocksTests(TestCase):
         ))
         blocks = code.to_bytecode_blocks()
 
-        self.assertBlocksEqual(blocks,
-                               [Instr('SETUP_LOOP', blocks[5].label, lineno=1),
-                                Instr('LOAD_CONST', (1, 2, 3), lineno=1),
-                                Instr('GET_ITER', lineno=1)],
+        expected = [[Instr('SETUP_LOOP', blocks[5].label, lineno=1),
+                     Instr('LOAD_CONST', (1, 2, 3), lineno=1),
+                     Instr('GET_ITER', lineno=1)],
 
-                               [Instr('FOR_ITER', blocks[4].label, lineno=1),
-                                Instr('STORE_NAME', 'x', lineno=1),
-                                Instr('LOAD_NAME', 'x', lineno=2),
-                                Instr('LOAD_CONST', 2, lineno=2),
-                                Instr('COMPARE_OP', 2, lineno=2),
-                                Instr('POP_JUMP_IF_FALSE', blocks[1].label, lineno=2),
-                                Instr('BREAK_LOOP', lineno=3)],
+                    [Instr('FOR_ITER', blocks[4].label, lineno=1),
+                     Instr('STORE_NAME', 'x', lineno=1),
+                     Instr('LOAD_NAME', 'x', lineno=2),
+                     Instr('LOAD_CONST', 2, lineno=2),
+                     Instr('COMPARE_OP', 2, lineno=2),
+                     Instr('POP_JUMP_IF_FALSE', blocks[1].label, lineno=2),
+                     Instr('BREAK_LOOP', lineno=3)],
 
-                               [Instr('JUMP_ABSOLUTE', blocks[1].label, lineno=4)],
+                    [Instr('JUMP_ABSOLUTE', blocks[1].label, lineno=4)],
 
-                               [Instr('JUMP_ABSOLUTE', blocks[1].label, lineno=4)],
+                    [Instr('JUMP_ABSOLUTE', blocks[1].label, lineno=4)],
 
-                               [Instr('POP_BLOCK', lineno=4)],
+                    [Instr('POP_BLOCK', lineno=4)],
 
-                               [Instr('LOAD_CONST', None, lineno=4),
-                                Instr('RETURN_VALUE', lineno=4)])
+                    [Instr('LOAD_CONST', None, lineno=4),
+                     Instr('RETURN_VALUE', lineno=4)]]
+        self.assertBlocksEqual(blocks, *expected)
 
 
 class BytecodeBlocksFunctionalTests(TestCase):

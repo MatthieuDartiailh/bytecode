@@ -40,18 +40,6 @@ class ConcreteInstr(BaseInstr):
         self._size = size
 
     @property
-    def lineno(self):
-        return self._lineno
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def arg(self):
-        return self._arg
-
-    @property
     def size(self):
         return self._size
 

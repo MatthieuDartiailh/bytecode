@@ -8,35 +8,45 @@ from bytecode.tests import get_code, TestCase
 
 class ConcreteInstrTests(TestCase):
     def test_constructor(self):
-        # argument?
         with self.assertRaises(ValueError):
-            ConcreteInstr("LOAD_CONST", lineno=1)
+            # need an argument
+            ConcreteInstr("LOAD_CONST")
         with self.assertRaises(ValueError):
-            ConcreteInstr("ROT_TWO", 33, lineno=1)
+            # must not have an argument
+            ConcreteInstr("ROT_TWO", 33)
 
         # invalid argument
         with self.assertRaises(TypeError):
-            ConcreteInstr("LOAD_CONST", 1.0, lineno=1)
+            ConcreteInstr("LOAD_CONST", 1.0)
         with self.assertRaises(ValueError):
-            ConcreteInstr("LOAD_CONST", -1, lineno=1)
+            ConcreteInstr("LOAD_CONST", -1)
 
         # test maximum argument
         with self.assertRaises(ValueError):
-            ConcreteInstr("LOAD_CONST", 2147483647+1, lineno=1)
+            ConcreteInstr("LOAD_CONST", 2147483647+1)
 
-        instr = ConcreteInstr("LOAD_CONST", 2147483647, lineno=1)
+        instr = ConcreteInstr("LOAD_CONST", 2147483647)
         self.assertEqual(instr.arg, 2147483647)
 
     def test_attr(self):
-        instr = ConcreteInstr("LOAD_CONST", 5, lineno=1)
-        self.assertRaises(AttributeError, setattr, instr, 'name', 'LOAD_FAST')
-        self.assertRaises(AttributeError, setattr, instr, 'lineno', 1)
-        self.assertRaises(AttributeError, setattr, instr, 'arg', 2)
+        instr = ConcreteInstr("LOAD_CONST", 5, lineno=12)
+        self.assertEqual(instr.name, 'LOAD_CONST')
+        self.assertEqual(instr.op, 100)
+        self.assertEqual(instr.arg, 5)
+        self.assertEqual(instr.lineno, 12)
+        self.assertEqual(instr.size, 3)
+
+        # attributes are read-only
+        self.assertRaises(AttributeError, setattr, instr, 'name', 'LOAD_CONST')
+        self.assertRaises(AttributeError, setattr, instr, 'op', 100)
+        self.assertRaises(AttributeError, setattr, instr, 'arg', 5)
+        self.assertRaises(AttributeError, setattr, instr, 'lineno', 12)
+        self.assertRaises(AttributeError, setattr, instr, 'size', 3)
 
     def test_size(self):
-        self.assertEqual(ConcreteInstr('ROT_TWO', lineno=1).size, 1)
-        self.assertEqual(ConcreteInstr('LOAD_CONST', 3, lineno=1).size, 3)
-        self.assertEqual(ConcreteInstr('LOAD_CONST', 0x1234abcd, lineno=1).size, 6)
+        self.assertEqual(ConcreteInstr('ROT_TWO').size, 1)
+        self.assertEqual(ConcreteInstr('LOAD_CONST', 3).size, 3)
+        self.assertEqual(ConcreteInstr('LOAD_CONST', 0x1234abcd).size, 6)
 
     def test_disassemble(self):
         instr = ConcreteInstr.disassemble(1, b'\td\x03\x00', 0)
@@ -107,17 +117,6 @@ class ConcreteBytecodeTests(TestCase):
 
 
 class ConcreteFromCodeTests(TestCase):
-    def test_simple(self):
-        code = get_code("x = 5")
-        bytecode = ConcreteBytecode.from_code(code)
-        self.assertEqual(bytecode.consts, [5, None])
-        self.assertEqual(bytecode.names, ['x'])
-        self.assertListEqual(list(bytecode),
-                             [ConcreteInstr('LOAD_CONST', 0, lineno=1),
-                              ConcreteInstr('STORE_NAME', 0, lineno=1),
-                              ConcreteInstr('LOAD_CONST', 1, lineno=1),
-                              ConcreteInstr('RETURN_VALUE', lineno=1)])
-
     def test_extended_arg(self):
         # Create a code object from arbitrary bytecode
         co_code = b'\x904\x12d\xcd\xab'
@@ -235,15 +234,15 @@ class BytecodeToConcreteTests(TestCase):
         bytecode = Bytecode()
         label = Label()
         bytecode.extend([Instr('LOAD_NAME', 'test', lineno=1),
-                         Instr('POP_JUMP_IF_FALSE', label, lineno=1),
+                         Instr('POP_JUMP_IF_FALSE', label),
                          Instr('LOAD_CONST', 5, lineno=2),
-                         Instr('STORE_NAME', 'x', lineno=2),
-                         Instr('JUMP_FORWARD', label, lineno=2),
+                         Instr('STORE_NAME', 'x'),
+                         Instr('JUMP_FORWARD', label),
                          Instr('LOAD_CONST', 7, lineno=4),
-                         Instr('STORE_NAME', 'x', lineno=4),
+                         Instr('STORE_NAME', 'x'),
                          label,
-                             Instr('LOAD_CONST', None, lineno=4),
-                             Instr('RETURN_VALUE', lineno=4)])
+                             Instr('LOAD_CONST', None),
+                             Instr('RETURN_VALUE')])
 
         concrete = bytecode.to_concrete_bytecode()
         expected = [ConcreteInstr('LOAD_NAME', 0, lineno=1),
@@ -269,16 +268,16 @@ class BytecodeToConcreteTests(TestCase):
         label_else = Label()
         label_return = Label()
         code.extend([Instr('LOAD_NAME', 'test', lineno=1),
-                     Instr('POP_JUMP_IF_FALSE', label_else, lineno=1),
+                     Instr('POP_JUMP_IF_FALSE', label_else),
                      Instr('LOAD_CONST', 12, lineno=2),
-                     Instr('STORE_NAME', 'x', lineno=2),
-                     Instr('JUMP_FORWARD', label_return, lineno=2),
+                     Instr('STORE_NAME', 'x'),
+                     Instr('JUMP_FORWARD', label_return),
                      label_else,
                          Instr('LOAD_CONST', 37, lineno=4),
-                         Instr('STORE_NAME', 'x', lineno=4),
+                         Instr('STORE_NAME', 'x'),
                      label_return,
                          Instr('LOAD_CONST', None, lineno=4),
-                         Instr('RETURN_VALUE', lineno=4)])
+                         Instr('RETURN_VALUE')])
 
         code = code.to_concrete_bytecode()
         expected = [ConcreteInstr('LOAD_NAME', 0, lineno=1),
