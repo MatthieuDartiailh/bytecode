@@ -3,7 +3,7 @@
 # Prepare a release:
 #
 #  - git pull --rebase
-#  - update VERSION in setup.py
+#  - update VERSION in setup.py and bytecode/__init__.py
 #  - run tests: tox
 #  - set release date in the changelog
 #  - git commit -a
@@ -21,7 +21,7 @@
 #  - git commit -a -m "post-release"
 #  - git push
 
-VERSION = '0.0'
+VERSION = '0.1'
 
 DESCRIPTION = 'Python module to modify bytecode'
 CLASSIFIERS = [

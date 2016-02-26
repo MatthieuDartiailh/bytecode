@@ -9,7 +9,7 @@ bytecode
 * `Download latest bytecode release at the Python Cheeseshop (PyPI)
   <https://pypi.python.org/pypi/bytecode>`_
 
-Install bytecode:: ``pip install bytecode``.
+Install bytecode: ``pip install bytecode``.
 
 ``bytecode`` only works on Python 3.
 
@@ -38,6 +38,8 @@ Output::
 
 API
 ===
+
+bytecode module version string: ``bytecode.__version__`` (ex: ``'0.1'``).
 
 Instruction
 -----------
@@ -85,7 +87,7 @@ Conversions
 ChangeLog
 =========
 
-* Version 0.1
+* 2016-02-26: Version 0.1
 
   - Rewrite completely the API!
 
