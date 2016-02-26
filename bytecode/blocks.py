@@ -50,7 +50,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                     if isinstance(instr.arg, Label):
                         # copy the instruction to be able to modify
                         # its argument below
-                        instr = Instr(instr.lineno, instr.name, instr.arg)
+                        instr = instr.copy()
                         jumps.append(instr)
                     instructions.append(instr)
 
@@ -163,7 +163,8 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
             if isinstance(instr, Label):
                 pass
             else:
-                instr = Instr(instr.lineno, instr.name, instr.arg)
+                # copy the instruction to be able to modify its argument below
+                instr = instr.copy()
                 if isinstance(instr.arg, Label):
                     jumps.append(instr)
                 block.append(instr)
@@ -196,7 +197,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                     labels[old_label] = new_label
                     instructions.append(new_label)
                 else:
-                    instr = Instr(instr.lineno, instr.name, instr.arg)
+                    instr = instr.copy()
                     if isinstance(instr.arg, Label):
                         jumps.append(instr)
                     instructions.append(instr)

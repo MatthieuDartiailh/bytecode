@@ -9,18 +9,18 @@ class InstrTests(TestCase):
     def test_constructor(self):
         # invalid line number
         with self.assertRaises(TypeError):
-            Instr("x", "NOP")
+            Instr("NOP", lineno="x")
         with self.assertRaises(ValueError):
-            Instr(0, "NOP")
+            Instr("NOP", lineno=0)
 
         # invalid name
         with self.assertRaises(TypeError):
-            Instr(1, 1)
+            Instr(1, lineno=1)
         with self.assertRaises(ValueError):
-            Instr(1, "xxx")
+            Instr("xxx", lineno=1)
 
     def test_attr(self):
-        instr = Instr(5, "LOAD_CONST", 3)
+        instr = Instr("LOAD_CONST", 3, lineno=5)
         self.assertEqual(instr.lineno, 5)
         self.assertEqual(instr.name, 'LOAD_CONST')
         self.assertEqual(instr.arg, 3)
@@ -38,39 +38,40 @@ class InstrTests(TestCase):
         self.assertEqual(instr.op, op)
         self.assertEqual(instr.name, 'LOAD_FAST')
 
-        instr = Instr(1, "ROT_TWO")
+        instr = Instr("ROT_TWO", lineno=1)
         self.assertIs(instr.arg, UNSET)
         self.assertEqual(instr.op, opcode.opmap['ROT_TWO'])
 
     def test_extended_arg(self):
-        instr = Instr(1, "LOAD_CONST", 0x1234abcd)
+        instr = Instr("LOAD_CONST", 0x1234abcd)
         self.assertEqual(instr.arg, 0x1234abcd)
 
     def test_slots(self):
-        instr = Instr(1, "NOP")
+        instr = Instr("NOP", lineno=1)
         with self.assertRaises(AttributeError):
             instr.myattr = 1
 
     def test_compare(self):
-        instr = Instr(7, "LOAD_CONST", 3)
-        self.assertEqual(instr, Instr(7, "LOAD_CONST", 3))
+        instr = Instr("LOAD_CONST", 3, lineno=7)
+        self.assertEqual(instr, Instr("LOAD_CONST", 3, lineno=7))
 
-        self.assertNotEqual(instr, Instr(6, "LOAD_CONST", 3))
-        self.assertNotEqual(instr, Instr(7, "LOAD_FAST", 3))
-        self.assertNotEqual(instr, Instr(7, "LOAD_CONST", 4))
+        self.assertNotEqual(instr, Instr("LOAD_CONST", 3))
+        self.assertNotEqual(instr, Instr("LOAD_CONST", 3, lineno=6))
+        self.assertNotEqual(instr, Instr("LOAD_FAST", 3, lineno=7))
+        self.assertNotEqual(instr, Instr("LOAD_CONST", 4, lineno=7))
 
     def test_is_jump(self):
-        jump = Instr(1, "JUMP_ABSOLUTE", 3)
+        jump = Instr("JUMP_ABSOLUTE", 3)
         self.assertTrue(jump.is_jump())
 
-        instr = Instr(1, "LOAD_FAST", 2)
+        instr = Instr("LOAD_FAST", 2)
         self.assertFalse(instr.is_jump())
 
     def test_is_cond_jump(self):
-        jump = Instr(1, "POP_JUMP_IF_TRUE", 3)
+        jump = Instr("POP_JUMP_IF_TRUE", 3)
         self.assertTrue(jump.is_cond_jump())
 
-        instr = Instr(1, "LOAD_FAST", 2)
+        instr = Instr("LOAD_FAST", 2)
         self.assertFalse(instr.is_cond_jump())
 
 

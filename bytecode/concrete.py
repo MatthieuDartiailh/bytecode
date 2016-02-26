@@ -11,8 +11,8 @@ from bytecode.instr import BaseInstr, Instr, Label, const_key, UNSET
 class ConcreteInstr(BaseInstr):
     __slots__ = ('_size',)
 
-    def __init__(self, lineno, name, arg=UNSET):
-        super().__init__(lineno, name, arg)
+    def __init__(self, name, arg=UNSET, *, lineno=None):
+        super().__init__(name, arg, lineno=lineno)
 
         if self._op >= opcode.HAVE_ARGUMENT:
             if arg is UNSET:
@@ -84,7 +84,7 @@ class ConcreteInstr(BaseInstr):
         else:
             arg = UNSET
         name = opcode.opname[op]
-        return cls(lineno, name, arg)
+        return cls(name, arg, lineno=lineno)
 
 
 class ConcreteBytecode(_bytecode.BaseBytecode, list):
@@ -149,7 +149,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                     arg = (extended_arg << 16) + instr.arg
                     extended_arg = None
 
-                    instr = ConcreteInstr(instr.lineno, instr.name, arg)
+                    instr = ConcreteInstr(instr.name, arg, lineno=instr.lineno)
                     instructions[index] = instr
 
                 index += 1
@@ -283,7 +283,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                 arg = self.names[arg]
             # FIXME: hasfree
 
-            instr = Instr(instr.lineno, instr.name, arg)
+            instr = Instr(instr.name, arg, lineno=instr.lineno)
             instructions.append(instr)
             offset += size
 
@@ -379,7 +379,7 @@ class _ConvertCodeToConcrete:
                 elif instr.op in opcode.hasname:
                     arg = self.add(self.names, arg)
 
-                instr = ConcreteInstr(instr.lineno, instr.name, arg)
+                instr = ConcreteInstr(instr.name, arg, lineno=instr.lineno)
                 if is_jump:
                     jumps.append((offset, len(instructions), instr, label))
 
@@ -400,7 +400,7 @@ class _ConvertCodeToConcrete:
             # (ex: JUMP_FORWARD arg must be positive)
             # ConcreteInstr._set_arg() already rejects negative argument
 
-            instr = ConcreteInstr(instr.lineno, instr.name, offset)
+            instr = ConcreteInstr(instr.name, offset, lineno=instr.lineno)
             instructions[index] = instr
 
         return instructions

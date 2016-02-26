@@ -73,7 +73,7 @@ class _InstrList(list):
                 if isinstance(instr.arg, Label):
                     # copy the instruction to be able to modify
                     # its argument above
-                    instr = Instr(instr.lineno, instr.name, instr.arg)
+                    instr = instr.copy()
                     jumps.append(instr)
                 instructions.append(instr)
 

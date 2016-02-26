@@ -5,17 +5,18 @@ import unittest
 from bytecode import UNSET, Label, Instr, BytecodeBlocks
 
 
+# FIXME: remove these functions
 def LOAD_CONST(arg):
-    return Instr(1, 'LOAD_CONST', arg)
+    return Instr('LOAD_CONST', arg, lineno=1)
 
 def STORE_NAME(arg):
-    return Instr(1, 'STORE_NAME', arg)
+    return Instr('STORE_NAME', arg, lineno=1)
 
 def NOP():
-    return Instr(1, 'NOP')
+    return Instr('NOP', lineno=1)
 
 def RETURN_VALUE():
-    return Instr(1, 'RETURN_VALUE')
+    return Instr('RETURN_VALUE', lineno=1)
 
 
 def dump_blocks(code):

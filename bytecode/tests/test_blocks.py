@@ -64,84 +64,84 @@ class BytecodeBlocksTests(TestCase):
     def test_to_bytecode(self):
         blocks = BytecodeBlocks()
         label = blocks.add_block().label
-        blocks[0].extend([Instr(1, 'LOAD_NAME', 'test'),
-                          Instr(1, 'POP_JUMP_IF_FALSE', label),
-                          Instr(2, 'LOAD_CONST', 5),
-                          Instr(2, 'STORE_NAME', 'x'),
-                          Instr(2, 'JUMP_FORWARD', label),
-                          Instr(4, 'LOAD_CONST', 7),
-                          Instr(4, 'STORE_NAME', 'x')])
-        blocks[1].extend([Instr(4, 'LOAD_CONST', None),
-                          Instr(4, 'RETURN_VALUE')])
+        blocks[0].extend([Instr('LOAD_NAME', 'test', lineno=1),
+                          Instr('POP_JUMP_IF_FALSE', label, lineno=1),
+                          Instr('LOAD_CONST', 5, lineno=2),
+                          Instr('STORE_NAME', 'x', lineno=2),
+                          Instr('JUMP_FORWARD', label, lineno=2),
+                          Instr('LOAD_CONST', 7, lineno=4),
+                          Instr('STORE_NAME', 'x', lineno=4)])
+        blocks[1].extend([Instr('LOAD_CONST', None, lineno=4),
+                          Instr('RETURN_VALUE', lineno=4)])
 
         bytecode = blocks.to_bytecode()
         label = Label()
         self.assertEqual(bytecode,
-                         [Instr(1, 'LOAD_NAME', 'test'),
-                          Instr(1, 'POP_JUMP_IF_FALSE', label),
-                          Instr(2, 'LOAD_CONST', 5),
-                          Instr(2, 'STORE_NAME', 'x'),
-                          Instr(2, 'JUMP_FORWARD', label),
-                          Instr(4, 'LOAD_CONST', 7),
-                          Instr(4, 'STORE_NAME', 'x'),
+                         [Instr('LOAD_NAME', 'test', lineno=1),
+                          Instr('POP_JUMP_IF_FALSE', label, lineno=1),
+                          Instr('LOAD_CONST', 5, lineno=2),
+                          Instr('STORE_NAME', 'x', lineno=2),
+                          Instr('JUMP_FORWARD', label, lineno=2),
+                          Instr('LOAD_CONST', 7, lineno=4),
+                          Instr('STORE_NAME', 'x', lineno=4),
                           label,
-                          Instr(4, 'LOAD_CONST', None),
-                          Instr(4, 'RETURN_VALUE')])
+                          Instr('LOAD_CONST', None, lineno=4),
+                          Instr('RETURN_VALUE', lineno=4)])
         # FIXME: test other attributes
 
     def test_eq_labels(self):
         # equal
         code1 = BytecodeBlocks()
         label1 = Label()
-        code1[0].extend([Instr(1, "JUMP_FORWARD", label1),
-                         Instr(1, "NOP"),
+        code1[0].extend([Instr("JUMP_FORWARD", label1, lineno=1),
+                         Instr("NOP", lineno=1),
                          label1])
         code2 = BytecodeBlocks()
         label2 = Label()
-        code2[0].extend([Instr(1, "JUMP_FORWARD", label2),
+        code2[0].extend([Instr("JUMP_FORWARD", label2, lineno=1),
                          Label(),   # unused label
-                         Instr(1, "NOP"),
+                         Instr("NOP", lineno=1),
                          label2])
         self.assertEqual(code2, code1)
 
         # not equal
         code3 = BytecodeBlocks()
         label3 = Label()
-        code3[0].extend([Instr(1, "JUMP_FORWARD", label3),
+        code3[0].extend([Instr("JUMP_FORWARD", label3, lineno=1),
                          label3,
-                         Instr(1, "NOP")])
+                         Instr("NOP", lineno=1)])
         self.assertNotEqual(code3, code1)
 
     def test_bytecode_to_bytecode_blocks(self):
         bytecode = Bytecode()
         label = Label()
-        bytecode.extend([Instr(1, 'LOAD_NAME', 'test'),
-                         Instr(1, 'POP_JUMP_IF_FALSE', label),
-                         Instr(2, 'LOAD_CONST', 5),
-                         Instr(2, 'STORE_NAME', 'x'),
-                         Instr(2, 'JUMP_FORWARD', label),
+        bytecode.extend([Instr('LOAD_NAME', 'test', lineno=1),
+                         Instr('POP_JUMP_IF_FALSE', label, lineno=1),
+                         Instr('LOAD_CONST', 5, lineno=2),
+                         Instr('STORE_NAME', 'x', lineno=2),
+                         Instr('JUMP_FORWARD', label, lineno=2),
                              # dead code!
-                             Instr(4, 'LOAD_CONST', 7),
-                             Instr(4, 'STORE_NAME', 'x'),
+                             Instr('LOAD_CONST', 7, lineno=4),
+                             Instr('STORE_NAME', 'x', lineno=4),
                              Label(),  # unused label
                          label,
                              Label(),  # unused label
-                             Instr(4, 'LOAD_CONST', None),
-                             Instr(4, 'RETURN_VALUE')])
+                             Instr('LOAD_CONST', None, lineno=4),
+                             Instr('RETURN_VALUE', lineno=4)])
 
         blocks = bytecode.to_bytecode_blocks()
         label2 = blocks[2].label
         self.assertIsNot(label2, label)
         self.assertBlocksEqual(blocks,
-                               [Instr(1, 'LOAD_NAME', 'test'),
-                                Instr(1, 'POP_JUMP_IF_FALSE', label2),
-                                Instr(2, 'LOAD_CONST', 5),
-                                Instr(2, 'STORE_NAME', 'x'),
-                                Instr(2, 'JUMP_FORWARD', label2)],
-                               [Instr(4, 'LOAD_CONST', 7),
-                                Instr(4, 'STORE_NAME', 'x')],
-                               [Instr(4, 'LOAD_CONST', None),
-                                Instr(4, 'RETURN_VALUE')])
+                               [Instr('LOAD_NAME', 'test', lineno=1),
+                                Instr('POP_JUMP_IF_FALSE', label2, lineno=1),
+                                Instr('LOAD_CONST', 5, lineno=2),
+                                Instr('STORE_NAME', 'x', lineno=2),
+                                Instr('JUMP_FORWARD', label2, lineno=2)],
+                               [Instr('LOAD_CONST', 7, lineno=4),
+                                Instr('STORE_NAME', 'x', lineno=4)],
+                               [Instr('LOAD_CONST', None, lineno=4),
+                                Instr('RETURN_VALUE', lineno=4)])
         # FIXME: test other attributes
 
     def test_bytecode_to_bytecode_blocks_loop(self):
@@ -155,52 +155,52 @@ class BytecodeBlocksTests(TestCase):
         label_loop_end = Label()
 
         code = Bytecode()
-        code.extend((Instr(1, 'SETUP_LOOP', label_loop_end),
-                     Instr(1, 'LOAD_CONST', (1, 2, 3)),
-                     Instr(1, 'GET_ITER'),
+        code.extend((Instr('SETUP_LOOP', label_loop_end, lineno=1),
+                     Instr('LOAD_CONST', (1, 2, 3), lineno=1),
+                     Instr('GET_ITER', lineno=1),
 
                      label_loop_start,
-                     Instr(1, 'FOR_ITER', label_loop_exit),
-                     Instr(1, 'STORE_NAME', 'x'),
-                     Instr(2, 'LOAD_NAME', 'x'),
-                     Instr(2, 'LOAD_CONST', 2),
-                     Instr(2, 'COMPARE_OP', 2),
-                     Instr(2, 'POP_JUMP_IF_FALSE', label_loop_start),
-                     Instr(3, 'BREAK_LOOP'),
-                     Instr(4, 'JUMP_ABSOLUTE', label_loop_start),
+                     Instr('FOR_ITER', label_loop_exit, lineno=1),
+                     Instr('STORE_NAME', 'x', lineno=1),
+                     Instr('LOAD_NAME', 'x', lineno=2),
+                     Instr('LOAD_CONST', 2, lineno=2),
+                     Instr('COMPARE_OP', 2, lineno=2),
+                     Instr('POP_JUMP_IF_FALSE', label_loop_start, lineno=2),
+                     Instr('BREAK_LOOP', lineno=3),
+                     Instr('JUMP_ABSOLUTE', label_loop_start, lineno=4),
 
-                     Instr(4, 'JUMP_ABSOLUTE', label_loop_start),
+                     Instr('JUMP_ABSOLUTE', label_loop_start, lineno=4),
 
                      label_loop_exit,
-                     Instr(4, 'POP_BLOCK'),
+                     Instr('POP_BLOCK', lineno=4),
 
                      label_loop_end,
-                     Instr(4, 'LOAD_CONST', None),
-                     Instr(4, 'RETURN_VALUE'),
+                     Instr('LOAD_CONST', None, lineno=4),
+                     Instr('RETURN_VALUE', lineno=4),
         ))
         blocks = code.to_bytecode_blocks()
 
         self.assertBlocksEqual(blocks,
-                               [Instr(1, 'SETUP_LOOP', blocks[5].label),
-                                Instr(1, 'LOAD_CONST', (1, 2, 3)),
-                                Instr(1, 'GET_ITER')],
+                               [Instr('SETUP_LOOP', blocks[5].label, lineno=1),
+                                Instr('LOAD_CONST', (1, 2, 3), lineno=1),
+                                Instr('GET_ITER', lineno=1)],
 
-                               [Instr(1, 'FOR_ITER', blocks[4].label),
-                                Instr(1, 'STORE_NAME', 'x'),
-                                Instr(2, 'LOAD_NAME', 'x'),
-                                Instr(2, 'LOAD_CONST', 2),
-                                Instr(2, 'COMPARE_OP', 2),
-                                Instr(2, 'POP_JUMP_IF_FALSE', blocks[1].label),
-                                Instr(3, 'BREAK_LOOP')],
+                               [Instr('FOR_ITER', blocks[4].label, lineno=1),
+                                Instr('STORE_NAME', 'x', lineno=1),
+                                Instr('LOAD_NAME', 'x', lineno=2),
+                                Instr('LOAD_CONST', 2, lineno=2),
+                                Instr('COMPARE_OP', 2, lineno=2),
+                                Instr('POP_JUMP_IF_FALSE', blocks[1].label, lineno=2),
+                                Instr('BREAK_LOOP', lineno=3)],
 
-                               [Instr(4, 'JUMP_ABSOLUTE', blocks[1].label)],
+                               [Instr('JUMP_ABSOLUTE', blocks[1].label, lineno=4)],
 
-                               [Instr(4, 'JUMP_ABSOLUTE', blocks[1].label)],
+                               [Instr('JUMP_ABSOLUTE', blocks[1].label, lineno=4)],
 
-                               [Instr(4, 'POP_BLOCK')],
+                               [Instr('POP_BLOCK', lineno=4)],
 
-                               [Instr(4, 'LOAD_CONST', None),
-                                Instr(4, 'RETURN_VALUE')])
+                               [Instr('LOAD_CONST', None, lineno=4),
+                                Instr('RETURN_VALUE', lineno=4)])
 
 
 class BytecodeBlocksFunctionalTests(TestCase):
@@ -285,14 +285,14 @@ class BytecodeBlocksFunctionalTests(TestCase):
         remove_jump_forward = sys.version_info >= (3, 5)
         label = bytecode[1].label
         if remove_jump_forward:
-            blocks = [[Instr(4, 'LOAD_FAST', 'x'),
-                       Instr(4, 'POP_JUMP_IF_FALSE', label),
-                       Instr(5, 'LOAD_FAST', 'arg'),
-                       Instr(5, 'STORE_FAST', 'x')],
-                      [Instr(6, 'LOAD_CONST', 3),
-                       Instr(6, 'STORE_FAST', 'x'),
-                       Instr(7, 'LOAD_FAST', 'x'),
-                       Instr(7, 'RETURN_VALUE')]]
+            blocks = [[Instr('LOAD_FAST', 'x', lineno=4),
+                       Instr('POP_JUMP_IF_FALSE', label, lineno=4),
+                       Instr('LOAD_FAST', 'arg', lineno=5),
+                       Instr('STORE_FAST', 'x', lineno=5)],
+                      [Instr('LOAD_CONST', 3, lineno=6),
+                       Instr('STORE_FAST', 'x', lineno=6),
+                       Instr('LOAD_FAST', 'x', lineno=7),
+                       Instr('RETURN_VALUE', lineno=7)]]
             expected = (b'|\x05\x00'
                         b'r\x0c\x00'
                         b'|\x00\x00'
@@ -302,15 +302,15 @@ class BytecodeBlocksFunctionalTests(TestCase):
                         b'|\x05\x00'
                         b'S')
         else:
-            blocks = [[Instr(4, 'LOAD_FAST', 'x'),
-                       Instr(4, 'POP_JUMP_IF_FALSE', bytecode[1].label),
-                       Instr(5, 'LOAD_FAST', 'arg'),
-                       Instr(5, 'STORE_FAST', 'x'),
-                       Instr(5, 'JUMP_FORWARD', label)],
-                      [Instr(6, 'LOAD_CONST', 3),
-                       Instr(6, 'STORE_FAST', 'x'),
-                       Instr(7, 'LOAD_FAST', 'x'),
-                       Instr(7, 'RETURN_VALUE')]]
+            blocks = [[Instr('LOAD_FAST', 'x', lineno=4),
+                       Instr('POP_JUMP_IF_FALSE', bytecode[1].label, lineno=4),
+                       Instr('LOAD_FAST', 'arg', lineno=5),
+                       Instr('STORE_FAST', 'x', lineno=5),
+                       Instr('JUMP_FORWARD', label, lineno=5)],
+                      [Instr('LOAD_CONST', 3, lineno=6),
+                       Instr('STORE_FAST', 'x', lineno=6),
+                       Instr('LOAD_FAST', 'x', lineno=7),
+                       Instr('RETURN_VALUE', lineno=7)]]
             expected = (b'|\x05\x00'
                         b'r\x0f\x00'
                         b'|\x00\x00'
@@ -345,17 +345,17 @@ class BytecodeBlocksFunctionalTests(TestCase):
                 x = 2
         """)
         self.assertBlocksEqual(code,
-                             [Instr(1, 'LOAD_NAME', 'test'),
-                              Instr(1, 'POP_JUMP_IF_FALSE', code[1].label),
-                              Instr(2, 'LOAD_CONST', 1),
-                              Instr(2, 'STORE_NAME', 'x'),
-                              Instr(2, 'JUMP_FORWARD', code[2].label)],
+                             [Instr('LOAD_NAME', 'test', lineno=1),
+                              Instr('POP_JUMP_IF_FALSE', code[1].label, lineno=1),
+                              Instr('LOAD_CONST', 1, lineno=2),
+                              Instr('STORE_NAME', 'x', lineno=2),
+                              Instr('JUMP_FORWARD', code[2].label, lineno=2)],
 
-                             [Instr(4, 'LOAD_CONST', 2),
-                              Instr(4, 'STORE_NAME', 'x')],
+                             [Instr('LOAD_CONST', 2, lineno=4),
+                              Instr('STORE_NAME', 'x', lineno=4)],
 
-                             [Instr(4, 'LOAD_CONST', None),
-                              Instr(4, 'RETURN_VALUE')])
+                             [Instr('LOAD_CONST', None, lineno=4),
+                              Instr('RETURN_VALUE', lineno=4)])
 
     def test_load_fast(self):
         code = disassemble("""
@@ -364,10 +364,10 @@ class BytecodeBlocksFunctionalTests(TestCase):
                 y = x
         """, function=True, remove_last_return_none=True)
         self.assertBlocksEqual(code,
-                             [Instr(2, 'LOAD_CONST', 33),
-                              Instr(2, 'STORE_FAST', 'x'),
-                              Instr(3, 'LOAD_FAST', 'x'),
-                              Instr(3, 'STORE_FAST', 'y')])
+                             [Instr('LOAD_CONST', 33, lineno=2),
+                              Instr('STORE_FAST', 'x', lineno=2),
+                              Instr('LOAD_FAST', 'x', lineno=3),
+                              Instr('STORE_FAST', 'y', lineno=3)])
 
     def test_lnotab(self):
         code = disassemble("""
@@ -376,9 +376,9 @@ class BytecodeBlocksFunctionalTests(TestCase):
             z = 3
         """, remove_last_return_none=True)
         self.assertEqual(len(code), 1)
-        expected = [Instr(1, "LOAD_CONST", 1), Instr(1, "STORE_NAME", 'x'),
-                    Instr(2, "LOAD_CONST", 2), Instr(2, "STORE_NAME", 'y'),
-                    Instr(3, "LOAD_CONST", 3), Instr(3, "STORE_NAME", 'z')]
+        expected = [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", 'x', lineno=1),
+                    Instr("LOAD_CONST", 2, lineno=2), Instr("STORE_NAME", 'y', lineno=2),
+                    Instr("LOAD_CONST", 3, lineno=3), Instr("STORE_NAME", 'z', lineno=3)]
         self.assertBlocksEqual(code, expected)
         code_obj2 = code.to_code()
 
@@ -392,13 +392,13 @@ class BytecodeBlocksFunctionalTests(TestCase):
         '''
         code = disassemble(source, remove_last_return_none=True)
         self.assertEqual(len(code), 1)
-        expected = [Instr(1, "LOAD_NAME", 'int'),
-                    Instr(1, "LOAD_NAME", 'int'),
+        expected = [Instr("LOAD_NAME", 'int', lineno=1),
+                    Instr("LOAD_NAME", 'int', lineno=1),
                     Instr(1, "LOAD_CONST", ('x', 'y')),
-                    Instr(1, "LOAD_CONST", code.consts[1]),
-                    Instr(1, "LOAD_CONST", 'foo'),
-                    Instr(1, "MAKE_FUNCTION", 3 << 16),
-                    Instr(1, "STORE_NAME", 'foo')]
+                    Instr("LOAD_CONST", code.consts[1], lineno=1),
+                    Instr("LOAD_CONST", 'foo', lineno=1),
+                    Instr("MAKE_FUNCTION", 3 << 16, lineno=1),
+                    Instr("STORE_NAME", 'foo', lineno=1)]
         self.assertBlocksEqual(code, expected)
 
     def test_to_concrete_bytecode(self):
@@ -409,15 +409,15 @@ class BytecodeBlocksFunctionalTests(TestCase):
                 x = 37
         """)
         code = code.to_concrete_bytecode()
-        expected = [ConcreteInstr(1, 'LOAD_NAME', 0),
-                    ConcreteInstr(1, 'POP_JUMP_IF_FALSE', 15),
-                    ConcreteInstr(2, 'LOAD_CONST', 0),
-                    ConcreteInstr(2, 'STORE_NAME', 1),
-                    ConcreteInstr(2, 'JUMP_FORWARD', 6),
-                    ConcreteInstr(4, 'LOAD_CONST', 1),
-                    ConcreteInstr(4, 'STORE_NAME', 1),
-                    ConcreteInstr(4, 'LOAD_CONST', 2),
-                    ConcreteInstr(4, 'RETURN_VALUE')]
+        expected = [ConcreteInstr('LOAD_NAME', 0, lineno=1),
+                    ConcreteInstr('POP_JUMP_IF_FALSE', 15, lineno=1),
+                    ConcreteInstr('LOAD_CONST', 0, lineno=2),
+                    ConcreteInstr('STORE_NAME', 1, lineno=2),
+                    ConcreteInstr('JUMP_FORWARD', 6, lineno=2),
+                    ConcreteInstr('LOAD_CONST', 1, lineno=4),
+                    ConcreteInstr('STORE_NAME', 1, lineno=4),
+                    ConcreteInstr('LOAD_CONST', 2, lineno=4),
+                    ConcreteInstr('RETURN_VALUE', lineno=4)]
         self.assertListEqual(list(code), expected)
         self.assertListEqual(code.consts, [12, 37, None])
         self.assertListEqual(code.names, ['test', 'x'])

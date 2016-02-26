@@ -16,18 +16,22 @@ class Label:
 class BaseInstr:
     __slots__ = ('_lineno', '_name', '_arg', '_op')
 
-    def __init__(self, lineno, name, arg=UNSET):
+    def __init__(self, name, arg=UNSET, *, lineno=None):
         self._set_lineno(lineno)
         self._set_name(name)
         self._arg = arg
 
+    def copy(self):
+        return self.__class__(self._name, self._arg, lineno=self._lineno)
+
     # FIXME: stack effect
 
     def _set_lineno(self, lineno):
-        if not isinstance(lineno, int):
-            raise TypeError("lineno must be an int")
-        if lineno < 1:
-            raise ValueError("invalid lineno")
+        if lineno is not None:
+            if not isinstance(lineno, int):
+                raise TypeError("lineno must be an int")
+            if lineno < 1:
+                raise ValueError("invalid lineno")
         self._lineno = lineno
 
     def _set_name(self, name):
