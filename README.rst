@@ -29,29 +29,29 @@ Instruction:
 
 Create instructions:
 
-* Instr(lineno, name, arg=UNSET)
-* ConcreteInstr(lineno, name, arg=UNSET)
-* Instr.disassemble(code, offset)
-* ConcreteInstr.disassemble(code, offset)
+* ``Instr(name, arg=UNSET, *, lineno=None)``
+* ``ConcreteInstr(name, arg=UNSET, *, lineno=None)``
+* ``Instr.disassemble(code, offset)``
+* ``ConcreteInstr.disassemble(code, offset)``
 
 Bytecode:
 
-* Bytecode: list of Instr
-* BytecodeBlocks: list of blocks, a block is a list of Instr and has a label
-* ConcreteBytecode: list of ConcreteInstr
+* ``Bytecode``: list of Instr
+* ``BytecodeBlocks``: list of blocks, a block is a list of Instr and has a label
+* ``ConcreteBytecode``: list of ConcreteInstr
 
 Create bytecode:
 
 * ``Bytecode.from_code(*, extended_arg_op=False)``
-* BytecodeBlocks.from_code()
-* ConcreteBytecode.from_code()
+* ``BytecodeBlocks.from_code()``
+* ``ConcreteBytecode.from_code()``
 
 Conversions:
 
-* bytecode.to_bytecode() -> Bytecode
-* bytecode.to_concrete_bytecode() -> ConcreteBytecode
-* bytecode.to_bytecode_blocks() -> BytecodeBlocks
-* bytecode.to_code() -> types.CodeType
+* ``bytecode.to_bytecode() -> Bytecode``
+* ``bytecode.to_concrete_bytecode() -> ConcreteBytecode``
+* ``bytecode.to_bytecode_blocks() -> BytecodeBlocks``
+* ``bytecode.to_code() -> types.CodeType``
 
 
 ChangeLog

@@ -5,7 +5,7 @@ import types
 
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
-from bytecode.instr import BaseInstr, Instr, Label, const_key, UNSET
+from bytecode.instr import BaseInstr, Instr, Label, SetLineno, const_key, UNSET
 
 
 class ConcreteInstr(BaseInstr):
@@ -362,6 +362,10 @@ class _ConvertCodeToConcrete:
             for instr in block:
                 if isinstance(instr, Label):
                     targets[instr] = offset
+                    continue
+
+                if isinstance(instr, SetLineno):
+                    lineno = instr.lineno
                     continue
 
                 if instr.lineno is not None:

@@ -1,11 +1,11 @@
 __version__ = '0.0'
 
-__all__ = ['Label', 'Instr', 'Bytecode',
+__all__ = ['Label', 'Instr', 'SetLineno', 'Bytecode',
            'ConcreteInstr', 'ConcreteBytecode',
            'BytecodeBlocks']
 
-from bytecode.instr import Instr, UNSET
-from bytecode.bytecode import Label, BaseBytecode, _InstrList, Bytecode
+from bytecode.instr import UNSET, Label, SetLineno, Instr
+from bytecode.bytecode import BaseBytecode, _InstrList, Bytecode
 from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,
                                _ConvertCodeToConcrete)
 from bytecode.blocks import BytecodeBlocks

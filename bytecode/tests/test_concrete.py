@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import types
 import unittest
-from bytecode import ConcreteInstr, ConcreteBytecode, Label, Instr, Bytecode
+from bytecode import (Label, Instr, SetLineno, Bytecode,
+                      ConcreteInstr, ConcreteBytecode)
 from bytecode.tests import get_code, TestCase
 
 
@@ -81,11 +82,11 @@ class ConcreteBytecodeTests(TestCase):
         # FIXME: test other attributes
 
     def test_to_code_lnotab(self):
-        # x = 1
-        # y = 2
-        # z = 3
+        # x = 7
+        # y = 8
+        # z = 9
         code = ConcreteBytecode()
-        code.consts = [1, 2, 3]
+        code.consts = [7, 8, 9]
         code.names = ['x', 'y', 'z']
         code.extend([ConcreteInstr("LOAD_CONST", 0, lineno=1),
                      ConcreteInstr("STORE_NAME", 0, lineno=1),
@@ -203,6 +204,32 @@ class BytecodeToConcreteTests(TestCase):
                     ConcreteInstr('POP_TOP', lineno=1)]
         self.assertListEqual(list(code), expected)
         self.assertListEqual(code.consts, ['hello'])
+
+    def test_setlineno(self):
+        # x = 7
+        # y = 8
+        # z = 9
+        code = Bytecode()
+        code.extend([Instr("LOAD_CONST", 7),
+                     Instr("STORE_NAME", 'x'),
+                     SetLineno(2),
+                     Instr("LOAD_CONST", 8),
+                     Instr("STORE_NAME", 'y'),
+                     SetLineno(3),
+                     Instr("LOAD_CONST", 9),
+                     Instr("STORE_NAME", 'z')])
+
+        concrete = code.to_concrete_bytecode()
+        self.assertEqual(concrete.consts, [7, 8, 9])
+        self.assertEqual(concrete.names, ['x', 'y', 'z'])
+        code.extend([ConcreteInstr("LOAD_CONST", 0, lineno=1),
+                     ConcreteInstr("STORE_NAME", 0, lineno=1),
+                     ConcreteInstr("LOAD_CONST", 1, lineno=2),
+                     ConcreteInstr("STORE_NAME", 1, lineno=2),
+                     ConcreteInstr("LOAD_CONST", 2, lineno=3),
+                     ConcreteInstr("STORE_NAME", 2, lineno=3)])
+
+
 
     def test_simple(self):
         bytecode = Bytecode()

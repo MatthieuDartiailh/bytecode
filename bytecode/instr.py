@@ -9,6 +9,21 @@ def const_key(obj):
     return (type(obj), obj)
 
 
+def _check_lineno(lineno):
+    if not isinstance(lineno, int):
+        raise TypeError("lineno must be an int")
+    if lineno < 1:
+        raise ValueError("invalid lineno")
+
+
+class SetLineno:
+    __slots__ = ('lineno',)
+
+    def __init__(self, lineno):
+        _check_lineno(lineno)
+        self.lineno = lineno
+
+
 class Label:
     __slots__ = ()
 
@@ -28,10 +43,7 @@ class BaseInstr:
 
     def _set_lineno(self, lineno):
         if lineno is not None:
-            if not isinstance(lineno, int):
-                raise TypeError("lineno must be an int")
-            if lineno < 1:
-                raise ValueError("invalid lineno")
+            _check_lineno(lineno)
         self._lineno = lineno
 
     def _set_name(self, name):
