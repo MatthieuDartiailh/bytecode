@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import sys
 import unittest
 from bytecode import Label, Instr, ConcreteInstr, Bytecode, BytecodeBlocks
 from bytecode.tests import LOAD_CONST, STORE_NAME, NOP, disassemble, TestCase, get_code
@@ -293,51 +292,29 @@ class BytecodeBlocksFunctionalTests(TestCase):
         block0.extend([Instr('LOAD_FAST', 'x', lineno=4),
                        Instr('POP_JUMP_IF_FALSE', label, lineno=4),
                        Instr('LOAD_FAST', 'arg', lineno=5),
-                       Instr('STORE_FAST', 'x', lineno=5),
-                       Instr('JUMP_FORWARD', label, lineno=5)])
+                       Instr('STORE_FAST', 'x', lineno=5)])
         block1.extend([Instr('LOAD_CONST', 3, lineno=6),
                        Instr('STORE_FAST', 'x', lineno=6),
                        Instr('LOAD_FAST', 'x', lineno=7),
                        Instr('RETURN_VALUE', lineno=7)])
 
-        remove_jump_forward = sys.version_info >= (3, 5)
         label = bytecode[1].label
-        if remove_jump_forward:
-            blocks = [[Instr('LOAD_FAST', 'x', lineno=4),
-                       Instr('POP_JUMP_IF_FALSE', label, lineno=4),
-                       Instr('LOAD_FAST', 'arg', lineno=5),
-                       Instr('STORE_FAST', 'x', lineno=5)],
-                      [Instr('LOAD_CONST', 3, lineno=6),
-                       Instr('STORE_FAST', 'x', lineno=6),
-                       Instr('LOAD_FAST', 'x', lineno=7),
-                       Instr('RETURN_VALUE', lineno=7)]]
-            expected = (b'|\x05\x00'
-                        b'r\x0c\x00'
-                        b'|\x00\x00'
-                        b'}\x05\x00'
-                        b'd\x01\x00'
-                        b'}\x05\x00'
-                        b'|\x05\x00'
-                        b'S')
-        else:
-            blocks = [[Instr('LOAD_FAST', 'x', lineno=4),
-                       Instr('POP_JUMP_IF_FALSE', bytecode[1].label, lineno=4),
-                       Instr('LOAD_FAST', 'arg', lineno=5),
-                       Instr('STORE_FAST', 'x', lineno=5),
-                       Instr('JUMP_FORWARD', label, lineno=5)],
-                      [Instr('LOAD_CONST', 3, lineno=6),
-                       Instr('STORE_FAST', 'x', lineno=6),
-                       Instr('LOAD_FAST', 'x', lineno=7),
-                       Instr('RETURN_VALUE', lineno=7)]]
-            expected = (b'|\x05\x00'
-                        b'r\x0f\x00'
-                        b'|\x00\x00'
-                        b'}\x05\x00'
-                        b'n\x00\x00'
-                        b'd\x01\x00'
-                        b'}\x05\x00'
-                        b'|\x05\x00'
-                        b'S')
+        blocks = [[Instr('LOAD_FAST', 'x', lineno=4),
+                   Instr('POP_JUMP_IF_FALSE', label, lineno=4),
+                   Instr('LOAD_FAST', 'arg', lineno=5),
+                   Instr('STORE_FAST', 'x', lineno=5)],
+                  [Instr('LOAD_CONST', 3, lineno=6),
+                   Instr('STORE_FAST', 'x', lineno=6),
+                   Instr('LOAD_FAST', 'x', lineno=7),
+                   Instr('RETURN_VALUE', lineno=7)]]
+        expected = (b'|\x05\x00'
+                    b'r\x0c\x00'
+                    b'|\x00\x00'
+                    b'}\x05\x00'
+                    b'd\x01\x00'
+                    b'}\x05\x00'
+                    b'|\x05\x00'
+                    b'S')
 
         self.assertBlocksEqual(bytecode, *blocks)
         code = bytecode.to_code()
