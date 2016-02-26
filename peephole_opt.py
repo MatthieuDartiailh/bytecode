@@ -122,7 +122,10 @@ class _CodePeepholeOptimizer:
     def eval_UNARY_NOT(self, instr):
         # Note: UNARY_NOT <const> is not optimized
 
-        next_instr = self.block[self.index]
+        try:
+            next_instr = self.block[self.index]
+        except IndexError:
+            return None
         if next_instr.name == 'POP_JUMP_IF_FALSE':
             # Replace UNARY_NOT+POP_JUMP_IF_FALSE with POP_JUMP_IF_TRUE
             instr.name = 'POP_JUMP_IF_TRUE'
