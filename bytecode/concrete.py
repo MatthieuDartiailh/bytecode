@@ -353,6 +353,7 @@ class _ConvertCodeToConcrete:
         # convert abstract instructions to concrete instructions
         instructions = []
         offset = 0
+        lineno = self.bytecode.first_lineno
         for block in blocks:
             if use_blocks:
                 label = block.label
@@ -362,6 +363,9 @@ class _ConvertCodeToConcrete:
                 if isinstance(instr, Label):
                     targets[instr] = offset
                     continue
+
+                if instr.lineno is not None:
+                    lineno = instr.lineno
 
                 if not isinstance(instr, Instr):
                     raise ValueError("expect Instr, got %s"
@@ -379,7 +383,7 @@ class _ConvertCodeToConcrete:
                 elif instr.op in opcode.hasname:
                     arg = self.add(self.names, arg)
 
-                instr = ConcreteInstr(instr.name, arg, lineno=instr.lineno)
+                instr = ConcreteInstr(instr.name, arg, lineno=lineno)
                 if is_jump:
                     jumps.append((offset, len(instructions), instr, label))
 
