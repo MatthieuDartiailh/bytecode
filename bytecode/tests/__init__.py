@@ -6,7 +6,7 @@ from bytecode import (UNSET, Label, Instr, ConcreteInstr,
                       Bytecode, BytecodeBlocks, ConcreteBytecode)
 
 
-def _format_instr_list(block, labels):
+def _format_instr_list(block, labels, lineno):
     instr_list = []
     for instr in block:
         if not isinstance(instr, Label):
@@ -20,15 +20,21 @@ def _format_instr_list(block, labels):
                     arg = labels[arg]
                 else:
                     arg = repr(arg)
-                text = '%s(%r, %s, lineno=%s)' % (cls_name, instr.name, arg, instr.lineno)
+                if lineno:
+                    text = '%s(%r, %s, lineno=%s)' % (cls_name, instr.name, arg, instr.lineno)
+                else:
+                    text = '%s(%r, %s)' % (cls_name, instr.name, arg)
             else:
-                text = '%s(%r, lineno=%s)' % (cls_name, instr.name, instr.lineno)
+                if lineno:
+                    text = '%s(%r, lineno=%s)' % (cls_name, instr.name, instr.lineno)
+                else:
+                    text = '%s(%r)' % (cls_name, instr.name)
         else:
             text = labels[instr]
         instr_list.append(text)
     return '[%s]'  % ',\n '.join(instr_list)
 
-def dump_code(code):
+def dump_code(code, lineno=True):
     """
     Use this function to write unit tests: copy/paste its output to
     write a self.assertBlocksEqual() check.
@@ -52,16 +58,12 @@ def dump_code(code):
 
         if is_concrete:
             name = 'ConcreteBytecode'
-        else:
-            name = 'Bytecode'
-        print(indent + 'code = %s()' % name)
-        if code.argcount:
-            print(indent + 'code.argcount = %s' % code.argcount)
-        if code.kw_only_argcount:
-            print(indent + 'code.argcount = %s' % code.kw_only_argcount)
-        print(indent + 'code.flags = %#x' % code.flags)
-
-        if is_concrete:
+            print(indent + 'code = %s()' % name)
+            if code.argcount:
+                print(indent + 'code.argcount = %s' % code.argcount)
+            if code.kw_only_argcount:
+                print(indent + 'code.argcount = %s' % code.kw_only_argcount)
+            print(indent + 'code.flags = %#x' % code.flags)
             if code.consts:
                 print(indent + 'code.consts = %r' % code.consts)
             if code.names:
@@ -72,10 +74,14 @@ def dump_code(code):
         for name in sorted(labels.values()):
             print(indent + '%s = Label()' % name)
 
-        text = indent + 'code.extend('
-        indent = ' ' * len(text)
+        if is_concrete:
+            text = indent + 'code.extend('
+            indent = ' ' * len(text)
+        else:
+            text = indent + 'code = Bytecode('
+            indent = ' ' * len(text)
 
-        lines = _format_instr_list(code, labels).splitlines()
+        lines = _format_instr_list(code, labels, lineno).splitlines()
         last_line = len(lines) - 1
         for index, line in enumerate(lines):
             if index == 0:
