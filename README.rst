@@ -87,6 +87,13 @@ Conversions
 ChangeLog
 =========
 
+* Version 0.1.1
+
+  - Fix ConcreteBytecode for code with no constant (empty list of constants)
+  - Fix argnames in ConcreteBytecode.to_bytecode(): use CO_VARARGS and
+    CO_VARKEYWORDS flags to count the number of arguments
+  - Fix also bugs in the peephole_opt.py example
+
 * 2016-02-26: Version 0.1
 
   - Rewrite completely the API!
