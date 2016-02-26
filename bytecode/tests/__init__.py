@@ -2,7 +2,8 @@ import textwrap
 import types
 import unittest
 
-from bytecode import UNSET, Label, Instr, Bytecode, BytecodeBlocks
+from bytecode import (UNSET, Label, Instr, ConcreteInstr,
+                      Bytecode, BytecodeBlocks, ConcreteBytecode)
 
 
 # FIXME: remove these functions
@@ -23,15 +24,19 @@ def _format_instr_list(block, labels):
     instr_list = []
     for instr in block:
         if not isinstance(instr, Label):
+            if isinstance(instr, ConcreteInstr):
+                cls_name = 'ConcreteInstr'
+            else:
+                cls_name = 'Instr'
             arg = instr.arg
             if arg is not UNSET:
                 if isinstance(arg, Label):
                     arg = labels[arg]
                 else:
                     arg = repr(arg)
-                text = 'Instr(%r, %s, lineno=%s)' % (instr.name, arg, instr.lineno)
+                text = '%s(%r, %s, lineno=%s)' % (cls_name, instr.name, arg, instr.lineno)
             else:
-                text = 'Instr(%r, lineno=%s)' % (instr.name, instr.lineno)
+                text = '%s(%r, lineno=%s)' % (cls_name, instr.name, instr.lineno)
         else:
             text = labels[instr]
         instr_list.append(text)
@@ -44,16 +49,40 @@ def dump_code(code):
     """
     print()
 
-    if isinstance(code, Bytecode):
+    if isinstance(code, (Bytecode, ConcreteBytecode)):
+        is_concrete = isinstance(code, ConcreteBytecode)
+        if is_concrete:
+            block = list(code)
+        else:
+            block = code
+
         indent = ' ' * 8
         labels = {}
-        for index, instr in enumerate(code):
+        for index, instr in enumerate(block):
             if isinstance(instr, Label):
                 name = 'label_instr%s' % index
                 labels[instr] = name
 
 
-        print(indent + 'code = Bytecode()')
+        if is_concrete:
+            name = 'ConcreteBytecode'
+        else:
+            name = 'Bytecode'
+        print(indent + 'code = %s()' % name)
+        if code.argcount:
+            print(indent + 'code.argcount = %s' % code.argcount)
+        if code.kw_only_argcount:
+            print(indent + 'code.argcount = %s' % code.kw_only_argcount)
+        print(indent + 'code.flags = %#x' % code.flags)
+
+        if is_concrete:
+            if code.consts:
+                print(indent + 'code.consts = %r' % code.consts)
+            if code.names:
+                print(indent + 'code.names = %r' % code.names)
+            if code.varnames:
+                print(indent + 'code.varnames = %r' % code.varnames)
+
         for name in sorted(labels.values()):
             print(indent + '%s = Label()' % name)
 
