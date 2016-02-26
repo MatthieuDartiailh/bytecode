@@ -310,17 +310,16 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 class _ConvertCodeToConcrete:
     def __init__(self, code):
         self.bytecode = code
-        self.consts = []
+        self.consts = {}
         self.names = []
         self.varnames = []
 
     def add_const(self, value):
         key = const_key(value)
-        for index, const in enumerate(self.consts):
-            if const_key(const) == key:
-                return index
+        if key in self.consts:
+            return self.consts[key]
         index = len(self.consts)
-        self.consts.append(value)
+        self.consts[key] = index
         return index
 
     @staticmethod
@@ -415,9 +414,14 @@ class _ConvertCodeToConcrete:
 
         instructions = self.concrete_instructions()
 
+        consts = [None] * len(self.consts)
+        for item, index in self.consts.items():
+            # const_key(value)[1] is value: see const_key() function
+            consts[index] = item[1]
+
         concrete = ConcreteBytecode()
         concrete._copy_attr_from(self.bytecode)
-        concrete.consts = self.consts
+        concrete.consts = consts
         concrete.names = self.names
         concrete.varnames = self.varnames
 

@@ -32,18 +32,6 @@ class CodeTests(unittest.TestCase):
             print(x)
         ''')
 
-    def test_equal_constants(self):
-        self.check('''
-            x = 1
-            y = 1.0
-        ''')
-
-        # FIXME: not implemented yet
-        #self.check('''
-        #    x = -0.0
-        #    y = +0.0
-        #''')
-
     def test_varargs(self):
         self.check('''
             def func(a, b, *varargs):

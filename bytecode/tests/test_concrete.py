@@ -115,6 +115,36 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(code_obj.co_code, expected)
         self.assertEqual(code_obj.co_lnotab, b'\x06\x01\x06\x01')
 
+    def test_to_bytecode_consts(self):
+        # x = -0.0
+        # x = +0.0
+        #
+        # code optimized by the CPython 3.6 peephole optimizer which emits
+        # duplicated constants (0.0 is twice in consts).
+        code = ConcreteBytecode()
+        code.consts = [0.0, None, -0.0, 0.0]
+        code.names = ['x', 'y']
+        code.extend([ConcreteInstr('LOAD_CONST', 2, lineno=1),
+                     ConcreteInstr('STORE_NAME', 0, lineno=1),
+                     ConcreteInstr('LOAD_CONST', 3, lineno=2),
+                     ConcreteInstr('STORE_NAME', 1, lineno=2),
+                     ConcreteInstr('LOAD_CONST', 1, lineno=2),
+                     ConcreteInstr('RETURN_VALUE', lineno=2)])
+
+        code = code.to_bytecode().to_concrete_bytecode()
+        # the conversion changes the constant order: the order comes from
+        # the order of LOAD_CONST instructions
+        self.assertEqual(code.consts, [-0.0, 0.0, None])
+        code.names = ['x', 'y']
+        self.assertListEqual(list(code),
+                             [ConcreteInstr('LOAD_CONST', 0, lineno=1),
+                              ConcreteInstr('STORE_NAME', 0, lineno=1),
+                              ConcreteInstr('LOAD_CONST', 1, lineno=2),
+                              ConcreteInstr('STORE_NAME', 1, lineno=2),
+                              ConcreteInstr('LOAD_CONST', 2, lineno=2),
+                              ConcreteInstr('RETURN_VALUE', lineno=2)])
+
+
 
 class ConcreteFromCodeTests(TestCase):
     def test_extended_arg(self):

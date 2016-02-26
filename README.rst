@@ -93,6 +93,8 @@ ChangeLog
   - Fix argnames in ConcreteBytecode.to_bytecode(): use CO_VARARGS and
     CO_VARKEYWORDS flags to count the number of arguments
   - Fix also bugs in the peephole_opt.py example
+  - Fix const_key() to compare correctly constants equal but of different types
+    and special cases like -0.0 and +0.0
 
 * 2016-02-26: Version 0.1
 

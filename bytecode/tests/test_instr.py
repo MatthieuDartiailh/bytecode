@@ -85,6 +85,58 @@ class InstrTests(TestCase):
         instr = Instr("LOAD_FAST", 2)
         self.assertFalse(instr.is_cond_jump())
 
+    def test_const_key_not_equal(self):
+        def check(value):
+            self.assertEqual(Instr('LOAD_CONST', value),
+                             Instr('LOAD_CONST', value))
+
+        def func():
+            pass
+
+        check(None)
+        check(0)
+        check(0.0)
+        check(b'bytes')
+        check('text')
+        check(Ellipsis)
+        check((1, 2, 3))
+        check(frozenset({1, 2, 3}))
+        check(func.__code__)
+        check(object())
+
+    def test_const_key_equal(self):
+        neg_zero = -0.0
+        pos_zero = +0.0
+
+        # int and float: 0 == 0.0
+        self.assertNotEqual(Instr('LOAD_CONST', 0),
+                            Instr('LOAD_CONST', 0.0))
+
+        # float: -0.0 == +0.0
+        self.assertNotEqual(Instr('LOAD_CONST', neg_zero),
+                            Instr('LOAD_CONST', pos_zero))
+
+        # complex
+        self.assertNotEqual(Instr('LOAD_CONST', complex(neg_zero, 1.0)),
+                            Instr('LOAD_CONST', complex(pos_zero, 1.0)))
+        self.assertNotEqual(Instr('LOAD_CONST', complex(1.0, neg_zero)),
+                            Instr('LOAD_CONST', complex(1.0, pos_zero)))
+
+        # tuple
+        self.assertNotEqual(Instr('LOAD_CONST', (0,)),
+                            Instr('LOAD_CONST', (0.0,)))
+        nested_tuple1 = (0,)
+        nested_tuple1 = (nested_tuple1,)
+        nested_tuple2 = (0.0,)
+        nested_tuple2 = (nested_tuple2,)
+        self.assertNotEqual(Instr('LOAD_CONST', nested_tuple1),
+                            Instr('LOAD_CONST', nested_tuple2))
+
+
+        # frozenset
+        self.assertNotEqual(Instr('LOAD_CONST', frozenset({0})),
+                            Instr('LOAD_CONST', frozenset({0.0})))
+
 
 if __name__ == "__main__":
     unittest.main()
