@@ -336,13 +336,13 @@ class _CodePeepholeOptimizer:
             # taken (so change the first jump to pop its argument when it's
             # taken).
             if instr.name in JUMPS_ON_TRUE:
-                opname = 'POP_JUMP_IF_TRUE'
+                name = 'POP_JUMP_IF_TRUE'
             else:
-                opname = 'POP_JUMP_IF_FALSE'
+                name = 'POP_JUMP_IF_FALSE'
 
             new_label = self.code.create_label(label, 1)
 
-            instr.opname = opname
+            instr.name = name
             instr.arg = new_label
             self.block[self.index-1] = instr
             self.index -= 1
@@ -409,6 +409,10 @@ class _CodePeepholeOptimizer:
             #if jump_target2 < 0:
             #    # No backward relative jumps
             #    return
+
+            # FIXME: remove this workaround and implement comment code ^^
+            if instr.op in opcode.hasjrel:
+                return
 
             instr.name = name
             instr.arg = jump_target2
