@@ -68,25 +68,56 @@ class ConcreteInstrTests(TestCase):
 
 class ConcreteBytecodeTests(TestCase):
     def test_attr(self):
-        code = get_code("x = 5")
-        bytecode = ConcreteBytecode.from_code(code)
-        self.assertEqual(bytecode.consts, [5, None])
-        self.assertEqual(bytecode.names, ['x'])
-        self.assertEqual(bytecode.varnames, [])
+        code_obj = get_code("x = 5")
+        code = ConcreteBytecode.from_code(code_obj)
+        self.assertEqual(code.consts, [5, None])
+        self.assertEqual(code.names, ['x'])
+        self.assertEqual(code.varnames, [])
+        self.assertListEqual(list(code),
+                             [ConcreteInstr('LOAD_CONST', 0, lineno=1),
+                              ConcreteInstr('STORE_NAME', 0, lineno=1),
+                              ConcreteInstr('LOAD_CONST', 1, lineno=1),
+                              ConcreteInstr('RETURN_VALUE', lineno=1)])
         # FIXME: test other attributes
 
-    def test_from_code(self):
+    def test_to_code_lnotab(self):
+        # x = 1
+        # y = 2
+        # z = 3
+        code = ConcreteBytecode()
+        code.consts = [1, 2, 3]
+        code.names = ['x', 'y', 'z']
+        code.extend([ConcreteInstr("LOAD_CONST", 0, lineno=1),
+                     ConcreteInstr("STORE_NAME", 0, lineno=1),
+                     ConcreteInstr("LOAD_CONST", 1, lineno=2),
+                     ConcreteInstr("STORE_NAME", 1, lineno=2),
+                     ConcreteInstr("LOAD_CONST", 2, lineno=3),
+                     ConcreteInstr("STORE_NAME", 2, lineno=3)])
+
+        code_obj = code.to_code()
+        expected = (b'd\x00\x00'
+                    b'Z\x00\x00'
+                    b'd\x01\x00'
+                    b'Z\x01\x00'
+                    b'd\x02\x00'
+                    b'Z\x02\x00')
+        self.assertEqual(code_obj.co_code, expected)
+        self.assertEqual(code_obj.co_lnotab, b'\x06\x01\x06\x01')
+
+
+class ConcreteFromCodeTests(TestCase):
+    def test_simple(self):
         code = get_code("x = 5")
         bytecode = ConcreteBytecode.from_code(code)
-        expected = [ConcreteInstr('LOAD_CONST', 0, lineno=1),
-                    ConcreteInstr('STORE_NAME', 0, lineno=1),
-                    ConcreteInstr('LOAD_CONST', 1, lineno=1),
-                    ConcreteInstr('RETURN_VALUE', lineno=1)]
-        self.assertListEqual(list(bytecode), expected)
         self.assertEqual(bytecode.consts, [5, None])
         self.assertEqual(bytecode.names, ['x'])
+        self.assertListEqual(list(bytecode),
+                             [ConcreteInstr('LOAD_CONST', 0, lineno=1),
+                              ConcreteInstr('STORE_NAME', 0, lineno=1),
+                              ConcreteInstr('LOAD_CONST', 1, lineno=1),
+                              ConcreteInstr('RETURN_VALUE', lineno=1)])
 
-    def test_from_code_extended_arg(self):
+    def test_extended_arg(self):
         # Create a code object from arbitrary bytecode
         co_code = b'\x904\x12d\xcd\xab'
         code = get_code('x=1')
@@ -117,25 +148,62 @@ class ConcreteBytecodeTests(TestCase):
                              [ConcreteInstr('EXTENDED_ARG', 0x1234, lineno=1),
                               ConcreteInstr('LOAD_CONST', 0xabcd, lineno=1)])
 
-    def test_to_code_lnotab(self):
-        # x = 1
-        # y = 2
-        # z = 3
-        code = ConcreteBytecode()
-        code.consts = [1, 2, 3]
-        code.names = ['x', 'y', 'z']
-        code.extend([ConcreteInstr("LOAD_CONST", 0, lineno=1),
-                     ConcreteInstr("STORE_NAME", 0, lineno=1),
-                     ConcreteInstr("LOAD_CONST", 1, lineno=2),
-                     ConcreteInstr("STORE_NAME", 1, lineno=2),
-                     ConcreteInstr("LOAD_CONST", 2, lineno=3),
-                     ConcreteInstr("STORE_NAME", 2, lineno=3)])
+    def test_extended_arg_make_function(self):
+        code_obj = get_code('''
+            def foo(x: int, y: int):
+                pass
+        ''')
 
-        code_obj = code.to_code()
-        self.assertEqual(code_obj.co_lnotab, b'\x06\x01\x06\x01')
+        # without EXTENDED_ARG
+        concrete = ConcreteBytecode.from_code(code_obj)
+        func_code = concrete.consts[1]
+        self.assertEqual(concrete.names, ['int', 'foo'])
+        self.assertEqual(concrete.consts, [('x', 'y'), func_code, 'foo', None])
+        self.assertListEqual(list(concrete),
+                         [ConcreteInstr("LOAD_NAME", 0, lineno=1),
+                          ConcreteInstr("LOAD_NAME", 0, lineno=1),
+                          ConcreteInstr("LOAD_CONST", 0, lineno=1),
+                          ConcreteInstr("LOAD_CONST", 1, lineno=1),
+                          ConcreteInstr("LOAD_CONST", 2, lineno=1),
+                          ConcreteInstr("MAKE_FUNCTION", 3 << 16, lineno=1),
+                          ConcreteInstr("STORE_NAME", 1, lineno=1),
+                          ConcreteInstr("LOAD_CONST", 3, lineno=1),
+                          ConcreteInstr("RETURN_VALUE", lineno=1)])
+
+        # with EXTENDED_ARG
+        concrete = ConcreteBytecode.from_code(code_obj, extended_arg_op=True)
+        func_code = concrete.consts[1]
+        self.assertEqual(concrete.names, ['int', 'foo'])
+        self.assertEqual(concrete.consts, [('x', 'y'), func_code, 'foo', None])
+        self.assertListEqual(list(concrete),
+                         [ConcreteInstr("LOAD_NAME", 0, lineno=1),
+                          ConcreteInstr("LOAD_NAME", 0, lineno=1),
+                          ConcreteInstr("LOAD_CONST", 0, lineno=1),
+                          ConcreteInstr("LOAD_CONST", 1, lineno=1),
+                          ConcreteInstr("LOAD_CONST", 2, lineno=1),
+                          ConcreteInstr("EXTENDED_ARG", 3, lineno=1),
+                          ConcreteInstr("MAKE_FUNCTION", 0, lineno=1),
+                          ConcreteInstr("STORE_NAME", 1, lineno=1),
+                          ConcreteInstr("LOAD_CONST", 3, lineno=1),
+                          ConcreteInstr("RETURN_VALUE", lineno=1)])
 
 
-class BytecodeToConcreteBytecodeTests(TestCase):
+class BytecodeToConcreteTests(TestCase):
+    def test_label(self):
+        code = Bytecode()
+        label = Label()
+        code.extend([Instr('LOAD_CONST', 'hello', lineno=1),
+                     Instr('JUMP_FORWARD', label, lineno=1),
+                     label,
+                         Instr('POP_TOP', lineno=1)])
+
+        code = code.to_concrete_bytecode()
+        expected = [ConcreteInstr('LOAD_CONST', 0, lineno=1),
+                    ConcreteInstr('JUMP_FORWARD', 0, lineno=1),
+                    ConcreteInstr('POP_TOP', lineno=1)]
+        self.assertListEqual(list(code), expected)
+        self.assertListEqual(code.consts, ['hello'])
+
     def test_simple(self):
         bytecode = Bytecode()
         label = Label()
@@ -147,8 +215,8 @@ class BytecodeToConcreteBytecodeTests(TestCase):
                          Instr('LOAD_CONST', 7, lineno=4),
                          Instr('STORE_NAME', 'x', lineno=4),
                          label,
-                         Instr('LOAD_CONST', None, lineno=4),
-                         Instr('RETURN_VALUE', lineno=4)])
+                             Instr('LOAD_CONST', None, lineno=4),
+                             Instr('RETURN_VALUE', lineno=4)])
 
         concrete = bytecode.to_concrete_bytecode()
         expected = [ConcreteInstr('LOAD_NAME', 0, lineno=1),
@@ -205,27 +273,16 @@ class BytecodeToConcreteBytecodeTests(TestCase):
         code = Bytecode()
         code.extend([Instr('LOAD_CONST', 5, lineno=1),
                      Instr('LOAD_CONST', 5.0, lineno=1)])
+                     # FIXME: float -0.0, +0.0
+                     # FIXME: complex
+                     # FIXME: tuple, nested tuple
+                     # FIXME: frozenset, nested frozenset
 
         code = code.to_concrete_bytecode()
         expected = [ConcreteInstr('LOAD_CONST', 0, lineno=1),
                     ConcreteInstr('LOAD_CONST', 1, lineno=1)]
         self.assertListEqual(list(code), expected)
         self.assertListEqual(code.consts, [5, 5.0])
-
-    def test_labels(self):
-        code = Bytecode()
-        label = Label()
-        code.extend([Instr('LOAD_CONST', 'hello', lineno=1),
-                     Instr('JUMP_FORWARD', label, lineno=1),
-                     label,
-                     Instr('POP_TOP', lineno=1)])
-
-        code = code.to_concrete_bytecode()
-        expected = [ConcreteInstr('LOAD_CONST', 0, lineno=1),
-                    ConcreteInstr('JUMP_FORWARD', 0, lineno=1),
-                    ConcreteInstr('POP_TOP', lineno=1)]
-        self.assertListEqual(list(code), expected)
-        self.assertListEqual(code.consts, ['hello'])
 
 
 if __name__ == "__main__":

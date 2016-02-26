@@ -95,7 +95,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         self.varnames = []
 
     def __repr__(self):
-        return '<ConcreteBytecode instr#=%s const#=%s>' % len(self)
+        return '<ConcreteBytecode instr#=%s>' % len(self)
 
     def __eq__(self, other):
         if type(self) != type(other):

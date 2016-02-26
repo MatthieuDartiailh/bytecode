@@ -274,7 +274,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
             # only between instructions
             code.create_label(0, 2)
 
-    def test_assemble(self):
+    def test_to_code(self):
         # test resolution of jump labels
         bytecode = BytecodeBlocks()
         bytecode.first_lineno = 3
@@ -332,54 +332,6 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(code.co_name, 'func')
         self.assertEqual(code.co_firstlineno, 3)
 
-    def test_from_code(self):
-        code = disassemble("""
-            if test:
-                x = 1
-            else:
-                x = 2
-        """)
-        self.assertBlocksEqual(code,
-                             [Instr('LOAD_NAME', 'test', lineno=1),
-                              Instr('POP_JUMP_IF_FALSE', code[1].label, lineno=1),
-                              Instr('LOAD_CONST', 1, lineno=2),
-                              Instr('STORE_NAME', 'x', lineno=2),
-                              Instr('JUMP_FORWARD', code[2].label, lineno=2)],
-
-                             [Instr('LOAD_CONST', 2, lineno=4),
-                              Instr('STORE_NAME', 'x', lineno=4)],
-
-                             [Instr('LOAD_CONST', None, lineno=4),
-                              Instr('RETURN_VALUE', lineno=4)])
-
-    def test_from_code_load_fast(self):
-        code = disassemble("""
-            def func():
-                x = 33
-                y = x
-        """, function=True, remove_last_return_none=True)
-        self.assertBlocksEqual(code,
-                             [Instr('LOAD_CONST', 33, lineno=2),
-                              Instr('STORE_FAST', 'x', lineno=2),
-                              Instr('LOAD_FAST', 'x', lineno=3),
-                              Instr('STORE_FAST', 'y', lineno=3)])
-
-    @unittest.skipIf(True, 'FIXME')
-    def test_from_code_extended_arg_make_function(self):
-        source = '''
-            def foo(x: int, y: int):
-                pass
-        '''
-        code = disassemble(source, remove_last_return_none=True)
-        self.assertEqual(len(code), 1)
-        expected = [Instr("LOAD_NAME", 'int', lineno=1),
-                    Instr("LOAD_NAME", 'int', lineno=1),
-                    Instr(1, "LOAD_CONST", ('x', 'y')),
-                    Instr("LOAD_CONST", code.consts[1], lineno=1),
-                    Instr("LOAD_CONST", 'foo', lineno=1),
-                    Instr("MAKE_FUNCTION", 3 << 16, lineno=1),
-                    Instr("STORE_NAME", 'foo', lineno=1)]
-        self.assertBlocksEqual(code, expected)
 
 
 if __name__ == "__main__":

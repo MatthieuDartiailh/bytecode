@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import unittest
-from bytecode import Label, Instr, Bytecode, ConcreteInstr
+from bytecode import Label, Instr, Bytecode, ConcreteBytecode
 from bytecode.tests import TestCase, get_code, disassemble
 
 
@@ -31,11 +31,26 @@ class BytecodeTests(TestCase):
                           Instr('STORE_NAME', 'x', lineno=2),
                           Instr('JUMP_FORWARD', label_exit, lineno=2),
                           label_else,
-                          Instr('LOAD_CONST', 2, lineno=4),
-                          Instr('STORE_NAME', 'x', lineno=4),
+                              Instr('LOAD_CONST', 2, lineno=4),
+                              Instr('STORE_NAME', 'x', lineno=4),
                           label_exit,
-                          Instr('LOAD_CONST', None, lineno=4),
-                          Instr('RETURN_VALUE', lineno=4)])
+                              Instr('LOAD_CONST', None, lineno=4),
+                              Instr('RETURN_VALUE', lineno=4)])
+
+    def test_from_code_load_fast(self):
+        code = get_code("""
+            def func():
+                x = 33
+                y = x
+        """, function=True)
+        code = Bytecode.from_code(code)
+        self.assertEqual(code,
+                         [Instr('LOAD_CONST', 33, lineno=2),
+                          Instr('STORE_FAST', 'x', lineno=2),
+                          Instr('LOAD_FAST', 'x', lineno=3),
+                          Instr('STORE_FAST', 'y', lineno=3),
+                          Instr('LOAD_CONST', None, lineno=3),
+                          Instr('RETURN_VALUE', lineno=3)])
 
 
 if __name__ == "__main__":
