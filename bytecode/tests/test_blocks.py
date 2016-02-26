@@ -76,12 +76,6 @@ class BytecodeBlocksTests(TestCase):
 
         bytecode = blocks.to_bytecode()
 
-        from bytecode.tests import dump_code
-        dump_code(blocks)
-        print("*")
-        dump_code(bytecode)
-
-
         label0 = Label()
         label = Label()
         self.assertEqual(bytecode,
@@ -283,15 +277,29 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
     def test_assemble(self):
         # test resolution of jump labels
-        bytecode = disassemble("""
-            first_line = 1
+        bytecode = BytecodeBlocks()
+        bytecode.first_lineno = 3
+        bytecode.argcount = 3
+        bytecode.kw_only_argcount = 2
+        bytecode._stacksize = 1
+        bytecode.name = 'func'
+        bytecode.filename = 'hello.py'
+        bytecode.flags = 0x43
+        bytecode.argnames = ('arg', 'arg2', 'arg3', 'kwonly', 'kwonly2')
+        bytecode.docstring = None
+        block0 = bytecode[0]
+        block1 = bytecode.add_block()
+        label = block1.label
+        block0.extend([Instr('LOAD_FAST', 'x', lineno=4),
+                       Instr('POP_JUMP_IF_FALSE', label, lineno=4),
+                       Instr('LOAD_FAST', 'arg', lineno=5),
+                       Instr('STORE_FAST', 'x', lineno=5),
+                       Instr('JUMP_FORWARD', label, lineno=5)])
+        block1.extend([Instr('LOAD_CONST', 3, lineno=6),
+                       Instr('STORE_FAST', 'x', lineno=6),
+                       Instr('LOAD_FAST', 'x', lineno=7),
+                       Instr('RETURN_VALUE', lineno=7)])
 
-            def func(arg, arg2, arg3, *, kwonly=1, kwonly2=1):
-                if x:
-                    x = arg
-                x = 3
-                return x
-        """, function=True)
         remove_jump_forward = sys.version_info >= (3, 5)
         label = bytecode[1].label
         if remove_jump_forward:
@@ -343,11 +351,11 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_names, ())
         self.assertEqual(code.co_varnames, ('arg', 'arg2', 'arg3', 'kwonly', 'kwonly2', 'x'))
-        self.assertEqual(code.co_filename, '<string>')
+        self.assertEqual(code.co_filename, 'hello.py')
         self.assertEqual(code.co_name, 'func')
         self.assertEqual(code.co_firstlineno, 3)
 
-    def test_disassemble(self):
+    def test_from_code(self):
         code = disassemble("""
             if test:
                 x = 1
@@ -367,7 +375,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
                              [Instr('LOAD_CONST', None, lineno=4),
                               Instr('RETURN_VALUE', lineno=4)])
 
-    def test_load_fast(self):
+    def test_from_code_load_fast(self):
         code = disassemble("""
             def func():
                 x = 33
@@ -379,23 +387,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
                               Instr('LOAD_FAST', 'x', lineno=3),
                               Instr('STORE_FAST', 'y', lineno=3)])
 
-    def test_lnotab(self):
-        code = disassemble("""
-            x = 1
-            y = 2
-            z = 3
-        """, remove_last_return_none=True)
-        self.assertEqual(len(code), 1)
-        expected = [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", 'x', lineno=1),
-                    Instr("LOAD_CONST", 2, lineno=2), Instr("STORE_NAME", 'y', lineno=2),
-                    Instr("LOAD_CONST", 3, lineno=3), Instr("STORE_NAME", 'z', lineno=3)]
-        self.assertBlocksEqual(code, expected)
-        code_obj2 = code.to_code()
-
-        self.assertEqual(code_obj2.co_lnotab, b'\x06\x01\x06\x01')
-
     @unittest.skipIf(True, 'FIXME')
-    def test_extended_arg_make_function(self):
+    def test_from_code_extended_arg_make_function(self):
         source = '''
             def foo(x: int, y: int):
                 pass
@@ -410,28 +403,6 @@ class BytecodeBlocksFunctionalTests(TestCase):
                     Instr("MAKE_FUNCTION", 3 << 16, lineno=1),
                     Instr("STORE_NAME", 'foo', lineno=1)]
         self.assertBlocksEqual(code, expected)
-
-    def test_to_concrete_bytecode(self):
-        code = disassemble("""
-            if test:
-                x = 12
-            else:
-                x = 37
-        """)
-        code = code.to_concrete_bytecode()
-        expected = [ConcreteInstr('LOAD_NAME', 0, lineno=1),
-                    ConcreteInstr('POP_JUMP_IF_FALSE', 15, lineno=1),
-                    ConcreteInstr('LOAD_CONST', 0, lineno=2),
-                    ConcreteInstr('STORE_NAME', 1, lineno=2),
-                    ConcreteInstr('JUMP_FORWARD', 6, lineno=2),
-                    ConcreteInstr('LOAD_CONST', 1, lineno=4),
-                    ConcreteInstr('STORE_NAME', 1, lineno=4),
-                    ConcreteInstr('LOAD_CONST', 2, lineno=4),
-                    ConcreteInstr('RETURN_VALUE', lineno=4)]
-        self.assertListEqual(list(code), expected)
-        self.assertListEqual(code.consts, [12, 37, None])
-        self.assertListEqual(code.names, ['test', 'x'])
-        self.assertListEqual(code.varnames, [])
 
 
 if __name__ == "__main__":

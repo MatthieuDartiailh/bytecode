@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import types
 import unittest
-from bytecode import ConcreteInstr, ConcreteBytecode
+from bytecode import ConcreteInstr, ConcreteBytecode, Label, Instr, Bytecode
 from bytecode.tests import get_code, TestCase
 
 
@@ -48,7 +48,7 @@ class ConcreteInstrTests(TestCase):
         instr = ConcreteInstr.disassemble(1, code, 0)
         self.assertEqual(instr, ConcreteInstr('EXTENDED_ARG', 0x1234, lineno=1))
 
-    def test_to_code(self):
+    def test_assemble(self):
         instr = ConcreteInstr("NOP", lineno=1)
         self.assertEqual(instr.assemble(), b'\t')
 
@@ -116,6 +116,116 @@ class ConcreteBytecodeTests(TestCase):
         self.assertListEqual(list(bytecode),
                              [ConcreteInstr('EXTENDED_ARG', 0x1234, lineno=1),
                               ConcreteInstr('LOAD_CONST', 0xabcd, lineno=1)])
+
+    def test_to_code_lnotab(self):
+        # x = 1
+        # y = 2
+        # z = 3
+        code = ConcreteBytecode()
+        code.consts = [1, 2, 3]
+        code.names = ['x', 'y', 'z']
+        code.extend([ConcreteInstr("LOAD_CONST", 0, lineno=1),
+                     ConcreteInstr("STORE_NAME", 0, lineno=1),
+                     ConcreteInstr("LOAD_CONST", 1, lineno=2),
+                     ConcreteInstr("STORE_NAME", 1, lineno=2),
+                     ConcreteInstr("LOAD_CONST", 2, lineno=3),
+                     ConcreteInstr("STORE_NAME", 2, lineno=3)])
+
+        code_obj = code.to_code()
+        self.assertEqual(code_obj.co_lnotab, b'\x06\x01\x06\x01')
+
+
+class BytecodeToConcreteBytecodeTests(TestCase):
+    def test_simple(self):
+        bytecode = Bytecode()
+        label = Label()
+        bytecode.extend([Instr('LOAD_NAME', 'test', lineno=1),
+                         Instr('POP_JUMP_IF_FALSE', label, lineno=1),
+                         Instr('LOAD_CONST', 5, lineno=2),
+                         Instr('STORE_NAME', 'x', lineno=2),
+                         Instr('JUMP_FORWARD', label, lineno=2),
+                         Instr('LOAD_CONST', 7, lineno=4),
+                         Instr('STORE_NAME', 'x', lineno=4),
+                         label,
+                         Instr('LOAD_CONST', None, lineno=4),
+                         Instr('RETURN_VALUE', lineno=4)])
+
+        concrete = bytecode.to_concrete_bytecode()
+        expected = [ConcreteInstr('LOAD_NAME', 0, lineno=1),
+                    ConcreteInstr('POP_JUMP_IF_FALSE', 21, lineno=1),
+                    ConcreteInstr('LOAD_CONST', 0, lineno=2),
+                    ConcreteInstr('STORE_NAME', 1, lineno=2),
+                    ConcreteInstr('JUMP_FORWARD', 6, lineno=2),
+                    ConcreteInstr('LOAD_CONST', 1, lineno=4),
+                    ConcreteInstr('STORE_NAME', 1, lineno=4),
+                    ConcreteInstr('LOAD_CONST', 2, lineno=4),
+                    ConcreteInstr('RETURN_VALUE', lineno=4)]
+        self.assertListEqual(list(concrete), expected)
+        self.assertListEqual(concrete.consts, [5, 7, None])
+        self.assertListEqual(concrete.names, ['test', 'x'])
+        self.assertListEqual(concrete.varnames, [])
+
+    def test_jumps(self):
+        # if test:
+        #     x = 12
+        # else:
+        #     x = 37
+        code = Bytecode()
+        label_else = Label()
+        label_return = Label()
+        code.extend([Instr('LOAD_NAME', 'test', lineno=1),
+                     Instr('POP_JUMP_IF_FALSE', label_else, lineno=1),
+                     Instr('LOAD_CONST', 12, lineno=2),
+                     Instr('STORE_NAME', 'x', lineno=2),
+                     Instr('JUMP_FORWARD', label_return, lineno=2),
+                     label_else,
+                         Instr('LOAD_CONST', 37, lineno=4),
+                         Instr('STORE_NAME', 'x', lineno=4),
+                     label_return,
+                         Instr('LOAD_CONST', None, lineno=4),
+                         Instr('RETURN_VALUE', lineno=4)])
+
+        code = code.to_concrete_bytecode()
+        expected = [ConcreteInstr('LOAD_NAME', 0, lineno=1),
+                    ConcreteInstr('POP_JUMP_IF_FALSE', 15, lineno=1),
+                    ConcreteInstr('LOAD_CONST', 0, lineno=2),
+                    ConcreteInstr('STORE_NAME', 1, lineno=2),
+                    ConcreteInstr('JUMP_FORWARD', 6, lineno=2),
+                    ConcreteInstr('LOAD_CONST', 1, lineno=4),
+                    ConcreteInstr('STORE_NAME', 1, lineno=4),
+                    ConcreteInstr('LOAD_CONST', 2, lineno=4),
+                    ConcreteInstr('RETURN_VALUE', lineno=4)]
+        self.assertListEqual(list(code), expected)
+        self.assertListEqual(code.consts, [12, 37, None])
+        self.assertListEqual(code.names, ['test', 'x'])
+        self.assertListEqual(code.varnames, [])
+
+    def test_dont_merge_constants(self):
+        # test two constants which are equal but have a different type
+        code = Bytecode()
+        code.extend([Instr('LOAD_CONST', 5, lineno=1),
+                     Instr('LOAD_CONST', 5.0, lineno=1)])
+
+        code = code.to_concrete_bytecode()
+        expected = [ConcreteInstr('LOAD_CONST', 0, lineno=1),
+                    ConcreteInstr('LOAD_CONST', 1, lineno=1)]
+        self.assertListEqual(list(code), expected)
+        self.assertListEqual(code.consts, [5, 5.0])
+
+    def test_labels(self):
+        code = Bytecode()
+        label = Label()
+        code.extend([Instr('LOAD_CONST', 'hello', lineno=1),
+                     Instr('JUMP_FORWARD', label, lineno=1),
+                     label,
+                     Instr('POP_TOP', lineno=1)])
+
+        code = code.to_concrete_bytecode()
+        expected = [ConcreteInstr('LOAD_CONST', 0, lineno=1),
+                    ConcreteInstr('JUMP_FORWARD', 0, lineno=1),
+                    ConcreteInstr('POP_TOP', lineno=1)]
+        self.assertListEqual(list(code), expected)
+        self.assertListEqual(code.consts, ['hello'])
 
 
 if __name__ == "__main__":
