@@ -1,4 +1,5 @@
 import dis
+import inspect
 import opcode
 import struct
 import types
@@ -292,6 +293,10 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode._copy_attr_from(self)
 
         nargs = bytecode.argcount + bytecode.kw_only_argcount
+        if bytecode.flags & inspect.CO_VARARGS:
+            nargs += 1
+        if bytecode.flags & inspect.CO_VARKEYWORDS:
+            nargs += 1
         bytecode.argnames = self.varnames[:nargs]
         _set_docstring(bytecode, self.consts)
 
