@@ -124,6 +124,8 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
     def from_code(code):
         return _bytecode.ConcreteBytecode.from_code(code).to_bytecode_blocks()
 
+    # FIXME: remove split_final, only used by peephole_opt for backward
+    # compatibility. peephole_opt should maybe reimplement this method?
     @staticmethod
     def _from_bytecode(bytecode, split_final=True):
         # label => instruction index
