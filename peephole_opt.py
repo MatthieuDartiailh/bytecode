@@ -6,7 +6,7 @@ Set MIMICK_C_IMPL to True to mimick the behaviour of the C implementation.
 """
 import opcode
 import operator
-from bytecode import Instr, BytecodeBlocks, ConcreteBytecode, Label
+from bytecode import Instr, Bytecode, BytecodeBlocks, ConcreteBytecode, Label
 
 MIMICK_C_IMPL = False
 
@@ -82,7 +82,7 @@ class _CodePeepholeOptimizer:
 
         self.in_consts = True
 
-        load_const = Instr(instr.lineno, 'LOAD_CONST', result)
+        load_const = Instr('LOAD_CONST', result, lineno=instr.lineno)
         start = self.index - nconst - 1
         self.block[start:self.index] = (load_const,)
         self.index -= nconst
@@ -220,15 +220,15 @@ class _CodePeepholeOptimizer:
             del self.block[self.index-1:self.index+1]
         elif instr.arg == 2:
             # Replace BUILD_TUPLE 2 + UNPACK_SEQUENCE 2 with ROT_TWO
-            rot2 = Instr(instr.lineno, 'ROT_TWO')
+            rot2 = Instr('ROT_TWO', lineno=instr.lineno)
             self.block[self.index - 1:self.index+1] = (rot2,)
             self.index -= 1
             self.const_stack.clear()
         elif instr.arg == 3:
             # Replace BUILD_TUPLE 3 + UNPACK_SEQUENCE 3
             # with ROT_THREE + ROT_TWO
-            rot3 = Instr(instr.lineno, 'ROT_THREE')
-            rot2 = Instr(instr.lineno, 'ROT_TWO')
+            rot3 = Instr('ROT_THREE', lineno=instr.lineno)
+            rot2 = Instr('ROT_TWO', lineno=instr.lineno)
             self.block[self.index-1:self.index+1] = (rot3, rot2)
             self.index -= 1
             self.const_stack.clear()
@@ -455,14 +455,16 @@ class _CodePeepholeOptimizer:
         if MIMICK_C_IMPL:
             bytecode = ConcreteBytecode.from_code(code_obj,
                                                   extended_arg_op=True)
-            bytecode = bytecode.to_bytecode_blocks()
+            bytecode = bytecode.to_bytecode()
+            bytecode = BytecodeBlocks._from_bytecode(bytecode, split_final=False)
             try:
                 self._optimize(bytecode)
             except ExitUnchanged:
                 # needed to bypass optimization in eval_EXTENDED_ARG()
                 return code_obj
         else:
-            bytecode = BytecodeBlocks.from_code(code_obj)
+            bytecode = Bytecode.from_code(code_obj)
+            bytecode = BytecodeBlocks._from_bytecode(bytecode, split_final=False)
             self._optimize(bytecode)
 
         return bytecode.to_code()

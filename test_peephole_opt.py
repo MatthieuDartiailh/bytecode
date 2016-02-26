@@ -5,19 +5,20 @@ import sys
 import textwrap
 import types
 import unittest
-from bytecode import Instr, ConcreteInstr, BytecodeBlocks, ConcreteBytecode
+from bytecode import (Instr, Bytecode, BytecodeBlocks,
+                      ConcreteInstr, ConcreteBytecode)
 from unittest import mock
 from bytecode.tests import TestCase
 
 
 def LOAD_CONST(arg, lineno=1):
-    return Instr(lineno, 'LOAD_CONST', arg)
+    return Instr('LOAD_CONST', arg, lineno=lineno)
 
 def LOAD_NAME(arg, lineno=1):
-    return Instr(lineno, 'LOAD_NAME', arg)
+    return Instr('LOAD_NAME', arg, lineno=lineno)
 
 def STORE_NAME(arg, lineno=1):
-    return Instr(lineno, 'STORE_NAME', arg)
+    return Instr('STORE_NAME', arg, lineno=lineno)
 
 
 class Tests(TestCase):
@@ -71,10 +72,20 @@ class Tests(TestCase):
         optimizer._optimize(bytecode)
         return bytecode
 
+    def optimize_blocks(self, code):
+        optimizer = peephole_opt._CodePeepholeOptimizer()
+        optimizer._optimize(code)
+
     def check(self, source, *expected_blocks, function=False):
         bytecode = self.optimize_bytecode(source, function=function)
 
         self.assertBlocksEqual(bytecode, *expected_blocks)
+
+    def check2(self, code, *expected_blocks, function=False):
+        optimizer = peephole_opt._CodePeepholeOptimizer()
+        optimizer._optimize(code)
+
+        self.assertBlocksEqual(code, *expected_blocks)
 
     def check_dont_optimize(self, source):
         noopt = self.create_bytecode(source)
@@ -119,7 +130,7 @@ class Tests(TestCase):
                    (LOAD_CONST((0, 'call')),
                     LOAD_CONST((1, 'line')),
                     LOAD_CONST((-3, 'call')),
-                    Instr(1, 'BUILD_LIST', 3),
+                    Instr('BUILD_LIST', 3, lineno=1),
                     STORE_NAME('events')))
 
         zeros = (0,) * 8
@@ -141,7 +152,7 @@ class Tests(TestCase):
             self.check('x = (9,) * %s' % size,
                        (LOAD_CONST((9,)),
                         LOAD_CONST(size),
-                        Instr(1, 'BINARY_MULTIPLY'),
+                        Instr('BINARY_MULTIPLY', lineno=1),
                         STORE_NAME('x')))
 
     def test_bin_op_dont_optimize(self):
@@ -160,20 +171,20 @@ class Tests(TestCase):
 
         self.check('x, y = (a, b)',
                    (LOAD_NAME('a'), LOAD_NAME('b'),
-                    Instr(1, 'ROT_TWO'),
+                    Instr('ROT_TWO', lineno=1),
                     STORE_NAME('x'), STORE_NAME('y')))
 
         self.check('x, y, z = (a, b, c)',
                    (LOAD_NAME('a'), LOAD_NAME('b'), LOAD_NAME('c'),
-                    Instr(1, 'ROT_THREE'),
-                    Instr(1, 'ROT_TWO'),
+                    Instr('ROT_THREE', lineno=1),
+                    Instr('ROT_TWO', lineno=1),
                     STORE_NAME('x'), STORE_NAME('y'), STORE_NAME('z')))
 
     def test_build_list(self):
         self.check('test = x in [1, 2, 3]',
                    (LOAD_NAME('x'),
                     LOAD_CONST((1, 2, 3)),
-                    Instr(1, 'COMPARE_OP', 6),
+                    Instr('COMPARE_OP', 6, lineno=1),
                     STORE_NAME('test')))
 
     def test_build_list_unpack_seq(self):
@@ -182,13 +193,13 @@ class Tests(TestCase):
 
         self.check('x, y = [a, b]',
                    (LOAD_NAME('a'), LOAD_NAME('b'),
-                    Instr(1, 'ROT_TWO'),
+                    Instr('ROT_TWO', lineno=1),
                     STORE_NAME('x'), STORE_NAME('y')))
 
         self.check('x, y, z = [a, b, c]',
                    (LOAD_NAME('a'), LOAD_NAME('b'), LOAD_NAME('c'),
-                    Instr(1, 'ROT_THREE'),
-                    Instr(1, 'ROT_TWO'),
+                    Instr('ROT_THREE', lineno=1),
+                    Instr('ROT_TWO', lineno=1),
                     STORE_NAME('x'), STORE_NAME('y'), STORE_NAME('z')))
 
     def test_build_set(self):
@@ -196,7 +207,7 @@ class Tests(TestCase):
         self.check('test = x in {1, 2, 3}',
                    (LOAD_NAME('x'),
                     LOAD_CONST(data),
-                    Instr(1, 'COMPARE_OP', 6),
+                    Instr('COMPARE_OP', 6, lineno=1),
                     STORE_NAME('test')))
 
     def test_compare_op_unary_not(self):
@@ -209,7 +220,7 @@ class Tests(TestCase):
             self.check(source,
                        (LOAD_NAME('a'),
                         LOAD_NAME('b'),
-                        Instr(1, 'COMPARE_OP', op),
+                        Instr('COMPARE_OP', op, lineno=1),
                         STORE_NAME('x')))
 
         # don't optimize
@@ -219,26 +230,26 @@ class Tests(TestCase):
         self.check('x = 3 < 5',
                    (LOAD_CONST(3),
                     LOAD_CONST(5),
-                    Instr(1, 'COMPARE_OP', 0),
+                    Instr('COMPARE_OP', 0, lineno=1),
                     STORE_NAME('x')))
 
         self.check('x = (10, 20, 30)[1:]',
                    (LOAD_CONST((10, 20, 30)),
                     LOAD_CONST(1),
                     LOAD_CONST(None),
-                    Instr(1, 'BUILD_SLICE', 2),
-                    Instr(1, 'BINARY_SUBSCR'),
+                    Instr('BUILD_SLICE', 2, lineno=1),
+                    Instr('BINARY_SUBSCR', lineno=1),
                     STORE_NAME('x')))
 
     def test_optimize_code_obj(self):
         # x = 3 + 5
         block = [
-            Instr(1, 'LOAD_CONST', 3),
-            Instr(1, 'LOAD_CONST', 5),
-            Instr(1, 'BINARY_ADD'),
-            Instr(1, 'STORE_NAME', 'x'),
-            Instr(1, 'LOAD_CONST', None),
-            Instr(1, 'RETURN_VALUE'),
+            Instr('LOAD_CONST', 3, lineno=1),
+            Instr('LOAD_CONST', 5, lineno=1),
+            Instr('BINARY_ADD', lineno=1),
+            Instr('STORE_NAME', 'x', lineno=1),
+            Instr('LOAD_CONST', None, lineno=1),
+            Instr('RETURN_VALUE', lineno=1),
         ]
         code_noopt = BytecodeBlocks()
         code_noopt[0][:] = block
@@ -250,10 +261,10 @@ class Tests(TestCase):
         code = BytecodeBlocks.from_code(optim)
 
         expected = [
-            Instr(1, 'LOAD_CONST', 8),
-            Instr(1, 'STORE_NAME', 'x'),
-            Instr(1, 'LOAD_CONST', None),
-            Instr(1, 'RETURN_VALUE'),
+            Instr('LOAD_CONST', 8, lineno=1),
+            Instr('STORE_NAME', 'x', lineno=1),
+            Instr('LOAD_CONST', None, lineno=1),
+            Instr('RETURN_VALUE', lineno=1),
         ]
         self.assertBlocksEqual(code, expected)
 
@@ -281,8 +292,8 @@ class Tests(TestCase):
         with mock.patch.object(peephole_opt, 'MIMICK_C_IMPL', True):
             # create (invalid) code without RETURN_VALUE
             block = [
-                Instr(1, 'LOAD_CONST', 0),
-                Instr(1, 'POP_TOP'),
+                Instr('LOAD_CONST', 0, lineno=1),
+                Instr('POP_TOP', lineno=1),
             ]
             code_noopt = BytecodeBlocks()
             code_noopt.consts = [None]
@@ -300,14 +311,14 @@ class Tests(TestCase):
         with mock.patch.object(peephole_opt, 'MIMICK_C_IMPL', True):
             # create code with EXTENDED_ARG opcode
             block = [
-                ConcreteInstr(1, 'LOAD_CONST', 3 << 16),
-                ConcreteInstr(1, 'POP_TOP'),
-                ConcreteInstr(1, 'LOAD_CONST', 0),
-                ConcreteInstr(1, 'LOAD_CONST', 1),
-                ConcreteInstr(1, 'BINARY_ADD'),
-                ConcreteInstr(1, 'STORE_NAME', 0),
-                ConcreteInstr(1, 'LOAD_CONST', 2),
-                ConcreteInstr(1, 'RETURN_VALUE'),
+                ConcreteInstr('LOAD_CONST', 3 << 16, lineno=1),
+                ConcreteInstr('POP_TOP', lineno=1),
+                ConcreteInstr('LOAD_CONST', 0, lineno=1),
+                ConcreteInstr('LOAD_CONST', 1, lineno=1),
+                ConcreteInstr('BINARY_ADD', lineno=1),
+                ConcreteInstr('STORE_NAME', 0, lineno=1),
+                ConcreteInstr('LOAD_CONST', 2, lineno=1),
+                ConcreteInstr('RETURN_VALUE', lineno=1),
             ]
             code_noopt = ConcreteBytecode()
             code_noopt.consts = [1, 2, None]
@@ -323,48 +334,73 @@ class Tests(TestCase):
 
     def test_return_value(self):
         # return+return: remove second return
-        source = """
-            def func():
-                return 4
-                return 5
-        """
+
+        code = BytecodeBlocks()
+        # def func():
+        #     return 4
+        #     return 5
+        code[0].extend([Instr('LOAD_CONST', 4, lineno=2),
+                        Instr('RETURN_VALUE', lineno=2),
+                        Instr('LOAD_CONST', 5, lineno=3),
+                        Instr('RETURN_VALUE', lineno=3)])
+
         expected = [
-                Instr(2, 'LOAD_CONST', 4),
-                Instr(2, 'RETURN_VALUE'),
+                Instr('LOAD_CONST', 4, lineno=2),
+                Instr('RETURN_VALUE', lineno=2),
         ]
-        self.check(source, expected,
-                   function=True)
+        self.check2(code, expected)
 
         # return+return + return+return: remove second and fourth return
-        source = """
-            def func():
-                return 4
-                return 5
-                return 6
-                return 7
-        """
+        code = BytecodeBlocks()
+        # def func():
+        #     return 4
+        #     return 5
+        #     return 6
+        #     return 7
+        code[0].extend([Instr('LOAD_CONST', 4, lineno=2),
+                        Instr('RETURN_VALUE', lineno=2),
+                        Instr('LOAD_CONST', 5, lineno=3),
+                        Instr('RETURN_VALUE', lineno=3),
+                        Instr('LOAD_CONST', 6, lineno=4),
+                        Instr('RETURN_VALUE', lineno=4),
+                        Instr('LOAD_CONST', 7, lineno=5),
+                        Instr('RETURN_VALUE', lineno=5)])
+
+
         expected = [
-                Instr(2, 'LOAD_CONST', 4),
-                Instr(2, 'RETURN_VALUE'),
-                Instr(4, 'LOAD_CONST', 6),
-                Instr(4, 'RETURN_VALUE'),
+                Instr('LOAD_CONST', 4, lineno=2),
+                Instr('RETURN_VALUE', lineno=2),
+                Instr('LOAD_CONST', 6, lineno=4),
+                Instr('RETURN_VALUE', lineno=4),
         ]
-        self.check(source, expected, function=True)
+        self.check2(code, expected)
+
+        #from bytecode.tests import dump_code, get_code
+        #dump_code(BytecodeBlocks.from_code(get_code(source, function=True)))
 
         # return + JUMP_ABSOLUTE: remove JUMP_ABSOLUTE
-        source = """
-            def func():
-                while 1:
-                    return 7
-        """
-        code = self.optimize_bytecode(source, function=True)
+        code = BytecodeBlocks()
+        setup_loop = code[0]
+        loop_body = code.add_block()
+        return_block = code.add_block()
+        # while 1:
+        #     return 7
+        setup_loop.extend([Instr('SETUP_LOOP', return_block.label, lineno=2)])
+        loop_body.extend([Instr('LOAD_CONST', 7, lineno=3),
+                          Instr('RETURN_VALUE', lineno=3),
+                          Instr('JUMP_ABSOLUTE', setup_loop, lineno=3),
+                          Instr('POP_BLOCK', lineno=3)])
+        return_block.extend([Instr('LOAD_CONST', None, lineno=3),
+                             Instr('RETURN_VALUE', lineno=3)])
+
+        self.optimize_blocks(code)
         self.assertBlocksEqual(code,
-                   [Instr(2, 'SETUP_LOOP', code[2].label)],
-                   [Instr(3, 'LOAD_CONST', 7),
-                    Instr(3, 'RETURN_VALUE'),
-                    Instr(3, 'POP_BLOCK')],
-                   [Instr(3, 'LOAD_CONST', None),
-                    Instr(3, 'RETURN_VALUE')])
+                   [Instr('SETUP_LOOP', code[2].label, lineno=2)],
+                   [Instr('LOAD_CONST', 7, lineno=3),
+                    Instr('RETURN_VALUE', lineno=3),
+                    Instr('POP_BLOCK', lineno=3)],
+                   [Instr('LOAD_CONST', None, lineno=3),
+                    Instr('RETURN_VALUE', lineno=3)])
 
 
     def test_not_jump_if_false(self):
@@ -376,12 +412,12 @@ class Tests(TestCase):
         '''
         code = self.optimize_bytecode(source)
         self.assertBlocksEqual(code,
-                   [Instr(1, 'LOAD_NAME', 'x'),
-                    Instr(1, 'POP_JUMP_IF_TRUE', code[1].label),
-                    Instr(2, 'LOAD_CONST', 9),
-                    Instr(2, 'STORE_NAME', 'y')],
-                   [Instr(3, 'LOAD_CONST', 4),
-                    Instr(3, 'STORE_NAME', 'y')])
+                   [Instr('LOAD_NAME', 'x', lineno=1),
+                    Instr('POP_JUMP_IF_TRUE', code[1].label, lineno=1),
+                    Instr('LOAD_CONST', 9, lineno=2),
+                    Instr('STORE_NAME', 'y', lineno=2)],
+                   [Instr('LOAD_CONST', 4, lineno=3),
+                    Instr('STORE_NAME', 'y', lineno=3)])
 
     def test_unconditional_jump_to_return(self):
         source = """
@@ -396,27 +432,27 @@ class Tests(TestCase):
         """
         code = self.optimize_bytecode(source, function=True)
         self.assertBlocksEqual(code,
-                             [Instr(2, 'LOAD_GLOBAL', 'test'),
-                              Instr(2, 'POP_JUMP_IF_FALSE', code[3].label),
+                             [Instr('LOAD_GLOBAL', 'test', lineno=2),
+                              Instr('POP_JUMP_IF_FALSE', code[3].label, lineno=2),
 
-                              Instr(3, 'LOAD_GLOBAL', 'test2'),
-                              Instr(3, 'POP_JUMP_IF_FALSE', code[1].label),
+                              Instr('LOAD_GLOBAL', 'test2', lineno=3),
+                              Instr('POP_JUMP_IF_FALSE', code[1].label, lineno=3),
 
-                              Instr(4, 'LOAD_CONST', 10),
-                              Instr(4, 'STORE_FAST', 'x'),
-                              Instr(4, 'JUMP_ABSOLUTE', code[4].label)],
+                              Instr('LOAD_CONST', 10, lineno=4),
+                              Instr('STORE_FAST', 'x', lineno=4),
+                              Instr('JUMP_ABSOLUTE', code[4].label, lineno=4)],
 
-                             [Instr(6, 'LOAD_CONST', 20),
-                              Instr(6, 'STORE_FAST', 'x')],
+                             [Instr('LOAD_CONST', 20, lineno=6),
+                              Instr('STORE_FAST', 'x', lineno=6)],
 
                              # FIXME: optimize POP_JUMP_IF_FALSE+JUMP_FORWARD?
-                             [Instr(6, 'JUMP_FORWARD', code[4].label)],
+                             [Instr('JUMP_FORWARD', code[4].label, lineno=6)],
 
-                             [Instr(8, 'LOAD_CONST', 30),
-                              Instr(8, 'STORE_FAST', 'x')],
+                             [Instr('LOAD_CONST', 30, lineno=8),
+                              Instr('STORE_FAST', 'x', lineno=8)],
 
-                             [Instr(8, 'LOAD_CONST', None),
-                              Instr(8, 'RETURN_VALUE')])
+                             [Instr('LOAD_CONST', None, lineno=8),
+                              Instr('RETURN_VALUE', lineno=8)])
 
     def test_unconditional_jumps(self):
         source = """
@@ -427,18 +463,18 @@ class Tests(TestCase):
         """
         code = self.optimize_bytecode(source, function=True)
         self.assertBlocksEqual(code,
-                             [Instr(2, 'LOAD_GLOBAL', 'x'),
-                              Instr(2, 'POP_JUMP_IF_FALSE', code[1].label),
+                             [Instr('LOAD_GLOBAL', 'x', lineno=2),
+                              Instr('POP_JUMP_IF_FALSE', code[1].label, lineno=2),
 
-                              Instr(3, 'LOAD_GLOBAL', 'y'),
-                              Instr(3, 'POP_JUMP_IF_FALSE', code[1].label),
+                              Instr('LOAD_GLOBAL', 'y', lineno=3),
+                              Instr('POP_JUMP_IF_FALSE', code[1].label, lineno=3),
 
-                              Instr(4, 'LOAD_GLOBAL', 'func'),
-                              Instr(4, 'CALL_FUNCTION', 0),
-                              Instr(4, 'POP_TOP')],
+                              Instr('LOAD_GLOBAL', 'func', lineno=4),
+                              Instr('CALL_FUNCTION', 0, lineno=4),
+                              Instr('POP_TOP', lineno=4)],
 
-                             [Instr(4, 'LOAD_CONST', None),
-                              Instr(4, 'RETURN_VALUE')])
+                             [Instr('LOAD_CONST', None, lineno=4),
+                              Instr('RETURN_VALUE', lineno=4)])
 
 
     def test_jump_to_return(self):
@@ -448,14 +484,14 @@ class Tests(TestCase):
         """
         code = self.optimize_bytecode(source, function=True)
         self.assertBlocksEqual(code,
-                             [Instr(2, 'LOAD_FAST', 'condition'),
-                              Instr(2, 'POP_JUMP_IF_FALSE', code[1].label),
+                             [Instr('LOAD_FAST', 'condition', lineno=2),
+                              Instr('POP_JUMP_IF_FALSE', code[1].label, lineno=2),
 
-                              Instr(2, 'LOAD_CONST', 'yes'),
-                              Instr(2, 'RETURN_VALUE')],
+                              Instr('LOAD_CONST', 'yes', lineno=2),
+                              Instr('RETURN_VALUE', lineno=2)],
 
-                             [Instr(2, 'LOAD_CONST', 'no')],
-                             [Instr(2, 'RETURN_VALUE')])
+                             [Instr('LOAD_CONST', 'no', lineno=2)],
+                             [Instr('RETURN_VALUE', lineno=2)])
 
     # FIXME: test fails!
     #def test_jump_if_true_to_jump_if_false(self):

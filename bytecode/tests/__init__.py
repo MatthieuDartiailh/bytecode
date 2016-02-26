@@ -45,17 +45,31 @@ def dump_code(code):
     print()
 
     if isinstance(code, Bytecode):
+        indent = ' ' * 8
         labels = {}
         for index, instr in enumerate(code):
             if isinstance(instr, Label):
                 name = 'label_instr%s' % index
                 labels[instr] = name
 
-        for name in sorted(labels.values()):
-            print('%s = Label()' % name)
 
-        text = _format_instr_list(code, labels)
-        print(text)
+        print(indent + 'code = Bytecode()')
+        for name in sorted(labels.values()):
+            print(indent + '%s = Label()' % name)
+
+        text = indent + 'code.extend('
+        indent = ' ' * len(text)
+
+        lines = _format_instr_list(code, labels).splitlines()
+        last_line = len(lines) - 1
+        for index, line in enumerate(lines):
+            if index == 0:
+                print(text + lines[0])
+            elif index == last_line:
+                print(indent + line + ')')
+            else:
+                print(indent + line)
+
         print()
     else:
         labels = {}

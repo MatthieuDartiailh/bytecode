@@ -125,7 +125,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         return _bytecode.ConcreteBytecode.from_code(code).to_bytecode_blocks()
 
     @staticmethod
-    def _from_bytecode(bytecode):
+    def _from_bytecode(bytecode, split_final=True):
         # label => instruction index
         label_to_index = {}
         jumps = []
@@ -138,8 +138,9 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
             else:
                 if isinstance(instr.arg, Label):
                     jumps.append(instr.arg)
-                if instr._is_final():
-                    block_starts[index+1] = None
+                if split_final:
+                    if instr._is_final():
+                        block_starts[index+1] = None
 
         for label in jumps:
             index = label_to_index[label]
