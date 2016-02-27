@@ -11,9 +11,9 @@ from bytecode.tests import disassemble
 class DumpCodeTests(unittest.TestCase):
     maxDiff = 80 * 100
 
-    def check_dump(self, code, expected):
+    def check_dump_code(self, code, expected):
         with contextlib.redirect_stdout(io.StringIO()) as stderr:
-            bytecode.dump(code)
+            bytecode.dump_code(code)
             output = stderr.getvalue()
 
         self.assertEqual(output, expected)
@@ -52,7 +52,7 @@ label_instr13:
 
         """[1:].rstrip(" ")
         print(expected)
-        self.check_dump(code, expected)
+        self.check_dump_code(code, expected)
 
     def test_bytecode_blocks(self):
         source = """
@@ -87,7 +87,7 @@ label_instr13:
                 RETURN_VALUE
 
         """).lstrip()
-        self.check_dump(code, expected)
+        self.check_dump_code(code, expected)
 
     def test_concrete_bytecode(self):
         source = """
@@ -117,7 +117,7 @@ label_instr13:
   6 32    LOAD_CONST(3)
     35    RETURN_VALUE
 """.lstrip("\n")
-        self.check_dump(code, expected)
+        self.check_dump_code(code, expected)
 
 
 class MiscTests(unittest.TestCase):
