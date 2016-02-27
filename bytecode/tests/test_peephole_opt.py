@@ -8,16 +8,6 @@ from bytecode.tests import TestCase
 from unittest import mock
 
 
-def LOAD_CONST(arg, lineno=1):
-    return Instr('LOAD_CONST', arg, lineno=lineno)
-
-def LOAD_NAME(arg, lineno=1):
-    return Instr('LOAD_NAME', arg, lineno=lineno)
-
-def STORE_NAME(arg, lineno=1):
-    return Instr('STORE_NAME', arg, lineno=lineno)
-
-
 class Tests(TestCase):
     maxDiff = 80 * 100
 
