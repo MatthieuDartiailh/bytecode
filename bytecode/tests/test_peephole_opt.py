@@ -1,9 +1,9 @@
-import peephole_opt
 import textwrap
 import types
 import unittest
 from bytecode import (Label, Instr, Bytecode, BytecodeBlocks,
                       ConcreteInstr, ConcreteBytecode)
+from bytecode import peephole_opt
 from bytecode.tests import TestCase
 from unittest import mock
 
