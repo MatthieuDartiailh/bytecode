@@ -88,7 +88,6 @@ class Tests(TestCase):
         optimizer._optimize(code)
         code = code.to_bytecode()
 
-        #self.assertListEqual(list(code), list(expected))
         self.assertEqual(code, expected)
 
     def check_dont_optimize(self, code):
@@ -484,37 +483,35 @@ class Tests(TestCase):
 
     def test_return_value(self):
         # return+return: remove second return
-
-        code = BytecodeBlocks()
-        # def func():
-        #     return 4
-        #     return 5
-        code[0].extend([Instr('LOAD_CONST', 4, lineno=2),
-                        Instr('RETURN_VALUE', lineno=2),
-                        Instr('LOAD_CONST', 5, lineno=3),
-                        Instr('RETURN_VALUE', lineno=3)])
-
+        #
+        #     def func():
+        #         return 4
+        #         return 5
+        code = Bytecode([Instr('LOAD_CONST', 4, lineno=2),
+                         Instr('RETURN_VALUE', lineno=2),
+                         Instr('LOAD_CONST', 5, lineno=3),
+                         Instr('RETURN_VALUE', lineno=3)])
+        code = BytecodeBlocks._from_bytecode(code, split_final=False)
         self.check(code,
                    Instr('LOAD_CONST', 4, lineno=2),
                    Instr('RETURN_VALUE', lineno=2))
 
         # return+return + return+return: remove second and fourth return
-        code = BytecodeBlocks()
-        # def func():
-        #     return 4
-        #     return 5
-        #     return 6
-        #     return 7
-        code[0].extend([Instr('LOAD_CONST', 4, lineno=2),
-                        Instr('RETURN_VALUE', lineno=2),
-                        Instr('LOAD_CONST', 5, lineno=3),
-                        Instr('RETURN_VALUE', lineno=3),
-                        Instr('LOAD_CONST', 6, lineno=4),
-                        Instr('RETURN_VALUE', lineno=4),
-                        Instr('LOAD_CONST', 7, lineno=5),
-                        Instr('RETURN_VALUE', lineno=5)])
-
-
+        #
+        #     def func():
+        #         return 4
+        #         return 5
+        #         return 6
+        #         return 7
+        code = Bytecode([Instr('LOAD_CONST', 4, lineno=2),
+                         Instr('RETURN_VALUE', lineno=2),
+                         Instr('LOAD_CONST', 5, lineno=3),
+                         Instr('RETURN_VALUE', lineno=3),
+                         Instr('LOAD_CONST', 6, lineno=4),
+                         Instr('RETURN_VALUE', lineno=4),
+                         Instr('LOAD_CONST', 7, lineno=5),
+                         Instr('RETURN_VALUE', lineno=5)])
+        code = BytecodeBlocks._from_bytecode(code, split_final=False)
         self.check(code,
                    Instr('LOAD_CONST', 4, lineno=2),
                    Instr('RETURN_VALUE', lineno=2),
@@ -522,28 +519,30 @@ class Tests(TestCase):
                    Instr('RETURN_VALUE', lineno=4))
 
         # return + JUMP_ABSOLUTE: remove JUMP_ABSOLUTE
-        code = BytecodeBlocks()
-        setup_loop = code[0]
-        loop_body = code.add_block()
-        return_block = code.add_block()
         # while 1:
         #     return 7
-        setup_loop.extend([Instr('SETUP_LOOP', return_block.label, lineno=2)])
-        loop_body.extend([Instr('LOAD_CONST', 7, lineno=3),
-                          Instr('RETURN_VALUE', lineno=3),
-                          Instr('JUMP_ABSOLUTE', setup_loop, lineno=3),
-                          Instr('POP_BLOCK', lineno=3)])
-        return_block.extend([Instr('LOAD_CONST', None, lineno=3),
+        setup_loop = Label()
+        return_label = Label()
+        code = Bytecode([setup_loop,
+                             Instr('SETUP_LOOP', return_label, lineno=2),
+                             Instr('LOAD_CONST', 7, lineno=3),
+                             Instr('RETURN_VALUE', lineno=3),
+                             Instr('JUMP_ABSOLUTE', setup_loop, lineno=3),
+                             Instr('POP_BLOCK', lineno=3),
+                         return_label,
+                             Instr('LOAD_CONST', None, lineno=3),
                              Instr('RETURN_VALUE', lineno=3)])
+        code = BytecodeBlocks._from_bytecode(code, split_final=False)
 
-        code = self.optimize_blocks(code)
-        self.assertBlocksEqual(code,
-                   [Instr('SETUP_LOOP', code[2].label, lineno=2)],
-                   [Instr('LOAD_CONST', 7, lineno=3),
-                    Instr('RETURN_VALUE', lineno=3),
-                    Instr('POP_BLOCK', lineno=3)],
-                   [Instr('LOAD_CONST', None, lineno=3),
-                    Instr('RETURN_VALUE', lineno=3)])
+        end_loop = Label()
+        self.check(code,
+                   Instr('SETUP_LOOP', end_loop, lineno=2),
+                   Instr('LOAD_CONST', 7, lineno=3),
+                   Instr('RETURN_VALUE', lineno=3),
+                   Instr('POP_BLOCK', lineno=3),
+                   end_loop,
+                   Instr('LOAD_CONST', None, lineno=3),
+                   Instr('RETURN_VALUE', lineno=3))
 
 
     def test_not_jump_if_false(self):

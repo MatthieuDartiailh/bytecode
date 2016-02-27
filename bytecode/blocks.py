@@ -161,7 +161,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         labels = {}
         jumps = []
         for index, instr in enumerate(bytecode):
-            if index != 0 and index in block_starts:
+            if index in block_starts:
                 old_label = block_starts[index]
                 block = bytecode_blocks.add_block()
                 if old_label is not None:
