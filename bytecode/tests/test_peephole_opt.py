@@ -1,8 +1,7 @@
 import textwrap
 import types
 import unittest
-from bytecode import (Label, Instr, Bytecode, BytecodeBlocks,
-                      ConcreteInstr, ConcreteBytecode)
+from bytecode import Label, Instr, Bytecode, BytecodeBlocks
 from bytecode import peephole_opt
 from bytecode.tests import TestCase
 from unittest import mock
@@ -392,69 +391,6 @@ class Tests(TestCase):
                           Instr('STORE_NAME', 'x', lineno=1),
                           Instr('LOAD_CONST', None, lineno=1),
                           Instr('RETURN_VALUE', lineno=1)])
-
-    def test_mimicks_c_impl_long_code(self):
-        with mock.patch.object(peephole_opt, 'MIMICK_C_IMPL', True):
-            source = 'x=1'
-            code = self.compile(source)
-            # -4 to ignore LOAD_CONST <None>; RETURN_VALUE
-            codelen = len(code.co_code) - 4
-
-            # create code bigger than 32,700 bytes
-            minlen = 32700
-            ninstr = minlen // codelen + 1
-            source = '; '.join('x=%s' % i for i in range(ninstr))
-            noopt = self.compile(source)
-            self.assertGreater(len(noopt.co_code), minlen)
-
-            # don't optimize if the code is bigger than 32,700 bytes
-            optimizer = peephole_opt._CodePeepholeOptimizer()
-            optim = optimizer.optimize(noopt)
-
-            self.assertIs(optim, noopt)
-
-    def test_mimicks_c_impl_no_return_value(self):
-        with mock.patch.object(peephole_opt, 'MIMICK_C_IMPL', True):
-            # create (invalid) code without final RETURN_VALUE
-            noopt = Bytecode([Instr('LOAD_CONST', 3),
-                              Instr('LOAD_CONST', 5),
-                              Instr('BINARY_ADD'),
-                              Instr('STORE_NAME', 'x'),
-                              Instr('LOAD_CONST', 5),
-                              Instr('POP_TOP', lineno=1)])
-            noopt = noopt.to_code()
-
-            # don't optimize if the last instruction of the code
-            # is not RETURN_VALUE
-            optimizer = peephole_opt._CodePeepholeOptimizer()
-            optim = optimizer.optimize(noopt)
-
-            self.assertEqual(optim, noopt)
-
-    def test_mimicks_c_impl_extended_arg(self):
-        with mock.patch.object(peephole_opt, 'MIMICK_C_IMPL', True):
-            # create code with EXTENDED_ARG opcode
-            block = [
-                ConcreteInstr('LOAD_CONST', 3 << 16, lineno=1),
-                ConcreteInstr('POP_TOP', lineno=1),
-                ConcreteInstr('LOAD_CONST', 0, lineno=1),
-                ConcreteInstr('LOAD_CONST', 1, lineno=1),
-                ConcreteInstr('BINARY_ADD', lineno=1),
-                ConcreteInstr('STORE_NAME', 0, lineno=1),
-                ConcreteInstr('LOAD_CONST', 2, lineno=1),
-                ConcreteInstr('RETURN_VALUE', lineno=1),
-            ]
-            code_noopt = ConcreteBytecode()
-            code_noopt.consts = [1, 2, None]
-            code_noopt.names = ['x']
-            code_noopt[:] = block
-            noopt = code_noopt.to_code()
-
-            # don't optimize if the code contains EXTENDED_ARG opcode
-            optimizer = peephole_opt._CodePeepholeOptimizer()
-            optim = optimizer.optimize(noopt)
-
-            self.assertIs(optim, noopt)
 
     def test_return_value(self):
         # return+return: remove second return

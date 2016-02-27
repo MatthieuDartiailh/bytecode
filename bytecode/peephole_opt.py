@@ -1,14 +1,10 @@
 """
 Peephole optimizer of CPython 3.6 reimplemented in pure Python using
 the bytecode module.
-
-Set MIMICK_C_IMPL to True to mimick the behaviour of the C implementation.
 """
 import opcode
 import operator
-from bytecode import Instr, Bytecode, BytecodeBlocks, ConcreteBytecode, Label
-
-MIMICK_C_IMPL = False
+from bytecode import Instr, Bytecode, BytecodeBlocks, Label
 
 PyCmp_IN = 6
 PyCmp_NOT_IN = 7
@@ -357,15 +353,6 @@ class _CodePeepholeOptimizer:
     def eval_JUMP_IF_TRUE_OR_POP(self, instr):
         self.jump_if_or_pop(instr)
 
-    def eval_EXTENDED_ARG(self, instr):
-        if MIMICK_C_IMPL:
-            next_instr = self.block[self.index]
-            if next_instr.name != 'MAKE_FUNCTION':
-                raise ExitUnchanged
-            print("DON'T VISIT")
-            # don't visit MAKE_FUNCTION as GETARG will be wrong
-            self.index += 1
-
     def check_bypass_optim(self, code_obj):
         # Bypass optimization when the lnotab table is too complex
         if 255 in code_obj.co_lnotab:
@@ -459,25 +446,9 @@ class _CodePeepholeOptimizer:
             self.optimize_block(block)
 
     def optimize(self, code_obj):
-        if MIMICK_C_IMPL:
-            if self.check_bypass_optim(code_obj):
-                return code_obj
-
-        if MIMICK_C_IMPL:
-            bytecode = ConcreteBytecode.from_code(code_obj,
-                                                  extended_arg_op=True)
-            bytecode = bytecode.to_bytecode()
-            bytecode = BytecodeBlocks._from_bytecode(bytecode, split_final=False)
-            try:
-                self._optimize(bytecode)
-            except ExitUnchanged:
-                # needed to bypass optimization in eval_EXTENDED_ARG()
-                return code_obj
-        else:
-            bytecode = Bytecode.from_code(code_obj)
-            bytecode = BytecodeBlocks._from_bytecode(bytecode, split_final=False)
-            self._optimize(bytecode)
-
+        bytecode = Bytecode.from_code(code_obj)
+        bytecode = BytecodeBlocks._from_bytecode(bytecode, split_final=False)
+        self._optimize(bytecode)
         return bytecode.to_code()
 
 

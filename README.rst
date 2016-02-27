@@ -94,6 +94,8 @@ ChangeLog
 
 * Version 0.2
 
+  - Add bytecode.peephole_opt: a peephole optimizer, code based on
+    peephole optimizer of CPython 3.6 which is implemented in C
   - Add copy() methods
   - Fix ConcreteBytecode for code with no constant (empty list of constants)
   - Fix argnames in ConcreteBytecode.to_bytecode(): use CO_VARARGS and
