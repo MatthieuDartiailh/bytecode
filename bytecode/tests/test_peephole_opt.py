@@ -10,41 +10,6 @@ from unittest import mock
 class Tests(TestCase):
     maxDiff = 80 * 100
 
-    def compile(self, source, function=False):
-        source = textwrap.dedent(source).strip()
-        orig = compile(source, '<string>', 'exec')
-
-        if function:
-            sub_code = [const for const in orig.co_consts
-                        if isinstance(const, types.CodeType)]
-            if len(sub_code) != 1:
-                raise ValueError("unable to find function code")
-            orig = sub_code[0]
-
-        return orig
-
-    # FIXME: move to test_utils
-    def create_bytecode(self, source, function=False):
-        code = self.compile(source, function=function)
-        bytecode = Bytecode.from_code(code).to_bytecode_blocks()
-
-        if not function:
-            block = bytecode[-1]
-            if not(block[-2].name == "LOAD_CONST"
-                   and block[-2].arg is None
-                   and block[-1].name == "RETURN_VALUE"):
-                raise ValueError("unable to find implicit RETURN_VALUE <None>: %s"
-                                 % block[-2:])
-            del block[-2:]
-
-        return bytecode
-
-    def optimize_bytecode(self, source, function=False):
-        bytecode = self.create_bytecode(source, function=function)
-        optimizer = peephole_opt._CodePeepholeOptimizer()
-        optimizer._optimize(bytecode)
-        return bytecode
-
     def optimize_blocks(self, code):
         code = code.to_bytecode_blocks()
         optimizer = peephole_opt._CodePeepholeOptimizer()
@@ -58,6 +23,7 @@ class Tests(TestCase):
         code = code.to_bytecode()
 
         self.assertEqual(code, expected)
+        #self.assertListEqual(code, list(expected))
 
     def check_dont_optimize(self, code):
         code = code.to_bytecode_blocks()
@@ -475,7 +441,6 @@ class Tests(TestCase):
                    Instr('LOAD_CONST', 4),
                    Instr('STORE_NAME', 'y'))
 
-    @unittest.skipIf(True, 'FIXME: code disabled because of a bug')
     def test_unconditional_jump_to_return(self):
         source = """
             def func():
@@ -487,29 +452,61 @@ class Tests(TestCase):
                 else:
                     x = 30
         """
-        code = self.optimize_bytecode(source, function=True)
-        self.assertBlocksEqual(code,
-                             [Instr('LOAD_GLOBAL', 'test', lineno=2),
-                              Instr('POP_JUMP_IF_FALSE', code[3].label, lineno=2),
 
-                              Instr('LOAD_GLOBAL', 'test2', lineno=3),
-                              Instr('POP_JUMP_IF_FALSE', code[1].label, lineno=3),
+        label_instr11 = Label()
+        label_instr14 = Label()
+        label_instr7 = Label()
+        code = Bytecode([Instr('LOAD_GLOBAL', 'test', lineno=2),
+                         Instr('POP_JUMP_IF_FALSE', label_instr11, lineno=2),
 
-                              Instr('LOAD_CONST', 10, lineno=4),
-                              Instr('STORE_FAST', 'x', lineno=4),
-                              Instr('JUMP_ABSOLUTE', code[4].label, lineno=4)],
+                         Instr('LOAD_GLOBAL', 'test2', lineno=3),
+                         Instr('POP_JUMP_IF_FALSE', label_instr7, lineno=3),
 
-                             [Instr('LOAD_CONST', 20, lineno=6),
-                              Instr('STORE_FAST', 'x', lineno=6)],
+                         Instr('LOAD_CONST', 10, lineno=4),
+                         Instr('STORE_FAST', 'x', lineno=4),
+                         Instr('JUMP_ABSOLUTE', label_instr14, lineno=4),
 
-                             # FIXME: optimize POP_JUMP_IF_FALSE+JUMP_FORWARD?
-                             [Instr('JUMP_FORWARD', code[4].label, lineno=6)],
+                         label_instr7,
+                             Instr('LOAD_CONST', 20, lineno=6),
+                             Instr('STORE_FAST', 'x', lineno=6),
+                             Instr('JUMP_FORWARD', label_instr14, lineno=6),
 
-                             [Instr('LOAD_CONST', 30, lineno=8),
-                              Instr('STORE_FAST', 'x', lineno=8)],
+                         label_instr11,
+                             Instr('LOAD_CONST', 30, lineno=8),
+                             Instr('STORE_FAST', 'x', lineno=8),
 
-                             [Instr('LOAD_CONST', None, lineno=8),
-                              Instr('RETURN_VALUE', lineno=8)])
+                         label_instr14,
+                             Instr('LOAD_CONST', None, lineno=8),
+                             Instr('RETURN_VALUE', lineno=8)])
+
+        label1 = Label()
+        label3 = Label()
+        label4 = Label()
+        self.check(code,
+                   Instr('LOAD_GLOBAL', 'test', lineno=2),
+                   Instr('POP_JUMP_IF_FALSE', label3, lineno=2),
+
+                   Instr('LOAD_GLOBAL', 'test2', lineno=3),
+                   Instr('POP_JUMP_IF_FALSE', label1, lineno=3),
+
+                   Instr('LOAD_CONST', 10, lineno=4),
+                   Instr('STORE_FAST', 'x', lineno=4),
+                   Instr('JUMP_ABSOLUTE', label4, lineno=4),
+
+                   label1,
+                       Instr('LOAD_CONST', 20, lineno=6),
+                       Instr('STORE_FAST', 'x', lineno=6),
+
+                       # FIXME: optimize POP_JUMP_IF_FALSE+JUMP_FORWARD?
+                       Instr('JUMP_FORWARD', label4, lineno=6),
+
+                   label3,
+                       Instr('LOAD_CONST', 30, lineno=8),
+                       Instr('STORE_FAST', 'x', lineno=8),
+
+                   label4,
+                       Instr('LOAD_CONST', None, lineno=8),
+                       Instr('RETURN_VALUE', lineno=8))
 
     def test_unconditional_jumps(self):
         # def func():
