@@ -119,8 +119,8 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
             raise ValueError("cannot create a label at the end of a block")
         del block[index:]
 
-        block.next_block = block2
         block2 = Block(instructions)
+        block.next_block = block2
 
         for block in self[block_index+1:]:
             self._label_to_index[block.label] += 1
@@ -169,8 +169,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                 old_label = block_starts[index]
                 if index != 0:
                     new_block = bytecode_blocks.add_block()
-                    prev_instr = bytecode[index - 1]
-                    if not prev_instr._is_final():
+                    if not block[-1]._is_final():
                         block.next_block = new_block
                     block = new_block
                 if old_label is not None:

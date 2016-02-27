@@ -370,12 +370,12 @@ class _ConvertCodeToConcrete:
                     lineno = instr.lineno
                     continue
 
-                if instr.lineno is not None:
-                    lineno = instr.lineno
-
                 if not isinstance(instr, Instr):
                     raise ValueError("expect Instr, got %s"
                                      % instr.__class__.__name__)
+
+                if instr.lineno is not None:
+                    lineno = instr.lineno
 
                 arg = instr.arg
                 is_jump = isinstance(arg, Label)
