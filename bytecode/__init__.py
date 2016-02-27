@@ -68,6 +68,8 @@ def dump_code(code):
                 else:
                     line = indent + instr.format(labels)
                 print(line)
+            if block.next_block is not None:
+                print(indent + "-> %s" % labels[block.next_block.label])
             print()
     else:
         raise TypeError("unknown bycode code")

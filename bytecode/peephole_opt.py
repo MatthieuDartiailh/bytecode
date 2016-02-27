@@ -421,12 +421,16 @@ class _CodePeepholeOptimizer:
             # and while statements.
 
     def remove_dead_blocks(self):
-        labels = {self.code[0].label}
+        # FIXME: remove empty blocks?
 
+        # FIXME: rewrite this
+        labels = {self.code[0].label}
         for block in self.code:
             for instr in block:
                 if isinstance(instr.arg, Label):
                     labels.add(instr.arg)
+            if block.next_block is not None:
+                labels.add(block.next_block.label)
 
         block_index = 0
         while block_index < len(self.code):
@@ -440,14 +444,13 @@ class _CodePeepholeOptimizer:
         self.code = code
         self.const_stack = []
 
-        # FIXME: remove dead blocks at the end
-        self.remove_dead_blocks()
-
         self.block_index = 0
         while self.block_index < len(self.code):
             block = self.code[self.block_index]
             self.block_index += 1
             self.optimize_block(block)
+
+        self.remove_dead_blocks()
 
     def optimize(self, code_obj):
         bytecode = Bytecode.from_code(code_obj)
@@ -461,5 +464,7 @@ class CodeTransformer:
     name = "pyopt"
 
     def code_transformer(self, code, context):
+        #print("Optimize %s:%s: %s"
+        #      % (code.co_filename, code.co_firstlineno, code.co_name))
         optimizer = _CodePeepholeOptimizer()
         return optimizer.optimize(code)

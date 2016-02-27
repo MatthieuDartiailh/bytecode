@@ -7,6 +7,8 @@ class Block(_bytecode._InstrList):
     def __init__(self, instructions=None):
         # create a unique object as label
         self.label = Label()
+        # a Block object, or None
+        self.next_block = None
         if instructions:
             super().__init__(instructions)
 
@@ -117,6 +119,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
             raise ValueError("cannot create a label at the end of a block")
         del block[index:]
 
+        block.next_block = block2
         block2 = Block(instructions)
 
         for block in self[block_index+1:]:
@@ -137,6 +140,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         label_to_index = {}
         jumps = []
         block_starts = {}
+        final_instrs = set()
 
         for index, instr in enumerate(bytecode):
             if isinstance(instr, Label):
@@ -146,7 +150,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                 if isinstance(instr.arg, Label):
                     jumps.append(instr.arg)
                 if instr._is_final():
-                    block_starts[index+1] = None
+                    final_instrs.add(index+1)
 
         for label in jumps:
             index = label_to_index[label]
@@ -163,13 +167,18 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         for index, instr in enumerate(bytecode):
             if index in block_starts:
                 old_label = block_starts[index]
-                block = bytecode_blocks.add_block()
+                if index != 0:
+                    new_block = bytecode_blocks.add_block()
+                    prev_instr = bytecode[index - 1]
+                    if not prev_instr._is_final():
+                        block.next_block = new_block
+                    block = new_block
                 if old_label is not None:
                     labels[old_label] = block.label
+            elif index in final_instrs:
+                block = bytecode_blocks.add_block()
 
-            if isinstance(instr, Label):
-                pass
-            else:
+            if not isinstance(instr, Label):
                 # copy the instruction to be able to modify its argument below
                 instr = instr.copy()
                 if isinstance(instr.arg, Label):
