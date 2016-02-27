@@ -129,21 +129,6 @@ class _CodePeepholeOptimizer:
             self.block[self.index-1:self.index+1] = (instr,)
             self.index -= 1
 
-    def eval_RETURN_VALUE(self, instr):
-        n = len(self.block) - self.index
-        if n < 2:
-            return
-
-        instr3 = self.block[self.index + 1]
-        if instr3.name == 'RETURN_VALUE':
-            # RETURN_VALUE; LOAD_CONST arg; RETURN_VALUE
-            # => RETURN_VALUE
-            del self.block[self.index:self.index+2]
-        else:
-            next_instr = self.block[self.index]
-            if next_instr.name in ('JUMP_ABSOLUTE', 'JUMP_FORWARD'):
-                del self.block[self.index]
-
     def binop(self, op, instr):
         try:
             left = self.const_stack[-2]
@@ -435,9 +420,28 @@ class _CodePeepholeOptimizer:
             # is never trigerred in practice. The compiler already optimizes if
             # and while statements.
 
+    def remove_dead_blocks(self):
+        labels = {self.code[0].label}
+
+        for block in self.code:
+            for instr in block:
+                if isinstance(instr.arg, Label):
+                    labels.add(instr.arg)
+
+        block_index = 0
+        while block_index < len(self.code):
+            block = self.code[block_index]
+            if block.label not in labels:
+                del self.code[block_index]
+            else:
+                block_index += 1
+
     def _optimize(self, code):
         self.code = code
         self.const_stack = []
+
+        # FIXME: remove dead blocks at the end
+        self.remove_dead_blocks()
 
         self.block_index = 0
         while self.block_index < len(self.code):
@@ -447,7 +451,7 @@ class _CodePeepholeOptimizer:
 
     def optimize(self, code_obj):
         bytecode = Bytecode.from_code(code_obj)
-        bytecode = BytecodeBlocks._from_bytecode(bytecode, split_final=False)
+        bytecode = BytecodeBlocks._from_bytecode(bytecode)
         self._optimize(bytecode)
         return bytecode.to_code()
 

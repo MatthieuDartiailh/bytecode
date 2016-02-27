@@ -95,6 +95,9 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         block = self._blocks[block_index]
         del self._blocks[block_index]
         del self._label_to_index[block.label]
+        for block_index in range(block_index, len(self)):
+            label = self[block_index].label
+            self._label_to_index[label] -= 1
 
     def create_label(self, block_index, index):
         if isinstance(block_index, Label):
@@ -128,10 +131,8 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
     def from_code(code):
         return _bytecode.ConcreteBytecode.from_code(code).to_bytecode_blocks()
 
-    # FIXME: remove split_final, only used by peephole_opt for backward
-    # compatibility. peephole_opt should maybe reimplement this method?
     @staticmethod
-    def _from_bytecode(bytecode, split_final=True):
+    def _from_bytecode(bytecode):
         # label => instruction index
         label_to_index = {}
         jumps = []
@@ -144,9 +145,8 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
             else:
                 if isinstance(instr.arg, Label):
                     jumps.append(instr.arg)
-                if split_final:
-                    if instr._is_final():
-                        block_starts[index+1] = None
+                if instr._is_final():
+                    block_starts[index+1] = None
 
         for label in jumps:
             index = label_to_index[label]

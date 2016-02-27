@@ -26,12 +26,7 @@ class Tests(TestCase):
     # FIXME: move to test_utils
     def create_bytecode(self, source, function=False):
         code = self.compile(source, function=function)
-
-        bytecode = Bytecode.from_code(code)
-        from bytecode.tests import dump_code
-        dump_code(bytecode, lineno=False)
-        #dump_code(bytecode)
-        bytecode = bytecode.to_bytecode_blocks()
+        bytecode = Bytecode.from_code(code).to_bytecode_blocks()
 
         if not function:
             block = bytecode[-1]
@@ -402,7 +397,7 @@ class Tests(TestCase):
                          Instr('RETURN_VALUE', lineno=2),
                          Instr('LOAD_CONST', 5, lineno=3),
                          Instr('RETURN_VALUE', lineno=3)])
-        code = BytecodeBlocks._from_bytecode(code, split_final=False)
+        code = BytecodeBlocks._from_bytecode(code)
         self.check(code,
                    Instr('LOAD_CONST', 4, lineno=2),
                    Instr('RETURN_VALUE', lineno=2))
@@ -422,12 +417,10 @@ class Tests(TestCase):
                          Instr('RETURN_VALUE', lineno=4),
                          Instr('LOAD_CONST', 7, lineno=5),
                          Instr('RETURN_VALUE', lineno=5)])
-        code = BytecodeBlocks._from_bytecode(code, split_final=False)
+        code = BytecodeBlocks._from_bytecode(code)
         self.check(code,
                    Instr('LOAD_CONST', 4, lineno=2),
-                   Instr('RETURN_VALUE', lineno=2),
-                   Instr('LOAD_CONST', 6, lineno=4),
-                   Instr('RETURN_VALUE', lineno=4))
+                   Instr('RETURN_VALUE', lineno=2))
 
         # return + JUMP_ABSOLUTE: remove JUMP_ABSOLUTE
         # while 1:
@@ -443,14 +436,13 @@ class Tests(TestCase):
                          return_label,
                              Instr('LOAD_CONST', None, lineno=3),
                              Instr('RETURN_VALUE', lineno=3)])
-        code = BytecodeBlocks._from_bytecode(code, split_final=False)
+        code = BytecodeBlocks._from_bytecode(code)
 
         end_loop = Label()
         self.check(code,
                    Instr('SETUP_LOOP', end_loop, lineno=2),
                    Instr('LOAD_CONST', 7, lineno=3),
                    Instr('RETURN_VALUE', lineno=3),
-                   Instr('POP_BLOCK', lineno=3),
                    end_loop,
                    Instr('LOAD_CONST', None, lineno=3),
                    Instr('RETURN_VALUE', lineno=3))
@@ -562,9 +554,9 @@ class Tests(TestCase):
                          Instr('LOAD_CONST', 'yes'),
                          Instr('JUMP_FORWARD', label_instr6),
                          label_instr4,
-                         Instr('LOAD_CONST', 'no'),
+                             Instr('LOAD_CONST', 'no'),
                          label_instr6,
-                         Instr('RETURN_VALUE')])
+                             Instr('RETURN_VALUE')])
 
         label = Label()
         self.check(code,
@@ -582,8 +574,7 @@ class Tests(TestCase):
     #        if x or y:
     #            z = 1
     #    '''
-    #    code = self.optimize_bytecode(source)
-    #    from test_utils import dump_code; dump_code(code)
+    #    XXX
 
     # FIXME: test fails!
     #def test_jump_if_false_to_jump_if_false(self):
@@ -591,8 +582,7 @@ class Tests(TestCase):
     #        while n > 0 and start > 3:
     #            func()
     #    """
-    #    code = self.optimize_bytecode(source)
-    #    from test_utils import dump_code; dump_code(code)
+    #    XXX
 
 
 if __name__ == "__main__":
