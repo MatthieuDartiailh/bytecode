@@ -1,14 +1,11 @@
-# FIXME: these tests requires a Python patched with the PEP 511
-
 import peephole_opt
-import sys
 import textwrap
 import types
 import unittest
 from bytecode import (Label, Instr, Bytecode, BytecodeBlocks,
                       ConcreteInstr, ConcreteBytecode)
-from unittest import mock
 from bytecode.tests import TestCase
+from unittest import mock
 
 
 def LOAD_CONST(arg, lineno=1):
@@ -23,18 +20,6 @@ def STORE_NAME(arg, lineno=1):
 
 class Tests(TestCase):
     maxDiff = 80 * 100
-
-    @staticmethod
-    def setUpClass():
-        if not hasattr(sys, 'get_code_transformers'):
-            raise Exception("cannot disable the C peephole optimizer: "
-                            "need a Python patched with the PEP 511!")
-
-    def setUp(self):
-        # disable the C peephole optimizer
-        transformers = sys.get_code_transformers()
-        self.addCleanup(sys.set_code_transformers, transformers)
-        sys.set_code_transformers([])
 
     def compile(self, source, function=False):
         source = textwrap.dedent(source).strip()
