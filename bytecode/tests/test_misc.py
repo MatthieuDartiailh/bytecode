@@ -51,7 +51,6 @@ label_instr13:
     RETURN_VALUE
 
         """[1:].rstrip(" ")
-        print(expected)
         self.check_dump_code(code, expected)
 
     def test_bytecode_blocks(self):
