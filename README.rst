@@ -117,7 +117,6 @@ Create bytecode
 ---------------
 
 * ``Bytecode.from_code(*, extended_arg_op=False)``
-* ``BytecodeBlocks.from_code()``
 * ``ConcreteBytecode.from_code()``
 
 Conversions

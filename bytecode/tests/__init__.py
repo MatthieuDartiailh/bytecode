@@ -119,7 +119,8 @@ def disassemble(source, *, filename="<string>", function=False,
                 remove_last_return_none=False):
     code = get_code(source, filename=filename, function=function)
 
-    bytecode = BytecodeBlocks.from_code(code)
+    bytecode = Bytecode.from_code(code)
+    bytecode = bytecode.to_bytecode_blocks()
     if remove_last_return_none:
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter

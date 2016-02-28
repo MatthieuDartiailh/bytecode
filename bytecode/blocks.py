@@ -127,10 +127,6 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         return block2.label
 
     @staticmethod
-    def from_code(code):
-        return _bytecode.ConcreteBytecode.from_code(code).to_bytecode_blocks()
-
-    @staticmethod
     def _from_bytecode(bytecode):
         # label => instruction index
         label_to_index = {}

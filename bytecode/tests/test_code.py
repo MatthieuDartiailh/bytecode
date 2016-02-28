@@ -16,7 +16,8 @@ class CodeTests(unittest.TestCase):
         code = Bytecode.from_code(ref_code).to_code()
         self.assertEqual(code, ref_code)
 
-        code = BytecodeBlocks.from_code(ref_code).to_code()
+        code = Bytecode.from_code(ref_code).to_bytecode_blocks()
+        code = code.to_code()
         self.assertEqual(code, ref_code)
 
     def test_loop(self):
