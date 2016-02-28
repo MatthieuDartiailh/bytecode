@@ -84,10 +84,6 @@ class ConcreteInstr(Instr):
             return self._arg
         return None
 
-    def extended_arg(self):
-        """Does the argument need to emit a EXTENDED_ARG instruction?"""
-        return (self._arg > 0xffff)
-
     def assemble(self):
         if self._arg is UNSET:
             return struct.pack('<B', self._opcode)
@@ -344,7 +340,13 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
 class _ConvertCodeToConcrete:
     def __init__(self, code):
+        assert isinstance(code, _bytecode.Bytecode)
         self.bytecode = code
+
+        self.instructions = []
+        self.jumps = []
+        self.labels = {}
+
         self.consts = {}
         self.names = []
         self.varnames = []
@@ -368,100 +370,77 @@ class _ConvertCodeToConcrete:
         return index
 
     def concrete_instructions(self):
-        use_blocks = isinstance(self.bytecode, _bytecode.BytecodeBlocks)
+        lineno = self.bytecode.first_lineno
 
-        if use_blocks:
-            blocks = self.bytecode
-        else:
-            blocks = (self.bytecode,)
+        for instr in self.bytecode:
+            if isinstance(instr, Label):
+                self.labels[instr] = len(self.instructions)
+                continue
 
-        # outer loop to recompute jumps if needed
-        extended_jumps = set()
+            if isinstance(instr, SetLineno):
+                lineno = instr.lineno
+                continue
 
-        # FIXME: don't recompute *everything* when jumps need to be recomputed
-        # FIXME: limit to two iterations max
-        need_recompute_jumps = True
-        while need_recompute_jumps:
-            need_recompute_jumps = False
+            if isinstance(instr, ConcreteInstr):
+                instr = instr.copy()
+            elif isinstance(instr, Instr):
+                if instr.lineno is not None:
+                    lineno = instr.lineno
 
-            # convert abstract instructions to concrete instructions
-            targets = {}
-            jumps = []
-            instructions = []
-            offset = 0
-            lineno = self.bytecode.first_lineno
+                arg = instr.arg
+                is_jump = isinstance(arg, Label)
+                if is_jump:
+                    label = arg
+                    # fake value, real value is set in the second loop
+                    arg = 0
+                elif instr.op in _opcode.hasconst:
+                    arg = self.add_const(arg)
+                elif instr.op in _opcode.haslocal:
+                    arg = self.add(self.varnames, arg)
+                elif instr.op in _opcode.hasname:
+                    arg = self.add(self.names, arg)
+                elif instr.op in _opcode.hasfree:
+                    arg = self.add(self.freenames, arg)
 
-            for block in blocks:
-                if use_blocks:
-                    label = block.label
-                    targets[label] = offset
+                instr = ConcreteInstr(instr.name, arg, lineno=lineno)
+                if is_jump:
+                    self.jumps.append((len(self.instructions), label, instr))
+            else:
+                raise ValueError("expect Instr, got %s"
+                                 % instr.__class__.__name__)
 
-                for index, instr in enumerate(block):
-                    if isinstance(instr, Label):
-                        targets[instr] = offset
-                        continue
+            self.instructions.append(instr)
 
-                    if isinstance(instr, SetLineno):
-                        lineno = instr.lineno
-                        continue
+    def compute_jumps(self):
+        # convert abstract instructions to concrete instructions
+        offsets = []
+        offset = 0
+        for index, instr in enumerate(self.instructions):
+            offsets.append(offset)
+            offset += instr.size
+        # needed if a label is at the end
+        offsets.append(offset)
 
-                    if isinstance(instr, ConcreteInstr):
-                        # keep the concrete instruction unchanged
-                        pass
-                    elif isinstance(instr, Instr):
-                        if instr.lineno is not None:
-                            lineno = instr.lineno
+        # fix argument of jump instructions: resolve labels
+        modified = False
+        for index, label, instr in self.jumps:
+            target_index = self.labels[label]
+            target_offset = offsets[target_index]
 
-                        arg = instr.arg
-                        is_jump = isinstance(arg, Label)
-                        if is_jump:
-                            label = arg
-                            if use_blocks:
-                                jump_key = (block.label, index)
-                            else:
-                                jump_key = index
-                            # fake value, real value is set in the second loop
-                            if jump_key in extended_jumps:
-                                # this jump requires a EXTENDED_ARG
-                                arg = 0x10000
-                            else:
-                                arg = 0
-                        elif instr.op in _opcode.hasconst:
-                            arg = self.add_const(arg)
-                        elif instr.op in _opcode.haslocal:
-                            arg = self.add(self.varnames, arg)
-                        elif instr.op in _opcode.hasname:
-                            arg = self.add(self.names, arg)
-                        elif instr.op in _opcode.hasfree:
-                            arg = self.add(self.freenames, arg)
+            if instr.op in _opcode.hasjrel:
+                instr_offset = offsets[index]
+                target_offset -= (instr_offset + instr.size)
 
-                        instr = ConcreteInstr(instr.name, arg, lineno=lineno)
-                        if is_jump:
-                            jumps.append((offset, instr, label, jump_key))
-                    else:
-                        raise ValueError("expect Instr, got %s"
-                                         % instr.__class__.__name__)
+            # FIXME: reject negative offset?
+            # (ex: JUMP_FORWARD arg must be positive)
+            # ConcreteInstr._set_arg() already rejects negative argument
 
-                    instructions.append(instr)
-                    offset += instr.size
+            old_size = instr.size
+            instr.arg = target_offset
+            if instr.size != old_size:
+                modified = True
 
-            # fix argument of jump instructions: resolve labels
-            for instr_offset, instr, label, jump_key in jumps:
-                offset = targets[label]
-                if instr.op in _opcode.hasjrel:
-                    offset = offset - (instr_offset + instr.size)
-
-                if offset > 0xffff and not instr.extended_arg():
-                    extended_jumps.add(jump_key)
-                    need_recompute_jumps = True
-
-                # FIXME: reject negative offset?
-                # (ex: JUMP_FORWARD arg must be positive)
-                # ConcreteInstr._set_arg() already rejects negative argument
-
-                instr.arg = offset
-
-        return instructions
+        return modified
 
     def to_concrete_bytecode(self):
         first_const = self.bytecode.docstring
@@ -470,7 +449,14 @@ class _ConvertCodeToConcrete:
 
         self.varnames.extend(self.bytecode.argnames)
 
-        instructions = self.concrete_instructions()
+        self.concrete_instructions()
+        modified = self.compute_jumps()
+        if modified:
+            modified = self.compute_jumps()
+            if modified:
+                raise RuntimeError("compute_jumps() must not modify jumps "
+                                   "at the second iteration")
+
 
         consts = [None] * len(self.consts)
         for item, index in self.consts.items():
@@ -485,5 +471,5 @@ class _ConvertCodeToConcrete:
         concrete.freevars = self.freevars
 
         # copy instructions
-        concrete[:] = instructions
+        concrete[:] = self.instructions
         return concrete

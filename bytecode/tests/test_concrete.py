@@ -327,6 +327,9 @@ class BytecodeToConcreteTests(TestCase):
                 super().__init__('NOP')
                 self._size = size
 
+            def copy(self):
+                return self
+
             def assemble(self):
                 return NOP * self._size
 
