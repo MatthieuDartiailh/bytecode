@@ -72,6 +72,11 @@ class SetLineno:
         _check_lineno(lineno)
         self.lineno = lineno
 
+    def __eq__(self, other):
+        if not isinstance(other, SetLineno):
+            return False
+        return (self.lineno == other.lineno)
+
 
 class Label:
     __slots__ = ()
