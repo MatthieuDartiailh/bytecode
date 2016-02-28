@@ -17,6 +17,9 @@ Install bytecode: ``pip install bytecode``.
 Hello World
 ===========
 
+Abstract bytecode
+-----------------
+
 Example running ``print('Hello World!')``::
 
     from bytecode import Instr, Bytecode
@@ -28,6 +31,30 @@ Example running ``print('Hello World!')``::
                      Instr("POP_TOP"),
                      Instr("LOAD_CONST", None),
                      Instr("RETURN_VALUE")])
+    code = bytecode.to_code()
+    exec(code)
+
+Output::
+
+    Hello World!
+
+
+Concrete bytecode
+-----------------
+
+Example running ``print('Hello World!')``::
+
+    from bytecode import ConcreteInstr, ConcreteBytecode
+
+    bytecode = ConcreteBytecode()
+    bytecode.names = ['print']
+    bytecode.consts = ['Hello World!', None]
+    bytecode.extend([ConcreteInstr("LOAD_NAME", 0),
+                     ConcreteInstr("LOAD_CONST", 0),
+                     ConcreteInstr("CALL_FUNCTION", 1),
+                     ConcreteInstr("POP_TOP"),
+                     ConcreteInstr("LOAD_CONST", 1),
+                     ConcreteInstr("RETURN_VALUE")])
     code = bytecode.to_code()
     exec(code)
 
