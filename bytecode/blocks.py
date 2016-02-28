@@ -74,9 +74,9 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
 
         instrs1 = self._flat()
         instrs2 = other._flat()
-
         if instrs1 != instrs2:
             return False
+        # FIXME: compare block.next_block
 
         return super().__eq__(other)
 

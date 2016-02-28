@@ -101,7 +101,8 @@ class Bytecode(_InstrList, BaseBytecode):
     def copy(self):
         obj = Bytecode()
         obj._copy_attr_from(self)
-        obj.extend(self)
+        for instr in self:
+            obj.append(instr.copy())
         obj.argnames = list(self.argnames)
         return obj
 

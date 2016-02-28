@@ -121,7 +121,8 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
     def copy(self):
         obj = ConcreteBytecode()
         obj._copy_attr_from(self)
-        obj.extend(self)
+        for instr in self:
+            obj.append(instr.copy())
         obj.consts = list(self.consts)
         obj.names = list(self.names)
         obj.varnames = list(self.varnames)
