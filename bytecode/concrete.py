@@ -338,15 +338,17 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         return self.to_bytecode().to_bytecode_blocks()
 
 
-class _ConvertCodeToConcrete:
+class _ConvertBytecodeToConcrete:
     def __init__(self, code):
         assert isinstance(code, _bytecode.Bytecode)
         self.bytecode = code
 
+        # temporary variables
         self.instructions = []
         self.jumps = []
         self.labels = {}
 
+        # used to build ConcreteBytecode() object
         self.consts = {}
         self.names = []
         self.varnames = []
@@ -456,7 +458,6 @@ class _ConvertCodeToConcrete:
             if modified:
                 raise RuntimeError("compute_jumps() must not modify jumps "
                                    "at the second iteration")
-
 
         consts = [None] * len(self.consts)
         for item, index in self.consts.items():

@@ -7,7 +7,7 @@ class BaseBytecode:
     def __init__(self):
         self.argcount = 0
         self.kw_only_argcount = 0
-        # FIXME: insane and safe value until _ConvertCodeToConcrete is able
+        # FIXME: insane and safe value until _ConvertBytecodeToConcrete is able
         # to compute the value itself
         self._stacksize = 256
         self.flags = 0
@@ -102,7 +102,8 @@ class Bytecode(_InstrList, BaseBytecode):
         return self.to_concrete_bytecode().to_code()
 
     def to_concrete_bytecode(self):
-        return _bytecode._ConvertCodeToConcrete(self).to_concrete_bytecode()
+        converter = _bytecode._ConvertBytecodeToConcrete(self)
+        return converter.to_concrete_bytecode()
 
     def to_bytecode(self):
         return self

@@ -136,21 +136,16 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         label_to_index = {}
         jumps = []
         block_starts = {}
-        final_instrs = set()
-
         for index, instr in enumerate(bytecode):
             if isinstance(instr, Label):
-                label = instr
-                label_to_index[label] = index
+                label_to_index[instr] = index
             else:
                 if isinstance(instr.arg, Label):
-                    jumps.append(instr.arg)
-                if instr._is_final():
-                    final_instrs.add(index+1)
+                    jumps.append((index, instr.arg))
 
-        for label in jumps:
-            index = label_to_index[label]
-            block_starts[index] = label
+        for target_index, target_label  in jumps:
+            target_index = label_to_index[target_label]
+            block_starts[target_index] = target_label
 
         bytecode_blocks = _bytecode.BytecodeBlocks()
         bytecode_blocks._copy_attr_from(bytecode)
@@ -170,7 +165,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                     block = new_block
                 if old_label is not None:
                     labels[old_label] = block.label
-            elif index in final_instrs:
+            elif block and block[-1]._is_final():
                 block = bytecode_blocks.add_block()
 
             if not isinstance(instr, Label):

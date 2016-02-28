@@ -7,7 +7,8 @@ __all__ = ['Label', 'Instr', 'SetLineno', 'Bytecode',
 from bytecode.instr import UNSET, Label, SetLineno, Instr
 from bytecode.bytecode import BaseBytecode, _InstrList, Bytecode
 from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,
-                               _ConvertCodeToConcrete)
+                               # import needed to use it in bytecode.py
+                               _ConvertBytecodeToConcrete)
 from bytecode.blocks import BytecodeBlocks
 
 
