@@ -124,7 +124,7 @@ Conversions
 
 * ``bytecode.to_bytecode() -> Bytecode``
 * ``bytecode.to_concrete_bytecode() -> ConcreteBytecode``
-* ``bytecode.to_bytecode_blocks() -> BytecodeBlocks``
+* ``BytecodeBlocks.from_bytecode(bytecode: Bytecode) -> BytecodeBlocks``
 * ``bytecode.to_code() -> types.CodeType``
 
 

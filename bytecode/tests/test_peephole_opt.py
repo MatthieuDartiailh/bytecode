@@ -11,13 +11,15 @@ class Tests(TestCase):
     maxDiff = 80 * 100
 
     def optimize_blocks(self, code):
-        code = code.to_bytecode_blocks()
+        if isinstance(code, Bytecode):
+            code = BytecodeBlocks.from_bytecode(code)
         optimizer = peephole_opt._CodePeepholeOptimizer()
         optimizer._optimize(code)
         return code
 
     def check(self, code, *expected):
-        code = code.to_bytecode_blocks()
+        if isinstance(code, Bytecode):
+            code = BytecodeBlocks.from_bytecode(code)
         optimizer = peephole_opt._CodePeepholeOptimizer()
         optimizer._optimize(code)
         code = code.to_bytecode()
@@ -26,8 +28,7 @@ class Tests(TestCase):
         #self.assertListEqual(code, list(expected))
 
     def check_dont_optimize(self, code):
-        code = code.to_bytecode_blocks()
-
+        code = BytecodeBlocks.from_bytecode(code)
         noopt = code.to_bytecode()
 
         optim = self.optimize_blocks(code)
@@ -366,7 +367,7 @@ class Tests(TestCase):
                          Instr('RETURN_VALUE', lineno=2),
                          Instr('LOAD_CONST', 5, lineno=3),
                          Instr('RETURN_VALUE', lineno=3)])
-        code = BytecodeBlocks._from_bytecode(code)
+        code = BytecodeBlocks.from_bytecode(code)
         self.check(code,
                    Instr('LOAD_CONST', 4, lineno=2),
                    Instr('RETURN_VALUE', lineno=2))
@@ -386,7 +387,7 @@ class Tests(TestCase):
                          Instr('RETURN_VALUE', lineno=4),
                          Instr('LOAD_CONST', 7, lineno=5),
                          Instr('RETURN_VALUE', lineno=5)])
-        code = BytecodeBlocks._from_bytecode(code)
+        code = BytecodeBlocks.from_bytecode(code)
         self.check(code,
                    Instr('LOAD_CONST', 4, lineno=2),
                    Instr('RETURN_VALUE', lineno=2))
@@ -405,7 +406,7 @@ class Tests(TestCase):
                          return_label,
                              Instr('LOAD_CONST', None, lineno=3),
                              Instr('RETURN_VALUE', lineno=3)])
-        code = BytecodeBlocks._from_bytecode(code)
+        code = BytecodeBlocks.from_bytecode(code)
 
         end_loop = Label()
         self.check(code,

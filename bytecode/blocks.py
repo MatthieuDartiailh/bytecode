@@ -127,7 +127,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         return block2.label
 
     @staticmethod
-    def _from_bytecode(bytecode):
+    def from_bytecode(bytecode):
         # label => instruction index
         label_to_index = {}
         jumps = []
@@ -226,7 +226,3 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         bytecode.argnames = list(self.argnames)
         bytecode[:] = instructions
         return bytecode
-
-    def to_bytecode_blocks(self):
-        return self
-

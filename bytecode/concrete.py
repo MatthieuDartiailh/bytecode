@@ -344,9 +344,6 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode.extend(instructions)
         return bytecode
 
-    def to_bytecode_blocks(self):
-        return self.to_bytecode().to_bytecode_blocks()
-
 
 class _ConvertBytecodeToConcrete:
     def __init__(self, code):

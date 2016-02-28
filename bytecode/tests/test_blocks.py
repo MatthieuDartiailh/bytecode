@@ -110,7 +110,7 @@ class BytecodeBlocksTests(TestCase):
                          Instr("NOP")])
         self.assertNotEqual(code3, code1)
 
-    def test_bytecode_to_bytecode_blocks(self):
+    def test_from_bytecode(self):
         bytecode = Bytecode()
         label = Label()
         bytecode.extend([Instr('LOAD_NAME', 'test', lineno=1),
@@ -127,7 +127,7 @@ class BytecodeBlocksTests(TestCase):
                              Instr('LOAD_CONST', None, lineno=4),
                              Instr('RETURN_VALUE', lineno=4)])
 
-        blocks = bytecode.to_bytecode_blocks()
+        blocks = BytecodeBlocks.from_bytecode(bytecode)
         label2 = blocks[2].label
         self.assertIsNot(label2, label)
         self.assertBlocksEqual(blocks,
@@ -142,7 +142,7 @@ class BytecodeBlocksTests(TestCase):
                                 Instr('RETURN_VALUE', lineno=4)])
         # FIXME: test other attributes
 
-    def test_bytecode_to_bytecode_blocks_loop(self):
+    def test_from_bytecode_loop(self):
         # for x in (1, 2, 3):
         #     if x == 2:
         #         break
@@ -176,7 +176,7 @@ class BytecodeBlocksTests(TestCase):
                      Instr('LOAD_CONST', None, lineno=4),
                      Instr('RETURN_VALUE', lineno=4),
         ))
-        blocks = code.to_bytecode_blocks()
+        blocks = BytecodeBlocks.from_bytecode(code)
 
         expected = [[Instr('SETUP_LOOP', blocks[5].label, lineno=1),
                      Instr('LOAD_CONST', (1, 2, 3), lineno=1),

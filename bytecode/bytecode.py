@@ -105,6 +105,3 @@ class Bytecode(_InstrList, BaseBytecode):
 
     def to_bytecode(self):
         return self
-
-    def to_bytecode_blocks(self):
-        return _bytecode.BytecodeBlocks._from_bytecode(self)

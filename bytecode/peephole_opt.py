@@ -454,7 +454,7 @@ class _CodePeepholeOptimizer:
 
     def optimize(self, code_obj):
         bytecode = Bytecode.from_code(code_obj)
-        bytecode = BytecodeBlocks._from_bytecode(bytecode)
+        bytecode = BytecodeBlocks.from_bytecode(bytecode)
         self._optimize(bytecode)
         return bytecode.to_code()
 

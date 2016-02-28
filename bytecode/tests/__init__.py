@@ -120,11 +120,11 @@ def disassemble(source, *, filename="<string>", function=False,
     code = get_code(source, filename=filename, function=function)
 
     bytecode = Bytecode.from_code(code)
-    bytecode = bytecode.to_bytecode_blocks()
+    blocks = BytecodeBlocks.from_bytecode(bytecode)
     if remove_last_return_none:
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter
-        block = bytecode[-1]
+        block = blocks[-1]
         test = (block[-2].name == "LOAD_CONST"
                 and block[-2].arg is None
                 and block[-1].name == "RETURN_VALUE")
@@ -132,7 +132,7 @@ def disassemble(source, *, filename="<string>", function=False,
             raise ValueError("unable to find implicit RETURN_VALUE <None>: %s"
                              % block[-2:])
         del block[-2:]
-    return bytecode
+    return blocks
 
 
 class TestCase(unittest.TestCase):
