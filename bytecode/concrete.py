@@ -274,9 +274,6 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                               tuple(self.freevars),
                               tuple(self.cellvars))
 
-    def to_concrete_bytecode(self):
-        return self
-
     def to_bytecode(self):
         # find jump targets
         jump_targets = set()
@@ -325,7 +322,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
             if jump_target is not None:
                 jumps.append((instr, jump_target))
 
-        # replace jump targets with blocks
+        # replace jump targets with labels
         for instr, jump_target in jumps:
             # FIXME: better error reporting on missing label
             instr.arg = labels[jump_target]
