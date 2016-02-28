@@ -6,7 +6,7 @@ import types
 
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
-from bytecode.instr import (UNSET, Instr, Label, SetLineno,
+from bytecode.instr import (UNSET, BaseInstr, Instr, Label, SetLineno,
                             const_key, _check_lineno)
 
 
@@ -23,8 +23,8 @@ def _set_docstring(code, consts):
         code.docstring = first_const
 
 
-class ConcreteInstr(Instr):
-    """Concrete instruction, inherit from Instr.
+class ConcreteInstr(BaseInstr):
+    """Concrete instruction, inherit from BaseInstr.
 
     arg must be an integer in the range 0..2147483647.
 

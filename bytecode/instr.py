@@ -82,14 +82,7 @@ class Label:
     __slots__ = ()
 
 
-class Instr:
-    """Abstract instruction.
-
-    lineno, name, op and arg attributes can be modified.
-
-    arg is not checked.
-    """
-
+class BaseInstr:
     __slots__ = ('_name', '_opcode', '_arg', '_lineno')
 
     def __init__(self, name, arg=UNSET, *, lineno=None):
@@ -185,17 +178,14 @@ class Instr:
 
     def __repr__(self):
         if self._arg is not UNSET:
-            return '<%s arg=%r lineno=%s>' % (self._name, self._arg, self._lineno)
+            return ('<%s arg=%r lineno=%s>'
+                    % (self._name, self._arg, self._lineno))
         else:
-            return '<%s lineno=%s>' % (self._name, self._lineno)
+            return ('<%s lineno=%s>'
+                    % (self._name, self._lineno))
 
     def _cmp_key(self, labels=None):
-        arg = self._arg
-        if self._opcode in _opcode.hasconst:
-            arg = const_key(arg)
-        elif isinstance(arg, Label) and labels is not None:
-            arg = labels[arg]
-        return (self._lineno, self._name, arg)
+        return (self._lineno, self._name, self._arg)
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -203,7 +193,8 @@ class Instr:
         return self._cmp_key() == other._cmp_key()
 
     def is_jump(self):
-        return (self._opcode in _opcode.hasjrel or self._opcode in _opcode.hasjabs)
+        return (self._opcode in _opcode.hasjrel
+                or self._opcode in _opcode.hasjabs)
 
     def is_cond_jump(self):
         # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
@@ -220,3 +211,21 @@ class Instr:
         if self.is_uncond_jump():
             return True
         return False
+
+
+class Instr(BaseInstr):
+    """Abstract instruction.
+
+    lineno, name, op and arg attributes can be modified.
+
+    arg is not checked.
+    """
+    __slots__ = ()
+
+    def _cmp_key(self, labels=None):
+        arg = self._arg
+        if self._opcode in _opcode.hasconst:
+            arg = const_key(arg)
+        elif isinstance(arg, Label) and labels is not None:
+            arg = labels[arg]
+        return (self._lineno, self._name, arg)
