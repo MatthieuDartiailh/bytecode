@@ -15,8 +15,6 @@ class BaseBytecode:
         self.name = '<module>'
         self.filename = '<string>'
         self.docstring = UNSET
-
-        # FIXME: move to ConcreteBytecode
         self.cellvars = []
 
     def _copy_attr_from(self, bytecode):

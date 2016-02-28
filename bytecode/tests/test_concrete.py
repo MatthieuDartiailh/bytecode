@@ -205,6 +205,39 @@ class ConcreteBytecodeTests(TestCase):
                               ConcreteInstr('LOAD_CONST', 2, lineno=2),
                               ConcreteInstr('RETURN_VALUE', lineno=2)])
 
+    def test_cellvar(self):
+        concrete = ConcreteBytecode()
+        concrete.cellvars = ['x']
+        concrete.append(ConcreteInstr('LOAD_DEREF', 0))
+        code = concrete.to_code()
+
+        concrete = ConcreteBytecode.from_code(code)
+        self.assertEqual(concrete.cellvars, ['x'])
+        self.assertEqual(concrete.freevars, [])
+        self.assertEqual(list(concrete),
+                         [ConcreteInstr('LOAD_DEREF', 0, lineno=1)])
+
+        bytecode = concrete.to_bytecode()
+        self.assertEqual(bytecode.cellvars, ['x'])
+        self.assertEqual(list(bytecode),
+                         [Instr('LOAD_DEREF', 'x', lineno=1)])
+
+    def test_freevar(self):
+        concrete = ConcreteBytecode()
+        concrete.freevars = ['x']
+        concrete.append(ConcreteInstr('LOAD_DEREF', 0))
+        code = concrete.to_code()
+
+        concrete = ConcreteBytecode.from_code(code)
+        self.assertEqual(concrete.cellvars, [])
+        self.assertEqual(concrete.freevars, ['x'])
+        self.assertEqual(list(concrete),
+                         [ConcreteInstr('LOAD_DEREF', 0, lineno=1)])
+
+        bytecode = concrete.to_bytecode()
+        self.assertEqual(bytecode.cellvars, [])
+        self.assertEqual(list(bytecode),
+                         [Instr('LOAD_DEREF', 'x', lineno=1)])
 
 
 class ConcreteFromCodeTests(TestCase):
