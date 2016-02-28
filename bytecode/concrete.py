@@ -7,7 +7,7 @@ import types
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 from bytecode.instr import (UNSET, Instr, Label, SetLineno,
-                            const_key, get_opcode, _check_lineno)
+                            const_key, _check_lineno)
 
 
 ARG_MAX = 2147483647
@@ -36,16 +36,13 @@ class ConcreteInstr(Instr):
     def __init__(self, name, arg=UNSET, *, lineno=None):
         self.set(name, arg, lineno=lineno)
 
-    def _set_name(self, name):
-        opcode = get_opcode(name)
-        self._check_arg(name, opcode, self._arg)
-        self._name = name
-        self._opcode = opcode
+    def _check(self, name, arg, lineno):
+        super()._check(name, arg, lineno)
 
-    def _check_arg(self, opname, opcode, arg):
+        opcode = _opcode.opmap[name]
         if opcode >= _opcode.HAVE_ARGUMENT:
             if arg is UNSET:
-                raise ValueError("operation %s requires an argument" % opname)
+                raise ValueError("operation %s requires an argument" % name)
 
             if isinstance(arg, int):
                 # FIXME: it looks like assemble_emit() allows negative argument
@@ -56,23 +53,7 @@ class ConcreteInstr(Instr):
                 raise TypeError("arg must be an int")
         else:
             if arg is not UNSET:
-                raise ValueError("operation %s has no argument" % opname)
-
-    def _set_arg(self, arg, opcode=None):
-        self._check_arg(self._name, self._opcode, arg)
-
-        size = 1
-        if arg is not UNSET:
-            size += 2
-            if arg > 0xffff:
-                size += 3
-
-        self._arg = arg
-        self._size = size
-
-    @property
-    def size(self):
-        return self._size
+                raise ValueError("operation %s has no argument" % name)
 
     def set(self, name, arg=UNSET, *, lineno=None):
         """Modify the instruction in-place.
@@ -84,16 +65,17 @@ class ConcreteInstr(Instr):
         with NOP cannot be done with instr.name='NOP' since this change raises
         an exception (operation NOP has no argument).
         """
-        opcode = get_opcode(name)
-        self._check_arg(name, opcode, arg)
-        if lineno is not None:
-            _check_lineno(lineno)
+        super().set(name, arg, lineno=lineno)
+        size = 1
+        if arg is not UNSET:
+            size += 2
+            if arg > 0xffff:
+                size += 3
+        self._size = size
 
-        self._name = name
-        self._opcode = opcode
-        self._lineno = lineno
-        # call arg setter to update the size
-        self.arg = arg
+    @property
+    def size(self):
+        return self._size
 
     def get_jump_target(self, instr_offset):
         if self._opcode in _opcode.hasjrel:

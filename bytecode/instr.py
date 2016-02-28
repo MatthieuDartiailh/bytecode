@@ -1,5 +1,5 @@
 import math
-import opcode
+import opcode as _opcode
 import types
 
 
@@ -77,15 +77,6 @@ class Label:
     __slots__ = ()
 
 
-def get_opcode(name):
-    if not isinstance(name, str):
-        raise TypeError("operation name must be a str")
-    try:
-        return  opcode.opmap[name]
-    except KeyError:
-        raise ValueError("invalid operation name")
-
-
 class Instr:
     """Abstract instruction.
 
@@ -97,25 +88,37 @@ class Instr:
     __slots__ = ('_name', '_opcode', '_arg', '_lineno')
 
     def __init__(self, name, arg=UNSET, *, lineno=None):
-        # name setter sets self._name and self._opcode,
-        # and checks if the name is valid
-        self.name = name
-        # arg setter checks if the argument is valid
-        self.arg = arg
-        # lineno setter checks if the line number is valid
-        self.lineno = lineno
+        self.set(name, arg, lineno=lineno)
+
+    def _check(self, name, arg, lineno):
+        # check operation name
+        if not isinstance(name, str):
+            raise TypeError("operation name must be a str")
+        try:
+            _opcode.opmap[name]
+        except KeyError:
+            raise ValueError("invalid operation name")
+
+        # check lineno
+        if lineno is not None:
+            _check_lineno(lineno)
+
+    def set(self, name, arg=UNSET, *, lineno=None):
+        """Modify the instruction in-place.
+
+        Replace name, arg and lineno attributes.
+        """
+        self._check(name, arg, lineno)
+
+        opcode = _opcode.opmap[name]
+        self._name = name
+        self._opcode = opcode
+        self._arg = arg
+        self._lineno = lineno
 
     def require_arg(self):
         """Does the instruction require an argument?"""
-        return (self._opcode >= opcode.HAVE_ARGUMENT)
-
-    def _set_name(self, name):
-        opcode = get_opcode(name)
-        self._name = name
-        self._opcode = opcode
-
-    def _set_arg(self, arg):
-        self._arg = arg
+        return (self._opcode >= _opcode.HAVE_ARGUMENT)
 
     @property
     def name(self):
@@ -123,7 +126,7 @@ class Instr:
 
     @name.setter
     def name(self, name):
-        self._set_name(name)
+        self.set(name, self._arg, lineno=self._lineno)
 
     @property
     def op(self):
@@ -134,15 +137,14 @@ class Instr:
         if not isinstance(op, int):
             raise TypeError("operator code must be an int")
         if 0 <= op <= 255:
-            name = opcode.opname[op]
+            name = _opcode.opname[op]
             valid = (name != '<%r>' % op)
         else:
             valid = False
         if not valid:
             raise ValueError("invalid operator code")
 
-        self._name = name
-        self._opcode = op
+        self.set(name, self._arg, lineno=self._lineno)
 
     @property
     def arg(self):
@@ -150,7 +152,7 @@ class Instr:
 
     @arg.setter
     def arg(self, arg):
-        self._set_arg(arg)
+        self.set(self._name, arg, lineno=self._lineno)
 
     @property
     def lineno(self):
@@ -158,9 +160,7 @@ class Instr:
 
     @lineno.setter
     def lineno(self, lineno):
-        if lineno is not None:
-            _check_lineno(lineno)
-        self._lineno = lineno
+        self.set(self._name, self._arg, lineno=lineno)
 
     def copy(self):
         return self.__class__(self._name, self._arg, lineno=self._lineno)
@@ -186,7 +186,7 @@ class Instr:
 
     def _cmp_key(self, labels=None):
         arg = self._arg
-        if self._opcode in opcode.hasconst:
+        if self._opcode in _opcode.hasconst:
             arg = const_key(arg)
         elif isinstance(arg, Label) and labels is not None:
             arg = labels[arg]
@@ -198,7 +198,7 @@ class Instr:
         return self._cmp_key() == other._cmp_key()
 
     def is_jump(self):
-        return (self._opcode in opcode.hasjrel or self._opcode in opcode.hasjabs)
+        return (self._opcode in _opcode.hasjrel or self._opcode in _opcode.hasjabs)
 
     def is_cond_jump(self):
         # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
