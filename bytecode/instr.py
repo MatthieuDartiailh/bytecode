@@ -172,7 +172,7 @@ class Instr:
 
     # FIXME: stack effect
 
-    def format(self, labels):
+    def _format(self, labels):
         text = self.name
         arg = self._arg
         if arg is not UNSET:

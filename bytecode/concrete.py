@@ -106,6 +106,12 @@ class ConcreteInstr(Instr):
         name = _opcode.opname[op]
         return cls(name, arg, lineno=lineno)
 
+    def _format(self):
+        if self._arg is not UNSET:
+            return '%s %s' % (self._name, self._arg)
+        else:
+            return self._name
+
 
 class ConcreteBytecode(_bytecode.BaseBytecode, list):
     def __init__(self):

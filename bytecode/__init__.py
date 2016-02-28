@@ -28,9 +28,7 @@ def dump_code(code):
             else:
                 fields.append(" " * line_width)
 
-            fields.append("% 3s    %s" % (offset, instr.name))
-            if instr.arg is not UNSET:
-                fields.append("(%s)" % instr.arg)
+            fields.append("% 3s    %s" % (offset, instr._format()))
             print(''.join(fields))
 
             offset += instr.size
@@ -47,7 +45,7 @@ def dump_code(code):
                 if index != 0:
                     print()
             else:
-                line = indent + instr.format(labels)
+                line = indent + instr._format(labels)
             print(line)
         print()
     elif isinstance(code, BytecodeBlocks):
@@ -67,7 +65,7 @@ def dump_code(code):
                     label = labels[instr]
                     line = '%s:' % label
                 else:
-                    line = indent + instr.format(labels)
+                    line = indent + instr._format(labels)
                 print(line)
             if block.next_block is not None:
                 print(indent + "-> %s" % labels[block.next_block.label])
