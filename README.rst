@@ -122,7 +122,7 @@ Create bytecode
 Conversions
 -----------
 
-* ``bytecode.to_bytecode() -> Bytecode``
+* ``concrete_bytecode.to_bytecode() -> Bytecode``
 * ``bytecode.to_concrete_bytecode() -> ConcreteBytecode``
 * ``BytecodeBlocks.from_bytecode(bytecode: Bytecode) -> BytecodeBlocks``
 * ``bytecode.to_code() -> types.CodeType``

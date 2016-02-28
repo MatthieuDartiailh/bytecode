@@ -94,7 +94,8 @@ class Bytecode(_InstrList, BaseBytecode):
 
     @staticmethod
     def from_code(code):
-        return _bytecode.ConcreteBytecode.from_code(code).to_bytecode()
+        concrete = _bytecode.ConcreteBytecode.from_code(code)
+        return concrete.to_bytecode()
 
     def to_code(self):
         return self.to_concrete_bytecode().to_code()
@@ -102,6 +103,3 @@ class Bytecode(_InstrList, BaseBytecode):
     def to_concrete_bytecode(self):
         converter = _bytecode._ConvertBytecodeToConcrete(self)
         return converter.to_concrete_bytecode()
-
-    def to_bytecode(self):
-        return self
