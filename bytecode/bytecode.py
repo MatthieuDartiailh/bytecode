@@ -17,7 +17,6 @@ class BaseBytecode:
         self.docstring = UNSET
 
         # FIXME: move to ConcreteBytecode
-        self.freevars = []
         self.cellvars = []
 
     def _copy_attr_from(self, bytecode):
@@ -29,7 +28,6 @@ class BaseBytecode:
         self.name = bytecode.name
         self.filename = bytecode.filename
         self.docstring = bytecode.docstring
-        self.freevars = list(bytecode.freevars)
         self.cellvars = list(bytecode.cellvars)
 
     def __eq__(self, other):
@@ -51,8 +49,6 @@ class BaseBytecode:
         if self.name != other.name:
             return False
         if self.docstring != other.docstring:
-            return False
-        if self.freevars != other.freevars:
             return False
         if self.cellvars != other.cellvars:
             return False

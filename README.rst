@@ -110,6 +110,7 @@ ChangeLog
   - Fix bug #1: support jumps larger than 2^16.
   - Add bytecode.peephole_opt: a peephole optimizer, code based on
     peephole optimizer of CPython 3.6 which is implemented in C
+  - Instr: use variable name instead of integer for free variables
   - ConcreteInstr is now mutable
   - Add copy() methods to Instr and ConcreteInstr
   - Fix ConcreteBytecode for code with no constant (empty list of constants)

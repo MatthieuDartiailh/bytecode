@@ -117,6 +117,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         self.consts = []
         self.names = []
         self.varnames = []
+        self.freevars = []
 
     def __repr__(self):
         return '<ConcreteBytecode instr#=%s>' % len(self)
@@ -133,6 +134,8 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         if self.names != other.names:
             return False
         if self.varnames != other.varnames:
+            return False
+        if self.freevars != other.freevars:
             return False
 
         return super().__eq__(other)
@@ -305,7 +308,8 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                 arg = self.varnames[arg]
             elif instr.op in _opcode.hasname:
                 arg = self.names[arg]
-            # FIXME: hasfree
+            elif instr.op in _opcode.hasfree:
+                arg = self.freevars[arg]
             # FIXME: COMPARE_OP operator
 
             instr = Instr(instr.name, arg, lineno=instr.lineno)
@@ -344,6 +348,7 @@ class _ConvertCodeToConcrete:
         self.consts = {}
         self.names = []
         self.varnames = []
+        self.freevars = []
 
     def add_const(self, value):
         key = const_key(value)
@@ -427,6 +432,8 @@ class _ConvertCodeToConcrete:
                             arg = self.add(self.varnames, arg)
                         elif instr.op in _opcode.hasname:
                             arg = self.add(self.names, arg)
+                        elif instr.op in _opcode.hasfree:
+                            arg = self.add(self.freenames, arg)
 
                         instr = ConcreteInstr(instr.name, arg, lineno=lineno)
                         if is_jump:
@@ -475,6 +482,7 @@ class _ConvertCodeToConcrete:
         concrete.consts = consts
         concrete.names = self.names
         concrete.varnames = self.varnames
+        concrete.freevars = self.freevars
 
         # copy instructions
         concrete[:] = instructions

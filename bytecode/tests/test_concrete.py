@@ -144,6 +144,7 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(code.consts, [5, None])
         self.assertEqual(code.names, ['x'])
         self.assertEqual(code.varnames, [])
+        self.assertEqual(code.freevars, [])
         self.assertListEqual(list(code),
                              [ConcreteInstr('LOAD_CONST', 0, lineno=1),
                               ConcreteInstr('STORE_NAME', 0, lineno=1),

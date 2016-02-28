@@ -27,7 +27,6 @@ class BytecodeBlocksTests(TestCase):
         self.assertEqual(code.first_lineno, 3)
         self.assertEqual(code.kw_only_argcount, 1)
         self.assertEqual(code.name, "func")
-        self.assertEqual(code.freevars, [])
         self.assertEqual(code.cellvars, [])
 
         code.name = "name"
@@ -37,7 +36,6 @@ class BytecodeBlocksTests(TestCase):
         self.assertEqual(code.filename, "filename")
         self.assertEqual(code.flags, 123)
 
-        # FIXME: test non-empty freevars
         # FIXME: test non-empty cellvars
 
     def test_add_del_block(self):

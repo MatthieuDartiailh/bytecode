@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import textwrap
 import unittest
 from bytecode import Label, Instr, Bytecode, ConcreteBytecode
 from bytecode.tests import TestCase, get_code, disassemble
@@ -36,6 +37,24 @@ class BytecodeTests(TestCase):
                           label_exit,
                               Instr('LOAD_CONST', None, lineno=4),
                               Instr('RETURN_VALUE', lineno=4)])
+
+    def test_from_code_freevars(self):
+        ns = {}
+        exec(textwrap.dedent('''
+            def create_func():
+                x = 1
+                def func():
+                    return x
+                return func
+
+            func = create_func()
+        '''), ns, ns)
+        code = ns['func'].__code__
+
+        bytecode = Bytecode.from_code(code)
+        self.assertEqual(bytecode,
+                         [Instr('LOAD_DEREF', 'x', lineno=5),
+                          Instr('RETURN_VALUE', lineno=5)])
 
     def test_from_code_load_fast(self):
         code = get_code("""
