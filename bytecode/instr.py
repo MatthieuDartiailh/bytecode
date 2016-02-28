@@ -77,49 +77,95 @@ class Label:
     __slots__ = ()
 
 
-class BaseInstr:
-    __slots__ = ('_name', '_op', '_arg', '_lineno')
+def get_opcode(name):
+    if not isinstance(name, str):
+        raise TypeError("operation name must be a str")
+    try:
+        return  opcode.opmap[name]
+    except KeyError:
+        raise ValueError("invalid operation name")
+
+
+class Instr:
+    """Abstract instruction.
+
+    lineno, name, op and arg attributes can be modified.
+
+    arg is not checked.
+    """
+
+    __slots__ = ('_name', '_opcode', '_arg', '_lineno')
 
     def __init__(self, name, arg=UNSET, *, lineno=None):
-        self._set_name(name)
+        # name setter sets self._name and self._opcode,
+        # and checks if the name is valid
+        self.name = name
+        # arg setter checks if the argument is valid
+        self.arg = arg
+        # lineno setter checks if the line number is valid
+        self.lineno = lineno
+
+    def require_arg(self):
+        """Does the instruction require an argument?"""
+        return (self._opcode >= opcode.HAVE_ARGUMENT)
+
+    def _set_name(self, name):
+        opcode = get_opcode(name)
+        self._name = name
+        self._opcode = opcode
+
+    def _set_arg(self, arg):
         self._arg = arg
-        self._set_lineno(lineno)
 
     @property
     def name(self):
         return self._name
 
+    @name.setter
+    def name(self, name):
+        self._set_name(name)
+
     @property
     def op(self):
-        return self._op
+        return self._opcode
+
+    @op.setter
+    def op(self, op):
+        if not isinstance(op, int):
+            raise TypeError("operator code must be an int")
+        if 0 <= op <= 255:
+            name = opcode.opname[op]
+            valid = (name != '<%r>' % op)
+        else:
+            valid = False
+        if not valid:
+            raise ValueError("invalid operator code")
+
+        self._name = name
+        self._opcode = op
 
     @property
     def arg(self):
         return self._arg
 
+    @arg.setter
+    def arg(self, arg):
+        self._set_arg(arg)
+
     @property
     def lineno(self):
         return self._lineno
+
+    @lineno.setter
+    def lineno(self, lineno):
+        if lineno is not None:
+            _check_lineno(lineno)
+        self._lineno = lineno
 
     def copy(self):
         return self.__class__(self._name, self._arg, lineno=self._lineno)
 
     # FIXME: stack effect
-
-    def _set_lineno(self, lineno):
-        if lineno is not None:
-            _check_lineno(lineno)
-        self._lineno = lineno
-
-    def _set_name(self, name):
-        if not isinstance(name, str):
-            raise TypeError("name must be a str")
-        try:
-            op = opcode.opmap[name]
-        except KeyError:
-            raise ValueError("invalid operation name")
-        self._name = name
-        self._op = op
 
     def format(self, labels):
         text = self.name
@@ -140,7 +186,7 @@ class BaseInstr:
 
     def _cmp_key(self, labels=None):
         arg = self._arg
-        if self._op in opcode.hasconst:
+        if self._opcode in opcode.hasconst:
             arg = const_key(arg)
         elif isinstance(arg, Label) and labels is not None:
             arg = labels[arg]
@@ -152,7 +198,7 @@ class BaseInstr:
         return self._cmp_key() == other._cmp_key()
 
     def is_jump(self):
-        return (self._op in opcode.hasjrel or self._op in opcode.hasjabs)
+        return (self._opcode in opcode.hasjrel or self._opcode in opcode.hasjabs)
 
     def is_cond_jump(self):
         # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
@@ -169,57 +215,3 @@ class BaseInstr:
         if self.is_uncond_jump():
             return True
         return False
-
-
-class Instr(BaseInstr):
-    """Abstract instruction.
-
-    lineno, name, op and arg attributes can be modified.
-
-    arg is not checked.
-    """
-
-    __slots__ = ()
-
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, name):
-        self._set_name(name)
-
-    @property
-    def op(self):
-        return self._op
-
-    @op.setter
-    def op(self, op):
-        if not isinstance(op, int):
-            raise TypeError("operator must be an int")
-        if 0 <= op <= 255:
-            name = opcode.opname[op]
-            valid = (name != '<%r>' % op)
-        else:
-            valid = False
-        if not valid:
-            raise ValueError("invalid operator")
-
-        self._name = name
-        self._op = op
-
-    @property
-    def arg(self):
-        return self._arg
-
-    @arg.setter
-    def arg(self, arg):
-        self._arg = arg
-
-    @property
-    def lineno(self):
-        return self._lineno
-
-    @lineno.setter
-    def lineno(self, lineno):
-        self._set_lineno(lineno)

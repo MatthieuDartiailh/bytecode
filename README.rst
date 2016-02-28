@@ -68,6 +68,19 @@ Bytecode
 * ``BytecodeBlocks``: list of blocks, a block is a list of Instr and has a label
 * ``ConcreteBytecode``: list of ConcreteInstr
 
+``ConcreteInstr`` can be accepted in ``Bytecode`` and ``BytecodeBlocks``.
+
+
+Line numbers
+------------
+
+The line number can set directly on an instruction using the ``lineno``
+parameter of the constructor. Otherwise, the line number if inherited from the
+previous instruction, started at ``first_lineno`` of the bytecode.
+
+``SetLineno`` can be used to set the line number of following instructions.
+
+
 Bytecode methods
 ----------------
 

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
+import opcode
 import types
 import unittest
-from bytecode import (Label, Instr, SetLineno, Bytecode,
+from bytecode import (UNSET, Label, Instr, SetLineno, Bytecode,
                       ConcreteInstr, ConcreteBytecode)
+from bytecode.concrete import ARG_MAX
 from bytecode.tests import get_code, TestCase
 
 
@@ -20,13 +22,16 @@ class ConcreteInstrTests(TestCase):
             ConcreteInstr("LOAD_CONST", 1.0)
         with self.assertRaises(ValueError):
             ConcreteInstr("LOAD_CONST", -1)
+        with self.assertRaises(TypeError):
+            ConcreteInstr("LOAD_CONST", 5, lineno=1.0)
+        with self.assertRaises(ValueError):
+            ConcreteInstr("LOAD_CONST", 5, lineno=-1)
 
         # test maximum argument
         with self.assertRaises(ValueError):
-            ConcreteInstr("LOAD_CONST", 2147483647+1)
-
-        instr = ConcreteInstr("LOAD_CONST", 2147483647)
-        self.assertEqual(instr.arg, 2147483647)
+            ConcreteInstr("LOAD_CONST", ARG_MAX + 1)
+        instr = ConcreteInstr("LOAD_CONST", ARG_MAX)
+        self.assertEqual(instr.arg, ARG_MAX)
 
     def test_attr(self):
         instr = ConcreteInstr("LOAD_CONST", 5, lineno=12)
@@ -36,12 +41,66 @@ class ConcreteInstrTests(TestCase):
         self.assertEqual(instr.lineno, 12)
         self.assertEqual(instr.size, 3)
 
-        # attributes are read-only
-        self.assertRaises(AttributeError, setattr, instr, 'name', 'LOAD_CONST')
-        self.assertRaises(AttributeError, setattr, instr, 'op', 100)
-        self.assertRaises(AttributeError, setattr, instr, 'arg', 5)
-        self.assertRaises(AttributeError, setattr, instr, 'lineno', 12)
+    def test_set(self):
+        instr = ConcreteInstr('LOAD_CONST', 5, lineno=3)
+
+        instr.set('NOP')
+        self.assertEqual(instr.name, 'NOP')
+        self.assertIs(instr.arg, UNSET)
+        self.assertIsNone(instr.lineno)
+
+        instr.set('LOAD_FAST', 8, lineno=9)
+        self.assertEqual(instr.name, 'LOAD_FAST')
+        self.assertEqual(instr.arg, 8)
+        self.assertEqual(instr.lineno, 9)
+
+        # invalid
+        with self.assertRaises(ValueError):
+            instr.set('LOAD_CONST')
+        with self.assertRaises(ValueError):
+            instr.set('NOP', 5)
+        with self.assertRaises(ValueError):
+            instr.set('LOAD_CONST', 5, lineno=-1)
+
+    def test_set_attr(self):
+        instr = ConcreteInstr("LOAD_CONST", 5, lineno=12)
+
+        # operator name
+        instr.name = 'LOAD_FAST'
+        self.assertEqual(instr.name, 'LOAD_FAST')
+        self.assertEqual(instr.op, 124)
+        self.assertRaises(TypeError, setattr, instr, 'name', 3)
+        self.assertRaises(ValueError, setattr, instr, 'name', 'xxx')
+
+        # operator code
+        instr.op = 100
+        self.assertEqual(instr.name, 'LOAD_CONST')
+        self.assertEqual(instr.op, 100)
+        self.assertRaises(ValueError, setattr, instr, 'op', -12)
+        self.assertRaises(TypeError, setattr, instr, 'op', 'abc')
+
+        # extended argument
+        instr.arg = 0x1234abcd
+        self.assertEqual(instr.arg, 0x1234abcd)
+        self.assertEqual(instr.size, 6)
+
+        # small argument
+        instr.arg = 0
+        self.assertEqual(instr.arg, 0)
+        self.assertEqual(instr.size, 3)
+
+        # invalid argument
+        self.assertRaises(ValueError, setattr, instr, 'arg', -1)
+        self.assertRaises(ValueError, setattr, instr, 'arg', ARG_MAX + 1)
+
+        # size attribute is read-only
         self.assertRaises(AttributeError, setattr, instr, 'size', 3)
+
+        # lineno
+        instr.lineno = 33
+        self.assertEqual(instr.lineno, 33)
+        self.assertRaises(TypeError, setattr, instr, 'lineno', 1.0)
+        self.assertRaises(ValueError, setattr, instr, 'lineno', -1)
 
     def test_size(self):
         self.assertEqual(ConcreteInstr('ROT_TWO').size, 1)
@@ -52,12 +111,13 @@ class ConcreteInstrTests(TestCase):
         instr = ConcreteInstr.disassemble(1, b'\td\x03\x00', 0)
         self.assertEqual(instr, ConcreteInstr("NOP", lineno=1))
 
-        instr = ConcreteInstr.disassemble(1, b'\td\x03\x00', 1)
-        self.assertEqual(instr, ConcreteInstr("LOAD_CONST", 3, lineno=1))
+        instr = ConcreteInstr.disassemble(2, b'\td\x03\x00', 1)
+        self.assertEqual(instr, ConcreteInstr("LOAD_CONST", 3, lineno=2))
 
         code = b'\x904\x12d\xcd\xab'
-        instr = ConcreteInstr.disassemble(1, code, 0)
-        self.assertEqual(instr, ConcreteInstr('EXTENDED_ARG', 0x1234, lineno=1))
+        instr = ConcreteInstr.disassemble(3, code, 0)
+        self.assertEqual(instr,
+                         ConcreteInstr('EXTENDED_ARG', 0x1234, lineno=3))
 
     def test_assemble(self):
         instr = ConcreteInstr("NOP")
@@ -173,7 +233,7 @@ class ConcreteFromCodeTests(TestCase):
                              [ConcreteInstr("LOAD_CONST", 0x1234abcd, lineno=1)])
 
         # with EXTENDED_ARG opcode
-        bytecode = ConcreteBytecode.from_code(code, extended_arg_op=True)
+        bytecode = ConcreteBytecode.from_code(code, extended_arg=True)
         self.assertListEqual(list(bytecode),
                              [ConcreteInstr('EXTENDED_ARG', 0x1234, lineno=1),
                               ConcreteInstr('LOAD_CONST', 0xabcd, lineno=1)])
@@ -201,7 +261,7 @@ class ConcreteFromCodeTests(TestCase):
                           ConcreteInstr("RETURN_VALUE", lineno=1)])
 
         # with EXTENDED_ARG
-        concrete = ConcreteBytecode.from_code(code_obj, extended_arg_op=True)
+        concrete = ConcreteBytecode.from_code(code_obj, extended_arg=True)
         func_code = concrete.consts[1]
         self.assertEqual(concrete.names, ['int', 'foo'])
         self.assertEqual(concrete.consts, [('x', 'y'), func_code, 'foo', None])
@@ -258,7 +318,27 @@ class BytecodeToConcreteTests(TestCase):
                      ConcreteInstr("LOAD_CONST", 2, lineno=3),
                      ConcreteInstr("STORE_NAME", 2, lineno=3)])
 
+    def test_extended_jump(self):
+        NOP = bytes((opcode.opmap['NOP'],))
 
+        class BigInstr(ConcreteInstr):
+            def __init__(self, size):
+                super().__init__('NOP')
+                self._size = size
+
+            def assemble(self):
+                return NOP * self._size
+
+        # (invalid) code using jumps > 0xffff to test extended arg
+        label = Label()
+        nb_nop = 2**16
+        code = Bytecode([Instr("JUMP_ABSOLUTE", label),
+                         BigInstr(nb_nop),
+                         label])
+
+        code_obj = code.to_code()
+        expected = (b'\x90\x01\x00q\x06\x00' + NOP * nb_nop)
+        self.assertEqual(code_obj.co_code, expected)
 
     def test_simple(self):
         bytecode = Bytecode()

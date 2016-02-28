@@ -1,12 +1,16 @@
 import dis
 import inspect
-import opcode
+import opcode as _opcode
 import struct
 import types
 
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
-from bytecode.instr import BaseInstr, Instr, Label, SetLineno, const_key, UNSET
+from bytecode.instr import (UNSET, Instr, Label, SetLineno,
+                            const_key, get_opcode, _check_lineno)
+
+
+ARG_MAX = 2147483647
 
 
 def _set_docstring(code, consts):
@@ -19,28 +23,43 @@ def _set_docstring(code, consts):
         code.docstring = first_const
 
 
-class ConcreteInstr(BaseInstr):
+class ConcreteInstr(Instr):
+    """Concrete instruction, inherit from Instr.
+
+    arg must be an integer in the range 0..2147483647.
+
+    It has a read-only size attribute.
+    """
+
     __slots__ = ('_size',)
 
     def __init__(self, name, arg=UNSET, *, lineno=None):
-        super().__init__(name, arg, lineno=lineno)
+        self.set(name, arg, lineno=lineno)
 
-        if self._op >= opcode.HAVE_ARGUMENT:
+    def _set_name(self, name):
+        opcode = get_opcode(name)
+        self._check_arg(name, opcode, self._arg)
+        self._name = name
+        self._opcode = opcode
+
+    def _check_arg(self, opname, opcode, arg):
+        if opcode >= _opcode.HAVE_ARGUMENT:
             if arg is UNSET:
-                raise ValueError("%s opcode requires an argument" % name)
+                raise ValueError("operation %s requires an argument" % opname)
 
             if isinstance(arg, int):
                 # FIXME: it looks like assemble_emit() allows negative argument
-                # (minimum=-2147483648) and use a maximum of 2147483647
-                if arg < 0:
-                    raise ValueError("arg must be positive")
-                if arg > 2147483647:
-                    raise ValueError("arg must be in range 0..2147483647")
+                # (minimum=-2147483648)
+                if not(0 <= arg <= ARG_MAX):
+                    raise ValueError("arg must be in range 0..%s" % ARG_MAX)
             else:
                 raise TypeError("arg must be an int")
         else:
             if arg is not UNSET:
-                raise ValueError("%s opcode has no argument" % name)
+                raise ValueError("operation %s has no argument" % opname)
+
+    def _set_arg(self, arg, opcode=None):
+        self._check_arg(self._name, self._opcode, arg)
 
         size = 1
         if arg is not UNSET:
@@ -48,41 +67,65 @@ class ConcreteInstr(BaseInstr):
             if arg > 0xffff:
                 size += 3
 
+        self._arg = arg
         self._size = size
 
     @property
     def size(self):
         return self._size
 
+    def set(self, name, arg=UNSET, *, lineno=None):
+        """Modify the instruction in-place.
+
+        Replace name, arg and lineno attributes.
+
+        This method must be used if the current and new operation don't have
+        the same requirements for argument. For example, replacing LOAD_CONST
+        with NOP cannot be done with instr.name='NOP' since this change raises
+        an exception (operation NOP has no argument).
+        """
+        opcode = get_opcode(name)
+        self._check_arg(name, opcode, arg)
+        if lineno is not None:
+            _check_lineno(lineno)
+
+        self._name = name
+        self._opcode = opcode
+        self._lineno = lineno
+        # call arg setter to update the size
+        self.arg = arg
+
     def get_jump_target(self, instr_offset):
-        if self._op in opcode.hasjrel:
+        if self._opcode in _opcode.hasjrel:
             return instr_offset + self._size + self._arg
-        if self._op in opcode.hasjabs:
+        if self._opcode in _opcode.hasjabs:
             return self._arg
         return None
 
+    def extended_arg(self):
+        """Does the argument need to emit a EXTENDED_ARG instruction?"""
+        return (self._arg > 0xffff)
+
     def assemble(self):
         if self._arg is UNSET:
-            return struct.pack('<B', self._op)
+            return struct.pack('<B', self._opcode)
 
         arg = self._arg
-        if isinstance(arg, Label):
-            raise ValueError("arg is a label")
         if arg > 0xffff:
             return struct.pack('<BHBH',
-                               opcode.EXTENDED_ARG, arg >> 16,
-                               self._op, arg & 0xffff)
+                               _opcode.EXTENDED_ARG, arg >> 16,
+                               self._opcode, arg & 0xffff)
         else:
-            return struct.pack('<BH', self._op, arg)
+            return struct.pack('<BH', self._opcode, arg)
 
     @classmethod
     def disassemble(cls, lineno, code, offset):
         op = code[offset]
-        if op >= opcode.HAVE_ARGUMENT:
+        if op >= _opcode.HAVE_ARGUMENT:
             arg = code[offset + 1] + code[offset + 2] * 256
         else:
             arg = UNSET
-        name = opcode.opname[op]
+        name = _opcode.opname[op]
         return cls(name, arg, lineno=lineno)
 
 
@@ -122,7 +165,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         return super().__eq__(other)
 
     @staticmethod
-    def from_code(code, *, extended_arg_op=False):
+    def from_code(code, *, extended_arg=False):
         line_starts = dict(dis.findlinestarts(code))
 
         # find block starts
@@ -139,13 +182,13 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
             offset += instr.size
 
         # replace jump targets with blocks
-        if not extended_arg_op:
+        if not extended_arg:
             extended_arg = None
             index = 0
             while index < len(instructions):
                 instr = instructions[index]
 
-                if instr.name == 'EXTENDED_ARG' and not extended_arg_op:
+                if instr.name == 'EXTENDED_ARG' and not extended_arg:
                     if extended_arg is not None:
                         raise ValueError("EXTENDED_ARG followed "
                                          "by EXTENDED_ARG")
@@ -187,9 +230,14 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         offset = 0
         code_str = []
         linenos = []
+        lineno = self.first_lineno
         for instr in self:
             code_str.append(instr.assemble())
-            linenos.append((offset, instr.lineno))
+            # if instr.lineno is not set, it's inherited from the previous
+            # instruction, or from self.first_lineno
+            if instr.lineno is not None:
+                lineno = instr.lineno
+            linenos.append((offset, lineno))
             offset += instr.size
         code_str = b''.join(code_str)
         return (code_str, linenos)
@@ -278,11 +326,11 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
             arg = instr.arg
             # FIXME: better error reporting
-            if instr.op in opcode.hasconst:
+            if instr.op in _opcode.hasconst:
                 arg = self.consts[arg]
-            elif instr.op in opcode.haslocal:
+            elif instr.op in _opcode.haslocal:
                 arg = self.varnames[arg]
-            elif instr.op in opcode.hasname:
+            elif instr.op in _opcode.hasname:
                 arg = self.names[arg]
             # FIXME: hasfree
             # FIXME: COMPARE_OP operator
@@ -349,69 +397,89 @@ class _ConvertCodeToConcrete:
         else:
             blocks = (self.bytecode,)
 
-        targets = {}
-        jumps = []
+        # outer loop to recompute jumps if needed
+        extended_jumps = set()
 
-        # convert abstract instructions to concrete instructions
-        instructions = []
-        offset = 0
-        lineno = self.bytecode.first_lineno
-        for block in blocks:
-            if use_blocks:
-                label = block.label
-                targets[label] = offset
+        # FIXME: don't recompute *everything* when jumps need to be recomputed
+        # FIXME: limit to two iterations max
+        need_recompute_jumps = True
+        while need_recompute_jumps:
+            need_recompute_jumps = False
 
-            for instr in block:
-                if isinstance(instr, Label):
-                    targets[instr] = offset
-                    continue
+            # convert abstract instructions to concrete instructions
+            targets = {}
+            jumps = []
+            instructions = []
+            offset = 0
+            lineno = self.bytecode.first_lineno
 
-                if isinstance(instr, SetLineno):
-                    lineno = instr.lineno
-                    continue
+            for block in blocks:
+                if use_blocks:
+                    label = block.label
+                    targets[label] = offset
 
-                if not isinstance(instr, Instr):
-                    raise ValueError("expect Instr, got %s"
-                                     % instr.__class__.__name__)
+                for index, instr in enumerate(block):
+                    if isinstance(instr, Label):
+                        targets[instr] = offset
+                        continue
 
-                if instr.lineno is not None:
-                    lineno = instr.lineno
+                    if isinstance(instr, SetLineno):
+                        lineno = instr.lineno
+                        continue
 
-                arg = instr.arg
-                is_jump = isinstance(arg, Label)
-                if is_jump:
-                    label = arg
-                    arg = 0
-                elif instr.op in opcode.hasconst:
-                    arg = self.add_const(arg)
-                elif instr.op in opcode.haslocal:
-                    arg = self.add(self.varnames, arg)
-                elif instr.op in opcode.hasname:
-                    arg = self.add(self.names, arg)
+                    if isinstance(instr, ConcreteInstr):
+                        # keep the concrete instruction unchanged
+                        pass
+                    elif isinstance(instr, Instr):
+                        if instr.lineno is not None:
+                            lineno = instr.lineno
 
-                instr = ConcreteInstr(instr.name, arg, lineno=lineno)
-                if is_jump:
-                    jumps.append((offset, len(instructions), instr, label))
+                        arg = instr.arg
+                        is_jump = isinstance(arg, Label)
+                        if is_jump:
+                            label = arg
+                            if use_blocks:
+                                jump_key = (block.label, index)
+                            else:
+                                jump_key = index
+                            # fake value, real value is set in the second loop
+                            if jump_key in extended_jumps:
+                                # this jump requires a EXTENDED_ARG
+                                arg = 0x10000
+                            else:
+                                arg = 0
+                        elif instr.op in _opcode.hasconst:
+                            arg = self.add_const(arg)
+                        elif instr.op in _opcode.haslocal:
+                            arg = self.add(self.varnames, arg)
+                        elif instr.op in _opcode.hasname:
+                            arg = self.add(self.names, arg)
 
-                instructions.append(instr)
-                offset += instr.size
+                        instr = ConcreteInstr(instr.name, arg, lineno=lineno)
+                        if is_jump:
+                            jumps.append((offset, instr, label, jump_key))
+                    else:
+                        raise ValueError("expect Instr, got %s"
+                                         % instr.__class__.__name__)
 
-        # fix argument of jump instructions: resolve labels
-        for instr_offset, index, instr, label in jumps:
-            offset = targets[label]
-            if instr.op in opcode.hasjrel:
-                offset = offset - (instr_offset + instr.size)
+                    instructions.append(instr)
+                    offset += instr.size
 
-            if offset > 0xffff:
-                # FIXME: should we supported this?
-                raise ValueError("EXTENDED_ARG is not supported for jumps")
+            # fix argument of jump instructions: resolve labels
+            for instr_offset, instr, label, jump_key in jumps:
+                offset = targets[label]
+                if instr.op in _opcode.hasjrel:
+                    offset = offset - (instr_offset + instr.size)
 
-            # FIXME: reject negative offset?
-            # (ex: JUMP_FORWARD arg must be positive)
-            # ConcreteInstr._set_arg() already rejects negative argument
+                if offset > 0xffff and not instr.extended_arg():
+                    extended_jumps.add(jump_key)
+                    need_recompute_jumps = True
 
-            instr = ConcreteInstr(instr.name, offset, lineno=instr.lineno)
-            instructions[index] = instr
+                # FIXME: reject negative offset?
+                # (ex: JUMP_FORWARD arg must be positive)
+                # ConcreteInstr._set_arg() already rejects negative argument
+
+                instr.arg = offset
 
         return instructions
 
