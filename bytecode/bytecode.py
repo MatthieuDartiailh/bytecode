@@ -98,14 +98,6 @@ class Bytecode(_InstrList, BaseBytecode):
             self.extend(instructions)
         self.argnames = []
 
-    def copy(self):
-        obj = Bytecode()
-        obj._copy_attr_from(self)
-        for instr in self:
-            obj.append(instr.copy())
-        obj.argnames = list(self.argnames)
-        return obj
-
     @staticmethod
     def from_code(code):
         return _bytecode.ConcreteBytecode.from_code(code).to_bytecode()

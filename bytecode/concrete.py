@@ -118,16 +118,6 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         self.names = []
         self.varnames = []
 
-    def copy(self):
-        obj = ConcreteBytecode()
-        obj._copy_attr_from(self)
-        for instr in self:
-            obj.append(instr.copy())
-        obj.consts = list(self.consts)
-        obj.names = list(self.names)
-        obj.varnames = list(self.varnames)
-        return obj
-
     def __repr__(self):
         return '<ConcreteBytecode instr#=%s>' % len(self)
 

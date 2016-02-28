@@ -27,8 +27,11 @@ class Tests(TestCase):
 
     def check_dont_optimize(self, code):
         code = code.to_bytecode_blocks()
-        noopt = code.copy()
+
+        noopt = code.to_bytecode()
+
         optim = self.optimize_blocks(code)
+        optim = optim.to_bytecode()
         self.assertEqual(optim, noopt)
 
     def test_unary_op(self):
