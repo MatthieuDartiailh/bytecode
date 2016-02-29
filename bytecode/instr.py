@@ -176,19 +176,6 @@ class Instr:
 
     # FIXME: stack effect
 
-    def _format(self, labels):
-        text = self.name
-        arg = self._arg
-        if arg is not UNSET:
-            if isinstance(arg, Label):
-                arg = '<%s>' % labels[arg]
-            elif isinstance(arg, _bytecode.Block):
-                arg = '<%s>' % labels[id(arg)]
-            else:
-                arg = repr(arg)
-            text = '%s %s' % (text, arg)
-        return text
-
     def __repr__(self):
         if self._arg is not UNSET:
             return ('<%s arg=%r lineno=%s>'

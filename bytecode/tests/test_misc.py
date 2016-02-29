@@ -5,6 +5,7 @@ import textwrap
 import unittest
 
 import bytecode
+from bytecode import Label, Instr, Bytecode, Block, BytecodeBlocks
 from bytecode.tests import disassemble
 
 
@@ -80,6 +81,25 @@ label_instr13:
 
         """[1:].rstrip(" ")
         self.check_dump_bytecode(code, expected, lineno=True)
+
+    def test_bytecode_broken_label(self):
+        label = Label()
+        code = Bytecode([Instr('JUMP_ABSOLUTE', label)])
+
+        expected = "    JUMP_ABSOLUTE <error: unknown label>\n\n"
+        self.check_dump_bytecode(code, expected)
+
+    def test_blocks_broken_jump(self):
+        block = Block()
+        code = BytecodeBlocks()
+        code[0].append(Instr('JUMP_ABSOLUTE', block))
+
+        expected = textwrap.dedent("""
+            label_block1:
+                JUMP_ABSOLUTE <error: unknown block>
+
+        """).lstrip("\n")
+        self.check_dump_bytecode(code, expected)
 
     def test_bytecode_blocks(self):
         source = """

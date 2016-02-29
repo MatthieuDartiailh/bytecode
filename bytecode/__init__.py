@@ -32,7 +32,10 @@ def dump_bytecode(bytecode, *, lineno=False):
         arg = instr._arg
         if arg is not UNSET:
             if isinstance(arg, Label):
-                arg = '<%s>' % labels[arg]
+                try:
+                    arg = '<%s>' % labels[arg]
+                except KeyError:
+                    arg = '<error: unknown label>'
             elif isinstance(arg, Block):
                 try:
                     arg = '<%s>' % labels[id(arg)]
@@ -59,7 +62,7 @@ def dump_bytecode(bytecode, *, lineno=False):
                 line = ''.join(fields)
                 line = format_line(offset, line)
             else:
-                fields.append("% 3s    %s" % (offset, instr._format()))
+                fields.append("% 3s    %s" % (offset, format_instr(instr)))
                 line = ''.join(fields)
             print(line)
 
