@@ -2,7 +2,7 @@ import textwrap
 import types
 import unittest
 
-from bytecode import (UNSET, Label, Instr, ConcreteInstr,
+from bytecode import (UNSET, Label, Instr, ConcreteInstr, Block,
                       Bytecode, BytecodeBlocks, ConcreteBytecode)
 
 
@@ -137,7 +137,33 @@ def disassemble(source, *, filename="<string>", function=False,
 
 class TestCase(unittest.TestCase):
     def assertBlocksEqual(self, code, *expected_blocks):
-        blocks = [list(block) for block in code]
-        self.assertEqual(len(blocks), len(expected_blocks))
-        for block, expected_block in zip(blocks, expected_blocks):
-            self.assertListEqual(block, list(expected_block))
+
+        def _flat(code, blocks):
+            instructions = []
+            labels = {}
+            jumps = []
+
+            offset = 0
+            for block_index, block in enumerate(code, 1):
+                labels[id(block)] = offset
+                for instr in block:
+                    offset += 1
+
+            for block_index, block in enumerate(expected_blocks, 1):
+                for index, instr in enumerate(block):
+                    if isinstance(instr, Instr) and isinstance(instr.arg, Block):
+                        # copy the instruction to be able to modify
+                        # its argument below
+                        instr = instr.copy()
+                        jumps.append(instr)
+                    instructions.append(instr)
+
+            for instr in jumps:
+                instr.arg = labels[id(instr.arg)]
+
+            return instructions
+
+        instrs1 = code._flat()
+        instrs2 = _flat(code, expected_blocks)
+
+        self.assertListEqual(instrs1, instrs2)

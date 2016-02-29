@@ -2,6 +2,8 @@ import math
 import opcode as _opcode
 import types
 
+import bytecode as _bytecode
+
 
 UNSET = object()
 
@@ -180,6 +182,8 @@ class Instr:
         if arg is not UNSET:
             if isinstance(arg, Label):
                 arg = '<%s>' % labels[arg]
+            elif isinstance(arg, _bytecode.Block):
+                arg = '<%s>' % labels[id(arg)]
             else:
                 arg = repr(arg)
             text = '%s %s' % (text, arg)

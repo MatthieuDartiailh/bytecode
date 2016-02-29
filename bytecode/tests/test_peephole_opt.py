@@ -24,8 +24,10 @@ class Tests(TestCase):
         optimizer._optimize(code)
         code = code.to_bytecode()
 
-        self.assertEqual(code, expected)
-        #self.assertListEqual(code, list(expected))
+        try:
+            self.assertEqual(code, expected)
+        except AssertionError:
+            self.assertListEqual(code, list(expected))
 
     def check_dont_optimize(self, code):
         code = BytecodeBlocks.from_bytecode(code)

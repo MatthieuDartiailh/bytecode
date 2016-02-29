@@ -9,7 +9,7 @@ from bytecode.bytecode import BaseBytecode, _InstrList, Bytecode
 from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,
                                # import needed to use it in bytecode.py
                                _ConvertBytecodeToConcrete)
-from bytecode.blocks import BytecodeBlocks
+from bytecode.blocks import Block, BytecodeBlocks
 
 
 # FIXME: move code into a submodule or inside Bytecode classes?
@@ -27,6 +27,22 @@ def dump_bytecode(bytecode, *, lineno=False):
             line = line
         return line
 
+    def format_instr(instr, labels=None):
+        text = instr.name
+        arg = instr._arg
+        if arg is not UNSET:
+            if isinstance(arg, Label):
+                arg = '<%s>' % labels[arg]
+            elif isinstance(arg, Block):
+                try:
+                    arg = '<%s>' % labels[id(arg)]
+                except KeyError:
+                    arg = '<error: unknown block>'
+            else:
+                arg = repr(arg)
+            text = '%s %s' % (text, arg)
+        return text
+
     indent = ' ' * 4
 
     cur_lineno = bytecode.first_lineno
@@ -39,7 +55,7 @@ def dump_bytecode(bytecode, *, lineno=False):
             if instr.lineno is not None:
                cur_lineno = instr.lineno
             if lineno:
-                fields.append(instr._format())
+                fields.append(format_instr(instr))
                 line = ''.join(fields)
                 line = format_line(offset, line)
             else:
@@ -63,7 +79,7 @@ def dump_bytecode(bytecode, *, lineno=False):
             else:
                 if instr.lineno is not None:
                    cur_lineno = instr.lineno
-                line = instr._format(labels)
+                line = format_instr(instr, labels)
                 line = indent + format_line(index, line)
             print(line)
         print()
@@ -71,27 +87,19 @@ def dump_bytecode(bytecode, *, lineno=False):
         labels = {}
         for block_index, block in enumerate(bytecode, 1):
             block_label = 'label_block%s' % block_index
-            labels[block.label] = block_label
-
-            for index, instr in enumerate(block):
-                if isinstance(instr, Label):
-                    labels[instr] = '%s_instr%s' % (block_label, index)
+            labels[id(block)] = block_label
 
         for block_index, block in enumerate(bytecode, 1):
-            print('%s:' % labels[block.label])
+            print('%s:' % labels[id(block)])
             prev_lineno = None
             for index, instr in enumerate(block):
-                if isinstance(instr, Label):
-                    label = labels[instr]
-                    line = '%s:' % label
-                else:
-                    if instr.lineno is not None:
-                       cur_lineno = instr.lineno
-                    line = instr._format(labels)
-                    line = indent + format_line(index, line)
+                if instr.lineno is not None:
+                   cur_lineno = instr.lineno
+                line = format_instr(instr, labels)
+                line = indent + format_line(index, line)
                 print(line)
             if block.next_block is not None:
-                print(indent + "-> %s" % labels[block.next_block.label])
+                print(indent + "-> %s" % labels[id(block.next_block)])
             print()
     else:
         raise TypeError("unknown bytecode class")

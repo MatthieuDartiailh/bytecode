@@ -5,8 +5,6 @@ from bytecode.instr import Instr, Label
 
 class Block(_bytecode._InstrList):
     def __init__(self, instructions=None):
-        # create a unique object as label
-        self.label = Label()
         # a Block object, or None
         self.next_block = None
         if instructions:
@@ -17,7 +15,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
     def __init__(self):
         super().__init__()
         self._blocks = []
-        self._label_to_index = {}
+        self._block_index = {}
         self.argnames = []
 
         self.add_block()
@@ -25,7 +23,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
     def _add_block(self, block):
         block_index = len(self._blocks)
         self._blocks.append(block)
-        self._label_to_index[block.label] = block_index
+        self._block_index[id(block)] = block_index
 
     def add_block(self, instructions=None):
         block = Block(instructions)
@@ -42,22 +40,19 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         offset = 0
 
         for block_index, block in enumerate(self, 1):
-            labels[block.label] = offset
+            labels[id(block)] = offset
 
             for index, instr in enumerate(block):
-                if isinstance(instr, Label):
-                    labels[instr] = offset
-                else:
-                    offset += 1
-                    if isinstance(instr.arg, Label):
-                        # copy the instruction to be able to modify
-                        # its argument below
-                        instr = instr.copy()
-                        jumps.append(instr)
-                    instructions.append(instr)
+                offset += 1
+                if isinstance(instr, Instr) and isinstance(instr.arg, Block):
+                    # copy the instruction to be able to modify
+                    # its argument below
+                    instr = instr.copy()
+                    jumps.append(instr)
+                instructions.append(instr)
 
         for instr in jumps:
-            instr.arg = labels[instr.arg]
+            instr.arg = labels[id(instr.arg)]
 
         return instructions
 
@@ -82,33 +77,32 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
     def __iter__(self):
         return iter(self._blocks)
 
-    def __getitem__(self, block_index):
-        if isinstance(block_index, Label):
-            block_index = self._label_to_index[block_index]
-        return self._blocks[block_index]
+    def __getitem__(self, index):
+        if isinstance(index, Block):
+            index = self._block_index[id(index)]
+        return self._blocks[index]
 
-    def __delitem__(self, block_index):
-        if isinstance(block_index, Label):
-            block_index = self._label_to_index[block_index]
-        block = self._blocks[block_index]
-        del self._blocks[block_index]
-        del self._label_to_index[block.label]
-        for block_index in range(block_index, len(self)):
-            label = self[block_index].label
-            self._label_to_index[label] -= 1
+    def __delitem__(self, index):
+        if isinstance(index, Block):
+            index = self._block_index[id(index)]
+        block = self._blocks[index]
+        del self._blocks[index]
+        del self._block_index[id(block)]
+        for index in range(index, len(self)):
+            block = self._blocks[index]
+            self._block_index[id(block)] -= 1
 
-    def create_label(self, block_index, index):
-        if isinstance(block_index, Label):
-            block_index = self._label_to_index[block_index]
-        elif block_index < 0:
-            raise ValueError("block_index must be positive")
+    def split_block(self, block, index):
+        if not isinstance(block, Block):
+            raise TypeError("expected block")
+        block_index = self._block_index[id(block)]
 
         if index < 0:
             raise ValueError("index must be positive")
 
         block = self._blocks[block_index]
         if index == 0:
-            return block.label
+            return block
 
         instructions = block[index:]
         if not instructions:
@@ -119,28 +113,28 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         block.next_block = block2
 
         for block in self[block_index+1:]:
-            self._label_to_index[block.label] += 1
+            self._block_index[id(block)] += 1
 
         self._blocks.insert(block_index+1, block2)
-        self._label_to_index[block2.label] = block_index + 1
+        self._block_index[id(block2)] = block_index + 1
 
-        return block2.label
+        return block2
 
     @staticmethod
     def from_bytecode(bytecode):
         # label => instruction index
-        label_to_index = {}
+        label_to_block_index = {}
         jumps = []
         block_starts = {}
         for index, instr in enumerate(bytecode):
             if isinstance(instr, Label):
-                label_to_index[instr] = index
+                label_to_block_index[instr] = index
             else:
                 if isinstance(instr.arg, Label):
                     jumps.append((index, instr.arg))
 
         for target_index, target_label  in jumps:
-            target_index = label_to_index[target_label]
+            target_index = label_to_block_index[target_label]
             block_starts[target_index] = target_label
 
         bytecode_blocks = _bytecode.BytecodeBlocks()
@@ -160,7 +154,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                         block.next_block = new_block
                     block = new_block
                 if old_label is not None:
-                    labels[old_label] = block.label
+                    labels[old_label] = block
             elif block and block[-1].is_final():
                 block = bytecode_blocks.add_block()
             elif block and block[-1].is_cond_jump():
@@ -192,36 +186,38 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
 
         Unused labels are removed.
         """
-        used_labels = set()
+
+        used_blocks = set()
         for block in self:
             for instr in block:
                 if isinstance(instr, Label):
                     raise ValueError("Label must not be used in blocks")
-                if isinstance(instr.arg, Label):
-                    used_labels.add(instr.arg)
+                if isinstance(instr, Instr) and isinstance(instr.arg, Block):
+                    used_blocks.add(id(instr.arg))
 
         labels = {}
         jumps = []
         instructions = []
 
         for block in self:
-            if block.label in used_labels:
+            if id(block) in used_blocks:
                 new_label = Label()
-                labels[block.label] = new_label
+                labels[id(block)] = new_label
                 instructions.append(new_label)
 
             for instr in block:
                 instr = instr.copy()
-                if isinstance(instr.arg, Label):
+                if isinstance(instr.arg, Block):
                     jumps.append(instr)
                 instructions.append(instr)
 
         # Map to new labels
         for instr in jumps:
-            instr.arg = labels[instr.arg]
+            instr.arg = labels[id(instr.arg)]
 
         bytecode = _bytecode.Bytecode()
         bytecode._copy_attr_from(self)
         bytecode.argnames = list(self.argnames)
         bytecode[:] = instructions
+
         return bytecode

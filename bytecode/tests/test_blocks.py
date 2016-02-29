@@ -5,6 +5,8 @@ from bytecode.tests import disassemble, TestCase, get_code
 
 
 class BytecodeBlocksTests(TestCase):
+    maxDiff = 80 * 100
+
     def test_constructor(self):
         code = BytecodeBlocks()
         self.assertEqual(code.name, "<module>")
@@ -60,12 +62,12 @@ class BytecodeBlocksTests(TestCase):
 
     def test_to_bytecode(self):
         blocks = BytecodeBlocks()
-        label = blocks.add_block().label
+        block1 = blocks.add_block()
         blocks[0].extend([Instr('LOAD_NAME', 'test', lineno=1),
-                          Instr('POP_JUMP_IF_FALSE', label, lineno=1),
+                          Instr('POP_JUMP_IF_FALSE', block1, lineno=1),
                           Instr('LOAD_CONST', 5, lineno=2),
                           Instr('STORE_NAME', 'x', lineno=2),
-                          Instr('JUMP_FORWARD', label, lineno=2),
+                          Instr('JUMP_FORWARD', block1, lineno=2),
                           Instr('LOAD_CONST', 7, lineno=4),
                           Instr('STORE_NAME', 'x', lineno=4)])
         blocks[1].extend([Instr('LOAD_CONST', None, lineno=4),
@@ -99,29 +101,6 @@ class BytecodeBlocksTests(TestCase):
         self.assertEqual(str(cm.exception), 'Label must not be used in blocks')
 
 
-    def test_eq_labels(self):
-        # equal
-        code1 = BytecodeBlocks()
-        label1 = Label()
-        code1[0].extend([Instr("JUMP_FORWARD", label1),
-                         Instr("NOP"),
-                         label1])
-        code2 = BytecodeBlocks()
-        label2 = Label()
-        code2[0].extend([Instr("JUMP_FORWARD", label2),
-                         Label(),   # unused label
-                         Instr("NOP"),
-                         label2])
-        self.assertEqual(code2, code1)
-
-        # not equal
-        code3 = BytecodeBlocks()
-        label3 = Label()
-        code3[0].extend([Instr("JUMP_FORWARD", label3),
-                         label3,
-                         Instr("NOP")])
-        self.assertNotEqual(code3, code1)
-
     def test_from_bytecode(self):
         bytecode = Bytecode()
         label = Label()
@@ -140,7 +119,7 @@ class BytecodeBlocksTests(TestCase):
                              Instr('RETURN_VALUE', lineno=4)])
 
         blocks = BytecodeBlocks.from_bytecode(bytecode)
-        label2 = blocks[3].label
+        label2 = blocks[3]
         self.assertIsNot(label2, label)
         self.assertBlocksEqual(blocks,
                                [Instr('LOAD_NAME', 'test', lineno=1),
@@ -190,22 +169,22 @@ class BytecodeBlocksTests(TestCase):
         ))
         blocks = BytecodeBlocks.from_bytecode(code)
 
-        expected = [[Instr('SETUP_LOOP', blocks[6].label, lineno=1),
+        expected = [[Instr('SETUP_LOOP', blocks[6], lineno=1),
                      Instr('LOAD_CONST', (1, 2, 3), lineno=1),
                      Instr('GET_ITER', lineno=1)],
 
-                    [Instr('FOR_ITER', blocks[5].label, lineno=1),
+                    [Instr('FOR_ITER', blocks[5], lineno=1),
                      Instr('STORE_NAME', 'x', lineno=1),
                      Instr('LOAD_NAME', 'x', lineno=2),
                      Instr('LOAD_CONST', 2, lineno=2),
                      Instr('COMPARE_OP', 2, lineno=2),
-                     Instr('POP_JUMP_IF_FALSE', blocks[1].label, lineno=2)],
+                     Instr('POP_JUMP_IF_FALSE', blocks[1], lineno=2)],
 
                     [Instr('BREAK_LOOP', lineno=3)],
 
-                    [Instr('JUMP_ABSOLUTE', blocks[1].label, lineno=4)],
+                    [Instr('JUMP_ABSOLUTE', blocks[1], lineno=4)],
 
-                    [Instr('JUMP_ABSOLUTE', blocks[1].label, lineno=4)],
+                    [Instr('JUMP_ABSOLUTE', blocks[1], lineno=4)],
 
                     [Instr('POP_BLOCK', lineno=4)],
 
@@ -227,7 +206,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         # check internal Code block indexes (index by index, index by label)
         for block_index, block in enumerate(code):
             self.assertIs(code[block_index], block)
-            self.assertIs(code[block.label], block)
+            self.assertIs(code[block], block)
 
     def sample_code(self):
         code = disassemble('x = 1', remove_last_return_none=True)
@@ -236,55 +215,43 @@ class BytecodeBlocksFunctionalTests(TestCase):
                                 Instr('STORE_NAME', 'x', lineno=1)])
         return code
 
-    def test_create_label_by_int_split(self):
+    def test_split_block_by_int_split(self):
         code = self.sample_code()
         code[0].append(Instr('NOP', lineno=1))
 
-        label = code.create_label(0, 2)
+        label = code.split_block(code[0], 2)
+        self.assertIs(label, code[1])
         self.assertBlocksEqual(code,
                                [Instr('LOAD_CONST', 1, lineno=1),
                                 Instr('STORE_NAME', 'x', lineno=1)],
                                [Instr('NOP', lineno=1)])
-        self.assertIs(label, code[1].label)
         self.check_getitem(code)
 
-        label2 = code.create_label(0, 1)
+        label2 = code.split_block(code[0], 1)
+        self.assertIs(label2, code[1])
         self.assertBlocksEqual(code,
                                [Instr('LOAD_CONST', 1, lineno=1)],
                                [Instr('STORE_NAME', 'x', lineno=1)],
                                [Instr('NOP', lineno=1)])
-        self.assertIs(label2, code[1].label)
-        self.assertIs(label, code[2].label)
         self.check_getitem(code)
 
-    def test_create_label_by_label_split(self):
-        code = self.sample_code()
-        block_index = code[0].label
-
-        label = code.create_label(block_index, 1)
-        self.assertEqual(len(code), 2)
-        self.assertBlocksEqual(code,
-                               [Instr('LOAD_CONST', 1, lineno=1)],
-                               [Instr('STORE_NAME', 'x', lineno=1)])
-        self.assertEqual(label, code[1].label)
-        self.check_getitem(code)
-
-    def test_create_label_dont_split(self):
+    def test_split_block_dont_split(self):
         code = self.sample_code()
 
-        label = code.create_label(0, 0)
+        # FIXME: is it really useful to support that?
+        block = code.split_block(code[0], 0)
+        self.assertIs(block, code[0])
         self.assertBlocksEqual(code,
                               [Instr('LOAD_CONST', 1, lineno=1),
                                Instr('STORE_NAME', 'x', lineno=1)])
-        self.assertEqual(label, code[0].label)
 
-    def test_create_label_error(self):
+    def test_split_block_error(self):
         code = self.sample_code()
 
         with self.assertRaises(ValueError):
             # cannot create a label at the end of a block,
             # only between instructions
-            code.create_label(0, 2)
+            code.split_block(code[0], 2)
 
     def test_to_code(self):
         # test resolution of jump labels
@@ -300,9 +267,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
         bytecode.docstring = None
         block0 = bytecode[0]
         block1 = bytecode.add_block()
-        label = block1.label
         block0.extend([Instr('LOAD_FAST', 'x', lineno=4),
-                       Instr('POP_JUMP_IF_FALSE', label, lineno=4),
+                       Instr('POP_JUMP_IF_FALSE', block1, lineno=4),
                        Instr('LOAD_FAST', 'arg', lineno=5),
                        Instr('STORE_FAST', 'x', lineno=5)])
         block1.extend([Instr('LOAD_CONST', 3, lineno=6),
@@ -310,15 +276,6 @@ class BytecodeBlocksFunctionalTests(TestCase):
                        Instr('LOAD_FAST', 'x', lineno=7),
                        Instr('RETURN_VALUE', lineno=7)])
 
-        label = bytecode[1].label
-        blocks = [[Instr('LOAD_FAST', 'x', lineno=4),
-                   Instr('POP_JUMP_IF_FALSE', label, lineno=4),
-                   Instr('LOAD_FAST', 'arg', lineno=5),
-                   Instr('STORE_FAST', 'x', lineno=5)],
-                  [Instr('LOAD_CONST', 3, lineno=6),
-                   Instr('STORE_FAST', 'x', lineno=6),
-                   Instr('LOAD_FAST', 'x', lineno=7),
-                   Instr('RETURN_VALUE', lineno=7)]]
         expected = (b'|\x05\x00'
                     b'r\x0c\x00'
                     b'|\x00\x00'
@@ -328,7 +285,6 @@ class BytecodeBlocksFunctionalTests(TestCase):
                     b'|\x05\x00'
                     b'S')
 
-        self.assertBlocksEqual(bytecode, *blocks)
         code = bytecode.to_code()
         self.assertEqual(code.co_consts, (None, 3))
         self.assertEqual(code.co_argcount, 3)

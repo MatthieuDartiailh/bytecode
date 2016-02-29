@@ -5,7 +5,7 @@ the bytecode module.
 import opcode
 import operator
 import sys
-from bytecode import Instr, Bytecode, BytecodeBlocks, Label
+from bytecode import Instr, Bytecode, BytecodeBlocks, Label, Block
 
 PyCmp_IN = 6
 PyCmp_NOT_IN = 7
@@ -297,8 +297,8 @@ class PeepholeOptimizer:
         # x:JUMP_IF_FALSE_OR_POP y   y:JUMP_IF_TRUE_OR_POP z
         #    -->  x:POP_JUMP_IF_FALSE y+3
         # where y+3 is the instruction following the second test.
-        label = instr.arg
-        target_instr = self.code[label][0]
+        target_block = instr.arg
+        target_instr = target_block[0]
         if not target_instr.is_cond_jump():
             self.optimize_jump_to_cond_jump(instr)
             return
@@ -323,7 +323,7 @@ class PeepholeOptimizer:
                 name = 'POP_JUMP_IF_FALSE'
 
             try:
-                new_label = self.code.create_label(label, 1)
+                new_label = self.code.split_block(target_block, 1)
             except ValueError:
                 # FIXME: ValueError: cannot create a label at the end of a block
                 return
@@ -365,9 +365,9 @@ class PeepholeOptimizer:
     def optimize_jump_to_cond_jump(self, instr):
         # Replace jumps to unconditional jumps
         jump_label = instr.arg
-        assert isinstance(jump_label, Label), jump_label
+        assert isinstance(jump_label, Block), jump_label
 
-        target_instr = self.code[jump_label][0]
+        target_instr = jump_label[0]
         if (instr.is_uncond_jump()
            and target_instr.name == 'RETURN_VALUE'):
             # Replace JUMP_ABSOLUTE => RETURN_VALUE with RETURN_VALUE
@@ -425,18 +425,18 @@ class PeepholeOptimizer:
         # FIXME: remove empty blocks?
 
         # FIXME: rewrite this
-        labels = {self.code[0].label}
+        used_blocks = {id(self.code[0])}
         for block in self.code:
-            for instr in block:
-                if isinstance(instr.arg, Label):
-                    labels.add(instr.arg)
             if block.next_block is not None:
-                labels.add(block.next_block.label)
+                used_blocks.add(id(block.next_block))
+            for instr in block:
+                if isinstance(instr, Instr) and isinstance(instr.arg, Block):
+                    used_blocks.add(id(instr.arg))
 
         block_index = 0
         while block_index < len(self.code):
             block = self.code[block_index]
-            if block.label not in labels:
+            if id(block) not in used_blocks:
                 del self.code[block_index]
             else:
                 block_index += 1

@@ -339,10 +339,6 @@ Block
 
    Attributes:
 
-   .. attribute:: label
-
-      Block label (:class:`Label`).
-
    .. attribute:: next_block
 
       Next block (:class:`Block`), or ``None``.
@@ -354,8 +350,7 @@ BytecodeBlocks
 .. class:: BytecodeBlocks
 
    List of blocks (:class:`Block`), a block is a list of abstract instructions
-   (:class:`Instr`) and has a label (:class:`Label`). Inherit from
-   :class:`BaseBytecode`.
+   (:class:`Instr`). Inherit from :class:`BaseBytecode`.
 
    It is possible to use concrete instructions (:class:`ConcreteInstr`) in
    blocks, but abstract instructions are preferred.
