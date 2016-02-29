@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import opcode
 import unittest
-from bytecode import Instr, UNSET
+from bytecode import UNSET, Label, Instr
 from bytecode.tests import TestCase
 
 
@@ -18,6 +18,12 @@ class InstrTests(TestCase):
             Instr(1)
         with self.assertRaises(ValueError):
             Instr("xxx")
+
+        # label
+        label = Label()
+        with self.assertRaises(ValueError):
+            Instr("LOAD_CONST", label)
+        Instr("JUMP_ABSOLUTE", label)
 
     def test_attr(self):
         instr = Instr("LOAD_CONST", 3, lineno=5)
@@ -71,12 +77,12 @@ class InstrTests(TestCase):
         # different arg
         self.assertNotEqual(instr, Instr("LOAD_CONST", 4, lineno=7))
 
-    def test_is_jump(self):
+    def test_has_jump(self):
         jump = Instr("JUMP_ABSOLUTE", 3)
-        self.assertTrue(jump.is_jump())
+        self.assertTrue(jump.has_jump())
 
         instr = Instr("LOAD_FAST", 2)
-        self.assertFalse(instr.is_jump())
+        self.assertFalse(instr.has_jump())
 
     def test_is_cond_jump(self):
         jump = Instr("POP_JUMP_IF_TRUE", 3)
@@ -84,6 +90,13 @@ class InstrTests(TestCase):
 
         instr = Instr("LOAD_FAST", 2)
         self.assertFalse(instr.is_cond_jump())
+
+    def test_is_uncond_jump(self):
+        jump = Instr("JUMP_ABSOLUTE", 3)
+        self.assertTrue(jump.is_uncond_jump())
+
+        instr = Instr("POP_JUMP_IF_TRUE", 2)
+        self.assertFalse(instr.is_uncond_jump())
 
     def test_const_key_not_equal(self):
         def check(value):

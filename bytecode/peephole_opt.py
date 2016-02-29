@@ -412,7 +412,7 @@ class PeepholeOptimizer:
             meth = getattr(self, meth_name, None)
             if meth is not None:
                 meth(instr)
-            elif instr.is_jump():
+            elif instr.has_jump():
                 self.optimize_jump_to_cond_jump(instr)
 
             # Note: Skipping over LOAD_CONST trueconst; POP_JUMP_IF_FALSE

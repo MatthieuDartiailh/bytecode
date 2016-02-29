@@ -46,6 +46,9 @@ Instr
 
    The type of the :attr:`arg` attribute depends on the operation.
 
+   :class:`Label` argument must only be used with operation having a jump
+   argument.
+
    Attributes:
 
    .. attribute:: name
@@ -81,19 +84,28 @@ Instr
       * RAISE_VARARGS
       * BREAK_LOOP
       * CONTINUE_LOOP
-      * unconditional jumps (see :meth:`is_uncond_jump`)
+      * unconditional jumps: :meth:`is_uncond_jump`
 
-   .. method:: is_jump()
+   .. method:: has_jump()
 
-      Is the operation a conditional or unconditional jump? Return a boolean.
+      Has the operation a jump? Return a boolean.
+
+      More generic than `is_cond_jump` and :meth:`is_uncond_jump`, it includes
+      other operations. Examples::
+
+      * FOR_ITER
+      * SETUP_EXCEPT
+      * CONTINUE_LOOP
 
    .. method:: is_cond_jump()
 
       Is the operation an conditional jump? Return a boolean.
 
-      Examples of conditional jumps:
+      Conditional jumps:
 
       * JUMP_IF_FALSE_OR_POP
+      * JUMP_IF_TRUE_OR_POP
+      * POP_JUMP_IF_FALSE
       * POP_JUMP_IF_TRUE
 
    .. method:: is_uncond_jump()

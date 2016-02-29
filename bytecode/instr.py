@@ -98,13 +98,17 @@ class Instr:
         if not isinstance(name, str):
             raise TypeError("operation name must be a str")
         try:
-            _opcode.opmap[name]
+            opcode = _opcode.opmap[name]
         except KeyError:
             raise ValueError("invalid operation name")
 
         # check lineno
         if lineno is not None:
             _check_lineno(lineno)
+
+        if isinstance(arg, Label) and not self._has_jump(opcode):
+            raise ValueError("label argument cannot be used in %s operation"
+                             % name)
 
     def set(self, name, arg=UNSET, *, lineno=None):
         """Modify the instruction in-place.
@@ -202,9 +206,13 @@ class Instr:
             return False
         return self._cmp_key() == other._cmp_key()
 
-    def is_jump(self):
-        return (self._opcode in _opcode.hasjrel
-                or self._opcode in _opcode.hasjabs)
+    @staticmethod
+    def _has_jump(opcode):
+        return (opcode in _opcode.hasjrel
+                or opcode in _opcode.hasjabs)
+
+    def has_jump(self):
+        return self._has_jump(self._opcode)
 
     def is_cond_jump(self):
         """Is a conditional jump?"""
