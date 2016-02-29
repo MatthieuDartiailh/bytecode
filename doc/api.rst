@@ -23,6 +23,11 @@ Bytecode classes:
 * :class:`Block`
 * :class:`BytecodeBlocks`
 
+Cell and Free Variables:
+
+* :class:`CellVar`
+* :class:`FreeVar`
+
 
 Functions
 =========
@@ -396,6 +401,43 @@ BytecodeBlocks
    .. method:: to_bytecode()
 
       Convert to a bytecode object (:class:`Bytecode`).
+
+
+Cell and Free Variables
+=======================
+
+   Cell variable used for instruction argument by operation taking a cell or
+   free variable name.
+
+CellVar
+-------
+
+.. class:: CellVar
+
+   Cell variable used for instruction argument by operation taking a cell or
+   free variable name.
+
+
+   Attributes:
+
+   .. attribute:: name
+
+      Name of the cell variable.
+
+
+FreeVar
+-------
+
+.. class:: FreeVar
+
+   Free variable used for instruction argument by operation taking a cell or
+   free variable name.
+
+   Attributes:
+
+   .. attribute:: name
+
+      Name of the free variable.
 
 
 Line Numbers

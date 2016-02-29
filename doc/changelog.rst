@@ -3,8 +3,8 @@ ChangeLog
 
 * Version 0.3
 
+  - add :class:`CellVar` and :class:`FreeVar` classes
   - peephole_opt: bugfixes
-  - Fix LOAD_CLASSDEREF instruction: always use a free variable.
   - :class:`BytecodeBlocks`: remove undocumented ``to_concrete_bytecode()``
     and ``to_code()`` methods
 

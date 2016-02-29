@@ -84,6 +84,32 @@ class Label:
     __slots__ = ()
 
 
+class _Variable:
+    __slots__ = ('name',)
+
+    def __init__(self, name):
+        self.name = name
+
+    def __eq__(self, other):
+        if type(self) != type(other):
+            return False
+        return (self.name == other.name)
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return '<%s %r>' % (self.__class__.__name__, self.name)
+
+
+class CellVar(_Variable):
+    __slots__ = ()
+
+
+class FreeVar(_Variable):
+    __slots__ = ()
+
+
 class Instr:
     """Abstract instruction.
 
@@ -111,6 +137,7 @@ class Instr:
         if isinstance(arg, Label) and not self._has_jump(opcode):
             raise ValueError("label argument cannot be used in %s operation"
                              % name)
+        # FIXME: opcode.hasfree: only accept CellVar and FreeVar?
 
     def set(self, name, arg=UNSET, *, lineno=None):
         """Modify the instruction in-place.

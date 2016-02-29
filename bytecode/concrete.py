@@ -7,7 +7,7 @@ import types
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 from bytecode.instr import (UNSET, Instr, Instr, Label, SetLineno,
-                            const_key, _check_lineno)
+                            FreeVar, CellVar, const_key, _check_lineno)
 
 
 ARG_MAX = 2147483647
@@ -294,13 +294,12 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
             elif instr.op in _opcode.hasname:
                 arg = self.names[arg]
             elif instr.op in _opcode.hasfree:
-                if instr.name == 'LOAD_CLASSDEREF':
-                    arg = self.freevars[arg - ncells]
+                if arg < ncells:
+                    name = self.cellvars[arg]
+                    arg = CellVar(name)
                 else:
-                    if arg < ncells:
-                        arg = self.cellvars[arg]
-                    else:
-                        arg = self.freevars[arg - ncells]
+                    name = self.freevars[arg - ncells]
+                    arg = FreeVar(name)
             # FIXME: COMPARE_OP operator
 
             instr = Instr(instr.name, arg, lineno=instr.lineno)
@@ -394,9 +393,12 @@ class _ConvertBytecodeToConcrete:
                 elif instr.op in _opcode.hasname:
                     arg = self.add(self.names, arg)
                 elif instr.op in _opcode.hasfree:
-                    if instr.name == 'LOAD_CLASSDEREF':
-                        arg = ncells + self.bytecode.freevars.index(arg)
+                    if isinstance(arg, CellVar):
+                        arg = self.bytecode.cellvars.index(arg.name)
+                    elif isinstance(arg, FreeVar):
+                        arg = ncells + self.bytecode.freevars.index(arg.name)
                     else:
+                        # FIXME: is it really ok to guess?
                         try:
                             arg = self.bytecode.cellvars.index(arg)
                         except ValueError:

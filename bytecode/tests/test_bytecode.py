@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import textwrap
 import unittest
-from bytecode import Label, Instr, Bytecode
+from bytecode import Label, Instr, FreeVar, Bytecode
 from bytecode.tests import TestCase, get_code, disassemble
 
 
@@ -53,7 +53,7 @@ class BytecodeTests(TestCase):
 
         bytecode = Bytecode.from_code(code)
         self.assertEqual(bytecode,
-                         [Instr('LOAD_DEREF', 'x', lineno=5),
+                         [Instr('LOAD_DEREF', FreeVar('x'), lineno=5),
                           Instr('RETURN_VALUE', lineno=5)])
 
     def test_from_code_load_fast(self):
