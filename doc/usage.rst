@@ -70,22 +70,22 @@ Bytecode of ``for x in (1, 2, 3): print(x)``::
     loop_start = Label()
     loop_done = Label()
     loop_exit = Label()
-    code = Bytecode([Instr('SETUP_LOOP', loop_exit, lineno=2),
-                     Instr('LOAD_CONST', (1, 2, 3), lineno=2),
-                     Instr('GET_ITER', lineno=2),
+    code = Bytecode([Instr('SETUP_LOOP', loop_exit),
+                     Instr('LOAD_CONST', (1, 2, 3)),
+                     Instr('GET_ITER'),
                      loop_start,
-                         Instr('FOR_ITER', loop_done, lineno=2),
-                         Instr('STORE_NAME', 'x', lineno=2),
-                         Instr('LOAD_NAME', 'print', lineno=3),
-                         Instr('LOAD_NAME', 'x', lineno=3),
-                         Instr('CALL_FUNCTION', 1, lineno=3),
-                         Instr('POP_TOP', lineno=3),
-                         Instr('JUMP_ABSOLUTE', loop_start, lineno=3),
+                         Instr('FOR_ITER', loop_done),
+                         Instr('STORE_NAME', 'x'),
+                         Instr('LOAD_NAME', 'print'),
+                         Instr('LOAD_NAME', 'x'),
+                         Instr('CALL_FUNCTION', 1),
+                         Instr('POP_TOP'),
+                         Instr('JUMP_ABSOLUTE', loop_start),
                      loop_done,
-                         Instr('POP_BLOCK', lineno=3),
+                         Instr('POP_BLOCK'),
                      loop_exit,
-                         Instr('LOAD_CONST', None, lineno=3),
-                         Instr('RETURN_VALUE', lineno=3)])
+                         Instr('LOAD_CONST', None),
+                         Instr('RETURN_VALUE')])
 
     # the conversion to Python code object resolve jump targets:
     # replace abstract labels with concrete offsets

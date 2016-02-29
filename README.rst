@@ -2,7 +2,7 @@
 bytecode
 ********
 
-``bytecode`` is a Python module to modify bytecode.
+``bytecode`` is a Python module to generate and modify bytecode.
 
 * `bytecode project homepage at GitHub
   <https://github.com/haypo/bytecode>`_ (code, bugs)

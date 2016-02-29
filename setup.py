@@ -23,7 +23,7 @@
 
 VERSION = '0.3'
 
-DESCRIPTION = 'Python module to modify bytecode'
+DESCRIPTION = 'Python module to generate and modify bytecode'
 CLASSIFIERS = [
     'Development Status :: 4 - Beta',
     'Intended Audience :: Developers',
