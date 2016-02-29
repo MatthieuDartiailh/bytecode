@@ -195,8 +195,9 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         used_labels = set()
         for block in self:
             for instr in block:
-                if (not isinstance(instr, Label)
-                   and isinstance(instr.arg, Label)):
+                if isinstance(instr, Label):
+                    raise ValueError("Label must not be used in blocks")
+                if isinstance(instr.arg, Label):
                     used_labels.add(instr.arg)
 
         labels = {}
@@ -210,18 +211,12 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                 instructions.append(new_label)
 
             for instr in block:
-                if isinstance(instr, Label):
-                    old_label = instr
-                    if old_label in used_labels:
-                        new_label = Label()
-                        labels[old_label] = new_label
-                        instructions.append(new_label)
-                else:
-                    instr = instr.copy()
-                    if isinstance(instr.arg, Label):
-                        jumps.append(instr)
-                    instructions.append(instr)
+                instr = instr.copy()
+                if isinstance(instr.arg, Label):
+                    jumps.append(instr)
+                instructions.append(instr)
 
+        # Map to new labels
         for instr in jumps:
             instr.arg = labels[instr.arg]
 

@@ -87,6 +87,18 @@ class BytecodeBlocksTests(TestCase):
                           Instr('RETURN_VALUE', lineno=4)])
         # FIXME: test other attributes
 
+    def test_to_bytecode_labels(self):
+        blocks = BytecodeBlocks()
+        label = Label()
+        blocks[0].extend([Instr('LOAD_NAME', 'test'),
+                          Instr('POP_JUMP_IF_FALSE', label),
+                          label])
+
+        with self.assertRaises(ValueError) as cm:
+            blocks.to_bytecode()
+        self.assertEqual(str(cm.exception), 'Label must not be used in blocks')
+
+
     def test_eq_labels(self):
         # equal
         code1 = BytecodeBlocks()
