@@ -1,3 +1,5 @@
+.. _peephole_opt:
+
 ******************
 Peephole Optimizer
 ******************
