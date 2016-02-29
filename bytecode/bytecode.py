@@ -6,10 +6,12 @@ from bytecode.instr import Instr, Label, UNSET
 class BaseBytecode:
     def __init__(self):
         self.argcount = 0
+        # FIXME: rename to kwonlyargcount?
         self.kw_only_argcount = 0
         # FIXME: insane and safe value until _ConvertBytecodeToConcrete is able
         # to compute the value itself
         self._stacksize = 256
+        # FIXME: use something higher level? make it private?
         self.flags = 0
         self.first_lineno = 1
         self.name = '<module>'

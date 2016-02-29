@@ -56,15 +56,6 @@ class ConcreteInstr(Instr):
                 raise ValueError("operation %s has no argument" % name)
 
     def set(self, name, arg=UNSET, *, lineno=None):
-        """Modify the instruction in-place.
-
-        Replace name, arg and lineno attributes.
-
-        This method must be used if the current and new operation don't have
-        the same requirements for argument. For example, replacing LOAD_CONST
-        with NOP cannot be done with instr.name='NOP' since this change raises
-        an exception (operation NOP has no argument).
-        """
         super().set(name, arg, lineno=lineno)
         size = 1
         if arg is not UNSET:
