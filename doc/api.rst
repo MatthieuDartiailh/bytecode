@@ -29,10 +29,10 @@ Functions
 
 .. function:: dump_bytecode(bytecode, \*, lineno=False)
 
-   Dump a bytecode to the standard output.
+   Dump a bytecode to the standard output. :class:`ConcreteBytecode`,
+   :class:`Bytecode` and :class:`BytecodeBlocks` are accepted for *bytecode*.
 
-   If *lineno*, show line numbers. For blocks, show also instruction index
-   relative to the current block.
+   If *lineno*, show also line numbers and instruction index/offset.
 
    This function is written for debug purpose.
 
@@ -91,10 +91,10 @@ Instr
 
    .. method:: has_jump()
 
-      Has the operation a jump? Return a boolean.
+      Does the operation have a jump argument? Return a boolean.
 
-      More generic than `is_cond_jump` and :meth:`is_uncond_jump`, it includes
-      other operations. Examples:
+      More general than :meth:`is_cond_jump` and :meth:`is_uncond_jump`, it
+      includes other operations. Examples:
 
       * FOR_ITER
       * SETUP_EXCEPT
@@ -359,6 +359,9 @@ BytecodeBlocks
 
    Labels (:class:`Label`) must not be used in blocks.
 
+   This class is not designed to emit code, but to analyze and modify existing
+   code. Use :class:`Bytecode` to emit code.
+
    Attributes:
 
    .. attribute:: argnames
@@ -372,9 +375,17 @@ BytecodeBlocks
       Create a :class:`Bytecode` object to a :class:`BytecodeBlocks` object:
       replace labels with blocks.
 
+      Splits blocks after final instructions (:meth:`Instr.is_final`) and after
+      conditional jumps (:meth:`Instr.is_cond_jump`).
+
    .. method:: add_block(instructions=None)
 
       Add a new block. Return the new :class:`Block`.
+
+   .. method:: split_block(block: Block, index: int)
+
+      Split a block into two blocks at the specific instruction. Return
+      the newly created block, or *block* if index equals ``0``.
 
 
 Line Numbers

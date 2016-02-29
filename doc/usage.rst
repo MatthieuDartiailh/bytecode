@@ -22,13 +22,12 @@ Example using abstract bytecode to execute ``print('Hello World!')``::
 
     from bytecode import Instr, Bytecode
 
-    bytecode = Bytecode()
-    bytecode.extend([Instr("LOAD_NAME", 'print'),
-                     Instr("LOAD_CONST", 'Hello World!'),
-                     Instr("CALL_FUNCTION", 1),
-                     Instr("POP_TOP"),
-                     Instr("LOAD_CONST", None),
-                     Instr("RETURN_VALUE")])
+    bytecode = Bytecode([Instr("LOAD_NAME", 'print'),
+                         Instr("LOAD_CONST", 'Hello World!'),
+                         Instr("CALL_FUNCTION", 1),
+                         Instr("POP_TOP"),
+                         Instr("LOAD_CONST", None),
+                         Instr("RETURN_VALUE")])
     code = bytecode.to_code()
     exec(code)
 
@@ -59,3 +58,39 @@ Example using concrete bytecode to execute ``print('Hello World!')``::
 Output::
 
     Hello World!
+
+
+Conditional jump
+================
+
+Bytecode of the Python code ``print('yes' if test else 'no')``::
+
+    from bytecode import Label, Instr, Bytecode
+
+    label_else = Label()
+    label_print = Label()
+    bytecode = Bytecode([Instr('LOAD_NAME', 'print'),
+                         Instr('LOAD_NAME', 'test'),
+                         Instr('POP_JUMP_IF_FALSE', label_else),
+                             Instr('LOAD_CONST', 'yes'),
+                             Instr('JUMP_FORWARD', label_print),
+                         label_else,
+                             Instr('LOAD_CONST', 'no'),
+                         label_print,
+                             Instr('CALL_FUNCTION', 1),
+                         Instr('LOAD_CONST', None),
+                         Instr('RETURN_VALUE')])
+    code = bytecode.to_code()
+
+    test = 0
+    exec(code)
+
+    test = 1
+    exec(code)
+
+Output::
+
+    no
+    yes
+
+Instructions are only indented for readability.
