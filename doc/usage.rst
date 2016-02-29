@@ -7,7 +7,7 @@ Installation
 
 Install bytecode::
 
-    pip install bytecode
+    python3 -m pip install bytecode
 
 ``bytecode`` only works on Python 3.
 

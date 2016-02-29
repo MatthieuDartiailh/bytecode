@@ -6,6 +6,8 @@ bytecode
 
 * `bytecode project homepage at GitHub
   <https://github.com/haypo/bytecode>`_ (code, bugs)
+* `bytecode documentation
+  <https://bytecode.readthedocs.org/>`_ (this documentation)
 * `Download latest bytecode release at the Python Cheeseshop (PyPI)
   <https://pypi.python.org/pypi/bytecode>`_
 
