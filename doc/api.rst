@@ -146,12 +146,14 @@ ConcreteInstr
 
    .. attribute:: arg
 
-      Argument value (``int`` in range ``0``..``2147483647``), or :data:`UNSET`.
+      Argument value (``int`` in range ``0``..\ ``2147483647``), or
+      :data:`UNSET`. Changing the argument value can change the instruction
+      size (:attr:`size`).
 
    .. attribute:: size
 
-      Size of the instruction in bytes: between ``1`` byte (no agument) and
-      ``6`` bytes (extended argument).
+      Read-only size of the instruction in bytes: between ``1`` byte (no
+      agument) and ``6`` bytes (extended argument).
 
    Static method:
 
@@ -235,6 +237,10 @@ BaseBytecode
 
       Flags (``int``).
 
+   .. attribute:: freevars
+
+      List of free variable names (``list`` of ``str``), default: empty list.
+
    .. attribute:: kw_only_argcount
 
       Keyword-only argument count (``int``), default: ``0``.
@@ -293,10 +299,6 @@ ConcreteBytecode
 
       List of constants (``list``), default: empty list.
 
-   .. attribute:: freevars
-
-      List of free variable names (``list`` of ``str``), default: empty list.
-
    .. attribute:: names
 
       List of names (``list`` of ``str``), default: empty list.
@@ -333,6 +335,8 @@ Block
 
    List of abstract instructions (:class:`Instr`). Inherit from :class:`list`.
 
+   Labels (:class:`Label`) must not be used inline in blocks.
+
    Attributes:
 
    .. attribute:: label
@@ -356,7 +360,7 @@ BytecodeBlocks
    It is possible to use concrete instructions (:class:`ConcreteInstr`) in
    blocks, but abstract instructions are preferred.
 
-   Labels must not be used in blocks.
+   Labels (:class:`Label`) must not be used inline in blocks.
 
    Attributes:
 
