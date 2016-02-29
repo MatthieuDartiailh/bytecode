@@ -481,6 +481,7 @@ class BytecodeToConcreteTests(TestCase):
     def test_cellvars(self):
         code = Bytecode()
         code.cellvars = ['x']
+        code.freevars = ['y']
         code.extend([Instr('LOAD_DEREF', 'x', lineno=1),
                      Instr('LOAD_DEREF', 'y', lineno=1)])
         concrete = code.to_concrete_bytecode()

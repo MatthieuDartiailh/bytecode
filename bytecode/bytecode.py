@@ -18,6 +18,9 @@ class BaseBytecode:
         self.filename = '<string>'
         self.docstring = UNSET
         self.cellvars = []
+        # we cannot recreate freevars from instructions because of super()
+        # special-case
+        self.freevars = []
 
     def _copy_attr_from(self, bytecode):
         self.argcount = bytecode.argcount
@@ -29,6 +32,7 @@ class BaseBytecode:
         self.filename = bytecode.filename
         self.docstring = bytecode.docstring
         self.cellvars = list(bytecode.cellvars)
+        self.freevars = list(bytecode.freevars)
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -51,6 +55,8 @@ class BaseBytecode:
         if self.docstring != other.docstring:
             return False
         if self.cellvars != other.cellvars:
+            return False
+        if self.freevars != other.freevars:
             return False
 
         return True
