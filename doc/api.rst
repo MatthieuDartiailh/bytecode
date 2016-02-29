@@ -27,7 +27,7 @@ Bytecode classes:
 Functions
 =========
 
-.. function:: dump_code(bytecode)
+.. function:: dump_bytecode(bytecode)
 
    Dump a bytecode to the standard output.
 
