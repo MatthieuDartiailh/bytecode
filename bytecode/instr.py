@@ -82,7 +82,12 @@ class Label:
     __slots__ = ()
 
 
-class BaseInstr:
+class Instr:
+    """Abstract instruction.
+
+    lineno, name, op and arg attributes can be modified.
+    """
+
     __slots__ = ('_name', '_opcode', '_arg', '_lineno')
 
     def __init__(self, name, arg=UNSET, *, lineno=None):
@@ -185,7 +190,12 @@ class BaseInstr:
                     % (self._name, self._lineno))
 
     def _cmp_key(self, labels=None):
-        return (self._lineno, self._name, self._arg)
+        arg = self._arg
+        if self._opcode in _opcode.hasconst:
+            arg = const_key(arg)
+        elif isinstance(arg, Label) and labels is not None:
+            arg = labels[arg]
+        return (self._lineno, self._name, arg)
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -211,21 +221,3 @@ class BaseInstr:
         if self.is_uncond_jump():
             return True
         return False
-
-
-class Instr(BaseInstr):
-    """Abstract instruction.
-
-    lineno, name, op and arg attributes can be modified.
-
-    arg is not checked.
-    """
-    __slots__ = ()
-
-    def _cmp_key(self, labels=None):
-        arg = self._arg
-        if self._opcode in _opcode.hasconst:
-            arg = const_key(arg)
-        elif isinstance(arg, Label) and labels is not None:
-            arg = labels[arg]
-        return (self._lineno, self._name, arg)

@@ -6,7 +6,7 @@ import types
 
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
-from bytecode.instr import (UNSET, BaseInstr, Instr, Label, SetLineno,
+from bytecode.instr import (UNSET, Instr, Instr, Label, SetLineno,
                             const_key, _check_lineno)
 
 
@@ -23,8 +23,8 @@ def _set_docstring(code, consts):
         code.docstring = first_const
 
 
-class ConcreteInstr(BaseInstr):
-    """Concrete instruction, inherit from BaseInstr.
+class ConcreteInstr(Instr):
+    """Concrete instruction, inherit from Instr.
 
     arg must be an integer in the range 0..2147483647.
 
@@ -76,6 +76,9 @@ class ConcreteInstr(BaseInstr):
     @property
     def size(self):
         return self._size
+
+    def _cmp_key(self, labels=None):
+        return (self._lineno, self._name, self._arg)
 
     def get_jump_target(self, instr_offset):
         if self._opcode in _opcode.hasjrel:
