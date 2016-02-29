@@ -34,8 +34,8 @@ Functions
    This function is written for debug purpose.
 
 
-Instructions
-============
+Instruction classess
+====================
 
 Instr
 -----
