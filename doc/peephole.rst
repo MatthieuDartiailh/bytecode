@@ -7,6 +7,71 @@ Peephole optimizer based on the peephole optimizer of CPython 3.6 written in C.
 It is implemented with the :class:`BytecodeBlocks` class.
 
 
+API
+===
+
+Content of the ``bytecode.peephole_opt`` module:
+
+.. class:: PeepholeOptimizer
+
+   .. method:: optimize(code: types.CodeType) -> types.CodeType
+
+      Optimize a Python code object.
+
+      Return a new optimized Python code object.
+
+
+.. class:: CodeTransformer
+
+   Code transformer for the API of the `PEP 511
+   <https://www.python.org/dev/peps/pep-0511/>`_ (API for code transformers).
+
+   .. method:: code_transformer(code, context)
+
+      Run the :class:`PeepholeOptimizer` optimizer on the code.
+
+      Return a new optimized Python code object.
+
+
+Example
+=======
+
+Code::
+
+    import dis
+    from bytecode.peephole_opt import PeepholeOptimizer
+
+    code = compile('print(5+5)', '<string>', 'exec')
+    print("Non-optimized:")
+    dis.dis(code)
+    print()
+
+    code = PeepholeOptimizer().optimize(code)
+    print("Optimized:")
+    dis.dis(code)
+
+Output of Python 3.6 patched with the PEP 511 with ``python -o noopt`` (to
+disable the builtin peephole optimizer)::
+
+    Non-optimized:
+      1           0 LOAD_NAME                0 (print)
+                  3 LOAD_CONST               0 (5)
+                  6 LOAD_CONST               0 (5)
+                  9 BINARY_ADD
+                 10 CALL_FUNCTION            1 (1 positional, 0 keyword pair)
+                 13 POP_TOP
+                 14 LOAD_CONST               1 (None)
+                 17 RETURN_VALUE
+
+    Optimized:
+      1           0 LOAD_NAME                0 (print)
+                  3 LOAD_CONST               0 (10)
+                  6 CALL_FUNCTION            1 (1 positional, 0 keyword pair)
+                  9 POP_TOP
+                 10 LOAD_CONST               1 (None)
+                 13 RETURN_VALUE
+
+
 Optimizations
 =============
 
@@ -53,27 +118,3 @@ knownledge of the code.
 
 .. note::
    ``3 < 5`` or ``(1, 2, 3)[1]`` are not optimized.
-
-
-API
-===
-
-.. class:: PeepholeOptimizer
-
-   .. method:: optimize(code: types.CodeType) -> types.CodeType
-
-      Optimize a Python code object.
-
-      Return a new optimized Python code object.
-
-
-.. class:: CodeTransformer
-
-   Code transformer for the API of the `PEP 511
-   <https://www.python.org/dev/peps/pep-0511/>`_ (API for code transformers).
-
-   .. method:: code_transformer(code, context)
-
-      Run the :class:`PeepholeOptimizer` optimizer on the code.
-
-      Return a new optimized Python code object.

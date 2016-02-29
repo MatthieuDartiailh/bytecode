@@ -13,14 +13,14 @@ from bytecode.blocks import BytecodeBlocks
 
 
 # FIXME: move code into a submodule or inside Bytecode classes?
-def dump_code(code):
+def dump_bytecode(bytecode):
     indent = ' ' * 4
-    if isinstance(code, ConcreteBytecode):
+    if isinstance(bytecode, ConcreteBytecode):
         line_width = 3
 
         offset = 0
         lineno = None
-        for instr in code:
+        for instr in bytecode:
             fields = []
             if instr.lineno != lineno:
                 fields.append(str(instr.lineno).rjust(line_width))
@@ -32,13 +32,13 @@ def dump_code(code):
             print(''.join(fields))
 
             offset += instr.size
-    elif isinstance(code, Bytecode):
+    elif isinstance(bytecode, Bytecode):
         labels = {}
-        for index, instr in enumerate(code):
+        for index, instr in enumerate(bytecode):
             if isinstance(instr, Label):
                 labels[instr] = 'label_instr%s' % index
 
-        for index, instr in enumerate(code):
+        for index, instr in enumerate(bytecode):
             if isinstance(instr, Label):
                 label = labels[instr]
                 line = "%s:" % label
@@ -48,9 +48,9 @@ def dump_code(code):
                 line = indent + instr._format(labels)
             print(line)
         print()
-    elif isinstance(code, BytecodeBlocks):
+    elif isinstance(bytecode, BytecodeBlocks):
         labels = {}
-        for block_index, block in enumerate(code, 1):
+        for block_index, block in enumerate(bytecode, 1):
             block_label = 'label_block%s' % block_index
             labels[block.label] = block_label
 
@@ -58,7 +58,7 @@ def dump_code(code):
                 if isinstance(instr, Label):
                     labels[instr] = '%s_instr%s' % (block_label, index)
 
-        for block_index, block in enumerate(code, 1):
+        for block_index, block in enumerate(bytecode, 1):
             print('%s:' % labels[block.label])
             for instr in block:
                 if isinstance(instr, Label):
@@ -71,4 +71,4 @@ def dump_code(code):
                 print(indent + "-> %s" % labels[block.next_block.label])
             print()
     else:
-        raise TypeError("unknown bycode code")
+        raise TypeError("unknown bytecode class")

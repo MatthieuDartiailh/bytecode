@@ -156,12 +156,12 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                 old_label = block_starts[index]
                 if index != 0:
                     new_block = bytecode_blocks.add_block()
-                    if not block[-1]._is_final():
+                    if not block[-1].is_final():
                         block.next_block = new_block
                     block = new_block
                 if old_label is not None:
                     labels[old_label] = block.label
-            elif block and block[-1]._is_final():
+            elif block and block[-1].is_final():
                 block = bytecode_blocks.add_block()
 
             if not isinstance(instr, Label):

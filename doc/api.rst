@@ -24,6 +24,16 @@ Bytecode classes:
 * :class:`BytecodeBlocks`
 
 
+Functions
+=========
+
+.. function:: dump_code(bytecode)
+
+   Dump a bytecode to the standard output.
+
+   This function is written for debug purpose.
+
+
 Instructions
 ============
 

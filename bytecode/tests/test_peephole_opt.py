@@ -13,14 +13,14 @@ class Tests(TestCase):
     def optimize_blocks(self, code):
         if isinstance(code, Bytecode):
             code = BytecodeBlocks.from_bytecode(code)
-        optimizer = peephole_opt._CodePeepholeOptimizer()
+        optimizer = peephole_opt.PeepholeOptimizer()
         optimizer._optimize(code)
         return code
 
     def check(self, code, *expected):
         if isinstance(code, Bytecode):
             code = BytecodeBlocks.from_bytecode(code)
-        optimizer = peephole_opt._CodePeepholeOptimizer()
+        optimizer = peephole_opt.PeepholeOptimizer()
         optimizer._optimize(code)
         code = code.to_bytecode()
 
@@ -347,7 +347,7 @@ class Tests(TestCase):
                           Instr('RETURN_VALUE')])
         noopt = noopt.to_code()
 
-        optimizer = peephole_opt._CodePeepholeOptimizer()
+        optimizer = peephole_opt.PeepholeOptimizer()
         optim = optimizer.optimize(noopt)
 
         code = Bytecode.from_code(optim)
