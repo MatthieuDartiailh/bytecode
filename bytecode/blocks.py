@@ -163,6 +163,10 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                     labels[old_label] = block.label
             elif block and block[-1].is_final():
                 block = bytecode_blocks.add_block()
+            elif block and block[-1].is_cond_jump():
+                new_block = bytecode_blocks.add_block()
+                block.next_block = new_block
+                block = new_block
 
             if not isinstance(instr, Label):
                 # copy the instruction to be able to modify its argument below

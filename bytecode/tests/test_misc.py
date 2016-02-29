@@ -69,19 +69,25 @@ label_instr13:
                 LOAD_FAST 'test'
                 LOAD_CONST 1
                 COMPARE_OP 2
-                POP_JUMP_IF_FALSE <label_block2>
+                POP_JUMP_IF_FALSE <label_block3>
+                -> label_block2
+
+            label_block2:
                 LOAD_CONST 1
                 RETURN_VALUE
 
-            label_block2:
+            label_block3:
                 LOAD_FAST 'test'
                 LOAD_CONST 2
                 COMPARE_OP 2
-                POP_JUMP_IF_FALSE <label_block3>
+                POP_JUMP_IF_FALSE <label_block5>
+                -> label_block4
+
+            label_block4:
                 LOAD_CONST 2
                 RETURN_VALUE
 
-            label_block3:
+            label_block5:
                 LOAD_CONST 3
                 RETURN_VALUE
 

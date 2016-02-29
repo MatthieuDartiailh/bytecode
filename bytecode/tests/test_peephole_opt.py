@@ -529,20 +529,21 @@ class Tests(TestCase):
                          Instr('LOAD_CONST', None, lineno=4),
                          Instr('RETURN_VALUE', lineno=4)])
 
-        code = self.optimize_blocks(code)
-        self.assertBlocksEqual(code,
-                             [Instr('LOAD_GLOBAL', 'x', lineno=2),
-                              Instr('POP_JUMP_IF_FALSE', code[1].label, lineno=2),
+        label_return = Label()
+        self.check(code,
+                   Instr('LOAD_GLOBAL', 'x', lineno=2),
+                   Instr('POP_JUMP_IF_FALSE', label_return, lineno=2),
 
-                              Instr('LOAD_GLOBAL', 'y', lineno=3),
-                              Instr('POP_JUMP_IF_FALSE', code[1].label, lineno=3),
+                   Instr('LOAD_GLOBAL', 'y', lineno=3),
+                   Instr('POP_JUMP_IF_FALSE', label_return, lineno=3),
 
-                              Instr('LOAD_GLOBAL', 'func', lineno=4),
-                              Instr('CALL_FUNCTION', 0, lineno=4),
-                              Instr('POP_TOP', lineno=4)],
+                   Instr('LOAD_GLOBAL', 'func', lineno=4),
+                   Instr('CALL_FUNCTION', 0, lineno=4),
+                   Instr('POP_TOP', lineno=4),
 
-                             [Instr('LOAD_CONST', None, lineno=4),
-                              Instr('RETURN_VALUE', lineno=4)])
+                   label_return,
+                   Instr('LOAD_CONST', None, lineno=4),
+                   Instr('RETURN_VALUE', lineno=4))
 
 
     def test_jump_to_return(self):
