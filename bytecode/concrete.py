@@ -304,9 +304,9 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
             elif instr.op in _opcode.hasfree:
                 ncells = len(self.cellvars)
                 if arg < ncells:
-                    arg = self.cellvars[arg - ncells]
+                    arg = self.cellvars[arg]
                 else:
-                    arg = self.freevars[arg]
+                    arg = self.freevars[arg - ncells]
             # FIXME: COMPARE_OP operator
 
             instr = Instr(instr.name, arg, lineno=instr.lineno)
@@ -401,9 +401,9 @@ class _ConvertBytecodeToConcrete:
                     arg = self.add(self.names, arg)
                 elif instr.op in _opcode.hasfree:
                     try:
-                        arg = self.cellvars.index[arg]
+                        arg = self.bytecode.cellvars.index(arg)
                     except ValueError:
-                        arg = self.add(self.freenames, arg)
+                        arg = self.add(self.freevars, arg)
 
                 instr = ConcreteInstr(instr.name, arg, lineno=lineno)
                 if is_jump:

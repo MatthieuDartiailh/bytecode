@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import textwrap
 import unittest
-from bytecode import Label, Instr, Bytecode, ConcreteBytecode
+from bytecode import Label, Instr, Bytecode
 from bytecode.tests import TestCase, get_code, disassemble
 
 
