@@ -4,6 +4,7 @@ the bytecode module.
 """
 import opcode
 import operator
+import sys
 from bytecode import Instr, Bytecode, BytecodeBlocks, Label
 
 PyCmp_IN = 6
@@ -464,7 +465,8 @@ class CodeTransformer:
     name = "pyopt"
 
     def code_transformer(self, code, context):
-        #print("Optimize %s:%s: %s"
-        #      % (code.co_filename, code.co_firstlineno, code.co_name))
+        if sys.flags.verbose:
+            print("Optimize %s:%s: %s"
+                  % (code.co_filename, code.co_firstlineno, code.co_name))
         optimizer = PeepholeOptimizer()
         return optimizer.optimize(code)
