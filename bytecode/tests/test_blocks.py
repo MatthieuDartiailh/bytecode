@@ -61,32 +61,37 @@ class BytecodeBlocksTests(TestCase):
         self.assertEqual(len(code), 0)
 
     def test_to_bytecode(self):
+        # if test:
+        #     x = 2
+        # x = 5
         blocks = BytecodeBlocks()
-        block1 = blocks.add_block()
+        blocks.add_block()
+        blocks.add_block()
         blocks[0].extend([Instr('LOAD_NAME', 'test', lineno=1),
-                          Instr('POP_JUMP_IF_FALSE', block1, lineno=1),
-                          Instr('LOAD_CONST', 5, lineno=2),
+                          Instr('POP_JUMP_IF_FALSE', blocks[2], lineno=1)])
+
+        blocks[1].extend([Instr('LOAD_CONST', 5, lineno=2),
                           Instr('STORE_NAME', 'x', lineno=2),
-                          Instr('JUMP_FORWARD', block1, lineno=2),
-                          Instr('LOAD_CONST', 7, lineno=4),
-                          Instr('STORE_NAME', 'x', lineno=4)])
-        blocks[1].extend([Instr('LOAD_CONST', None, lineno=4),
-                          Instr('RETURN_VALUE', lineno=4)])
+                          Instr('JUMP_FORWARD', blocks[2], lineno=2)])
+
+        blocks[2].extend([Instr('LOAD_CONST', 7, lineno=3),
+                          Instr('STORE_NAME', 'x', lineno=3),
+                          Instr('LOAD_CONST', None, lineno=3),
+                          Instr('RETURN_VALUE', lineno=3)])
 
         bytecode = blocks.to_bytecode()
-
         label = Label()
         self.assertEqual(bytecode,
                          [Instr('LOAD_NAME', 'test', lineno=1),
                           Instr('POP_JUMP_IF_FALSE', label, lineno=1),
-                          Instr('LOAD_CONST', 5, lineno=2),
-                          Instr('STORE_NAME', 'x', lineno=2),
-                          Instr('JUMP_FORWARD', label, lineno=2),
-                          Instr('LOAD_CONST', 7, lineno=4),
-                          Instr('STORE_NAME', 'x', lineno=4),
+                              Instr('LOAD_CONST', 5, lineno=2),
+                              Instr('STORE_NAME', 'x', lineno=2),
+                              Instr('JUMP_FORWARD', label, lineno=2),
                           label,
-                          Instr('LOAD_CONST', None, lineno=4),
-                          Instr('RETURN_VALUE', lineno=4)])
+                              Instr('LOAD_CONST', 7, lineno=3),
+                              Instr('STORE_NAME', 'x', lineno=3),
+                              Instr('LOAD_CONST', None, lineno=3),
+                              Instr('RETURN_VALUE', lineno=3)])
         # FIXME: test other attributes
 
     def test_to_bytecode_labels(self):
