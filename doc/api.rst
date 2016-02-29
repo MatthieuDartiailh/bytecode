@@ -91,7 +91,7 @@ Instr
       Has the operation a jump? Return a boolean.
 
       More generic than `is_cond_jump` and :meth:`is_uncond_jump`, it includes
-      other operations. Examples::
+      other operations. Examples:
 
       * FOR_ITER
       * SETUP_EXCEPT
@@ -119,7 +119,7 @@ Instr
 
    .. method:: set(name, arg=UNSET, \*, lineno=None):
 
-      Replace all attributes.
+      Replace all attributes at once.
 
 
 ConcreteInstr
@@ -129,14 +129,15 @@ ConcreteInstr
 
    Concrete instruction, inherit from :class:`Instr`.
 
-   If the operation has an argument, *arg* must be an integer.
+   If the operation requires an argument, *arg* must be an integer.
+   If the operation has no argument, *arg* must not by set.
 
    Use the :meth:`~Instr.set` method to replace the operation name and the
-   argument at the same type. Otherwise, an exception can be raised if the
+   argument at once. Otherwise, an exception can be raised if the
    previous operation requires an argument and the new operation has no
    argument (or the opposite).
 
-   Should only be used with :class:`ConcreteBytecode`.
+   Concrete instructions should only be used in :class:`ConcreteBytecode`.
 
    Attributes:
 
@@ -146,8 +147,8 @@ ConcreteInstr
 
    .. attribute:: size
 
-      Size of the instruction in bytes: between ``1`` (no agument) and
-      ``6`` (extended argument).
+      Size of the instruction in bytes: between ``1`` byte (no agument) and
+      ``6`` bytes (extended argument).
 
    Static method:
 
@@ -176,7 +177,9 @@ Label
 
 .. class:: Label
 
-   Pseudo-instruction. Targets of jump instructions for :class:`Bytecode`.
+   Pseudo-instruction used as targets of jump instructions.
+
+   Label targets are "resolved" by :class:`Bytecode.to_concrete_bytecode`.
 
    Labels must only be used in :class:`Bytecode`.
 
@@ -211,7 +214,11 @@ BaseBytecode
 
    .. attribute:: docstring
 
-      Document string aka "docstring" (``str``), default: not set (:data:`UNSET`).
+      Document string aka "docstring" (``str``), ``None``, or :data:`UNSET`.
+      Default: :data:`UNSET`.
+
+      If set, it is used by :meth:`ConcreteBytecode.to_code` as the first
+      constant of the created Python code object.
 
    .. attribute:: filename
 
@@ -265,7 +272,8 @@ Bytecode
 
    .. method:: to_concrete_bytecode()
 
-      Convert to concrete bytecode with concrete instructions. Resolve jumps.
+      Convert to concrete bytecode with concrete instructions. Resolve jumps
+      using labels (:class:`Label`).
 
 
 ConcreteBytecode

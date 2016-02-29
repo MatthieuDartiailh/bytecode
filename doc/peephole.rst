@@ -2,9 +2,10 @@
 Peephole Optimizer
 ******************
 
-Peephole optimizer based on the peephole optimizer of CPython 3.6 written in C.
+Peephole optimizer: optimize Python code objects. It is implemented with the
+:class:`BytecodeBlocks` class.
 
-It is implemented with the :class:`BytecodeBlocks` class.
+It is based on the peephole optimizer of CPython 3.6 which is written in C.
 
 
 API
