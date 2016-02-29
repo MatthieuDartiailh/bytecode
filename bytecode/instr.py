@@ -138,6 +138,8 @@ class Instr:
             raise ValueError("label argument cannot be used in %s operation"
                              % name)
         # FIXME: opcode.hasfree: only accept CellVar and FreeVar?
+        # FIXME: only accept int>=0 or label if has_jump()?
+        # FIXME: only accept str if haslocal or hasname?
 
     def set(self, name, arg=UNSET, *, lineno=None):
         """Modify the instruction in-place.
