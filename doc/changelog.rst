@@ -5,6 +5,8 @@ ChangeLog
 
   - peephole_opt: bugfixes
   - Fix LOAD_CLASSDEREF instruction: always use a free variable.
+  - :class:`BytecodeBlocks`: remove undocumented ``to_concrete_bytecode()``
+    and ``to_code()`` methods
 
 * 2016-02-29: Version 0.2
 

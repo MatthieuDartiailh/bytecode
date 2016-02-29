@@ -175,12 +175,6 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
 
         return bytecode_blocks
 
-    def to_code(self):
-        return self.to_concrete_bytecode().to_code()
-
-    def to_concrete_bytecode(self):
-        return self.to_bytecode().to_concrete_bytecode()
-
     def to_bytecode(self):
         """Convert to Bytecode.
 

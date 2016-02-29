@@ -331,7 +331,7 @@ ConcreteBytecode
 
    .. method:: to_bytecode()
 
-      Convert to abstrct bytecode with abstract instructions.
+      Convert to abstract bytecode with abstract instructions.
 
 
 Block
@@ -392,6 +392,10 @@ BytecodeBlocks
 
       Split a block into two blocks at the specific instruction. Return
       the newly created block, or *block* if index equals ``0``.
+
+   .. method:: to_bytecode()
+
+      Convert to a bytecode object (:class:`Bytecode`).
 
 
 Line Numbers

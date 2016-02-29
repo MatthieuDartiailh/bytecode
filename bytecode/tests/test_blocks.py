@@ -290,7 +290,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
                     b'|\x05\x00'
                     b'S')
 
-        code = bytecode.to_code()
+        code = bytecode.to_bytecode().to_code()
         self.assertEqual(code.co_consts, (None, 3))
         self.assertEqual(code.co_argcount, 3)
         self.assertEqual(code.co_kwonlyargcount, 2)

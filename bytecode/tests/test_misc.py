@@ -184,7 +184,7 @@ label_instr13:
                 return 3
         """
         code = disassemble(source, function=True)
-        code = code.to_concrete_bytecode()
+        code = code.to_bytecode().to_concrete_bytecode()
 
         # without line numbers
         expected = """
