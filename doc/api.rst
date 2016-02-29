@@ -335,7 +335,7 @@ Block
 
    List of abstract instructions (:class:`Instr`). Inherit from :class:`list`.
 
-   Labels (:class:`Label`) must not be used inline in blocks.
+   Labels (:class:`Label`) must not be used in blocks.
 
    Attributes:
 
@@ -352,10 +352,12 @@ BytecodeBlocks
    List of blocks (:class:`Block`), a block is a list of abstract instructions
    (:class:`Instr`). Inherit from :class:`BaseBytecode`.
 
+   Jump targets are blocks (:class:`Block`).
+
    It is possible to use concrete instructions (:class:`ConcreteInstr`) in
    blocks, but abstract instructions are preferred.
 
-   Labels (:class:`Label`) must not be used inline in blocks.
+   Labels (:class:`Label`) must not be used in blocks.
 
    Attributes:
 
