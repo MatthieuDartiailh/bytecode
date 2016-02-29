@@ -1,7 +1,7 @@
 ChangeLog
 =========
 
-* Version 0.2
+* 2016-02-29: Version 0.2
 
   - Again, the API is deeply reworked.
   - The project has now a documentation:
