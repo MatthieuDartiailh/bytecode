@@ -60,6 +60,45 @@ Output::
     Hello World!
 
 
+Simple loop
+===========
+
+Bytecode of ``for x in (1, 2, 3): print(x)``::
+
+    from bytecode import Label, Instr, Bytecode
+
+    loop_start = Label()
+    loop_done = Label()
+    loop_exit = Label()
+    code = Bytecode([Instr('SETUP_LOOP', loop_exit, lineno=2),
+                     Instr('LOAD_CONST', (1, 2, 3), lineno=2),
+                     Instr('GET_ITER', lineno=2),
+                     loop_start,
+                         Instr('FOR_ITER', loop_done, lineno=2),
+                         Instr('STORE_NAME', 'x', lineno=2),
+                         Instr('LOAD_NAME', 'print', lineno=3),
+                         Instr('LOAD_NAME', 'x', lineno=3),
+                         Instr('CALL_FUNCTION', 1, lineno=3),
+                         Instr('POP_TOP', lineno=3),
+                         Instr('JUMP_ABSOLUTE', loop_start, lineno=3),
+                     loop_done,
+                         Instr('POP_BLOCK', lineno=3),
+                     loop_exit,
+                         Instr('LOAD_CONST', None, lineno=3),
+                         Instr('RETURN_VALUE', lineno=3)])
+
+    # the conversion to Python code object resolve jump targets:
+    # replace abstract labels with concrete offsets
+    code = code.to_code()
+    exec(code)
+
+Output::
+
+    1
+    2
+    3
+
+
 Conditional jump
 ================
 

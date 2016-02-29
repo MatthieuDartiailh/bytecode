@@ -275,14 +275,20 @@ Bytecode
 
    Methods:
 
+   .. method:: to_concrete_bytecode()
+
+      Convert to concrete bytecode with concrete instructions.
+
+      Resolve jump targets: replace abstract labels (:class:`Label`) with
+      concrete instruction offsets (relative or absolute, depending on the jump
+      operation).
+
    .. method:: to_code()
 
       Convert to a Python code object (:class:`types.CodeType`).
 
-   .. method:: to_concrete_bytecode()
+      It is based on :meth:`to_concrete_bytecode` and so resolve jump targets.
 
-      Convert to concrete bytecode with concrete instructions. Resolve jumps
-      using labels (:class:`Label`).
 
 
 ConcreteBytecode
