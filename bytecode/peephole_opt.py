@@ -195,7 +195,10 @@ class PeepholeOptimizer:
         if not(1 <= instr.arg <= 3):
             return
 
-        next_instr = self.block[self.index]
+        try:
+            next_instr = self.block[self.index]
+        except IndexError:
+            return
         if not(next_instr.name == 'UNPACK_SEQUENCE'
                and next_instr.arg == instr.arg):
             return
@@ -225,7 +228,10 @@ class PeepholeOptimizer:
         if instr.arg > len(self.const_stack):
             return
 
-        next_instr = self.block[self.index]
+        try:
+            next_instr = self.block[self.index]
+        except IndexError:
+            return
         if not next_instr.name == 'COMPARE_OP':
             return
 
@@ -404,6 +410,9 @@ class PeepholeOptimizer:
             yield instr
 
     def optimize_block(self, block):
+        self.const_stack.clear()
+        self.in_consts = False
+
         for instr in self.iterblock(block):
             if not self.in_consts:
                 self.const_stack.clear()

@@ -1,6 +1,10 @@
 ChangeLog
 =========
 
+* Version 0.3
+
+  - peephole_opt: bugfixes
+
 * 2016-02-29: Version 0.2
 
   - Again, the API is deeply reworked.
