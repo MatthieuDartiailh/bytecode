@@ -18,6 +18,8 @@ def _format_instr_list(block, labels, lineno):
             if arg is not UNSET:
                 if isinstance(arg, Label):
                     arg = labels[arg]
+                elif isinstance(arg, Block):
+                    arg = labels[id(arg)]
                 else:
                     arg = repr(arg)
                 if lineno:
@@ -93,12 +95,13 @@ def dump_code(code, lineno=True):
 
         print()
     else:
+        assert isinstance(code, BytecodeBlocks)
         labels = {}
         for block_index, block in enumerate(code):
-            labels[block.label] = 'code[%s].label' % block_index
+            labels[id(block)] = 'code[%s]' % block_index
 
         for block_index, block in enumerate(code):
-            text = _format_instr_list(block, labels)
+            text = _format_instr_list(block, labels, lineno)
             if block_index != len(code) - 1:
                 text += ','
             print(text)
