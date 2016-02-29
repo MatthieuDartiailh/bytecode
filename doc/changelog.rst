@@ -4,6 +4,7 @@ ChangeLog
 * Version 0.3
 
   - peephole_opt: bugfixes
+  - Fix LOAD_CLASSDEREF instruction: always use a free variable.
 
 * 2016-02-29: Version 0.2
 

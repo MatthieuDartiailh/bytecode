@@ -260,6 +260,29 @@ class ConcreteBytecodeTests(TestCase):
                          [Instr('LOAD_DEREF', 'cell', lineno=1),
                           Instr('LOAD_DEREF', 'free', lineno=1)])
 
+    def test_load_classderef(self):
+        concrete = ConcreteBytecode()
+        concrete.cellvars = ['__class__']
+        concrete.freevars = ['__class__']
+        concrete.append(ConcreteInstr('LOAD_CLASSDEREF', 1))
+
+        bytecode = concrete.to_bytecode()
+        self.assertEqual(bytecode.freevars, ['__class__'])
+        self.assertEqual(bytecode.cellvars, ['__class__'])
+        self.assertEqual(list(bytecode),
+                         [Instr('LOAD_CLASSDEREF', '__class__')])
+
+        concrete = bytecode.to_concrete_bytecode()
+        self.assertEqual(concrete.freevars, ['__class__'])
+        self.assertEqual(concrete.cellvars, ['__class__'])
+        self.assertEqual(list(concrete),
+                         [ConcreteInstr('LOAD_CLASSDEREF', 1, lineno=1)])
+
+        code = concrete.to_code()
+        self.assertEqual(code.co_freevars, ('__class__',))
+        self.assertEqual(code.co_cellvars, ('__class__',))
+        self.assertEqual(code.co_code, b'\x94\x01\x00')
+
 
 class ConcreteFromCodeTests(TestCase):
     def test_extended_arg(self):

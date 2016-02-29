@@ -465,8 +465,12 @@ class PeepholeOptimizer:
     def optimize(self, code_obj):
         bytecode = Bytecode.from_code(code_obj)
         bytecode = BytecodeBlocks.from_bytecode(bytecode)
+
         self._optimize(bytecode)
-        return bytecode.to_code()
+
+        bytecode = bytecode.to_bytecode()
+        code = bytecode.to_code()
+        return code
 
 
 # Code transformer for the PEP 511

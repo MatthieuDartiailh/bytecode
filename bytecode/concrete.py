@@ -274,6 +274,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         instructions = []
         labels = {}
         offset = 0
+        ncells = len(self.cellvars)
 
         for instr in self:
             if offset in jump_targets:
@@ -293,11 +294,13 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
             elif instr.op in _opcode.hasname:
                 arg = self.names[arg]
             elif instr.op in _opcode.hasfree:
-                ncells = len(self.cellvars)
-                if arg < ncells:
-                    arg = self.cellvars[arg]
-                else:
+                if instr.name == 'LOAD_CLASSDEREF':
                     arg = self.freevars[arg - ncells]
+                else:
+                    if arg < ncells:
+                        arg = self.cellvars[arg]
+                    else:
+                        arg = self.freevars[arg - ncells]
             # FIXME: COMPARE_OP operator
 
             instr = Instr(instr.name, arg, lineno=instr.lineno)
@@ -360,6 +363,7 @@ class _ConvertBytecodeToConcrete:
         return index
 
     def concrete_instructions(self):
+        ncells = len(self.bytecode.cellvars)
         lineno = self.bytecode.first_lineno
 
         for instr in self.bytecode:
@@ -390,10 +394,13 @@ class _ConvertBytecodeToConcrete:
                 elif instr.op in _opcode.hasname:
                     arg = self.add(self.names, arg)
                 elif instr.op in _opcode.hasfree:
-                    try:
-                        arg = self.bytecode.cellvars.index(arg)
-                    except ValueError:
-                        arg = self.bytecode.freevars.index(arg)
+                    if instr.name == 'LOAD_CLASSDEREF':
+                        arg = ncells + self.bytecode.freevars.index(arg)
+                    else:
+                        try:
+                            arg = self.bytecode.cellvars.index(arg)
+                        except ValueError:
+                            arg = ncells + self.bytecode.freevars.index(arg)
 
                 instr = ConcreteInstr(instr.name, arg, lineno=lineno)
                 if is_jump:
