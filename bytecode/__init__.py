@@ -13,23 +13,39 @@ from bytecode.blocks import BytecodeBlocks
 
 
 # FIXME: move code into a submodule or inside Bytecode classes?
-def dump_bytecode(bytecode):
-    indent = ' ' * 4
-    if isinstance(bytecode, ConcreteBytecode):
-        line_width = 3
+def dump_bytecode(bytecode, *, lineno=False):
 
+    def format_line(index, line):
+        nonlocal cur_lineno, prev_lineno
+        if lineno:
+            if cur_lineno != prev_lineno:
+                line = 'L.% 3s % 3s: %s' % (cur_lineno, index, line)
+                prev_lineno = cur_lineno
+            else:
+                line = '      % 3s: %s' % (index, line)
+        else:
+            line = line
+        return line
+
+    indent = ' ' * 4
+
+    cur_lineno = bytecode.first_lineno
+    prev_lineno = None
+
+    if isinstance(bytecode, ConcreteBytecode):
         offset = 0
-        lineno = None
         for instr in bytecode:
             fields = []
-            if instr.lineno != lineno:
-                fields.append(str(instr.lineno).rjust(line_width))
-                lineno = instr.lineno
+            if instr.lineno is not None:
+               cur_lineno = instr.lineno
+            if lineno:
+                fields.append(instr._format())
+                line = ''.join(fields)
+                line = format_line(offset, line)
             else:
-                fields.append(" " * line_width)
-
-            fields.append("% 3s    %s" % (offset, instr._format()))
-            print(''.join(fields))
+                fields.append("% 3s    %s" % (offset, instr._format()))
+                line = ''.join(fields)
+            print(line)
 
             offset += instr.size
     elif isinstance(bytecode, Bytecode):
@@ -45,7 +61,10 @@ def dump_bytecode(bytecode):
                 if index != 0:
                     print()
             else:
-                line = indent + instr._format(labels)
+                if instr.lineno is not None:
+                   cur_lineno = instr.lineno
+                line = instr._format(labels)
+                line = indent + format_line(index, line)
             print(line)
         print()
     elif isinstance(bytecode, BytecodeBlocks):
@@ -60,12 +79,16 @@ def dump_bytecode(bytecode):
 
         for block_index, block in enumerate(bytecode, 1):
             print('%s:' % labels[block.label])
-            for instr in block:
+            prev_lineno = None
+            for index, instr in enumerate(block):
                 if isinstance(instr, Label):
                     label = labels[instr]
                     line = '%s:' % label
                 else:
-                    line = indent + instr._format(labels)
+                    if instr.lineno is not None:
+                       cur_lineno = instr.lineno
+                    line = instr._format(labels)
+                    line = indent + format_line(index, line)
                 print(line)
             if block.next_block is not None:
                 print(indent + "-> %s" % labels[block.next_block.label])

@@ -11,9 +11,12 @@ from bytecode.tests import disassemble
 class DumpCodeTests(unittest.TestCase):
     maxDiff = 80 * 100
 
-    def check_dump_bytecode(self, code, expected):
+    def check_dump_bytecode(self, code, expected, lineno=None):
         with contextlib.redirect_stdout(io.StringIO()) as stderr:
-            bytecode.dump_bytecode(code)
+            if lineno is not None:
+                bytecode.dump_bytecode(code, lineno=True)
+            else:
+                bytecode.dump_bytecode(code)
             output = stderr.getvalue()
 
         self.assertEqual(output, expected)
@@ -30,6 +33,7 @@ class DumpCodeTests(unittest.TestCase):
         code = disassemble(source, function=True)
         code = code.to_bytecode()
 
+        # without line numbers
         expected = """
     LOAD_FAST 'test'
     LOAD_CONST 1
@@ -53,6 +57,30 @@ label_instr13:
         """[1:].rstrip(" ")
         self.check_dump_bytecode(code, expected)
 
+        # with line numbers
+        expected = """
+    L.  2   0: LOAD_FAST 'test'
+            1: LOAD_CONST 1
+            2: COMPARE_OP 2
+            3: POP_JUMP_IF_FALSE <label_instr6>
+    L.  3   4: LOAD_CONST 1
+            5: RETURN_VALUE
+
+label_instr6:
+    L.  4   7: LOAD_FAST 'test'
+            8: LOAD_CONST 2
+            9: COMPARE_OP 2
+           10: POP_JUMP_IF_FALSE <label_instr13>
+    L.  5  11: LOAD_CONST 2
+           12: RETURN_VALUE
+
+label_instr13:
+    L.  6  14: LOAD_CONST 3
+           15: RETURN_VALUE
+
+        """[1:].rstrip(" ")
+        self.check_dump_bytecode(code, expected, lineno=True)
+
     def test_bytecode_blocks(self):
         source = """
             def func(test):
@@ -64,6 +92,7 @@ label_instr13:
         """
         code = disassemble(source, function=True)
 
+        # without line numbers
         expected = textwrap.dedent("""
             label_block1:
                 LOAD_FAST 'test'
@@ -94,6 +123,37 @@ label_instr13:
         """).lstrip()
         self.check_dump_bytecode(code, expected)
 
+        # with line numbers
+        expected = textwrap.dedent("""
+            label_block1:
+                L.  2   0: LOAD_FAST 'test'
+                        1: LOAD_CONST 1
+                        2: COMPARE_OP 2
+                        3: POP_JUMP_IF_FALSE <label_block3>
+                -> label_block2
+
+            label_block2:
+                L.  3   0: LOAD_CONST 1
+                        1: RETURN_VALUE
+
+            label_block3:
+                L.  4   0: LOAD_FAST 'test'
+                        1: LOAD_CONST 2
+                        2: COMPARE_OP 2
+                        3: POP_JUMP_IF_FALSE <label_block5>
+                -> label_block4
+
+            label_block4:
+                L.  5   0: LOAD_CONST 2
+                        1: RETURN_VALUE
+
+            label_block5:
+                L.  6   0: LOAD_CONST 3
+                        1: RETURN_VALUE
+
+        """).lstrip()
+        self.check_dump_bytecode(code, expected, lineno=True)
+
     def test_concrete_bytecode(self):
         source = """
             def func(test):
@@ -106,23 +166,43 @@ label_instr13:
         code = disassemble(source, function=True)
         code = code.to_concrete_bytecode()
 
+        # without line numbers
         expected = """
-  2  0    LOAD_FAST 0
-     3    LOAD_CONST 1
-     6    COMPARE_OP 2
-     9    POP_JUMP_IF_FALSE 16
-  3 12    LOAD_CONST 1
-    15    RETURN_VALUE
-  4 16    LOAD_FAST 0
-    19    LOAD_CONST 2
-    22    COMPARE_OP 2
-    25    POP_JUMP_IF_FALSE 32
-  5 28    LOAD_CONST 2
-    31    RETURN_VALUE
-  6 32    LOAD_CONST 3
-    35    RETURN_VALUE
+  0    LOAD_FAST 0
+  3    LOAD_CONST 1
+  6    COMPARE_OP 2
+  9    POP_JUMP_IF_FALSE 16
+ 12    LOAD_CONST 1
+ 15    RETURN_VALUE
+ 16    LOAD_FAST 0
+ 19    LOAD_CONST 2
+ 22    COMPARE_OP 2
+ 25    POP_JUMP_IF_FALSE 32
+ 28    LOAD_CONST 2
+ 31    RETURN_VALUE
+ 32    LOAD_CONST 3
+ 35    RETURN_VALUE
 """.lstrip("\n")
         self.check_dump_bytecode(code, expected)
+
+        # with line numbers
+        expected = """
+L.  2   0: LOAD_FAST 0
+        3: LOAD_CONST 1
+        6: COMPARE_OP 2
+        9: POP_JUMP_IF_FALSE 16
+L.  3  12: LOAD_CONST 1
+       15: RETURN_VALUE
+L.  4  16: LOAD_FAST 0
+       19: LOAD_CONST 2
+       22: COMPARE_OP 2
+       25: POP_JUMP_IF_FALSE 32
+L.  5  28: LOAD_CONST 2
+       31: RETURN_VALUE
+L.  6  32: LOAD_CONST 3
+       35: RETURN_VALUE
+""".lstrip("\n")
+        self.check_dump_bytecode(code, expected, lineno=True)
 
 
 class MiscTests(unittest.TestCase):

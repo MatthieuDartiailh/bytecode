@@ -27,9 +27,12 @@ Bytecode classes:
 Functions
 =========
 
-.. function:: dump_bytecode(bytecode)
+.. function:: dump_bytecode(bytecode, \*, lineno=False)
 
    Dump a bytecode to the standard output.
+
+   If *lineno*, show line numbers. For blocks, show also instruction index
+   relative to the current block.
 
    This function is written for debug purpose.
 
