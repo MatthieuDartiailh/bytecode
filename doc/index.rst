@@ -20,6 +20,7 @@ Table Of Contents
 
    usage
    api
+   peephole
    changelog
 
 

@@ -31,7 +31,7 @@ class ExitUnchanged(Exception):
     pass
 
 
-class _CodePeepholeOptimizer:
+class PeepholeOptimizer:
     """Python reimplementation of the peephole optimizer.
 
     Copy of the C comment:
@@ -466,5 +466,5 @@ class CodeTransformer:
     def code_transformer(self, code, context):
         #print("Optimize %s:%s: %s"
         #      % (code.co_filename, code.co_firstlineno, code.co_name))
-        optimizer = _CodePeepholeOptimizer()
+        optimizer = PeepholeOptimizer()
         return optimizer.optimize(code)
