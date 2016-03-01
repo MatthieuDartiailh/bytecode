@@ -594,6 +594,19 @@ class Tests(TestCase):
                    Instr('LOAD_NAME', 'x'),
                    Instr('STORE_NAME', 'test'))
 
+    def test_dead_code_jump(self):
+        label = Label()
+        code = Bytecode([Instr('LOAD_NAME', 'x'),
+                         Instr('JUMP_ABSOLUTE', label),
+                             # dead code
+                             Instr('NOP'),
+                         label,
+                             Instr('STORE_NAME', 'test')])
+
+        self.check(code,
+                   Instr('LOAD_NAME', 'x'),
+                   Instr('STORE_NAME', 'test'))
+
 
 if __name__ == "__main__":
     unittest.main()

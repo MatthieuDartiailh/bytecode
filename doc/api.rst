@@ -414,6 +414,12 @@ BytecodeBlocks
 
       Add a new block. Return the newly created block.
 
+   .. method:: get_block_index(block: Block) -> int
+
+      Get the index of a block in the bytecode.
+
+      Raise a :exc:`ValueError` if the block is not part of the bytecode.
+
    .. method:: split_block(block: Block, index: int) -> Block
 
       Split a block into two blocks at the specific instruction. Return

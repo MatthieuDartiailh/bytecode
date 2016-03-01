@@ -20,6 +20,12 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
 
         self.add_block()
 
+    def get_block_index(self, block):
+        try:
+            return self._block_index[id(block)]
+        except KeyError:
+            raise ValueError("the block is not part of this bytecode")
+
     def _add_block(self, block):
         block_index = len(self._blocks)
         self._blocks.append(block)
@@ -79,12 +85,12 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
 
     def __getitem__(self, index):
         if isinstance(index, Block):
-            index = self._block_index[id(index)]
+            index = self.get_block_index(index)
         return self._blocks[index]
 
     def __delitem__(self, index):
         if isinstance(index, Block):
-            index = self._block_index[id(index)]
+            index = self.get_block_index(block)
         block = self._blocks[index]
         del self._blocks[index]
         del self._block_index[id(block)]
@@ -95,7 +101,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
     def split_block(self, block, index):
         if not isinstance(block, Block):
             raise TypeError("expected block")
-        block_index = self._block_index[id(block)]
+        block_index = self.get_block_index(block)
 
         if index < 0:
             raise ValueError("index must be positive")

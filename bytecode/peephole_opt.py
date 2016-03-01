@@ -370,6 +370,22 @@ class PeepholeOptimizer:
             instr.arg = jump_target2
             self.block[self.index-1] = instr
 
+    def optimize_jump(self, instr):
+        if (instr.is_uncond_jump()
+           and self.index == len(self.block)):
+            # JUMP_ABSOLUTE at the end of a block which points to the
+            # following block: remove the jump, link the current block
+            # to the following block
+            block_index = self.block_index
+            target_block = instr.arg
+            target_block_index = self.code.get_block_index(target_block)
+            if target_block_index == block_index:
+                del self.block[self.index - 1]
+                self.block.next_block = target_block
+                return
+
+        self.optimize_jump_to_cond_jump(instr)
+
     def iterblock(self, block):
         self.block = block
         self.index = 0
@@ -392,7 +408,7 @@ class PeepholeOptimizer:
             if meth is not None:
                 meth(instr)
             elif instr.has_jump():
-                self.optimize_jump_to_cond_jump(instr)
+                self.optimize_jump(instr)
 
             # Note: Skipping over LOAD_CONST trueconst; POP_JUMP_IF_FALSE
             # <target> is not implemented, since it looks like the optimization
@@ -422,13 +438,13 @@ class PeepholeOptimizer:
         self.code = code
         self.const_stack = []
 
+        self.remove_dead_blocks()
+
         self.block_index = 0
         while self.block_index < len(self.code):
             block = self.code[self.block_index]
             self.block_index += 1
             self.optimize_block(block)
-
-        self.remove_dead_blocks()
 
     def optimize(self, code_obj):
         bytecode = Bytecode.from_code(code_obj)

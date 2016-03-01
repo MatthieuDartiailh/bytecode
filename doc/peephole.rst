@@ -112,6 +112,7 @@ Optimizations implemented in the peephole optimizer:
 
   - Replace unconditional jumps to RETURN_VALUE with RETURN_VALUE
   - Replace jumps to unconditional jumps with jumps to the final target
+  - Remove unconditional jumps to the following block
 
 For tuples, constant folding is only run if the result has 20 items or less.
 

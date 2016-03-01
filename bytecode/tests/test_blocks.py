@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import unittest
-from bytecode import Label, Instr, ConcreteInstr, Bytecode, BytecodeBlocks
+from bytecode import Label, Instr, ConcreteInstr, Bytecode, Block, BytecodeBlocks
 from bytecode.tests import disassemble, TestCase, get_code
 
 
@@ -212,6 +212,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         for block_index, block in enumerate(code):
             self.assertIs(code[block_index], block)
             self.assertIs(code[block], block)
+            self.assertEqual(code.get_block_index(block), block_index)
 
     def sample_code(self):
         code = disassemble('x = 1', remove_last_return_none=True)
@@ -304,6 +305,19 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(code.co_filename, 'hello.py')
         self.assertEqual(code.co_name, 'func')
         self.assertEqual(code.co_firstlineno, 3)
+
+    def test_get_block_index(self):
+        blocks = BytecodeBlocks()
+        block0 = blocks[0]
+        block1 = blocks.add_block()
+        block2 = blocks.add_block()
+        self.assertEqual(blocks.get_block_index(block0), 0)
+        self.assertEqual(blocks.get_block_index(block1), 1)
+        self.assertEqual(blocks.get_block_index(block2), 2)
+
+        other_block = Block()
+        self.assertRaises(ValueError, blocks.get_block_index, other_block)
+
 
 
 
