@@ -125,7 +125,7 @@ Instr
       * JUMP_FORWARD
       * JUMP_ABSOLUTE
 
-   .. method:: set(name, arg=UNSET):
+   .. method:: set(name, arg=UNSET)
 
       Modify the instruction in-place: replace :attr:`name` and :attr:`arg`
       attributes.
