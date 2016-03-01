@@ -132,4 +132,5 @@ Output::
     no
     yes
 
-Instructions are only indented for readability.
+.. note::
+   Instructions are only indented for readability.
