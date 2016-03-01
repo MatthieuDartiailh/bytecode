@@ -215,13 +215,13 @@ class Tests(TestCase):
                          Instr('LOAD_CONST', 2),
                          Instr('LOAD_CONST', 3),
                          Instr('BUILD_LIST', 3),
-                         Instr('COMPARE_OP', 6),
+                         Instr('COMPARE_OP', Compare.IN),
                          Instr('STORE_NAME', 'test')])
 
         self.check(code,
                    Instr('LOAD_NAME', 'x'),
                    Instr('LOAD_CONST', (1, 2, 3)),
-                   Instr('COMPARE_OP', 6),
+                   Instr('COMPARE_OP', Compare.IN),
                    Instr('STORE_NAME', 'test'))
 
     def test_build_list_unpack_seq(self):
@@ -272,13 +272,13 @@ class Tests(TestCase):
                          Instr('LOAD_CONST', 2),
                          Instr('LOAD_CONST', 3),
                          Instr('BUILD_SET', 3),
-                         Instr('COMPARE_OP', 6),
+                         Instr('COMPARE_OP', Compare.IN),
                          Instr('STORE_NAME', 'test')])
 
         self.check(code,
                    Instr('LOAD_NAME', 'x'),
                    Instr('LOAD_CONST', frozenset((1, 2, 3))),
-                   Instr('COMPARE_OP', 6),
+                   Instr('COMPARE_OP', Compare.IN),
                    Instr('STORE_NAME', 'test'))
 
     def test_compare_op_unary_not(self):
@@ -306,7 +306,7 @@ class Tests(TestCase):
                          Instr('JUMP_IF_FALSE_OR_POP', label_instr5),
                          Instr('LOAD_NAME', 'b'),
                          Instr('LOAD_CONST', True),
-                         Instr('COMPARE_OP', 8),
+                         Instr('COMPARE_OP', Compare.IS),
                          label_instr5,
                          Instr('UNARY_NOT'),
                          Instr('STORE_NAME', 'x'),
@@ -318,7 +318,7 @@ class Tests(TestCase):
         # x = 3 < 5
         code = Bytecode([Instr('LOAD_CONST', 3),
                          Instr('LOAD_CONST', 5),
-                         Instr('COMPARE_OP', 0),
+                         Instr('COMPARE_OP', Compare.LT),
                          Instr('STORE_NAME', 'x'),
                          Instr('LOAD_CONST', None),
                          Instr('RETURN_VALUE')])

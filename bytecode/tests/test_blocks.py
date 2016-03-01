@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import unittest
-from bytecode import Label, Instr, ConcreteInstr, Bytecode, Block, BytecodeBlocks
+from bytecode import (Label, Compare, Instr, ConcreteInstr,
+                      Bytecode, Block, BytecodeBlocks)
 from bytecode.tests import disassemble, TestCase, get_code
 
 
@@ -158,7 +159,7 @@ class BytecodeBlocksTests(TestCase):
                      Instr('STORE_NAME', 'x', lineno=1),
                      Instr('LOAD_NAME', 'x', lineno=2),
                      Instr('LOAD_CONST', 2, lineno=2),
-                     Instr('COMPARE_OP', 2, lineno=2),
+                     Instr('COMPARE_OP', Compare.EQ, lineno=2),
                      Instr('POP_JUMP_IF_FALSE', label_loop_start, lineno=2),
                      Instr('BREAK_LOOP', lineno=3),
                      Instr('JUMP_ABSOLUTE', label_loop_start, lineno=4),
@@ -182,7 +183,7 @@ class BytecodeBlocksTests(TestCase):
                      Instr('STORE_NAME', 'x', lineno=1),
                      Instr('LOAD_NAME', 'x', lineno=2),
                      Instr('LOAD_CONST', 2, lineno=2),
-                     Instr('COMPARE_OP', 2, lineno=2),
+                     Instr('COMPARE_OP', Compare.EQ, lineno=2),
                      Instr('POP_JUMP_IF_FALSE', blocks[1], lineno=2)],
 
                     [Instr('BREAK_LOOP', lineno=3)],
