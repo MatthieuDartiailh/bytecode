@@ -3,6 +3,7 @@ ChangeLog
 
 * Version 0.3
 
+  - :class:`Instr` now validates the type of the argument
   - add :class:`CellVar` and :class:`FreeVar` classes
   - peephole_opt: bugfixes
   - :class:`BytecodeBlocks`: remove undocumented ``to_concrete_bytecode()``

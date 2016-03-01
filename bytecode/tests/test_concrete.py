@@ -509,8 +509,8 @@ class BytecodeToConcreteTests(TestCase):
         code = Bytecode()
         code.cellvars = ['x']
         code.freevars = ['y']
-        code.extend([Instr('LOAD_DEREF', 'x', lineno=1),
-                     Instr('LOAD_DEREF', 'y', lineno=1)])
+        code.extend([Instr('LOAD_DEREF', CellVar('x'), lineno=1),
+                     Instr('LOAD_DEREF', FreeVar('y'), lineno=1)])
         concrete = code.to_concrete_bytecode()
         self.assertEqual(concrete.cellvars, ['x'])
         self.assertEqual(concrete.freevars, ['y'])

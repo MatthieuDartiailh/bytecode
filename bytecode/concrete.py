@@ -36,10 +36,7 @@ class ConcreteInstr(Instr):
     def __init__(self, name, arg=UNSET, *, lineno=None):
         self.set(name, arg, lineno=lineno)
 
-    def _check(self, name, arg, lineno):
-        super()._check(name, arg, lineno)
-
-        opcode = _opcode.opmap[name]
+    def _check_arg(self, name, opcode, arg):
         if opcode >= _opcode.HAVE_ARGUMENT:
             if arg is UNSET:
                 raise ValueError("operation %s requires an argument" % name)
@@ -384,7 +381,7 @@ class _ConvertBytecodeToConcrete:
                 is_jump = isinstance(arg, Label)
                 if is_jump:
                     label = arg
-                    # fake value, real value is set in the second loop
+                    # fake value, real value is set in compute_jumps()
                     arg = 0
                 elif instr.op in _opcode.hasconst:
                     arg = self.add_const(arg)
@@ -414,7 +411,6 @@ class _ConvertBytecodeToConcrete:
             self.instructions.append(instr)
 
     def compute_jumps(self):
-        # convert abstract instructions to concrete instructions
         offsets = []
         offset = 0
         for index, instr in enumerate(self.instructions):

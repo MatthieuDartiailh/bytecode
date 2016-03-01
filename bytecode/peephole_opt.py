@@ -125,8 +125,8 @@ class PeepholeOptimizer:
             return None
         if next_instr.name == 'POP_JUMP_IF_FALSE':
             # Replace UNARY_NOT+POP_JUMP_IF_FALSE with POP_JUMP_IF_TRUE
-            instr.name = 'POP_JUMP_IF_TRUE'
-            instr.arg = next_instr.arg
+            # FIXME: don't repeat lineno
+            instr.set('POP_JUMP_IF_TRUE', next_instr.arg, lineno=instr.lineno)
             self.block[self.index-1:self.index+1] = (instr,)
             self.index -= 1
 

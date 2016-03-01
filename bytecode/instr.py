@@ -121,8 +121,47 @@ class Instr:
     def __init__(self, name, arg=UNSET, *, lineno=None):
         self.set(name, arg, lineno=lineno)
 
-    def _check(self, name, arg, lineno):
-        # check operation name
+    def _check_arg(self, name, opcode, arg):
+        if self._has_jump(opcode):
+            if not (isinstance(arg, (Label, _bytecode.Block))
+                    or (isinstance(arg, int) and arg >= 0)):
+                print(repr(arg))
+                raise ValueError("operation %s argument must be a Label, "
+                                 "Block or int>=0, got %s"
+                                 % (name, type(arg).__name__))
+        elif opcode in _opcode.hasfree:
+            if not isinstance(arg, (CellVar, FreeVar)):
+                raise ValueError("operation %s argument must be CellVar "
+                                 "or FreeVar, got %s"
+                                 % (name, type(arg).__name__))
+        elif (opcode in _opcode.haslocal
+             or opcode in _opcode.hasname):
+            if not isinstance(arg, str):
+                raise ValueError("operation %s argument must be a str, "
+                                 "got %s"
+                                 % (name, type(arg).__name__))
+        elif opcode in _opcode.hasconst:
+            if isinstance(arg, Label):
+                raise ValueError("label argument cannot be used "
+                                 "in %s operation" % name)
+        elif opcode >= _opcode.HAVE_ARGUMENT:
+            if arg is UNSET:
+                raise ValueError("operation %s requires an argument" % name)
+
+            if not isinstance(arg, int):
+                raise ValueError("operation %s argument must be an int, "
+                                 "got %s"
+                                 % (name, type(arg).__name__))
+        else:
+            if arg is not UNSET:
+                raise ValueError("operation %s has no argument" % name)
+
+    # FIXME: remove lineno or make it optional?
+    def set(self, name, arg=UNSET, *, lineno=None):
+        """Modify the instruction in-place.
+
+        Replace name, arg and lineno attributes.
+        """
         if not isinstance(name, str):
             raise TypeError("operation name must be a str")
         try:
@@ -134,19 +173,7 @@ class Instr:
         if lineno is not None:
             _check_lineno(lineno)
 
-        if isinstance(arg, Label) and not self._has_jump(opcode):
-            raise ValueError("label argument cannot be used in %s operation"
-                             % name)
-        # FIXME: opcode.hasfree: only accept CellVar and FreeVar?
-        # FIXME: only accept int>=0 or label if has_jump()?
-        # FIXME: only accept str if haslocal or hasname?
-
-    def set(self, name, arg=UNSET, *, lineno=None):
-        """Modify the instruction in-place.
-
-        Replace name, arg and lineno attributes.
-        """
-        self._check(name, arg, lineno)
+        self._check_arg(name, opcode, arg)
 
         opcode = _opcode.opmap[name]
         self._name = name

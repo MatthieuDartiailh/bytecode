@@ -68,11 +68,11 @@ class _InstrList(list):
         labels = {}
         jumps = []
 
+        offset = 0
         for index, instr in enumerate(self):
             if isinstance(instr, Label):
-                name = 'label_instr%s' % index
-                instructions.append(name)
-                labels[instr] = name
+                instructions.append('label_instr%s' % index)
+                labels[instr] = offset
             else:
                 if isinstance(instr.arg, Label):
                     # copy the instruction to be able to modify
@@ -80,6 +80,7 @@ class _InstrList(list):
                     instr = instr.copy()
                     jumps.append(instr)
                 instructions.append(instr)
+                offset += 1
 
         for instr in jumps:
             instr.arg = labels[instr.arg]

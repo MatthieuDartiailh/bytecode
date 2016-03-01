@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import opcode
 import unittest
-from bytecode import UNSET, Label, Instr
+from bytecode import UNSET, Label, Instr, CellVar, FreeVar
 from bytecode.tests import TestCase
 
 
@@ -19,11 +19,39 @@ class InstrTests(TestCase):
         with self.assertRaises(ValueError):
             Instr("xxx")
 
-        # label
+    def test_invalid_arg(self):
         label = Label()
-        with self.assertRaises(ValueError):
-            Instr("LOAD_CONST", label)
+
+        # has_jump()
+        self.assertRaises(ValueError, Instr, "JUMP_ABSOLUTE", 1.0)
+        Instr("JUMP_ABSOLUTE", 1)
         Instr("JUMP_ABSOLUTE", label)
+
+        # hasfree
+        self.assertRaises(ValueError, Instr, "LOAD_DEREF", "x")
+        Instr("LOAD_DEREF", CellVar("x"))
+        Instr("LOAD_DEREF", FreeVar("x"))
+
+        # haslocal
+        self.assertRaises(ValueError, Instr, "LOAD_FAST", 1)
+        Instr("LOAD_FAST", "x")
+
+        # hasname
+        self.assertRaises(ValueError, Instr, "LOAD_NAME", 1)
+        Instr("LOAD_NAME", "x")
+
+        # hasconst
+        self.assertRaises(ValueError, Instr, "LOAD_CONST", label)
+        Instr("LOAD_CONST", 1.0)
+        Instr("LOAD_CONST", object())
+
+        # HAVE_ARGUMENT
+        self.assertRaises(ValueError, Instr, "CALL_FUNCTION", 3.0)
+        Instr("CALL_FUNCTION", 3)
+
+        # not HAVE_ARGUMENT
+        self.assertRaises(ValueError, Instr, "NOP", 0)
+        Instr("NOP")
 
     def test_attr(self):
         instr = Instr("LOAD_CONST", 3, lineno=5)
@@ -50,7 +78,7 @@ class InstrTests(TestCase):
         self.assertIs(instr.arg, UNSET)
 
     def test_modify_op(self):
-        instr = Instr("LOAD_CONST", 3)
+        instr = Instr("LOAD_NAME", 'x')
         load_fast = opcode.opmap['LOAD_FAST']
         instr.op = load_fast
         self.assertEqual(instr.name, 'LOAD_FAST')
@@ -73,7 +101,7 @@ class InstrTests(TestCase):
         self.assertNotEqual(instr, Instr("LOAD_CONST", 3))
         self.assertNotEqual(instr, Instr("LOAD_CONST", 3, lineno=6))
         # different op
-        self.assertNotEqual(instr, Instr("LOAD_FAST", 3, lineno=7))
+        self.assertNotEqual(instr, Instr("LOAD_FAST", 'x', lineno=7))
         # different arg
         self.assertNotEqual(instr, Instr("LOAD_CONST", 4, lineno=7))
 
@@ -81,14 +109,14 @@ class InstrTests(TestCase):
         jump = Instr("JUMP_ABSOLUTE", 3)
         self.assertTrue(jump.has_jump())
 
-        instr = Instr("LOAD_FAST", 2)
+        instr = Instr("LOAD_FAST", 'x')
         self.assertFalse(instr.has_jump())
 
     def test_is_cond_jump(self):
         jump = Instr("POP_JUMP_IF_TRUE", 3)
         self.assertTrue(jump.is_cond_jump())
 
-        instr = Instr("LOAD_FAST", 2)
+        instr = Instr("LOAD_FAST", 'x')
         self.assertFalse(instr.is_cond_jump())
 
     def test_is_uncond_jump(self):
