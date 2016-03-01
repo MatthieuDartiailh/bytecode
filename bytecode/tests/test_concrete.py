@@ -48,20 +48,18 @@ class ConcreteInstrTests(TestCase):
         instr.set('NOP')
         self.assertEqual(instr.name, 'NOP')
         self.assertIs(instr.arg, UNSET)
-        self.assertIsNone(instr.lineno)
+        self.assertEqual(instr.lineno, 3)
 
-        instr.set('LOAD_FAST', 8, lineno=9)
+        instr.set('LOAD_FAST', 8)
         self.assertEqual(instr.name, 'LOAD_FAST')
         self.assertEqual(instr.arg, 8)
-        self.assertEqual(instr.lineno, 9)
+        self.assertEqual(instr.lineno, 3)
 
         # invalid
         with self.assertRaises(ValueError):
             instr.set('LOAD_CONST')
         with self.assertRaises(ValueError):
             instr.set('NOP', 5)
-        with self.assertRaises(ValueError):
-            instr.set('LOAD_CONST', 5, lineno=-1)
 
     def test_set_attr(self):
         instr = ConcreteInstr("LOAD_CONST", 5, lineno=12)

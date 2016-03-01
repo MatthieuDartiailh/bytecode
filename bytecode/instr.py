@@ -119,7 +119,7 @@ class Instr:
     __slots__ = ('_name', '_opcode', '_arg', '_lineno')
 
     def __init__(self, name, arg=UNSET, *, lineno=None):
-        self.set(name, arg, lineno=lineno)
+        self._set(name, arg, lineno)
 
     def _check_arg(self, name, opcode, arg):
         if self._has_jump(opcode):
@@ -156,12 +156,7 @@ class Instr:
             if arg is not UNSET:
                 raise ValueError("operation %s has no argument" % name)
 
-    # FIXME: remove lineno or make it optional?
-    def set(self, name, arg=UNSET, *, lineno=None):
-        """Modify the instruction in-place.
-
-        Replace name, arg and lineno attributes.
-        """
+    def _set(self, name, arg, lineno):
         if not isinstance(name, str):
             raise TypeError("operation name must be a str")
         try:
@@ -181,6 +176,13 @@ class Instr:
         self._arg = arg
         self._lineno = lineno
 
+    def set(self, name, arg=UNSET):
+        """Modify the instruction in-place.
+
+        Replace name and arg attributes. Don't modify lineno.
+        """
+        self._set(name, arg, self._lineno)
+
     def require_arg(self):
         """Does the instruction require an argument?"""
         return (self._opcode >= _opcode.HAVE_ARGUMENT)
@@ -191,7 +193,7 @@ class Instr:
 
     @name.setter
     def name(self, name):
-        self.set(name, self._arg, lineno=self._lineno)
+        self._set(name, self._arg, self._lineno)
 
     @property
     def op(self):
@@ -209,7 +211,7 @@ class Instr:
         if not valid:
             raise ValueError("invalid operator code")
 
-        self.set(name, self._arg, lineno=self._lineno)
+        self._set(name, self._arg, self._lineno)
 
     @property
     def arg(self):
@@ -217,7 +219,7 @@ class Instr:
 
     @arg.setter
     def arg(self, arg):
-        self.set(self._name, arg, lineno=self._lineno)
+        self._set(self._name, arg, self._lineno)
 
     @property
     def lineno(self):
@@ -225,7 +227,7 @@ class Instr:
 
     @lineno.setter
     def lineno(self, lineno):
-        self.set(self._name, self._arg, lineno=lineno)
+        self._set(self._name, self._arg, lineno)
 
     def copy(self):
         return self.__class__(self._name, self._arg, lineno=self._lineno)

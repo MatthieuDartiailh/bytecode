@@ -125,9 +125,12 @@ Instr
       * JUMP_FORWARD
       * JUMP_ABSOLUTE
 
-   .. method:: set(name, arg=UNSET, \*, lineno=None):
+   .. method:: set(name, arg=UNSET):
 
-      Replace all attributes at once.
+      Modify the instruction in-place: replace :attr:`name` and :attr:`arg`
+      attributes.
+
+      The :attr:`lineno` attribute is unchanged.
 
 
 ConcreteInstr

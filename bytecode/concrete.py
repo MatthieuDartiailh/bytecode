@@ -34,7 +34,7 @@ class ConcreteInstr(Instr):
     __slots__ = ('_size',)
 
     def __init__(self, name, arg=UNSET, *, lineno=None):
-        self.set(name, arg, lineno=lineno)
+        self._set(name, arg, lineno)
 
     def _check_arg(self, name, opcode, arg):
         if opcode >= _opcode.HAVE_ARGUMENT:
@@ -52,8 +52,8 @@ class ConcreteInstr(Instr):
             if arg is not UNSET:
                 raise ValueError("operation %s has no argument" % name)
 
-    def set(self, name, arg=UNSET, *, lineno=None):
-        super().set(name, arg, lineno=lineno)
+    def _set(self, name, arg, lineno):
+        super()._set(name, arg, lineno)
         size = 1
         if arg is not UNSET:
             size += 2
