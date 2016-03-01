@@ -48,7 +48,7 @@ Instruction classess
 Instr
 -----
 
-.. class:: Instr(name, arg=UNSET, \*, lineno=None)
+.. class:: Instr(name: str, arg=UNSET, \*, lineno: int=None)
 
    Abstract instruction.
 
@@ -61,30 +61,31 @@ Instr
 
    .. attribute:: name
 
-      Operation name
+      Operation name (``str``).
 
    .. attribute:: op
 
-      Operation code.
+      Operation code (``int``).
 
    .. attribute:: arg
 
-      Argument value. It can be :data:`UNSET` if the instruction has no
-      argument.
+      Argument value. Its type depends on the operation.
+
+      It can be :data:`UNSET` if the instruction has no argument.
 
    .. attribute:: lineno
 
-      Line number (``int`` greater or equal than ``1``), or ``None``.
+      Line number (``int >= 1``), or ``None``.
 
    Methods:
 
-   .. method:: copy()
+   .. method:: copy() -> Instr
 
       Create a copy of the instruction.
 
-   .. method:: is_final()
+   .. method:: is_final() -> bool
 
-      Is the operation a final operation? Return a boolean.
+      Is the operation a final operation?
 
       Final operations:
 
@@ -94,9 +95,9 @@ Instr
       * CONTINUE_LOOP
       * unconditional jumps: :meth:`is_uncond_jump`
 
-   .. method:: has_jump()
+   .. method:: has_jump() -> bool
 
-      Does the operation have a jump argument? Return a boolean.
+      Does the operation have a jump argument?
 
       More general than :meth:`is_cond_jump` and :meth:`is_uncond_jump`, it
       includes other operations. Examples:
@@ -105,9 +106,9 @@ Instr
       * SETUP_EXCEPT
       * CONTINUE_LOOP
 
-   .. method:: is_cond_jump()
+   .. method:: is_cond_jump() -> bool
 
-      Is the operation an conditional jump? Return a boolean.
+      Is the operation an conditional jump?
 
       Conditional jumps:
 
@@ -116,27 +117,30 @@ Instr
       * POP_JUMP_IF_FALSE
       * POP_JUMP_IF_TRUE
 
-   .. method:: is_uncond_jump()
+   .. method:: is_uncond_jump() -> bool
 
-      Is the operation an unconditional jump? Return a boolean.
+      Is the operation an unconditional jump?
 
       Unconditional jumps:
 
       * JUMP_FORWARD
       * JUMP_ABSOLUTE
 
-   .. method:: set(name, arg=UNSET)
+   .. method:: set(name: str, arg=UNSET)
 
       Modify the instruction in-place: replace :attr:`name` and :attr:`arg`
       attributes.
 
       The :attr:`lineno` attribute is unchanged.
 
+      .. versionchanged:: 0.3
+         The *lineno* parameter has been removed.
+
 
 ConcreteInstr
 -------------
 
-.. class:: ConcreteInstr(name, arg=UNSET, \*, lineno=None)
+.. class:: ConcreteInstr(name: str, arg=UNSET, \*, lineno: int=None)
 
    Concrete instruction, inherit from :class:`Instr`.
 
@@ -160,19 +164,18 @@ ConcreteInstr
 
    .. attribute:: size
 
-      Read-only size of the instruction in bytes: between ``1`` byte (no
-      agument) and ``6`` bytes (extended argument).
+      Read-only size of the instruction in bytes (``int``): between ``1`` byte
+      (no agument) and ``6`` bytes (extended argument).
 
    Static method:
 
-   .. staticmethod:: disassemble(code: bytes, offset: int)
+   .. staticmethod:: disassemble(code: bytes, offset: int) -> ConcreteInstr
 
-      Create a concrete instruction (:class:`ConcreteInstr`) from a bytecode
-      string.
+      Create a concrete instruction from a bytecode string.
 
    Methods:
 
-   .. method:: get_jump_target(instr_offset)
+   .. method:: get_jump_target(instr_offset: int) -> int or None
 
       Get the absolute target offset of a jump. Return ``None`` if the
       instruction is not a jump.
@@ -204,6 +207,8 @@ SetLineno
 
    Pseudo-instruction to set the line number of following instructions.
 
+   *lineno* must be greater or equal than ``1``.
+
 
 Bytecode classes
 ================
@@ -227,8 +232,8 @@ BaseBytecode
 
    .. attribute:: docstring
 
-      Document string aka "docstring" (``str``), ``None``, or :data:`UNSET`.
-      Default: :data:`UNSET`.
+      Documentation string aka "docstring" (``str``), ``None``, or
+      :data:`UNSET`.  Default: :data:`UNSET`.
 
       If set, it is used by :meth:`ConcreteBytecode.to_code` as the first
       constant of the created Python code object.
@@ -277,14 +282,13 @@ Bytecode
 
    Static methods:
 
-   .. staticmethod:: from_code()
+   .. staticmethod:: from_code() -> Bytecode
 
-      Create an abstract bytecode (:class:`Bytecode`) from a Python code
-      object.
+      Create an abstract bytecode from a Python code object.
 
    Methods:
 
-   .. method:: to_concrete_bytecode()
+   .. method:: to_concrete_bytecode() -> ConcreteBytecode
 
       Convert to concrete bytecode with concrete instructions.
 
@@ -292,9 +296,9 @@ Bytecode
       concrete instruction offsets (relative or absolute, depending on the jump
       operation).
 
-   .. method:: to_code()
+   .. method:: to_code() -> types.CodeType
 
-      Convert to a Python code object (:class:`types.CodeType`).
+      Convert to a Python code object.
 
       It is based on :meth:`to_concrete_bytecode` and so resolve jump targets.
 
@@ -324,7 +328,7 @@ ConcreteBytecode
 
    Static methods:
 
-   .. staticmethod:: from_code(\*, extended_arg=false)
+   .. staticmethod:: from_code(\*, extended_arg=false) -> ConcreteBytecode
 
       Create a concrete bytecode from a Python code object.
 
@@ -334,14 +338,13 @@ ConcreteBytecode
 
    Methods:
 
-   .. method:: to_code()
+   .. method:: to_code() -> types.CodeType
 
-      Convert to a Python code object (:class:`types.CodeType`).
+      Convert to a Python code object.
 
-   .. method:: to_bytecode()
+   .. method:: to_bytecode() -> Bytecode
 
-      Convert to abstract bytecode (:classs:`Bytecode`) with abstract
-      instructions.
+      Convert to abstract bytecode with abstract instructions.
 
 
 Block
@@ -386,26 +389,26 @@ BytecodeBlocks
 
    Methods:
 
-   .. staticmethod:: from_bytecode(bytecode)
+   .. staticmethod:: from_bytecode(bytecode: Bytecode) -> BytecodeBlocks
 
-      Create a :class:`Bytecode` object to a :class:`BytecodeBlocks` object:
-      replace labels with blocks.
+      Convert a :class:`Bytecode` object to a :class:`BytecodeBlocks` object:
+      convert labels to blocks.
 
       Splits blocks after final instructions (:meth:`Instr.is_final`) and after
       conditional jumps (:meth:`Instr.is_cond_jump`).
 
-   .. method:: add_block(instructions=None)
+   .. method:: add_block(instructions=None) -> Block
 
-      Add a new block. Return the new :class:`Block`.
+      Add a new block. Return the newly created block.
 
-   .. method:: split_block(block: Block, index: int)
+   .. method:: split_block(block: Block, index: int) -> Block
 
       Split a block into two blocks at the specific instruction. Return
       the newly created block, or *block* if index equals ``0``.
 
-   .. method:: to_bytecode()
+   .. method:: to_bytecode() -> Bytecode
 
-      Convert to a bytecode object (:class:`Bytecode`) using labels.
+      Convert to a bytecode object using labels.
 
 
 Cell and Free Variables
@@ -424,7 +427,7 @@ CellVar
 
    .. attribute:: name
 
-      Name of the cell variable.
+      Name of the cell variable (``str``).
 
 
 FreeVar
@@ -439,7 +442,7 @@ FreeVar
 
    .. attribute:: name
 
-      Name of the free variable.
+      Name of the free variable (``str``).
 
 
 Line Numbers
