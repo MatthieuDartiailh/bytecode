@@ -434,6 +434,9 @@ class PeepholeOptimizer:
             else:
                 block_index += 1
 
+        # FIXME: merge following blocks if block1 does not contain any
+        # jump and block1.next_block is block2
+
     def _optimize(self, code):
         self.code = code
         self.const_stack = []

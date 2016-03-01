@@ -420,6 +420,8 @@ BytecodeBlocks
 
       Raise a :exc:`ValueError` if the block is not part of the bytecode.
 
+      .. versionadded:: 0.3
+
    .. method:: split_block(block: Block, index: int) -> Block
 
       Split a block into two blocks at the specific instruction. Return
