@@ -4,7 +4,8 @@ __all__ = ['Label', 'Instr', 'SetLineno', 'Bytecode',
            'ConcreteInstr', 'ConcreteBytecode',
            'BytecodeBlocks']
 
-from bytecode.instr import UNSET, Label, SetLineno, Instr, CellVar, FreeVar
+from bytecode.instr import (UNSET, Label, SetLineno, Instr, CellVar, FreeVar,
+                            Compare)
 from bytecode.bytecode import BaseBytecode, _InstrList, Bytecode
 from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,
                                # import needed to use it in bytecode.py

@@ -7,7 +7,8 @@ import types
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 from bytecode.instr import (UNSET, Instr, Instr, Label, SetLineno,
-                            FreeVar, CellVar, const_key, _check_lineno)
+                            FreeVar, CellVar, Compare,
+                            const_key, _check_lineno)
 
 
 ARG_MAX = 2147483647
@@ -297,7 +298,8 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                 else:
                     name = self.freevars[arg - ncells]
                     arg = FreeVar(name)
-            # FIXME: COMPARE_OP operator
+            elif instr.op in _opcode.hascompare:
+                arg = Compare(arg)
 
             instr = Instr(instr.name, arg, lineno=instr.lineno)
             instructions.append(instr)
@@ -395,6 +397,9 @@ class _ConvertBytecodeToConcrete:
                     else:
                         assert isinstance(arg, FreeVar)
                         arg = ncells + self.bytecode.freevars.index(arg.name)
+                elif instr.op in _opcode.hascompare:
+                    if isinstance(arg, Compare):
+                        arg = arg.value
 
                 instr = ConcreteInstr(instr.name, arg, lineno=lineno)
                 if is_jump:

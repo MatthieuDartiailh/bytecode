@@ -1,4 +1,3 @@
-* COMPARE_OP argument: use an enum
 * CPython: Python/compile.c, add assertion to deny negative argument?
 * ConcreteBytecode.to_code(): compute the stack level, see byteplay
   and Python/compile.c?

@@ -9,7 +9,7 @@ Install bytecode::
 
     python3 -m pip install bytecode
 
-``bytecode`` only works on Python 3.
+``bytecode`` requires Python 3.4 or newer.
 
 
 Hello World

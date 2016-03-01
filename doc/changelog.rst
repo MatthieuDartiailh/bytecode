@@ -8,6 +8,7 @@ API changes:
 
 - :class:`Instr` constructor and :meth:`Instr.set` now validates the argument
   type
+- add :class:`Compare` enum, used for ``COMPARE_OP`` argument
 - Remove *lineno* parameter from :meth:`Instr.set`
 - Add :meth:`BytecodeBlocks.get_block_index`
 - Add :class:`CellVar` and :class:`FreeVar` classes: instructions having

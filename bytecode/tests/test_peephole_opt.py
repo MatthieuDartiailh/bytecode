@@ -1,7 +1,7 @@
 import textwrap
 import types
 import unittest
-from bytecode import Label, Instr, Bytecode, BytecodeBlocks
+from bytecode import Label, Instr, Compare, Bytecode, BytecodeBlocks
 from bytecode import peephole_opt
 from bytecode.tests import TestCase
 from unittest import mock
@@ -282,12 +282,11 @@ class Tests(TestCase):
                    Instr('STORE_NAME', 'test'))
 
     def test_compare_op_unary_not(self):
-        # FIXME: use constants, not hardcoded values
         for op, not_op in (
-            (6, 7), # in => not in
-            (7, 6), # not in => in
-            (8, 9), # is => is not
-            (9, 8),
+            (Compare.IN, Compare.NOT_IN),   # in => not in
+            (Compare.NOT_IN, Compare.IN),   # not in => in
+            (Compare.IS, Compare.IS_NOT),   # is => is not
+            (Compare.IS_NOT, Compare.IS),   # is not => is
         ):
             code = Bytecode([Instr('LOAD_NAME', 'a'),
                              Instr('LOAD_NAME', 'b'),

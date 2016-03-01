@@ -11,8 +11,8 @@ bytecode
 * `Download latest bytecode release at the Python Cheeseshop (PyPI)
   <https://pypi.python.org/pypi/bytecode>`_
 
-Install bytecode: ``python3 -m pip install bytecode`` (``bytecode`` only works
-on Python 3).
+Install bytecode: ``python3 -m pip install bytecode``. It requires Python 3.4
+or newer.
 
 Example executing ``print('Hello World!')``::
 

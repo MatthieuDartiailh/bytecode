@@ -5,23 +5,18 @@ the bytecode module.
 import opcode
 import operator
 import sys
-from bytecode import Instr, Bytecode, BytecodeBlocks, Label, Block
-
-PyCmp_IN = 6
-PyCmp_NOT_IN = 7
-PyCmp_IS = 8
-PyCmp_IS_NOT = 9
+from bytecode import Instr, Bytecode, BytecodeBlocks, Label, Block, Compare
 
 JUMPS_ON_TRUE = frozenset((
     'POP_JUMP_IF_TRUE',
     'JUMP_IF_TRUE_OR_POP',
 ))
 
-NOT_PyCmp = {
-    PyCmp_IN: PyCmp_NOT_IN,
-    PyCmp_NOT_IN: PyCmp_IN,
-    PyCmp_IS: PyCmp_IS_NOT,
-    PyCmp_IS_NOT: PyCmp_IS,
+NOT_COMPARE = {
+    Compare.IN: Compare.NOT_IN,
+    Compare.NOT_IN: Compare.IN,
+    Compare.IS: Compare.IS_NOT,
+    Compare.IS_NOT: Compare.IS,
 }
 
 MAX_SIZE = 20
@@ -226,7 +221,7 @@ class PeepholeOptimizer:
 
         next_instr = self.get_next_instr('COMPARE_OP')
         if (next_instr is None
-           or next_instr.arg not in (PyCmp_IN, PyCmp_NOT_IN)):
+           or next_instr.arg not in (Compare.IN, Compare.NOT_IN)):
             return
 
         self.replace_container_of_consts(instr, container_type)
@@ -259,9 +254,10 @@ class PeepholeOptimizer:
     def eval_COMPARE_OP(self, instr):
         # Note: COMPARE_OP: 2 < 3 is not optimized
 
-        if instr.arg not in NOT_PyCmp:
+        try:
+            new_arg = NOT_COMPARE[instr.arg]
+        except KeyError:
             return
-        new_arg = NOT_PyCmp[instr.arg]
 
         if self.get_next_instr('UNARY_NOT') is None:
             return

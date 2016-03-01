@@ -38,7 +38,7 @@ class DumpCodeTests(unittest.TestCase):
         expected = """
     LOAD_FAST 'test'
     LOAD_CONST 1
-    COMPARE_OP 2
+    COMPARE_OP <Compare.EQ: 2>
     POP_JUMP_IF_FALSE <label_instr6>
     LOAD_CONST 1
     RETURN_VALUE
@@ -46,7 +46,7 @@ class DumpCodeTests(unittest.TestCase):
 label_instr6:
     LOAD_FAST 'test'
     LOAD_CONST 2
-    COMPARE_OP 2
+    COMPARE_OP <Compare.EQ: 2>
     POP_JUMP_IF_FALSE <label_instr13>
     LOAD_CONST 2
     RETURN_VALUE
@@ -62,7 +62,7 @@ label_instr13:
         expected = """
     L.  2   0: LOAD_FAST 'test'
             1: LOAD_CONST 1
-            2: COMPARE_OP 2
+            2: COMPARE_OP <Compare.EQ: 2>
             3: POP_JUMP_IF_FALSE <label_instr6>
     L.  3   4: LOAD_CONST 1
             5: RETURN_VALUE
@@ -70,7 +70,7 @@ label_instr13:
 label_instr6:
     L.  4   7: LOAD_FAST 'test'
             8: LOAD_CONST 2
-            9: COMPARE_OP 2
+            9: COMPARE_OP <Compare.EQ: 2>
            10: POP_JUMP_IF_FALSE <label_instr13>
     L.  5  11: LOAD_CONST 2
            12: RETURN_VALUE
@@ -117,7 +117,7 @@ label_instr13:
             label_block1:
                 LOAD_FAST 'test'
                 LOAD_CONST 1
-                COMPARE_OP 2
+                COMPARE_OP <Compare.EQ: 2>
                 POP_JUMP_IF_FALSE <label_block3>
                 -> label_block2
 
@@ -128,7 +128,7 @@ label_instr13:
             label_block3:
                 LOAD_FAST 'test'
                 LOAD_CONST 2
-                COMPARE_OP 2
+                COMPARE_OP <Compare.EQ: 2>
                 POP_JUMP_IF_FALSE <label_block5>
                 -> label_block4
 
@@ -148,7 +148,7 @@ label_instr13:
             label_block1:
                 L.  2   0: LOAD_FAST 'test'
                         1: LOAD_CONST 1
-                        2: COMPARE_OP 2
+                        2: COMPARE_OP <Compare.EQ: 2>
                         3: POP_JUMP_IF_FALSE <label_block3>
                 -> label_block2
 
@@ -159,7 +159,7 @@ label_instr13:
             label_block3:
                 L.  4   0: LOAD_FAST 'test'
                         1: LOAD_CONST 2
-                        2: COMPARE_OP 2
+                        2: COMPARE_OP <Compare.EQ: 2>
                         3: POP_JUMP_IF_FALSE <label_block5>
                 -> label_block4
 

@@ -12,6 +12,7 @@ Instruction classes:
 
 * :class:`Instr`
 * :class:`ConcreteInstr`
+* :class:`Compare`
 * :class:`Label`
 * :class:`SetLineno`
 
@@ -63,6 +64,8 @@ Instr
      type ``str``
    * If the operation has a constant argument: *arg* must not be a
      :class:`Label` or :class:`Block` instance
+   * If the operation has a compare argument (ex: ``'COMPARE_OP'``):
+     *arg* must a :class:`Compare` enum or an ``int``
    * If the operation has no argument, *arg* must not be set
    * Otherwise (the operation has an argument), *arg* must be an integer,
      type ``int``.
@@ -199,6 +202,35 @@ ConcreteInstr
    .. method:: assemble() -> bytes
 
       Assemble the instruction to a bytecode string.
+
+
+Compare
+-------
+
+.. class:: Compare
+
+   Enum for ``COMPARE_OP`` argument.
+
+   Equality test:
+
+   * ``Compare.EQ`` (``2``): ``x == y``
+   * ``Compare.NE`` (``3``): ``x != y``
+   * ``Compare.IS`` (``8``): ``x is y``
+   * ``Compare.IS_NOT`` (``9``): ``x is not y``
+
+   Inequality test:
+
+   * ``Compare.LT`` (``0``): ``x < y``
+   * ``Compare.LE`` (``1``): ``x <= y``
+   * ``Compare.GT`` (``4``): ``x > y``
+   * ``Compare.GE`` (``5``): ``x >= y``
+
+   Other tests:
+
+   * ``Compare.IN`` (``6``): ``x in y``
+   * ``Compare.NOT_IN`` (``7``): ``x not in y``
+   * ``Compare.EXC_MATCH`` (``10``): used to compare exceptions
+     for ``except:`` block
 
 
 Label

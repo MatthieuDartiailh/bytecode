@@ -1,8 +1,24 @@
+import enum
 import math
 import opcode as _opcode
 import types
 
 import bytecode as _bytecode
+
+
+@enum.unique
+class Compare(enum.IntEnum):
+    LT = 0
+    LE = 1
+    EQ = 2
+    NE = 3
+    GT = 4
+    GE = 5
+    IN = 6
+    NOT_IN = 7
+    IS = 8
+    IS_NOT = 9
+    EXC_MATCH = 10
 
 
 UNSET = object()
@@ -153,6 +169,11 @@ class Instr:
             if isinstance(arg, _bytecode.Block):
                 raise ValueError("block argument cannot be used "
                                  "in %s operation" % name)
+        elif opcode in _opcode.hascompare:
+            if not isinstance(arg, (int, Compare)):
+                raise ValueError("operation %s argument type must be "
+                                "Compare or int, got %s"
+                                 % (name, type(arg).__name__))
         elif opcode >= _opcode.HAVE_ARGUMENT:
             if not isinstance(arg, int):
                 raise ValueError("operation %s argument must be an int, "
