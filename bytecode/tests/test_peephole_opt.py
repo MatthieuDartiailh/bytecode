@@ -585,6 +585,15 @@ class Tests(TestCase):
     #    """
     #    XXX
 
+    def test_nop(self):
+        code = Bytecode([Instr('LOAD_NAME', 'x'),
+                         Instr('NOP'),
+                         Instr('STORE_NAME', 'test')])
+
+        self.check(code,
+                   Instr('LOAD_NAME', 'x'),
+                   Instr('STORE_NAME', 'test'))
+
 
 if __name__ == "__main__":
     unittest.main()

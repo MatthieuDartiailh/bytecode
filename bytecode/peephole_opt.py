@@ -332,6 +332,11 @@ class PeepholeOptimizer:
     def eval_JUMP_IF_TRUE_OR_POP(self, instr):
         self.jump_if_or_pop(instr)
 
+    def eval_NOP(self, instr):
+        # Remove NOP
+        del self.block[self.index - 1]
+        self.index -= 1
+
     def optimize_jump_to_cond_jump(self, instr):
         # Replace jumps to unconditional jumps
         jump_label = instr.arg

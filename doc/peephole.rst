@@ -100,6 +100,7 @@ Optimizations implemented in the peephole optimizer:
     * replace ``not(a in b)`` with ``a not in b``
     * replace ``not(a not in b)`` with ``a in b``
 
+* Remove NOP instructions
 * Dead code elimination
 
   - Remove unreachable code after a final operation (:meth:`Instr.is_final`)
