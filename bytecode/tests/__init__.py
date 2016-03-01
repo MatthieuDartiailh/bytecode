@@ -141,7 +141,9 @@ def disassemble(source, *, filename="<string>", function=False,
 class TestCase(unittest.TestCase):
     def assertBlocksEqual(self, code, *expected_blocks):
 
-        def _flat(code, blocks):
+        # Code similar to BytecodeBlocks._flat(), but code is a list of
+        # Instr, not a BytecodeBlocks object
+        def _flat(code, expected_blocks):
             instructions = []
             labels = {}
             jumps = []
@@ -157,12 +159,14 @@ class TestCase(unittest.TestCase):
                     if isinstance(instr, Instr) and isinstance(instr.arg, Block):
                         # copy the instruction to be able to modify
                         # its argument below
-                        instr = instr.copy()
-                        jumps.append(instr)
+                        target_block = instr.arg
+                        instr = ConcreteInstr(instr.name, 0,
+                                              lineno=instr.lineno)
+                        jumps.append((target_block, instr))
                     instructions.append(instr)
 
-            for instr in jumps:
-                instr.arg = labels[id(instr.arg)]
+            for block, instr in jumps:
+                instr.arg = labels[id(block)]
 
             return instructions
 

@@ -24,9 +24,8 @@ class InstrTests(TestCase):
         block = Block()
 
         # has_jump()
-        self.assertRaises(ValueError, Instr, "JUMP_ABSOLUTE", -1)
+        self.assertRaises(TypeError, Instr, "JUMP_ABSOLUTE", 1)
         self.assertRaises(TypeError, Instr, "JUMP_ABSOLUTE", 1.0)
-        Instr("JUMP_ABSOLUTE", 1)
         Instr("JUMP_ABSOLUTE", label)
         Instr("JUMP_ABSOLUTE", block)
 
@@ -117,24 +116,27 @@ class InstrTests(TestCase):
         self.assertNotEqual(instr, Instr("LOAD_CONST", 4, lineno=7))
 
     def test_has_jump(self):
-        jump = Instr("JUMP_ABSOLUTE", 3)
+        label = Label()
+        jump = Instr("JUMP_ABSOLUTE", label)
         self.assertTrue(jump.has_jump())
 
         instr = Instr("LOAD_FAST", 'x')
         self.assertFalse(instr.has_jump())
 
     def test_is_cond_jump(self):
-        jump = Instr("POP_JUMP_IF_TRUE", 3)
+        label = Label()
+        jump = Instr("POP_JUMP_IF_TRUE", label)
         self.assertTrue(jump.is_cond_jump())
 
         instr = Instr("LOAD_FAST", 'x')
         self.assertFalse(instr.is_cond_jump())
 
     def test_is_uncond_jump(self):
-        jump = Instr("JUMP_ABSOLUTE", 3)
+        label = Label()
+        jump = Instr("JUMP_ABSOLUTE", label)
         self.assertTrue(jump.is_uncond_jump())
 
-        instr = Instr("POP_JUMP_IF_TRUE", 2)
+        instr = Instr("POP_JUMP_IF_TRUE", label)
         self.assertFalse(instr.is_uncond_jump())
 
     def test_const_key_not_equal(self):

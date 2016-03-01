@@ -57,16 +57,16 @@ Instr
 
    * If the operation has a jump argument (:meth:`has_jump`, ex:
      ``JUMP_ABSOLUTE``): *arg* must be a :class:`Label` (if the instruction is
-     used in :class:`Bytecode`) or a :class:`Block` (:class:`BytecodeBlocks`)
+     used in :class:`Bytecode`) or a :class:`Block` (:class:`BytecodeBlocks`).
    * If the operation has a cell or free argument (ex: ``LOAD_DEREF``): *arg*
-     must be a :class:`CellVar` or :class:`FreeVar` instance
+     must be a :class:`CellVar` or :class:`FreeVar` instance.
    * If the operation has a local variable (ex: ``LOAD_FAST``): *arg* must be a
-     variable name, type ``str``
+     variable name, type ``str``.
    * If the operation has a constant argument (``LOAD_CONST``): *arg* must not
-     be a :class:`Label` or :class:`Block` instance
+     be a :class:`Label` or :class:`Block` instance.
    * If the operation has a compare argument (``'COMPARE_OP'``):
-     *arg* must a :class:`Compare` enum or an ``int``
-   * If the operation has no argument (ex: ``DUP_TOP``), *arg* must not be set
+     *arg* must a :class:`Compare` enum or an ``int``.
+   * If the operation has no argument (ex: ``DUP_TOP``), *arg* must not be set.
    * Otherwise (the operation has an argument, ex: ``CALL_FUNCTION``), *arg*
      must be an integer (``int``) in the range ``0``..\ ``2,147,483,647``.
 

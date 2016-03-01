@@ -77,13 +77,15 @@ class _InstrList(list):
                 if isinstance(instr.arg, Label):
                     # copy the instruction to be able to modify
                     # its argument above
-                    instr = instr.copy()
-                    jumps.append(instr)
+                    label = instr.arg
+                    instr = _bytecode.ConcreteInstr(instr.name, 0,
+                                                    lineno=instr.lineno)
+                    jumps.append((label, instr))
                 instructions.append(instr)
                 offset += 1
 
-        for instr in jumps:
-            instr.arg = labels[instr.arg]
+        for label, instr in jumps:
+            instr.arg = labels[label]
 
         return instructions
 

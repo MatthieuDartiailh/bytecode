@@ -158,9 +158,7 @@ class Instr:
                 raise ValueError("operation %s has no argument" % name)
 
         if self._has_jump(opcode):
-            if isinstance(arg, int):
-                _check_arg_int(name, arg)
-            elif not isinstance(arg, (Label, _bytecode.Block)):
+            if not isinstance(arg, (Label, _bytecode.Block)):
                 raise TypeError("operation %s argument must be a Label, "
                                 "Block or int, got %s"
                                 % (name, type(arg).__name__))

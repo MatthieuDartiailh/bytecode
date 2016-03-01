@@ -292,17 +292,22 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
             elif instr.op in _opcode.hascompare:
                 arg = Compare(arg)
 
-            instr = Instr(instr.name, arg, lineno=instr.lineno)
+            if jump_target is None:
+                instr = Instr(instr.name, arg, lineno=instr.lineno)
+            else:
+                instr_index = len(instructions)
             instructions.append(instr)
             offset += size
 
             if jump_target is not None:
-                jumps.append((instr, jump_target))
+                jumps.append((instr_index, jump_target))
 
         # replace jump targets with labels
-        for instr, jump_target in jumps:
+        for index, jump_target in jumps:
+            instr = instructions[index]
             # FIXME: better error reporting on missing label
-            instr.arg = labels[jump_target]
+            label = labels[jump_target]
+            instructions[index] = Instr(instr.name, label, lineno=instr.lineno)
 
         bytecode = _bytecode.Bytecode()
         bytecode._copy_attr_from(self)

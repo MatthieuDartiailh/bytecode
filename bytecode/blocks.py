@@ -53,12 +53,14 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                 if isinstance(instr, Instr) and isinstance(instr.arg, Block):
                     # copy the instruction to be able to modify
                     # its argument below
-                    instr = instr.copy()
-                    jumps.append(instr)
+                    target_block = instr.arg
+                    instr = _bytecode.ConcreteInstr(instr.name, 0,
+                                                    lineno=instr.lineno)
+                    jumps.append((target_block, instr))
                 instructions.append(instr)
 
-        for instr in jumps:
-            instr.arg = labels[id(instr.arg)]
+        for block, instr in jumps:
+            instr.arg = labels[id(block)]
 
         return instructions
 
