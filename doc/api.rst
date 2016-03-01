@@ -55,23 +55,29 @@ Instr
 
    The type of the :attr:`arg` attribute depends on the operation:
 
-   * If the operation has a jump argument (:meth:`has_jump`): *arg* must be a
-     :class:`Label` (if the instruction is used in :class:`Bytecode`) or a
-     :class:`Block` (:class:`BytecodeBlocks`)
-   * If the operation has a cell or free argument: *arg* must be a
-     :class:`CellVar` or :class:`FreeVar` instance
-   * If the operation has a local variable: *arg* must be a variable name,
-     type ``str``
-   * If the operation has a constant argument: *arg* must not be a
-     :class:`Label` or :class:`Block` instance
-   * If the operation has a compare argument (ex: ``'COMPARE_OP'``):
+   * If the operation has a jump argument (:meth:`has_jump`, ex:
+     ``JUMP_ABSOLUTE``): *arg* must be a :class:`Label` (if the instruction is
+     used in :class:`Bytecode`) or a :class:`Block` (:class:`BytecodeBlocks`)
+   * If the operation has a cell or free argument (ex: ``LOAD_DEREF``): *arg*
+     must be a :class:`CellVar` or :class:`FreeVar` instance
+   * If the operation has a local variable (ex: ``LOAD_FAST``): *arg* must be a
+     variable name, type ``str``
+   * If the operation has a constant argument (``LOAD_CONST``): *arg* must not
+     be a :class:`Label` or :class:`Block` instance
+   * If the operation has a compare argument (``'COMPARE_OP'``):
      *arg* must a :class:`Compare` enum or an ``int``
-   * If the operation has no argument, *arg* must not be set
-   * Otherwise (the operation has an argument), *arg* must be an integer,
-     type ``int``.
+   * If the operation has no argument (ex: ``DUP_TOP``), *arg* must not be set
+   * Otherwise (the operation has an argument, ex: ``CALL_FUNCTION``), *arg*
+     must be an integer (``int``) in the range ``0``..\ ``2,147,483,647``.
+
+   To replace the operation name and the argument, the :meth:`set` method must
+   be used instead of than modifying the :attr:`name` attribute and then the
+   :attr:`arg` attribute. Otherwise, an exception is be raised if the previous
+   operation requires an argument and the new operation has no argument (or the
+   opposite).
 
    .. versionchanged:: 0.3
-      Instruction argument type is now validated.
+      The argument is now validated.
 
    Attributes:
 
@@ -160,13 +166,8 @@ ConcreteInstr
 
    Concrete instruction, inherit from :class:`Instr`.
 
-   If the operation requires an argument, *arg* must be an integer.
-   If the operation has no argument, *arg* must not by set.
-
-   Use the :meth:`~Instr.set` method to replace the operation name and the
-   argument at once. Otherwise, an exception can be raised if the
-   previous operation requires an argument and the new operation has no
-   argument (or the opposite).
+   If the operation requires an argument, *arg* must be an integer (``int``) in
+   the range ``0``..\ ``2,147,483,647``. Otherwise, *arg* must not by set.
 
    Concrete instructions should only be used in :class:`ConcreteBytecode`.
 
@@ -174,9 +175,9 @@ ConcreteInstr
 
    .. attribute:: arg
 
-      Argument value (``int`` in range ``0``..\ ``2147483647``), or
-      :data:`UNSET`. Changing the argument value can change the instruction
-      size (:attr:`size`).
+      Argument value: an integer (``int``) in the range ``0``..\
+      ``2,147,483,647``, or :data:`UNSET`. Changing the argument value can
+      change the instruction size (:attr:`size`).
 
    .. attribute:: size
 

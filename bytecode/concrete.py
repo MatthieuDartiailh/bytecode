@@ -8,10 +8,7 @@ import types
 import bytecode as _bytecode
 from bytecode.instr import (UNSET, Instr, Instr, Label, SetLineno,
                             FreeVar, CellVar, Compare,
-                            const_key, _check_lineno)
-
-
-ARG_MAX = 2147483647
+                            const_key, _check_lineno, _check_arg_int)
 
 
 def _set_docstring(code, consts):
@@ -42,13 +39,7 @@ class ConcreteInstr(Instr):
             if arg is UNSET:
                 raise ValueError("operation %s requires an argument" % name)
 
-            if isinstance(arg, int):
-                # FIXME: it looks like assemble_emit() allows negative argument
-                # (minimum=-2147483648)
-                if not(0 <= arg <= ARG_MAX):
-                    raise ValueError("arg must be in range 0..%s" % ARG_MAX)
-            else:
-                raise TypeError("arg must be an int")
+            _check_arg_int(name, arg)
         else:
             if arg is not UNSET:
                 raise ValueError("operation %s has no argument" % name)

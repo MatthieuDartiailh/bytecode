@@ -25,22 +25,22 @@ class InstrTests(TestCase):
 
         # has_jump()
         self.assertRaises(ValueError, Instr, "JUMP_ABSOLUTE", -1)
-        self.assertRaises(ValueError, Instr, "JUMP_ABSOLUTE", 1.0)
+        self.assertRaises(TypeError, Instr, "JUMP_ABSOLUTE", 1.0)
         Instr("JUMP_ABSOLUTE", 1)
         Instr("JUMP_ABSOLUTE", label)
         Instr("JUMP_ABSOLUTE", block)
 
         # hasfree
-        self.assertRaises(ValueError, Instr, "LOAD_DEREF", "x")
+        self.assertRaises(TypeError, Instr, "LOAD_DEREF", "x")
         Instr("LOAD_DEREF", CellVar("x"))
         Instr("LOAD_DEREF", FreeVar("x"))
 
         # haslocal
-        self.assertRaises(ValueError, Instr, "LOAD_FAST", 1)
+        self.assertRaises(TypeError, Instr, "LOAD_FAST", 1)
         Instr("LOAD_FAST", "x")
 
         # hasname
-        self.assertRaises(ValueError, Instr, "LOAD_NAME", 1)
+        self.assertRaises(TypeError, Instr, "LOAD_NAME", 1)
         Instr("LOAD_NAME", "x")
 
         # hasconst
@@ -51,8 +51,14 @@ class InstrTests(TestCase):
         Instr("LOAD_CONST", object())
 
         # HAVE_ARGUMENT
-        self.assertRaises(ValueError, Instr, "CALL_FUNCTION", 3.0)
+        self.assertRaises(ValueError, Instr, "CALL_FUNCTION", -1)
+        self.assertRaises(TypeError, Instr, "CALL_FUNCTION", 3.0)
         Instr("CALL_FUNCTION", 3)
+
+        # test maximum argument
+        self.assertRaises(ValueError, Instr, "CALL_FUNCTION", 2147483647 + 1)
+        instr = Instr("CALL_FUNCTION", 2147483647)
+        self.assertEqual(instr.arg, 2147483647)
 
         # not HAVE_ARGUMENT
         self.assertRaises(ValueError, Instr, "NOP", 0)

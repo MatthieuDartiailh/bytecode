@@ -5,7 +5,6 @@ import unittest
 from bytecode import (UNSET, Label, Instr, SetLineno, Bytecode,
                       CellVar, FreeVar,
                       ConcreteInstr, ConcreteBytecode)
-from bytecode.concrete import ARG_MAX
 from bytecode.tests import get_code, TestCase
 
 
@@ -30,9 +29,9 @@ class ConcreteInstrTests(TestCase):
 
         # test maximum argument
         with self.assertRaises(ValueError):
-            ConcreteInstr("LOAD_CONST", ARG_MAX + 1)
-        instr = ConcreteInstr("LOAD_CONST", ARG_MAX)
-        self.assertEqual(instr.arg, ARG_MAX)
+            ConcreteInstr("LOAD_CONST", 2147483647 + 1)
+        instr = ConcreteInstr("LOAD_CONST", 2147483647)
+        self.assertEqual(instr.arg, 2147483647)
 
     def test_attr(self):
         instr = ConcreteInstr("LOAD_CONST", 5, lineno=12)
@@ -90,7 +89,7 @@ class ConcreteInstrTests(TestCase):
 
         # invalid argument
         self.assertRaises(ValueError, setattr, instr, 'arg', -1)
-        self.assertRaises(ValueError, setattr, instr, 'arg', ARG_MAX + 1)
+        self.assertRaises(ValueError, setattr, instr, 'arg', 2147483647 + 1)
 
         # size attribute is read-only
         self.assertRaises(AttributeError, setattr, instr, 'size', 3)

@@ -126,6 +126,18 @@ class FreeVar(_Variable):
     __slots__ = ()
 
 
+def _check_arg_int(name, arg):
+    if not isinstance(arg, int):
+        raise TypeError("operation %s argument must be an int, "
+                        "got %s"
+                        % (name, type(arg).__name__))
+
+    if not(0 <= arg <= 2147483647):
+        raise ValueError("operation %s argument must be in "
+                         "the range 0..2,147,483,647"
+                         % name)
+
+
 class Instr:
     """Abstract instruction.
 
@@ -146,22 +158,26 @@ class Instr:
                 raise ValueError("operation %s has no argument" % name)
 
         if self._has_jump(opcode):
-            if not (isinstance(arg, (Label, _bytecode.Block))
-                    or (isinstance(arg, int) and arg >= 0)):
-                raise ValueError("operation %s argument must be a Label, "
-                                 "Block or int>=0, got %s"
-                                 % (name, type(arg).__name__))
+            if isinstance(arg, int):
+                _check_arg_int(name, arg)
+            elif not isinstance(arg, (Label, _bytecode.Block)):
+                raise TypeError("operation %s argument must be a Label, "
+                                "Block or int, got %s"
+                                % (name, type(arg).__name__))
+
         elif opcode in _opcode.hasfree:
             if not isinstance(arg, (CellVar, FreeVar)):
-                raise ValueError("operation %s argument must be CellVar "
-                                 "or FreeVar, got %s"
-                                 % (name, type(arg).__name__))
+                raise TypeError("operation %s argument must be CellVar "
+                                "or FreeVar, got %s"
+                                % (name, type(arg).__name__))
+
         elif (opcode in _opcode.haslocal
              or opcode in _opcode.hasname):
             if not isinstance(arg, str):
-                raise ValueError("operation %s argument must be a str, "
-                                 "got %s"
-                                 % (name, type(arg).__name__))
+                raise TypeError("operation %s argument must be a str, "
+                                "got %s"
+                                % (name, type(arg).__name__))
+
         elif opcode in _opcode.hasconst:
             if isinstance(arg, Label):
                 raise ValueError("label argument cannot be used "
@@ -169,16 +185,17 @@ class Instr:
             if isinstance(arg, _bytecode.Block):
                 raise ValueError("block argument cannot be used "
                                  "in %s operation" % name)
+
         elif opcode in _opcode.hascompare:
-            if not isinstance(arg, (int, Compare)):
-                raise ValueError("operation %s argument type must be "
-                                "Compare or int, got %s"
-                                 % (name, type(arg).__name__))
+            if isinstance(arg, int):
+                _check_arg_int(name, arg)
+            elif not isinstance(arg, Compare):
+                raise TypeError("operation %s argument type must be "
+                               "Compare or int, got %s"
+                                % (name, type(arg).__name__))
+
         elif opcode >= _opcode.HAVE_ARGUMENT:
-            if not isinstance(arg, int):
-                raise ValueError("operation %s argument must be an int, "
-                                 "got %s"
-                                 % (name, type(arg).__name__))
+            _check_arg_int(name, arg)
 
     def _set(self, name, arg, lineno):
         if not isinstance(name, str):
