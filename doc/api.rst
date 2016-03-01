@@ -413,7 +413,9 @@ BytecodeBlocks
 
 .. class:: BytecodeBlocks
 
-   List of blocks (:class:`Block`), a block is a list of abstract instructions
+   `Control flow graph (CFG)
+   <https://en.wikipedia.org/wiki/Control_flow_graph>`_: list of blocks
+   (:class:`Block`). A block is a list of abstract instructions
    (:class:`Instr`). Inherit from :class:`BaseBytecode`.
 
    Jump targets are blocks (:class:`Block`).

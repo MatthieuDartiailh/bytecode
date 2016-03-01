@@ -99,6 +99,8 @@ Output::
     3
 
 
+.. _ex-cond-jump:
+
 Conditional jump
 ================
 

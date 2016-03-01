@@ -19,6 +19,7 @@ Table Of Contents
    :maxdepth: 3
 
    usage
+   blocks
    api
    peephole
    changelog
