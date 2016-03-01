@@ -6,7 +6,7 @@ import types
 
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
-from bytecode.instr import (UNSET, Instr, Instr, Label, SetLineno,
+from bytecode.instr import (UNSET, BaseInstr, Instr, Label, SetLineno,
                             FreeVar, CellVar, Compare,
                             const_key, _check_lineno, _check_arg_int)
 
@@ -21,8 +21,8 @@ def _set_docstring(code, consts):
         code.docstring = first_const
 
 
-class ConcreteInstr(Instr):
-    """Concrete instruction, inherit from Instr.
+class ConcreteInstr(BaseInstr):
+    """Concrete instruction.
 
     arg must be an integer in the range 0..2147483647.
 
@@ -266,6 +266,11 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         ncells = len(self.cellvars)
 
         for instr in self:
+            if not isinstance(instr, ConcreteInstr):
+                raise ValueError("ConcreteBytecode must only contain "
+                                 "ConcreteInstr, found %s"
+                                 % instr.__class__.__name__)
+
             if offset in jump_targets:
                 label = Label()
                 labels[offset] = label
@@ -401,7 +406,7 @@ class _ConvertBytecodeToConcrete:
                 if is_jump:
                     self.jumps.append((len(self.instructions), label, instr))
             else:
-                raise ValueError("expect Instr, got %s"
+                raise ValueError("Bytecode must not contain %s objects"
                                  % instr.__class__.__name__)
 
             self.instructions.append(instr)

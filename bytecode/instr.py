@@ -138,12 +138,7 @@ def _check_arg_int(name, arg):
                          % name)
 
 
-class Instr:
-    """Abstract instruction.
-
-    lineno, name, op and arg attributes can be modified.
-    """
-
+class BaseInstr:
     __slots__ = ('_name', '_opcode', '_arg', '_lineno')
 
     def __init__(self, name, arg=UNSET, *, lineno=None):
@@ -159,8 +154,8 @@ class Instr:
 
         if self._has_jump(opcode):
             if not isinstance(arg, (Label, _bytecode.Block)):
-                raise TypeError("operation %s argument must be a Label, "
-                                "Block or int, got %s"
+                raise TypeError("operation %s argument type must be "
+                                "Label or Block, got %s"
                                 % (name, type(arg).__name__))
 
         elif opcode in _opcode.hasfree:
@@ -185,12 +180,10 @@ class Instr:
                                  "in %s operation" % name)
 
         elif opcode in _opcode.hascompare:
-            if isinstance(arg, int):
-                _check_arg_int(name, arg)
-            elif not isinstance(arg, Compare):
+            if not isinstance(arg, Compare):
                 raise TypeError("operation %s argument type must be "
-                               "Compare or int, got %s"
-                                % (name, type(arg).__name__))
+                                "Compare, got %s"
+                                 % (name, type(arg).__name__))
 
         elif opcode >= _opcode.HAVE_ARGUMENT:
             _check_arg_int(name, arg)
@@ -318,3 +311,9 @@ class Instr:
         if self.is_uncond_jump():
             return True
         return False
+
+
+class Instr(BaseInstr):
+    """Abstract instruction."""
+
+    __slots__ = ()

@@ -10,6 +10,7 @@ bytecode module version string: ``bytecode.__version__`` (ex: ``'0.1'``).
 
 Instruction classes:
 
+* :class:`BaseInstr`
 * :class:`Instr`
 * :class:`ConcreteInstr`
 * :class:`Compare`
@@ -46,29 +47,12 @@ Functions
 Instruction classess
 ====================
 
-Instr
------
+BaseInstr
+---------
 
-.. class:: Instr(name: str, arg=UNSET, \*, lineno: int=None)
+.. class:: BaseInstr(name: str, arg=UNSET, \*, lineno: int=None)
 
-   Abstract instruction.
-
-   The type of the :attr:`arg` attribute depends on the operation:
-
-   * If the operation has a jump argument (:meth:`has_jump`, ex:
-     ``JUMP_ABSOLUTE``): *arg* must be a :class:`Label` (if the instruction is
-     used in :class:`Bytecode`) or a :class:`Block` (:class:`BytecodeBlocks`).
-   * If the operation has a cell or free argument (ex: ``LOAD_DEREF``): *arg*
-     must be a :class:`CellVar` or :class:`FreeVar` instance.
-   * If the operation has a local variable (ex: ``LOAD_FAST``): *arg* must be a
-     variable name, type ``str``.
-   * If the operation has a constant argument (``LOAD_CONST``): *arg* must not
-     be a :class:`Label` or :class:`Block` instance.
-   * If the operation has a compare argument (``'COMPARE_OP'``):
-     *arg* must a :class:`Compare` enum or an ``int``.
-   * If the operation has no argument (ex: ``DUP_TOP``), *arg* must not be set.
-   * Otherwise (the operation has an argument, ex: ``CALL_FUNCTION``), *arg*
-     must be an integer (``int``) in the range ``0``..\ ``2,147,483,647``.
+   Base class of instruction classes.
 
    To replace the operation name and the argument, the :meth:`set` method must
    be used instead of than modifying the :attr:`name` attribute and then the
@@ -76,14 +60,11 @@ Instr
    operation requires an argument and the new operation has no argument (or the
    opposite).
 
-   .. versionchanged:: 0.3
-      The argument is now validated.
-
    Attributes:
 
    .. attribute:: arg
 
-      Argument value. Its type depends on the operation.
+      Argument value.
 
       It can be :data:`UNSET` if the instruction has no argument.
 
@@ -101,7 +82,7 @@ Instr
 
    Methods:
 
-   .. method:: copy() -> Instr
+   .. method:: copy()
 
       Create a copy of the instruction.
 
@@ -159,12 +140,41 @@ Instr
          The *lineno* parameter has been removed.
 
 
+Instr
+-----
+
+.. class:: Instr(name: str, arg=UNSET, \*, lineno: int=None)
+
+   Abstract instruction. Inherit from :class:`BaseInstr`.
+
+   The type of the *arg* parameter (and the :attr:`arg` attribute) depends on
+   the operation:
+
+   * If the operation has a jump argument (:meth:`has_jump`, ex:
+     ``JUMP_ABSOLUTE``): *arg* must be a :class:`Label` (if the instruction is
+     used in :class:`Bytecode`) or a :class:`Block` (:class:`BytecodeBlocks`).
+   * If the operation has a cell or free argument (ex: ``LOAD_DEREF``): *arg*
+     must be a :class:`CellVar` or :class:`FreeVar` instance.
+   * If the operation has a local variable (ex: ``LOAD_FAST``): *arg* must be a
+     variable name, type ``str``.
+   * If the operation has a constant argument (``LOAD_CONST``): *arg* must not
+     be a :class:`Label` or :class:`Block` instance.
+   * If the operation has a compare argument (``'COMPARE_OP'``):
+     *arg* must a :class:`Compare` enum.
+   * If the operation has no argument (ex: ``DUP_TOP``), *arg* must not be set.
+   * Otherwise (the operation has an argument, ex: ``CALL_FUNCTION``), *arg*
+     must be an integer (``int``) in the range ``0``..\ ``2,147,483,647``.
+
+   .. versionchanged:: 0.3
+      The argument is now validated.
+
+
 ConcreteInstr
 -------------
 
 .. class:: ConcreteInstr(name: str, arg=UNSET, \*, lineno: int=None)
 
-   Concrete instruction, inherit from :class:`Instr`.
+   Concrete instruction Inherit from :class:`BaseInstr`.
 
    If the operation requires an argument, *arg* must be an integer (``int``) in
    the range ``0``..\ ``2,147,483,647``. Otherwise, *arg* must not by set.
@@ -210,7 +220,7 @@ Compare
 
 .. class:: Compare
 
-   Enum for ``COMPARE_OP`` argument.
+   Enum for the argument of the ``COMPARE_OP`` instruction.
 
    Equality test:
 
@@ -317,6 +327,13 @@ Bytecode
    Abstract bytecode: list of abstract instructions (:class:`Instr`).
    Inherit from :class:`BaseBytecode` and :class:`list`.
 
+   A :class:`Bytecode` object can contain 4 types of objects:
+
+   * :class:`Label`
+   * :class:`SetLineno`
+   * :class:`Instr`
+   * :class:`ConcreteInstr`
+
    It is possible to use concrete instructions (:class:`ConcreteInstr`), but
    abstract instructions are preferred.
 
@@ -357,6 +374,10 @@ ConcreteBytecode
 
    List of concrete instructions (:class:`ConcreteInstr`).
    Inherit from :class:`BaseBytecode`.
+
+   A concrete bytecode must only contain concrete instructions
+   (:class:`ConcreteInstr`): :class:`Label`, :class:`SetLineno` and
+   :class:`Instr` are not allowed in concrete bytecode.
 
    Attributes:
 
@@ -400,6 +421,15 @@ Block
 
    List of abstract instructions (:class:`Instr`). Inherit from :class:`list`.
 
+   A block can contain 3 types of objects:
+
+   * :class:`SetLineno`
+   * :class:`Instr`
+   * :class:`ConcreteInstr`
+
+   It is possible to use concrete instructions (:class:`ConcreteInstr`) in
+   blocks, but abstract instructions (:class:`Instr`) are preferred.
+
    Labels (:class:`Label`) must not be used in blocks.
 
    Attributes:
@@ -420,9 +450,6 @@ BytecodeBlocks
    (:class:`Instr`). Inherit from :class:`BaseBytecode`.
 
    Jump targets are blocks (:class:`Block`).
-
-   It is possible to use concrete instructions (:class:`ConcreteInstr`) in
-   blocks, but abstract instructions are preferred.
 
    Labels (:class:`Label`) must not be used in blocks.
 
