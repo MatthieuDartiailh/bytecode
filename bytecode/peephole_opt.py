@@ -432,7 +432,6 @@ class PeepholeOptimizer:
     def remove_dead_blocks(self):
         # FIXME: remove empty blocks?
 
-        # FIXME: rewrite this
         used_blocks = {id(self.code[0])}
         for block in self.code:
             if block.next_block is not None:

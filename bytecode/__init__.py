@@ -12,7 +12,6 @@ from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,
 from bytecode.blocks import Block, BytecodeBlocks
 
 
-# FIXME: move code into a submodule or inside Bytecode classes?
 def dump_bytecode(bytecode, *, lineno=False):
 
     def format_line(index, line):

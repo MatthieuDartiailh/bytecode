@@ -23,6 +23,7 @@ class InstrTests(TestCase):
         label = Label()
 
         # has_jump()
+        self.assertRaises(ValueError, Instr, "JUMP_ABSOLUTE", -1)
         self.assertRaises(ValueError, Instr, "JUMP_ABSOLUTE", 1.0)
         Instr("JUMP_ABSOLUTE", 1)
         Instr("JUMP_ABSOLUTE", label)

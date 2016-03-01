@@ -125,7 +125,6 @@ class Instr:
         if self._has_jump(opcode):
             if not (isinstance(arg, (Label, _bytecode.Block))
                     or (isinstance(arg, int) and arg >= 0)):
-                print(repr(arg))
                 raise ValueError("operation %s argument must be a Label, "
                                  "Block or int>=0, got %s"
                                  % (name, type(arg).__name__))

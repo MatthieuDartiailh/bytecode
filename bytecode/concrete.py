@@ -392,14 +392,9 @@ class _ConvertBytecodeToConcrete:
                 elif instr.op in _opcode.hasfree:
                     if isinstance(arg, CellVar):
                         arg = self.bytecode.cellvars.index(arg.name)
-                    elif isinstance(arg, FreeVar):
-                        arg = ncells + self.bytecode.freevars.index(arg.name)
                     else:
-                        # FIXME: is it really ok to guess?
-                        try:
-                            arg = self.bytecode.cellvars.index(arg)
-                        except ValueError:
-                            arg = ncells + self.bytecode.freevars.index(arg)
+                        assert isinstance(arg, FreeVar)
+                        arg = ncells + self.bytecode.freevars.index(arg.name)
 
                 instr = ConcreteInstr(instr.name, arg, lineno=lineno)
                 if is_jump:
@@ -429,11 +424,8 @@ class _ConvertBytecodeToConcrete:
                 instr_offset = offsets[index]
                 target_offset -= (instr_offset + instr.size)
 
-            # FIXME: reject negative offset?
-            # (ex: JUMP_FORWARD arg must be positive)
-            # ConcreteInstr._set_arg() already rejects negative argument
-
             old_size = instr.size
+            # FIXME: better error report if target_offset is negative
             instr.arg = target_offset
             if instr.size != old_size:
                 modified = True
