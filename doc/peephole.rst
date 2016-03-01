@@ -102,8 +102,7 @@ Optimizations implemented in the peephole optimizer:
 
 * Dead code elimination
 
-  - Remove code after final operations in the current block:
-    see :meth:`Instr.is_final`
+  - Remove unreachable code after a final operation (:meth:`Instr.is_final`)
   - Remove unreachable blocks (:class:`Block`)
 
 * Replace UNARY_NOT+POP_JUMP_IF_FALSE with POP_JUMP_IF_TRUE

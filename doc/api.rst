@@ -235,7 +235,7 @@ BaseBytecode
 
    .. attribute:: filename
 
-      Code filename (``str``), default: ``<string>``.
+      Code filename (``str``), default: ``'<string>'``.
 
    .. attribute:: first_lineno
 
@@ -255,7 +255,7 @@ BaseBytecode
 
    .. attribute:: name
 
-      Code name (``str``), default: ``<module>``.
+      Code name (``str``), default: ``'<module>'``.
 
 
 Bytecode
@@ -273,13 +273,14 @@ Bytecode
 
    .. attribute:: argnames
 
-      Names of the argument names (``list`` of ``str``), default: empty list.
+      List of the argument names (``list`` of ``str``), default: empty list.
 
    Static methods:
 
    .. staticmethod:: from_code()
 
-      Create an abstract bytecode from a Python code object.
+      Create an abstract bytecode (:class:`Bytecode`) from a Python code
+      object.
 
    Methods:
 
@@ -327,9 +328,9 @@ ConcreteBytecode
 
       Create a concrete bytecode from a Python code object.
 
-      If *extended_arg* is true, decode ``EXTENDED_ARG`` instructions.
-      Otherwise, concrete instruction may be extended (size of ``6`` bytes
-      rather than ``3`` bytes).
+      If *extended_arg* is true, create ``EXTENDED_ARG`` instructions.
+      Otherwise, concrete instruction use extended argument (size of ``6``
+      bytes rather than ``3`` bytes).
 
    Methods:
 
@@ -339,7 +340,8 @@ ConcreteBytecode
 
    .. method:: to_bytecode()
 
-      Convert to abstract bytecode with abstract instructions.
+      Convert to abstract bytecode (:classs:`Bytecode`) with abstract
+      instructions.
 
 
 Block
@@ -380,7 +382,7 @@ BytecodeBlocks
 
    .. attribute:: argnames
 
-      Names of the argument names (``list`` of ``str``), default: empty list.
+      List of the argument names (``list`` of ``str``), default: empty list.
 
    Methods:
 
@@ -403,21 +405,18 @@ BytecodeBlocks
 
    .. method:: to_bytecode()
 
-      Convert to a bytecode object (:class:`Bytecode`).
+      Convert to a bytecode object (:class:`Bytecode`) using labels.
 
 
 Cell and Free Variables
 =======================
 
-   Cell variable used for instruction argument by operation taking a cell or
-   free variable name.
-
 CellVar
 -------
 
-.. class:: CellVar
+.. class:: CellVar(name: str)
 
-   Cell variable used for instruction argument by operation taking a cell or
+   Cell variable used for instruction argument by operations taking a cell or
    free variable name.
 
 
@@ -431,9 +430,9 @@ CellVar
 FreeVar
 -------
 
-.. class:: FreeVar
+.. class:: FreeVar(name: str)
 
-   Free variable used for instruction argument by operation taking a cell or
+   Free variable used for instruction argument by operations taking a cell or
    free variable name.
 
    Attributes:
