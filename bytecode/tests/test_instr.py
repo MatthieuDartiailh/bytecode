@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import opcode
 import unittest
-from bytecode import UNSET, Label, Instr, CellVar, FreeVar
+from bytecode import UNSET, Label, Instr, CellVar, FreeVar, Block
 from bytecode.tests import TestCase
 
 
@@ -21,12 +21,14 @@ class InstrTests(TestCase):
 
     def test_invalid_arg(self):
         label = Label()
+        block = Block()
 
         # has_jump()
         self.assertRaises(ValueError, Instr, "JUMP_ABSOLUTE", -1)
         self.assertRaises(ValueError, Instr, "JUMP_ABSOLUTE", 1.0)
         Instr("JUMP_ABSOLUTE", 1)
         Instr("JUMP_ABSOLUTE", label)
+        Instr("JUMP_ABSOLUTE", block)
 
         # hasfree
         self.assertRaises(ValueError, Instr, "LOAD_DEREF", "x")
@@ -42,7 +44,9 @@ class InstrTests(TestCase):
         Instr("LOAD_NAME", "x")
 
         # hasconst
+        self.assertRaises(ValueError, Instr, "LOAD_CONST")   # UNSET
         self.assertRaises(ValueError, Instr, "LOAD_CONST", label)
+        self.assertRaises(ValueError, Instr, "LOAD_CONST", block)
         Instr("LOAD_CONST", 1.0)
         Instr("LOAD_CONST", object())
 

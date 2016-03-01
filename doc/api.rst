@@ -52,20 +52,25 @@ Instr
 
    Abstract instruction.
 
-   The type of the :attr:`arg` attribute depends on the operation.
+   The type of the :attr:`arg` attribute depends on the operation:
 
-   :class:`Label` argument must only be used with operation having a jump
-   argument.
+   * If the operation has a jump argument (:meth:`has_jump`): *arg* must be a
+     :class:`Label` (if the instruction is used in :class:`Bytecode`) or a
+     :class:`Block` (:class:`BytecodeBlocks`)
+   * If the operation has a cell or free argument: *arg* must be a
+     :class:`CellVar` or :class:`FreeVar` instance
+   * If the operation has a local variable: *arg* must be a variable name,
+     type ``str``
+   * If the operation has a constant argument: *arg* must not be a
+     :class:`Label` or :class:`Block` instance
+   * If the operation has no argument, *arg* must not be set
+   * Otherwise (the operation has an argument), *arg* must be an integer,
+     type ``int``.
+
+   .. versionchanged:: 0.3
+      Instruction argument type is now validated.
 
    Attributes:
-
-   .. attribute:: name
-
-      Operation name (``str``).
-
-   .. attribute:: op
-
-      Operation code (``int``).
 
    .. attribute:: arg
 
@@ -76,6 +81,14 @@ Instr
    .. attribute:: lineno
 
       Line number (``int >= 1``), or ``None``.
+
+   .. attribute:: name
+
+      Operation name (``str``).
+
+   .. attribute:: op
+
+      Operation code (``int``).
 
    Methods:
 
