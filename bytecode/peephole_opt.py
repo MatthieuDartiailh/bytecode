@@ -332,29 +332,6 @@ class PeepholeOptimizer:
     def eval_JUMP_IF_TRUE_OR_POP(self, instr):
         self.jump_if_or_pop(instr)
 
-    def check_bypass_optim(self, code_obj):
-        # Bypass optimization when the lnotab table is too complex
-        if 255 in code_obj.co_lnotab:
-            # 255 value are used for multibyte bytecode instructions
-            return True
-        # Note: -128 and 127 special values for line number delta are ok,
-        # the peephole optimizer doesn't modify line numbers.
-
-        # Avoid situations where jump retargeting could overflow
-        code = code_obj.co_code
-        codelen = len(code)
-        if codelen > 32700:
-            return True
-
-        # Verify that RETURN_VALUE terminates the codestring. This allows
-        # the various transformation patterns to look ahead several
-        # instructions without additional checks to make sure they are not
-        # looking beyond the end of the code string.
-        if code[codelen-1] != opcode.opmap['RETURN_VALUE']:
-            return True
-
-        return False
-
     def optimize_jump_to_cond_jump(self, instr):
         # Replace jumps to unconditional jumps
         jump_label = instr.arg
