@@ -116,18 +116,25 @@ class PeepholeOptimizer:
     def eval_UNARY_INVERT(self, instr):
         return self.unaryop(operator.invert, instr)
 
-    def eval_UNARY_NOT(self, instr):
-        # Note: UNARY_NOT <const> is not optimized
-
+    def get_next_instr(self, name):
         try:
             next_instr = self.block[self.index]
         except IndexError:
             return None
-        if next_instr.name == 'POP_JUMP_IF_FALSE':
-            # Replace UNARY_NOT+POP_JUMP_IF_FALSE with POP_JUMP_IF_TRUE
-            instr.set('POP_JUMP_IF_TRUE', next_instr.arg)
-            self.block[self.index-1:self.index+1] = (instr,)
-            self.index -= 1
+        if next_instr.name == name:
+            return next_instr
+        return None
+
+    def eval_UNARY_NOT(self, instr):
+        # Note: UNARY_NOT <const> is not optimized
+
+        next_instr = self.get_next_instr('POP_JUMP_IF_FALSE')
+        if next_instr is None:
+            return None
+
+        # Replace UNARY_NOT+POP_JUMP_IF_FALSE with POP_JUMP_IF_TRUE
+        instr.set('POP_JUMP_IF_TRUE', next_instr.arg)
+        del self.block[self.index]
 
     def binop(self, op, instr):
         try:
@@ -191,34 +198,24 @@ class PeepholeOptimizer:
         self.replace_load_const(instr.arg, instr, value)
 
     def build_tuple_unpack_seq(self, instr):
-        if not(1 <= instr.arg <= 3):
+        nconst = instr.arg
+        if nconst < 1:
             return
 
-        try:
-            next_instr = self.block[self.index]
-        except IndexError:
-            return
-        if not(next_instr.name == 'UNPACK_SEQUENCE'
-               and next_instr.arg == instr.arg):
+        next_instr = self.get_next_instr('UNPACK_SEQUENCE')
+        if next_instr is None or next_instr.arg != instr.arg:
             return
 
-        if instr.arg == 1:
-            # Replace BUILD_TUPLE 1 + UNPACK_SEQUENCE 1 with NOP
-            del self.block[self.index-1:self.index+1]
-        elif instr.arg == 2:
-            # Replace BUILD_TUPLE 2 + UNPACK_SEQUENCE 2 with ROT_TWO
-            rot2 = Instr('ROT_TWO', lineno=instr.lineno)
-            self.block[self.index - 1:self.index+1] = (rot2,)
-            self.index -= 1
-            self.const_stack.clear()
-        elif instr.arg == 3:
-            # Replace BUILD_TUPLE 3 + UNPACK_SEQUENCE 3
-            # with ROT_THREE + ROT_TWO
-            rot3 = Instr('ROT_THREE', lineno=instr.lineno)
-            rot2 = Instr('ROT_TWO', lineno=instr.lineno)
-            self.block[self.index-1:self.index+1] = (rot3, rot2)
-            self.index -= 1
-            self.const_stack.clear()
+        start = self.index - 1
+
+        # Rewrite LOAD_CONST instructions in the reverse order
+        load_consts = self.block[start - nconst:start]
+        self.block[start - nconst:start] = reversed(load_consts)
+
+        # Remove BUILD_TUPLE+UNPACK_SEQUENCE
+        self.block[start:start + 2] = ()
+        self.index -= 2
+        self.const_stack.clear()
 
         # FIXME: why not rewriting LOAD_CONST in the reverse order to support
         # any number of aguments, rather than using ROT_TWO/ROT_THREE tricks?
@@ -227,14 +224,9 @@ class PeepholeOptimizer:
         if instr.arg > len(self.const_stack):
             return
 
-        try:
-            next_instr = self.block[self.index]
-        except IndexError:
-            return
-        if not next_instr.name == 'COMPARE_OP':
-            return
-
-        if next_instr.arg not in (PyCmp_IN, PyCmp_NOT_IN):
+        next_instr = self.get_next_instr('COMPARE_OP')
+        if (next_instr is None
+           or next_instr.arg not in (PyCmp_IN, PyCmp_NOT_IN)):
             return
 
         self.replace_container_of_consts(instr, container_type)
@@ -271,11 +263,7 @@ class PeepholeOptimizer:
             return
         new_arg = NOT_PyCmp[instr.arg]
 
-        try:
-            next_instr = self.block[self.index]
-        except IndexError:
-            return
-        if next_instr.name != 'UNARY_NOT':
+        if self.get_next_instr('UNARY_NOT') is None:
             return
 
         # not (a is b) -->  a is not b

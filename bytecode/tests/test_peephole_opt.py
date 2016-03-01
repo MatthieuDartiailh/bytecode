@@ -243,9 +243,8 @@ class Tests(TestCase):
                              Instr('STORE_NAME', 'x'),
                              Instr('STORE_NAME', 'y')])
             self.check(code,
-                       Instr('LOAD_NAME', 'a'),
                        Instr('LOAD_NAME', 'b'),
-                       Instr('ROT_TWO'),
+                       Instr('LOAD_NAME', 'a'),
                        Instr('STORE_NAME', 'x'),
                        Instr('STORE_NAME', 'y'))
 
@@ -259,11 +258,9 @@ class Tests(TestCase):
                              Instr('STORE_NAME', 'y'),
                              Instr('STORE_NAME', 'z')])
             self.check(code,
-                       Instr('LOAD_NAME', 'a'),
-                       Instr('LOAD_NAME', 'b'),
                        Instr('LOAD_NAME', 'c'),
-                       Instr('ROT_THREE'),
-                       Instr('ROT_TWO'),
+                       Instr('LOAD_NAME', 'b'),
+                       Instr('LOAD_NAME', 'a'),
                        Instr('STORE_NAME', 'x'),
                        Instr('STORE_NAME', 'y'),
                        Instr('STORE_NAME', 'z'))
