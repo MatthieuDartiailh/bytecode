@@ -3,7 +3,7 @@ import types
 import unittest
 from bytecode import Label, Instr, Compare, Bytecode, ControlFlowGraph
 from bytecode import peephole_opt
-from bytecode.tests import TestCase
+from bytecode.tests import TestCase, dump_bytecode
 from unittest import mock
 
 
@@ -27,7 +27,14 @@ class Tests(TestCase):
         try:
             self.assertEqual(code, expected)
         except AssertionError:
-            self.assertListEqual(code, list(expected))
+            print("Optimized code:")
+            dump_bytecode(code)
+
+            print("Expected code:")
+            for instr in expected:
+                print(instr)
+
+            raise
 
     def check_dont_optimize(self, code):
         code = ControlFlowGraph.from_bytecode(code)
@@ -598,21 +605,87 @@ class Tests(TestCase):
                    Instr('LOAD_CONST', 'no'),
                    Instr('RETURN_VALUE'))
 
-    # FIXME: test fails!
+    # Reenable this optimization
     #def test_jump_if_true_to_jump_if_false(self):
-    #    source = '''
-    #        if x or y:
-    #            z = 1
-    #    '''
-    #    XXX
+    #    # Replace JUMP_IF_TRUE_OR_POP jumping to POP_JUMP_IF_FALSE <target>
+    #    # with POP_JUMP_IF_TRUE <offset after the second POP_JUMP_IF_FALSE>
+    #    #
+    #    #     if x or y:
+    #    #         z = 1
 
-    # FIXME: test fails!
-    #def test_jump_if_false_to_jump_if_false(self):
-    #    source = """
-    #        while n > 0 and start > 3:
-    #            func()
-    #    """
-    #    XXX
+    #    label_instr3 = Label()
+    #    label_instr7 = Label()
+    #    code = Bytecode([Instr('LOAD_NAME', 'x'),
+    #                     Instr('JUMP_IF_TRUE_OR_POP', label_instr3),
+    #                         Instr('LOAD_NAME', 'y'),
+    #                     label_instr3,
+    #                         Instr('POP_JUMP_IF_FALSE', label_instr7),
+    #                         Instr('LOAD_CONST', 1),
+    #                         Instr('STORE_NAME', 'z'),
+    #                     label_instr7,
+    #                         Instr('LOAD_CONST', None),
+    #                         Instr('RETURN_VALUE')])
+
+    #    # FIXME
+    #    self.check(code,
+    #               [])
+
+    def test_jump_if_false_to_jump_if_false(self):
+        # Replace JUMP_IF_FALSE_OR_POP jumping to POP_JUMP_IF_FALSE <label>
+        # with POP_JUMP_IF_FALSE <label>
+        #
+        #     while n > 0 and start > 3:
+        #         func()
+        label_instr1 = Label()
+        label_instr15 = Label()
+        label_instr17 = Label()
+        label_instr9 = Label()
+        code = Bytecode([Instr('SETUP_LOOP', label_instr17),
+                         label_instr1,
+                             Instr('LOAD_NAME', 'n'),
+                             Instr('LOAD_CONST', 0),
+                             Instr('COMPARE_OP', Compare.GT),
+                         # JUMP_IF_FALSE_OR_POP jumps to POP_JUMP_IF_FALSE
+                         # which jumps to label_instr15
+                         Instr('JUMP_IF_FALSE_OR_POP', label_instr9),
+                             Instr('LOAD_NAME', 'start'),
+                             Instr('LOAD_CONST', 3),
+                             Instr('COMPARE_OP', Compare.GT),
+                         label_instr9,
+                         Instr('POP_JUMP_IF_FALSE', label_instr15),
+                             Instr('LOAD_NAME', 'func'),
+                             Instr('CALL_FUNCTION', 0),
+                             Instr('POP_TOP'),
+                         Instr('JUMP_ABSOLUTE', label_instr1),
+                         label_instr15,
+                             Instr('POP_BLOCK'),
+                         label_instr17,
+                             Instr('LOAD_CONST', None),
+                             Instr('RETURN_VALUE')])
+
+        label_instr1 = Label()
+        label_instr14 = Label()
+        label_instr16 = Label()
+        self.check(code,
+                   Instr('SETUP_LOOP', label_instr16),
+                   label_instr1,
+                       Instr('LOAD_NAME', 'n'),
+                       Instr('LOAD_CONST', 0),
+                       Instr('COMPARE_OP', Compare.GT),
+                   Instr('POP_JUMP_IF_FALSE', label_instr14),
+                       Instr('LOAD_NAME', 'start'),
+                       Instr('LOAD_CONST', 3),
+                       Instr('COMPARE_OP', Compare.GT),
+                   Instr('POP_JUMP_IF_FALSE', label_instr14),
+                       Instr('LOAD_NAME', 'func'),
+                       Instr('CALL_FUNCTION', 0),
+                       Instr('POP_TOP'),
+                   Instr('JUMP_ABSOLUTE', label_instr1),
+                   label_instr14,
+                       Instr('POP_BLOCK'),
+                   label_instr16,
+                       Instr('LOAD_CONST', None),
+                       Instr('RETURN_VALUE'))
 
     def test_nop(self):
         code = Bytecode([Instr('LOAD_NAME', 'x'),

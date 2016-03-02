@@ -36,7 +36,7 @@ def _format_instr_list(block, labels, lineno):
         instr_list.append(text)
     return '[%s]'  % ',\n '.join(instr_list)
 
-def dump_bytecode(code, lineno=True):
+def dump_bytecode(code, lineno=False):
     """
     Use this function to write unit tests: copy/paste its output to
     write a self.assertBlocksEqual() check.
