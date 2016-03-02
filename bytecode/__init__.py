@@ -89,8 +89,7 @@ def dump_bytecode(bytecode, *, lineno=False):
     elif isinstance(bytecode, BytecodeBlocks):
         labels = {}
         for block_index, block in enumerate(bytecode, 1):
-            block_label = 'label_block%s' % block_index
-            labels[id(block)] = block_label
+            labels[id(block)] = 'block%s' % block_index
 
         for block_index, block in enumerate(bytecode, 1):
             print('%s:' % labels[id(block)])
