@@ -253,8 +253,9 @@ class BytecodeBlocksTests(TestCase):
                     [Instr('LOAD_CONST', (1, 2, 3), lineno=1),
                      Instr('GET_ITER', lineno=1)],
 
-                    [Instr('FOR_ITER', blocks[7], lineno=1),
-                     Instr('STORE_NAME', 'x', lineno=1),
+                    [Instr('FOR_ITER', blocks[7], lineno=1)],
+
+                    [Instr('STORE_NAME', 'x', lineno=1),
                      Instr('LOAD_NAME', 'x', lineno=2),
                      Instr('LOAD_CONST', 2, lineno=2),
                      Instr('COMPARE_OP', Compare.EQ, lineno=2),
@@ -269,9 +270,7 @@ class BytecodeBlocksTests(TestCase):
                     [Instr('POP_BLOCK', lineno=4)],
 
                     [Instr('LOAD_CONST', None, lineno=4),
-                     Instr('RETURN_VALUE', lineno=4)],
-                    # FIXME: what is this empty block?
-                    []]
+                     Instr('RETURN_VALUE', lineno=4)]]
         self.assertBlocksEqual(blocks, *expected)
 
 

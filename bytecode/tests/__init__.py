@@ -125,36 +125,9 @@ def disassemble(source, *, filename="<string>", function=False):
 
 class TestCase(unittest.TestCase):
     def assertBlocksEqual(self, code, *expected_blocks):
-
-        # Code similar to ControlFlowGraph._flat(), but code is a list of
-        # Instr, not a ControlFlowGraph object
-        def _flat(code, expected_blocks):
-            instructions = []
-            labels = {}
-            jumps = []
-
-            for block_index, block in enumerate(code):
-                labels[id(block)] = block_index
-
-            for block_index, block in enumerate(expected_blocks, 1):
-                for index, instr in enumerate(block):
-                    if (isinstance(instr, Instr)
-                       and isinstance(instr.arg, BasicBlock)):
-                        # copy the instruction to be able to modify
-                        # its argument below
-                        target_block = instr.arg
-                        instr = ConcreteInstr(instr.name, 0,
-                                              lineno=instr.lineno)
-                        jumps.append((target_block, instr))
-                    instructions.append(instr)
-
-            for block, instr in jumps:
-                instr.arg = labels[id(block)]
-
-            return instructions
-
         self.assertEqual(len(code), len(expected_blocks))
 
-        instrs1 = code._flat()
-        instrs2 = _flat(code, expected_blocks)
-        self.assertListEqual(instrs1, instrs2)
+        for block1, block2 in zip(code, expected_blocks):
+            block_index = code.get_block_index(block1)
+            self.assertListEqual(list(block1), block2,
+                                 "Block #%s is different" % block_index)
