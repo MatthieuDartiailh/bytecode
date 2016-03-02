@@ -144,9 +144,14 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         if index == 0:
             return block
 
+        if index > len(block):
+            raise ValueError("index out of the block")
+
         instructions = block[index:]
         if not instructions:
-            raise ValueError("cannot create a label at the end of a block")
+            if block_index + 1 < len(self):
+                return self[block_index + 1]
+
         del block[index:]
 
         block2 = BasicBlock(instructions)

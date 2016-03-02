@@ -605,30 +605,39 @@ class Tests(TestCase):
                    Instr('LOAD_CONST', 'no'),
                    Instr('RETURN_VALUE'))
 
-    # Reenable this optimization
-    #def test_jump_if_true_to_jump_if_false(self):
-    #    # Replace JUMP_IF_TRUE_OR_POP jumping to POP_JUMP_IF_FALSE <target>
-    #    # with POP_JUMP_IF_TRUE <offset after the second POP_JUMP_IF_FALSE>
-    #    #
-    #    #     if x or y:
-    #    #         z = 1
+    def test_jump_if_true_to_jump_if_false(self):
+        # Replace JUMP_IF_TRUE_OR_POP jumping to POP_JUMP_IF_FALSE <target>
+        # with POP_JUMP_IF_TRUE <offset after the second POP_JUMP_IF_FALSE>
+        #
+        #     if x or y:
+        #         z = 1
 
-    #    label_instr3 = Label()
-    #    label_instr7 = Label()
-    #    code = Bytecode([Instr('LOAD_NAME', 'x'),
-    #                     Instr('JUMP_IF_TRUE_OR_POP', label_instr3),
-    #                         Instr('LOAD_NAME', 'y'),
-    #                     label_instr3,
-    #                         Instr('POP_JUMP_IF_FALSE', label_instr7),
-    #                         Instr('LOAD_CONST', 1),
-    #                         Instr('STORE_NAME', 'z'),
-    #                     label_instr7,
-    #                         Instr('LOAD_CONST', None),
-    #                         Instr('RETURN_VALUE')])
+        label_instr3 = Label()
+        label_instr7 = Label()
+        code = Bytecode([Instr('LOAD_NAME', 'x'),
+                         Instr('JUMP_IF_TRUE_OR_POP', label_instr3),
+                             Instr('LOAD_NAME', 'y'),
+                         label_instr3,
+                             Instr('POP_JUMP_IF_FALSE', label_instr7),
+                             Instr('LOAD_CONST', 1),
+                             Instr('STORE_NAME', 'z'),
+                         label_instr7,
+                             Instr('LOAD_CONST', None),
+                             Instr('RETURN_VALUE')])
 
-    #    # FIXME
-    #    self.check(code,
-    #               [])
+        label_instr4 = Label()
+        label_instr7 = Label()
+        self.check(code,
+                   Instr('LOAD_NAME', 'x'),
+                   Instr('POP_JUMP_IF_TRUE', label_instr4),
+                       Instr('LOAD_NAME', 'y'),
+                   Instr('POP_JUMP_IF_FALSE', label_instr7),
+                   label_instr4,
+                       Instr('LOAD_CONST', 1),
+                       Instr('STORE_NAME', 'z'),
+                   label_instr7,
+                       Instr('LOAD_CONST', None),
+                       Instr('RETURN_VALUE'))
 
     def test_jump_if_false_to_jump_if_false(self):
         # Replace JUMP_IF_FALSE_OR_POP jumping to POP_JUMP_IF_FALSE <label>

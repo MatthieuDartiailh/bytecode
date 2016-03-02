@@ -153,7 +153,8 @@ class TestCase(unittest.TestCase):
 
             return instructions
 
+        self.assertEqual(len(code), len(expected_blocks))
+
         instrs1 = code._flat()
         instrs2 = _flat(code, expected_blocks)
-
         self.assertListEqual(instrs1, instrs2)

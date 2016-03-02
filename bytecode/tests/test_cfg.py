@@ -269,7 +269,9 @@ class BytecodeBlocksTests(TestCase):
                     [Instr('POP_BLOCK', lineno=4)],
 
                     [Instr('LOAD_CONST', None, lineno=4),
-                     Instr('RETURN_VALUE', lineno=4)]]
+                     Instr('RETURN_VALUE', lineno=4)],
+                    # FIXME: what is this empty block?
+                    []]
         self.assertBlocksEqual(blocks, *expected)
 
 
@@ -296,7 +298,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
                                 Instr('STORE_NAME', 'x', lineno=1)])
         return code
 
-    def test_split_block_by_int_split(self):
+    def test_split_block(self):
         code = self.sample_code()
         code[0].append(Instr('NOP', lineno=1))
 
@@ -316,6 +318,27 @@ class BytecodeBlocksFunctionalTests(TestCase):
                                [Instr('NOP', lineno=1)])
         self.check_getitem(code)
 
+    def test_split_block_end(self):
+        code = self.sample_code()
+
+        # split at the end of the last block requires to add a new empty block
+        label = code.split_block(code[0], 2)
+        self.assertIs(label, code[1])
+        self.assertBlocksEqual(code,
+                               [Instr('LOAD_CONST', 1, lineno=1),
+                                Instr('STORE_NAME', 'x', lineno=1)],
+                               [])
+        self.check_getitem(code)
+
+        # split at the end of a block which is not the end doesn't require to
+        # add a new block
+        label = code.split_block(code[0], 2)
+        self.assertIs(label, code[1])
+        self.assertBlocksEqual(code,
+                               [Instr('LOAD_CONST', 1, lineno=1),
+                                Instr('STORE_NAME', 'x', lineno=1)],
+                               [])
+
     def test_split_block_dont_split(self):
         code = self.sample_code()
 
@@ -330,9 +353,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
         code = self.sample_code()
 
         with self.assertRaises(ValueError):
-            # cannot create a label at the end of a block,
-            # only between instructions
-            code.split_block(code[0], 2)
+            # invalid index
+            code.split_block(code[0], 3)
 
     def test_to_code(self):
         # test resolution of jump labels
@@ -393,8 +415,6 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
         other_block = BasicBlock()
         self.assertRaises(ValueError, blocks.get_block_index, other_block)
-
-
 
 
 if __name__ == "__main__":

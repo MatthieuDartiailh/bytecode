@@ -333,11 +333,7 @@ class PeepholeOptimizer:
             else:
                 name = 'POP_JUMP_IF_FALSE'
 
-            try:
-                new_label = self.code.split_block(target_block, 1)
-            except ValueError:
-                # FIXME: ValueError: cannot create a label at the end of a block
-                return
+            new_label = self.code.split_block(target_block, 1)
 
             instr.name = name
             instr.arg = new_label
