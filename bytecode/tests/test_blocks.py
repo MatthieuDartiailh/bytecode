@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import unittest
-from bytecode import (Label, Compare, Instr, ConcreteInstr,
+from bytecode import (Label, Compare, SetLineno, Instr, ConcreteInstr,
                       Bytecode, Block, BytecodeBlocks)
 from bytecode.tests import disassemble, TestCase, get_code
 
@@ -61,6 +61,32 @@ class BytecodeBlocksTests(TestCase):
         del code[0]
         self.assertEqual(len(code), 0)
 
+    def test_setlineno(self):
+        # x = 7
+        # y = 8
+        # z = 9
+        code = Bytecode()
+        code.first_lineno = 3
+        code.extend([Instr("LOAD_CONST", 7),
+                     Instr("STORE_NAME", 'x'),
+                     SetLineno(4),
+                     Instr("LOAD_CONST", 8),
+                     Instr("STORE_NAME", 'y'),
+                     SetLineno(5),
+                     Instr("LOAD_CONST", 9),
+                     Instr("STORE_NAME", 'z')])
+
+        blocks = BytecodeBlocks.from_bytecode(code)
+        self.assertBlocksEqual(blocks,
+                               [Instr("LOAD_CONST", 7),
+                                Instr("STORE_NAME", 'x'),
+                                SetLineno(4),
+                                Instr("LOAD_CONST", 8),
+                                Instr("STORE_NAME", 'y'),
+                                SetLineno(5),
+                                Instr("LOAD_CONST", 9),
+                                Instr("STORE_NAME", 'z')])
+
     def test_to_bytecode(self):
         # if test:
         #     x = 2
@@ -105,7 +131,6 @@ class BytecodeBlocksTests(TestCase):
         with self.assertRaises(ValueError) as cm:
             blocks.to_bytecode()
         self.assertEqual(str(cm.exception), 'Label must not be used in blocks')
-
 
     def test_from_bytecode(self):
         bytecode = Bytecode()

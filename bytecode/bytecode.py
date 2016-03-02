@@ -74,18 +74,16 @@ class _InstrList(list):
                 instructions.append('label_instr%s' % index)
                 labels[instr] = offset
             else:
-                if isinstance(instr.arg, Label):
-                    # copy the instruction to be able to modify
-                    # its argument above
-                    label = instr.arg
+                if isinstance(instr, Instr) and isinstance(instr.arg, Label):
+                    target_label = instr.arg
                     instr = _bytecode.ConcreteInstr(instr.name, 0,
                                                     lineno=instr.lineno)
-                    jumps.append((label, instr))
+                    jumps.append((target_label, instr))
                 instructions.append(instr)
                 offset += 1
 
-        for label, instr in jumps:
-            instr.arg = labels[label]
+        for target_label, instr in jumps:
+            instr.arg = labels[target_label]
 
         return instructions
 

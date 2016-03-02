@@ -1,5 +1,6 @@
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
+from bytecode.concrete import ConcreteInstr
 from bytecode.instr import Instr, Label
 
 
@@ -54,8 +55,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                     # copy the instruction to be able to modify
                     # its argument below
                     target_block = instr.arg
-                    instr = _bytecode.ConcreteInstr(instr.name, 0,
-                                                    lineno=instr.lineno)
+                    instr = ConcreteInstr(instr.name, 0, lineno=instr.lineno)
                     jumps.append((target_block, instr))
                 instructions.append(instr)
 
@@ -138,7 +138,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
             if isinstance(instr, Label):
                 label_to_block_index[instr] = index
             else:
-                if isinstance(instr.arg, Label):
+                if isinstance(instr, Instr) and isinstance(instr.arg, Label):
                     jumps.append((index, instr.arg))
 
         for target_index, target_label  in jumps:
@@ -163,19 +163,23 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                     block = new_block
                 if old_label is not None:
                     labels[old_label] = block
-            elif block and block[-1].is_final():
-                block = bytecode_blocks.add_block()
-            elif block and block[-1].is_cond_jump():
-                new_block = bytecode_blocks.add_block()
-                block.next_block = new_block
-                block = new_block
+            elif block and isinstance(block[-1], Instr):
+                if block[-1].is_final():
+                    block = bytecode_blocks.add_block()
+                elif block[-1].is_cond_jump():
+                    new_block = bytecode_blocks.add_block()
+                    block.next_block = new_block
+                    block = new_block
 
-            if not isinstance(instr, Label):
-                # copy the instruction to be able to modify its argument below
+            if isinstance(instr, Label):
+                continue
+
+            # don't copy SetLineno objects
+            if isinstance(instr, (Instr, ConcreteInstr)):
                 instr = instr.copy()
                 if isinstance(instr.arg, Label):
                     jumps.append(instr)
-                block.append(instr)
+            block.append(instr)
 
         for instr in jumps:
             label = instr.arg
@@ -208,9 +212,11 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                 instructions.append(new_label)
 
             for instr in block:
-                instr = instr.copy()
-                if isinstance(instr.arg, Block):
-                    jumps.append(instr)
+                # don't copy SetLineno objects
+                if isinstance(instr, (Instr, ConcreteInstr)):
+                    instr = instr.copy()
+                    if isinstance(instr.arg, Block):
+                        jumps.append(instr)
                 instructions.append(instr)
 
         # Map to new labels
