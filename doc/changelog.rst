@@ -28,9 +28,9 @@ Changes:
 
 :ref:`Peephole optimizer <peephole_opt>`:
 
-- better code for BUILD_TUPLE/BUILD_LIST + UNPACK_SEQUENCE: rewrite
+- better code for LOAD_CONST x n + BUILD_LIST + UNPACK_SEQUENCE: rewrite
   LOAD_CONST in the reverse order instead of using ROT_TWO and ROT_THREE.
-  The optimization now supports containers with more than 3 items.
+  This optimization supports more than 3 items.
 - Remove JUMP_ABSOLUTE pointing to the following code. It can occur
   after dead code was removed.
 - Remove NOP instructions
