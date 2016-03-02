@@ -200,7 +200,6 @@ class BytecodeBlocksTests(TestCase):
 
         blocks = ControlFlowGraph.from_bytecode(bytecode)
         label2 = blocks[3]
-        self.assertIsNot(label2, label)
         self.assertBlocksEqual(blocks,
                                [Instr('LOAD_NAME', 'test', lineno=1),
                                 Instr('POP_JUMP_IF_FALSE', label2, lineno=1)],
@@ -212,6 +211,31 @@ class BytecodeBlocksTests(TestCase):
                                [Instr('LOAD_CONST', None, lineno=4),
                                 Instr('RETURN_VALUE', lineno=4)])
         # FIXME: test other attributes
+
+    def test_remove_dead_code(self):
+        bytecode = Bytecode()
+        label = Label()
+        bytecode.extend([Instr('JUMP_FORWARD', label),
+                             # dead code
+                             Instr('LOAD_CONST', 7),
+                             Instr('STORE_NAME', 'x'),
+                         label,
+                             Instr('LOAD_CONST', None),
+                             Instr('RETURN_VALUE')])
+
+        blocks = ControlFlowGraph.from_bytecode(bytecode)
+        self.assertBlocksEqual(blocks,
+                               [Instr('JUMP_FORWARD', blocks[2])],
+                               [Instr('LOAD_CONST', 7),
+                                Instr('STORE_NAME', 'x')],
+                               [Instr('LOAD_CONST', None),
+                                Instr('RETURN_VALUE')])
+
+        blocks.remove_dead_code()
+        self.assertBlocksEqual(blocks,
+                               [Instr('JUMP_FORWARD', blocks[1])],
+                               [Instr('LOAD_CONST', None),
+                                Instr('RETURN_VALUE')])
 
     def test_from_bytecode_loop(self):
         # for x in (1, 2, 3):

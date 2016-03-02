@@ -4,6 +4,11 @@ ChangeLog
 Version 0.3
 -----------
 
+New features:
+
+- Add :meth:`ControlFlowGraph.get_block_index` method
+- Add :meth:`ControlFlowGraph.remove_dead_code` method
+
 API changes:
 
 - Rename ``Block`` class to :class:`BasicBlock`
@@ -16,7 +21,6 @@ API changes:
   type
 - Add :class:`Compare` enum, used for ``COMPARE_OP`` argument
 - Remove *lineno* parameter from :meth:`Instr.set`
-- Add :meth:`ControlFlowGraph.get_block_index`
 - Add :class:`CellVar` and :class:`FreeVar` classes: instructions having
   a cell or free variable now require a :class:`CellVar` or :class:`FreeVar`
   instance rather than a simple string (``str``). This change is required
@@ -25,13 +29,13 @@ API changes:
 - :class:`ControlFlowGraph`: remove undocumented ``to_concrete_bytecode()``
   and ``to_code()`` methods
 
-Changes:
+Bugfixes:
 
 - Fix support of :class:`SetLineno`
 
 :ref:`Peephole optimizer <peephole_opt>`:
 
-- better code for LOAD_CONST x n + BUILD_LIST + UNPACK_SEQUENCE: rewrite
+- Better code for LOAD_CONST x n + BUILD_LIST + UNPACK_SEQUENCE: rewrite
   LOAD_CONST in the reverse order instead of using ROT_TWO and ROT_THREE.
   This optimization supports more than 3 items.
 - Remove JUMP_ABSOLUTE pointing to the following code. It can occur
