@@ -8,18 +8,20 @@ API changes:
 
 - :class:`Instr` constructor and :meth:`Instr.set` now validates the argument
   type
-- add :class:`Compare` enum, used for ``COMPARE_OP`` argument
+- Add :class:`Compare` enum, used for ``COMPARE_OP`` argument
 - Remove *lineno* parameter from :meth:`Instr.set`
 - Add :meth:`BytecodeBlocks.get_block_index`
 - Add :class:`CellVar` and :class:`FreeVar` classes: instructions having
   a cell or free variable now require a :class:`CellVar` or :class:`FreeVar`
-  instance rather than a simple string (``str``)
+  instance rather than a simple string (``str``). This change is required
+  to handle correctly code with duplicated varible names in cell and free
+  variables.
 - :class:`BytecodeBlocks`: remove undocumented ``to_concrete_bytecode()``
   and ``to_code()`` methods
 
 Changes:
 
-- :class:`SetLineno` is now supported in :class:`ConcreteBytecode`.
+- Fix support of :class:`SetLineno`
 
 :ref:`Peephole optimizer <peephole_opt>`:
 
@@ -30,6 +32,7 @@ Changes:
   after dead code was removed.
 - Remove NOP instructions
 - Bugfix: catch IndexError when trying to get the next instruction.
+
 
 2016-02-29: Version 0.2
 -----------------------

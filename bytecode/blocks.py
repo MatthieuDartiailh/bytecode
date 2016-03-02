@@ -63,8 +63,6 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
             for index, instr in enumerate(block):
                 offset += 1
                 if isinstance(instr, Instr) and isinstance(instr.arg, Block):
-                    # copy the instruction to be able to modify
-                    # its argument below
                     target_block = instr.arg
                     instr = ConcreteInstr(instr.name, 0, lineno=instr.lineno)
                     jumps.append((target_block, instr))

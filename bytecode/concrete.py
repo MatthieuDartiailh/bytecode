@@ -199,10 +199,6 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
             if isinstance(instr, ConcreteInstr):
                 yield (lineno, instr)
-            elif not isinstance(instr, SetLineno):
-                raise ValueError("ConcreteBytecode must only contain "
-                                 "ConcreteInstr and SetLineno, found %s"
-                                 % instr.__class__.__name__)
 
     def _assemble_code(self):
         offset = 0
@@ -274,7 +270,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         jump_targets = set()
         offset = 0
         for instr in self:
-            if not isinstance(instr, ConcreteInstr):
+            if isinstance(instr, SetLineno):
                 continue
             target = instr.get_jump_target(offset)
             if target is not None:
