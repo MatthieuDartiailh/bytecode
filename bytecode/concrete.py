@@ -2,6 +2,7 @@ import dis
 import inspect
 import opcode as _opcode
 import struct
+import sys
 import types
 
 # alias to keep the 'bytecode' variable free
@@ -220,6 +221,10 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
             dlineno = lineno - old_lineno
             if dlineno == 0:
                 continue
+            # FIXME: be kind, force monotonic line numbers? add an option?
+            if dlineno < 0 and sys.version_info < (3, 6):
+                raise ValueError("negative line number delta is not supported "
+                                 "on Python < 3.6")
             old_lineno = lineno
 
             doff = offset - old_offset

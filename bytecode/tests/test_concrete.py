@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import opcode
+import sys
 import types
 import unittest
 from bytecode import (UNSET, Label, Instr, SetLineno, Bytecode,
@@ -183,6 +184,36 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 3)
         self.assertEqual(code.co_lnotab, b'\x06\x01\x06\x01')
+
+    def test_negative_lnotab(self):
+        # x = 7
+        # y = 8
+        concrete = ConcreteBytecode()
+        concrete.consts = [7, 8]
+        concrete.names = ['x', 'y']
+        concrete.first_lineno = 5
+        concrete.extend([ConcreteInstr("LOAD_CONST", 0),
+                         ConcreteInstr("STORE_NAME", 0),
+                         # line number goes backward!
+                         SetLineno(2),
+                         ConcreteInstr("LOAD_CONST", 1),
+                         ConcreteInstr("STORE_NAME", 1)])
+
+        if sys.version_info >= (3, 6):
+            code = concrete.to_code()
+            expected = (b'd\x00\x00'
+                        b'Z\x00\x00'
+                        b'd\x01\x00'
+                        b'Z\x01\x00')
+            self.assertEqual(code.co_code, expected)
+            self.assertEqual(code.co_firstlineno, 5)
+            self.assertEqual(code.co_lnotab, b'\x06\xfd')
+        else:
+            with self.assertRaises(ValueError) as cm:
+                code = concrete.to_code()
+            self.assertEqual(str(cm.exception),
+                             "negative line number delta is not supported "
+                             "on Python < 3.6")
 
     def test_to_bytecode_consts(self):
         # x = -0.0

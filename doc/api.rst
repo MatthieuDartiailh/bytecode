@@ -423,6 +423,9 @@ ConcreteBytecode
 
       Convert to a Python code object.
 
+      On Python older than 3.6, raise an exception on negative line number
+      delta.
+
    .. method:: to_bytecode() -> Bytecode
 
       Convert to abstract bytecode with abstract instructions.
