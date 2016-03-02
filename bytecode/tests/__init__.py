@@ -118,24 +118,9 @@ def get_code(source, *, filename="<string>", function=False):
         code = sub_code[0]
     return code
 
-def disassemble(source, *, filename="<string>", function=False,
-                remove_last_return_none=False):
+def disassemble(source, *, filename="<string>", function=False):
     code = get_code(source, filename=filename, function=function)
-
-    bytecode = Bytecode.from_code(code)
-    blocks = ControlFlowGraph.from_bytecode(bytecode)
-    if remove_last_return_none:
-        # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
-        # to make unit tests shorter
-        block = blocks[-1]
-        test = (block[-2].name == "LOAD_CONST"
-                and block[-2].arg is None
-                and block[-1].name == "RETURN_VALUE")
-        if not test:
-            raise ValueError("unable to find implicit RETURN_VALUE <None>: %s"
-                             % block[-2:])
-        del block[-2:]
-    return blocks
+    return Bytecode.from_code(code)
 
 
 class TestCase(unittest.TestCase):

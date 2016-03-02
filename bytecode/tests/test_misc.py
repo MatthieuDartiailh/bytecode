@@ -32,7 +32,6 @@ class DumpCodeTests(unittest.TestCase):
                 return 3
         """
         code = disassemble(source, function=True)
-        code = code.to_bytecode()
 
         # without line numbers
         expected = """
@@ -111,6 +110,7 @@ label_instr13:
                 return 3
         """
         code = disassemble(source, function=True)
+        code = ControlFlowGraph.from_bytecode(code)
 
         # without line numbers
         expected = textwrap.dedent("""
@@ -184,7 +184,7 @@ label_instr13:
                 return 3
         """
         code = disassemble(source, function=True)
-        code = code.to_bytecode().to_concrete_bytecode()
+        code = code.to_concrete_bytecode()
 
         # without line numbers
         expected = """

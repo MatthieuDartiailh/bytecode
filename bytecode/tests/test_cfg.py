@@ -2,7 +2,25 @@
 import unittest
 from bytecode import (Label, Compare, SetLineno, Instr, ConcreteInstr,
                       Bytecode, BasicBlock, ControlFlowGraph)
-from bytecode.tests import disassemble, TestCase, get_code
+from bytecode.tests import disassemble as _disassemble, TestCase, get_code
+
+
+def disassemble(source, *, filename="<string>", function=False,
+                remove_last_return_none=False):
+    code = _disassemble(source, filename=filename, function=function)
+    blocks = ControlFlowGraph.from_bytecode(code)
+    if remove_last_return_none:
+        # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
+        # to make unit tests shorter
+        block = blocks[-1]
+        test = (block[-2].name == "LOAD_CONST"
+                and block[-2].arg is None
+                and block[-1].name == "RETURN_VALUE")
+        if not test:
+            raise ValueError("unable to find implicit RETURN_VALUE <None>: %s"
+                             % block[-2:])
+        del block[-2:]
+    return blocks
 
 
 class BlockTests(unittest.TestCase):
