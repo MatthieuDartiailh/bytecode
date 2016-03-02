@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import unittest
 from bytecode import (Label, Compare, SetLineno, Instr, ConcreteInstr,
-                      Bytecode, Block, BytecodeBlocks)
+                      Bytecode, BasicBlock, BytecodeBlocks)
 from bytecode.tests import disassemble, TestCase, get_code
 
 
 class BlockTests(unittest.TestCase):
     def test_iter_invalid_types(self):
-        code = Block()
+        code = BasicBlock()
         code.append(Label())
         with self.assertRaises(ValueError):
             list(code)
@@ -139,7 +139,7 @@ class BytecodeBlocksTests(TestCase):
         with self.assertRaises(ValueError) as cm:
             blocks.to_bytecode()
         self.assertEqual(str(cm.exception),
-                         'Block must only contain SetLineno, Instr and '
+                         'BasicBlock must only contain SetLineno, Instr and '
                          'ConcreteInstr objects, but Label was found')
 
     def test_from_bytecode(self):
@@ -351,7 +351,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(blocks.get_block_index(block1), 1)
         self.assertEqual(blocks.get_block_index(block2), 2)
 
-        other_block = Block()
+        other_block = BasicBlock()
         self.assertRaises(ValueError, blocks.get_block_index, other_block)
 
 

@@ -2,7 +2,7 @@ import textwrap
 import types
 import unittest
 
-from bytecode import (UNSET, Label, Instr, ConcreteInstr, Block,
+from bytecode import (UNSET, Label, Instr, ConcreteInstr, BasicBlock,
                       Bytecode, BytecodeBlocks, ConcreteBytecode)
 
 
@@ -18,7 +18,7 @@ def _format_instr_list(block, labels, lineno):
             if arg is not UNSET:
                 if isinstance(arg, Label):
                     arg = labels[arg]
-                elif isinstance(arg, Block):
+                elif isinstance(arg, BasicBlock):
                     arg = labels[id(arg)]
                 else:
                     arg = repr(arg)
@@ -156,7 +156,8 @@ class TestCase(unittest.TestCase):
 
             for block_index, block in enumerate(expected_blocks, 1):
                 for index, instr in enumerate(block):
-                    if isinstance(instr, Instr) and isinstance(instr.arg, Block):
+                    if (isinstance(instr, Instr)
+                       and isinstance(instr.arg, BasicBlock)):
                         # copy the instruction to be able to modify
                         # its argument below
                         target_block = instr.arg

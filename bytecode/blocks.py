@@ -4,9 +4,9 @@ from bytecode.concrete import ConcreteInstr
 from bytecode.instr import Label, SetLineno, Instr
 
 
-class Block(_bytecode._InstrList):
+class BasicBlock(_bytecode._InstrList):
     def __init__(self, instructions=None):
-        # a Block object, or None
+        # a BasicBlock object, or None
         self.next_block = None
         if instructions:
             super().__init__(instructions)
@@ -15,7 +15,7 @@ class Block(_bytecode._InstrList):
         instructions = super().__iter__()
         for instr in instructions:
             if not isinstance(instr, (SetLineno, Instr, ConcreteInstr)):
-                raise ValueError("Block must only contain SetLineno, "
+                raise ValueError("BasicBlock must only contain SetLineno, "
                                  "Instr and ConcreteInstr objects, "
                                  "but %s was found"
                                  % instr.__class__.__name__)
@@ -44,7 +44,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         self._block_index[id(block)] = block_index
 
     def add_block(self, instructions=None):
-        block = Block(instructions)
+        block = BasicBlock(instructions)
         self._add_block(block)
         return block
 
@@ -62,7 +62,8 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
 
             for index, instr in enumerate(block):
                 offset += 1
-                if isinstance(instr, Instr) and isinstance(instr.arg, Block):
+                if (isinstance(instr, Instr)
+                   and isinstance(instr.arg, BasicBlock)):
                     target_block = instr.arg
                     instr = ConcreteInstr(instr.name, 0, lineno=instr.lineno)
                     jumps.append((target_block, instr))
@@ -95,12 +96,12 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         return iter(self._blocks)
 
     def __getitem__(self, index):
-        if isinstance(index, Block):
+        if isinstance(index, BasicBlock):
             index = self.get_block_index(index)
         return self._blocks[index]
 
     def __delitem__(self, index):
-        if isinstance(index, Block):
+        if isinstance(index, BasicBlock):
             index = self.get_block_index(block)
         block = self._blocks[index]
         del self._blocks[index]
@@ -110,7 +111,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
             self._block_index[id(block)] -= 1
 
     def split_block(self, block, index):
-        if not isinstance(block, Block):
+        if not isinstance(block, BasicBlock):
             raise TypeError("expected block")
         block_index = self.get_block_index(block)
 
@@ -126,7 +127,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
             raise ValueError("cannot create a label at the end of a block")
         del block[index:]
 
-        block2 = Block(instructions)
+        block2 = BasicBlock(instructions)
         block.next_block = block2
 
         for block in self[block_index+1:]:
@@ -205,7 +206,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         used_blocks = set()
         for block in self:
             for instr in block:
-                if isinstance(instr, Instr) and isinstance(instr.arg, Block):
+                if isinstance(instr, Instr) and isinstance(instr.arg, BasicBlock):
                     used_blocks.add(id(instr.arg))
 
         labels = {}
@@ -222,7 +223,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
                 # don't copy SetLineno objects
                 if isinstance(instr, (Instr, ConcreteInstr)):
                     instr = instr.copy()
-                    if isinstance(instr.arg, Block):
+                    if isinstance(instr.arg, BasicBlock):
                         jumps.append(instr)
                 instructions.append(instr)
 

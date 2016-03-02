@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import opcode
 import unittest
-from bytecode import UNSET, Label, Instr, CellVar, FreeVar, Block
+from bytecode import UNSET, Label, Instr, CellVar, FreeVar, BasicBlock
 from bytecode.tests import TestCase
 
 
@@ -21,7 +21,7 @@ class InstrTests(TestCase):
 
     def test_invalid_arg(self):
         label = Label()
-        block = Block()
+        block = BasicBlock()
 
         # has_jump()
         self.assertRaises(TypeError, Instr, "JUMP_ABSOLUTE", 1)
@@ -66,7 +66,7 @@ class InstrTests(TestCase):
     def test_attr(self):
         instr = Instr("LOAD_CONST", 3, lineno=5)
         self.assertEqual(instr.name, 'LOAD_CONST')
-        self.assertEqual(instr.op, 100)
+        self.assertEqual(instr.opcode, 100)
         self.assertEqual(instr.arg, 3)
         self.assertEqual(instr.lineno, 5)
 
@@ -74,9 +74,9 @@ class InstrTests(TestCase):
         self.assertRaises(ValueError, setattr, instr, 'lineno', 0)
         self.assertRaises(TypeError, setattr, instr, 'lineno', 1.0)
         self.assertRaises(TypeError, setattr, instr, 'name', 5)
-        self.assertRaises(TypeError, setattr, instr, 'op', 1.0)
-        self.assertRaises(ValueError, setattr, instr, 'op', -1)
-        self.assertRaises(ValueError, setattr, instr, 'op', 255)
+        self.assertRaises(TypeError, setattr, instr, 'opcode', 1.0)
+        self.assertRaises(ValueError, setattr, instr, 'opcode', -1)
+        self.assertRaises(ValueError, setattr, instr, 'opcode', 255)
 
         # arg can take any attribute but cannot be deleted
         instr.arg = -8
@@ -90,9 +90,9 @@ class InstrTests(TestCase):
     def test_modify_op(self):
         instr = Instr("LOAD_NAME", 'x')
         load_fast = opcode.opmap['LOAD_FAST']
-        instr.op = load_fast
+        instr.opcode = load_fast
         self.assertEqual(instr.name, 'LOAD_FAST')
-        self.assertEqual(instr.op, load_fast)
+        self.assertEqual(instr.opcode, load_fast)
 
     def test_extended_arg(self):
         instr = Instr("LOAD_CONST", 0x1234abcd)

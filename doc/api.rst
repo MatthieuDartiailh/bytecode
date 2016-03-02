@@ -22,7 +22,7 @@ Bytecode classes:
 * :class:`BaseBytecode`
 * :class:`Bytecode`
 * :class:`ConcreteBytecode`
-* :class:`Block`
+* :class:`BasicBlock`
 * :class:`BytecodeBlocks`
 
 Cell and Free Variables:
@@ -76,9 +76,12 @@ BaseInstr
 
       Operation name (``str``).
 
-   .. attribute:: op
+   .. attribute:: opcode
 
       Operation code (``int``).
+
+   .. versionchanged:: 0.3
+      The ``op`` attribute was renamed to :attr:`opcode`.
 
    Methods:
 
@@ -152,13 +155,14 @@ Instr
 
    * If the operation has a jump argument (:meth:`has_jump`, ex:
      ``JUMP_ABSOLUTE``): *arg* must be a :class:`Label` (if the instruction is
-     used in :class:`Bytecode`) or a :class:`Block` (:class:`BytecodeBlocks`).
+     used in :class:`Bytecode`) or a :class:`BasicBlock` (used in
+     :class:`BytecodeBlocks`).
    * If the operation has a cell or free argument (ex: ``LOAD_DEREF``): *arg*
      must be a :class:`CellVar` or :class:`FreeVar` instance.
    * If the operation has a local variable (ex: ``LOAD_FAST``): *arg* must be a
      variable name, type ``str``.
    * If the operation has a constant argument (``LOAD_CONST``): *arg* must not
-     be a :class:`Label` or :class:`Block` instance.
+     be a :class:`Label` or :class:`BasicBlock` instance.
    * If the operation has a compare argument (``'COMPARE_OP'``):
      *arg* must a :class:`Compare` enum.
    * If the operation has no argument (ex: ``DUP_TOP``), *arg* must not be set.
@@ -424,10 +428,10 @@ ConcreteBytecode
       Convert to abstract bytecode with abstract instructions.
 
 
-Block
+BasicBlock
 -----
 
-.. class:: Block
+.. class:: BasicBlock
 
    List of abstract instructions (:class:`Instr`). Inherit from :class:`list`.
 
@@ -446,7 +450,7 @@ Block
 
    .. attribute:: next_block
 
-      Next block (:class:`Block`), or ``None``.
+      Next block (:class:`BasicBlock`), or ``None``.
 
 
 BytecodeBlocks
@@ -456,10 +460,10 @@ BytecodeBlocks
 
    `Control flow graph (CFG)
    <https://en.wikipedia.org/wiki/Control_flow_graph>`_: list of blocks
-   (:class:`Block`). A block is a list of abstract instructions
+   (:class:`BasicBlock`). A block is a list of abstract instructions
    (:class:`Instr`). Inherit from :class:`BaseBytecode`.
 
-   Jump targets are blocks (:class:`Block`).
+   Jump targets are blocks (:class:`BasicBlock`).
 
    Labels (:class:`Label`) must not be used in blocks.
 
@@ -482,11 +486,11 @@ BytecodeBlocks
       Splits blocks after final instructions (:meth:`Instr.is_final`) and after
       conditional jumps (:meth:`Instr.is_cond_jump`).
 
-   .. method:: add_block(instructions=None) -> Block
+   .. method:: add_block(instructions=None) -> BasicBlock
 
-      Add a new block. Return the newly created block.
+      Add a new basic block. Return the newly created block.
 
-   .. method:: get_block_index(block: Block) -> int
+   .. method:: get_block_index(block: BasicBlock) -> int
 
       Get the index of a block in the bytecode.
 
@@ -494,7 +498,7 @@ BytecodeBlocks
 
       .. versionadded:: 0.3
 
-   .. method:: split_block(block: Block, index: int) -> Block
+   .. method:: split_block(block: BasicBlock, index: int) -> BasicBlock
 
       Split a block into two blocks at the specific instruction. Return
       the newly created block, or *block* if index equals ``0``.

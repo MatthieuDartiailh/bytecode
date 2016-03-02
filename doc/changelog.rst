@@ -11,6 +11,8 @@ API changes:
   (``co_kwonlyargcount``)
 - :class:`Instr` constructor and :meth:`Instr.set` now validates the argument
   type
+- Rename ``Instr.op`` to :attr:`Instr.op`
+- Rename ``Block`` class to :class:`BasicBlock`
 - Add :class:`Compare` enum, used for ``COMPARE_OP`` argument
 - Remove *lineno* parameter from :meth:`Instr.set`
 - Add :meth:`BytecodeBlocks.get_block_index`

@@ -157,9 +157,9 @@ class BaseInstr:
                 raise ValueError("operation %s has no argument" % name)
 
         if self._has_jump(opcode):
-            if not isinstance(arg, (Label, _bytecode.Block)):
+            if not isinstance(arg, (Label, _bytecode.BasicBlock)):
                 raise TypeError("operation %s argument type must be "
-                                "Label or Block, got %s"
+                                "Label or BasicBlock, got %s"
                                 % (name, type(arg).__name__))
 
         elif opcode in _opcode.hasfree:
@@ -179,7 +179,7 @@ class BaseInstr:
             if isinstance(arg, Label):
                 raise ValueError("label argument cannot be used "
                                  "in %s operation" % name)
-            if isinstance(arg, _bytecode.Block):
+            if isinstance(arg, _bytecode.BasicBlock):
                 raise ValueError("block argument cannot be used "
                                  "in %s operation" % name)
 
@@ -232,11 +232,11 @@ class BaseInstr:
         self._set(name, self._arg, self._lineno)
 
     @property
-    def op(self):
+    def opcode(self):
         return self._opcode
 
-    @op.setter
-    def op(self, op):
+    @opcode.setter
+    def opcode(self, op):
         if not isinstance(op, int):
             raise TypeError("operator code must be an int")
         if 0 <= op <= 255:

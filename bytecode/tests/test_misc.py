@@ -5,7 +5,7 @@ import textwrap
 import unittest
 
 import bytecode
-from bytecode import Label, Instr, Bytecode, Block, BytecodeBlocks
+from bytecode import Label, Instr, Bytecode, BasicBlock, BytecodeBlocks
 from bytecode.tests import disassemble
 
 
@@ -90,7 +90,7 @@ label_instr13:
         self.check_dump_bytecode(code, expected)
 
     def test_blocks_broken_jump(self):
-        block = Block()
+        block = BasicBlock()
         code = BytecodeBlocks()
         code[0].append(Instr('JUMP_ABSOLUTE', block))
 

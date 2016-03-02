@@ -5,7 +5,7 @@ the bytecode module.
 import opcode
 import operator
 import sys
-from bytecode import Instr, Bytecode, BytecodeBlocks, Label, Block, Compare
+from bytecode import Instr, Bytecode, BytecodeBlocks, Label, BasicBlock, Compare
 
 JUMPS_ON_TRUE = frozenset((
     'POP_JUMP_IF_TRUE',
@@ -354,7 +354,7 @@ class PeepholeOptimizer:
     def optimize_jump_to_cond_jump(self, instr):
         # Replace jumps to unconditional jumps
         jump_label = instr.arg
-        assert isinstance(jump_label, Block), jump_label
+        assert isinstance(jump_label, BasicBlock), jump_label
 
         target_instr = jump_label[0]
         if (instr.is_uncond_jump()
@@ -377,7 +377,7 @@ class PeepholeOptimizer:
             #    return
 
             # FIXME: remove this workaround and implement comment code ^^
-            if instr.op in opcode.hasjrel:
+            if instr.opcode in opcode.hasjrel:
                 return
 
             instr.name = name
@@ -437,7 +437,8 @@ class PeepholeOptimizer:
             if block.next_block is not None:
                 used_blocks.add(id(block.next_block))
             for instr in block:
-                if isinstance(instr, Instr) and isinstance(instr.arg, Block):
+                if (isinstance(instr, Instr)
+                   and isinstance(instr.arg, BasicBlock)):
                     used_blocks.add(id(instr.arg))
 
         block_index = 0

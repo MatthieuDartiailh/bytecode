@@ -295,20 +295,20 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
             arg = instr.arg
             # FIXME: better error reporting
-            if instr.op in _opcode.hasconst:
+            if instr.opcode in _opcode.hasconst:
                 arg = self.consts[arg]
-            elif instr.op in _opcode.haslocal:
+            elif instr.opcode in _opcode.haslocal:
                 arg = self.varnames[arg]
-            elif instr.op in _opcode.hasname:
+            elif instr.opcode in _opcode.hasname:
                 arg = self.names[arg]
-            elif instr.op in _opcode.hasfree:
+            elif instr.opcode in _opcode.hasfree:
                 if arg < ncells:
                     name = self.cellvars[arg]
                     arg = CellVar(name)
                 else:
                     name = self.freevars[arg - ncells]
                     arg = FreeVar(name)
-            elif instr.op in _opcode.hascompare:
+            elif instr.opcode in _opcode.hascompare:
                 arg = Compare(arg)
 
             if jump_target is None:
@@ -402,19 +402,19 @@ class _ConvertBytecodeToConcrete:
                     label = arg
                     # fake value, real value is set in compute_jumps()
                     arg = 0
-                elif instr.op in _opcode.hasconst:
+                elif instr.opcode in _opcode.hasconst:
                     arg = self.add_const(arg)
-                elif instr.op in _opcode.haslocal:
+                elif instr.opcode in _opcode.haslocal:
                     arg = self.add(self.varnames, arg)
-                elif instr.op in _opcode.hasname:
+                elif instr.opcode in _opcode.hasname:
                     arg = self.add(self.names, arg)
-                elif instr.op in _opcode.hasfree:
+                elif instr.opcode in _opcode.hasfree:
                     if isinstance(arg, CellVar):
                         arg = self.bytecode.cellvars.index(arg.name)
                     else:
                         assert isinstance(arg, FreeVar)
                         arg = ncells + self.bytecode.freevars.index(arg.name)
-                elif instr.op in _opcode.hascompare:
+                elif instr.opcode in _opcode.hascompare:
                     if isinstance(arg, Compare):
                         arg = arg.value
 
@@ -439,7 +439,7 @@ class _ConvertBytecodeToConcrete:
             target_index = self.labels[label]
             target_offset = offsets[target_index]
 
-            if instr.op in _opcode.hasjrel:
+            if instr.opcode in _opcode.hasjrel:
                 instr_offset = offsets[index]
                 target_offset -= (instr_offset + instr.size)
 

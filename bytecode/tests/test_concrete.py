@@ -36,7 +36,7 @@ class ConcreteInstrTests(TestCase):
     def test_attr(self):
         instr = ConcreteInstr("LOAD_CONST", 5, lineno=12)
         self.assertEqual(instr.name, 'LOAD_CONST')
-        self.assertEqual(instr.op, 100)
+        self.assertEqual(instr.opcode, 100)
         self.assertEqual(instr.arg, 5)
         self.assertEqual(instr.lineno, 12)
         self.assertEqual(instr.size, 3)
@@ -66,16 +66,16 @@ class ConcreteInstrTests(TestCase):
         # operator name
         instr.name = 'LOAD_FAST'
         self.assertEqual(instr.name, 'LOAD_FAST')
-        self.assertEqual(instr.op, 124)
+        self.assertEqual(instr.opcode, 124)
         self.assertRaises(TypeError, setattr, instr, 'name', 3)
         self.assertRaises(ValueError, setattr, instr, 'name', 'xxx')
 
         # operator code
-        instr.op = 100
+        instr.opcode = 100
         self.assertEqual(instr.name, 'LOAD_CONST')
-        self.assertEqual(instr.op, 100)
-        self.assertRaises(ValueError, setattr, instr, 'op', -12)
-        self.assertRaises(TypeError, setattr, instr, 'op', 'abc')
+        self.assertEqual(instr.opcode, 100)
+        self.assertRaises(ValueError, setattr, instr, 'opcode', -12)
+        self.assertRaises(TypeError, setattr, instr, 'opcode', 'abc')
 
         # extended argument
         instr.arg = 0x1234abcd

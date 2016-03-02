@@ -10,7 +10,7 @@ from bytecode.bytecode import BaseBytecode, _InstrList, Bytecode
 from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,
                                # import needed to use it in bytecode.py
                                _ConvertBytecodeToConcrete)
-from bytecode.blocks import Block, BytecodeBlocks
+from bytecode.blocks import BasicBlock, BytecodeBlocks
 
 
 def dump_bytecode(bytecode, *, lineno=False):
@@ -36,7 +36,7 @@ def dump_bytecode(bytecode, *, lineno=False):
                     arg = '<%s>' % labels[arg]
                 except KeyError:
                     arg = '<error: unknown label>'
-            elif isinstance(arg, Block):
+            elif isinstance(arg, BasicBlock):
                 try:
                     arg = '<%s>' % labels[id(arg)]
                 except KeyError:
