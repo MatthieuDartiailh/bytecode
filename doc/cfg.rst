@@ -9,7 +9,8 @@ To analyze or optimize existing code, ``bytecode`` provides a
 Example
 =======
 
-Dump the blocks of the :ref:`conditional jump example <ex-cond-jump>`::
+Dump the control flow graph of the :ref:`conditional jump example
+<ex-cond-jump>`::
 
     from bytecode import Label, Instr, Bytecode, ControlFlowGraph, dump_bytecode
 
@@ -67,26 +68,26 @@ Analyze the control flow graph
 
 The ``bytecode`` module provides two ways to iterate on blocks:
 
-* iterate on the block as a sequential list
+* iterate on the basic block as a sequential list
 * browse the graph by following jumps and links to next blocks
 
-Iterate on blocks
------------------
+Iterate on basic blocks
+-----------------------
 
-Iterating on blocks is a simple as this loop::
+Iterating on basic blocks is a simple as this loop::
 
     for block in blocks:
         ...
 
 Example of a ``display_blocks()`` function::
 
-    from bytecode import UNSET, Label, Instr, Bytecode, Block, ControlFlowGraph
+    from bytecode import UNSET, Label, Instr, Bytecode, BasicBlock, ControlFlowGraph
 
     def display_blocks(blocks):
         for block in blocks:
             print("Block #%s" % (1 + blocks.get_block_index(block)))
             for instr in block:
-                if isinstance(instr.arg, Block):
+                if isinstance(instr.arg, BasicBlock):
                     arg = "<block #%s>" % (1 + blocks.get_block_index(instr.arg))
                 elif instr.arg is not UNSET:
                     arg = repr(instr.arg)
@@ -147,9 +148,9 @@ Browse the graph
 
 Recursive function is a simple solution to browse the control flow graph.
 
-Example to a recursive ``display_block``::
+Example to a recursive ``display_block()`` function::
 
-    from bytecode import UNSET, Label, Instr, Bytecode, Block, ControlFlowGraph
+    from bytecode import UNSET, Label, Instr, Bytecode, BasicBlock, ControlFlowGraph
 
     def display_block(blocks, block, seen=None):
         # avoid loop: remember which blocks were already seen
@@ -162,7 +163,7 @@ Example to a recursive ``display_block``::
         # display instructions of the block
         print("Block #%s" % (1 + blocks.get_block_index(block)))
         for instr in block:
-            if isinstance(instr.arg, Block):
+            if isinstance(instr.arg, BasicBlock):
                 arg = "<block #%s>" % (1 + blocks.get_block_index(instr.arg))
             elif instr.arg is not UNSET:
                 arg = repr(instr.arg)
@@ -181,10 +182,10 @@ Example to a recursive ``display_block``::
         if block.next_block is not None:
             display_block(blocks, block.next_block, seen)
 
-        # display block linked by jumps
-        for instr in block:
-            if isinstance(instr.arg, Block):
-                display_block(blocks, instr.arg, seen)
+        # display the block linked by jump (if any)
+        target_block = block.get_jump()
+        if target_block is not None:
+            display_block(blocks, target_block, seen)
 
     label_else = Label()
     label_print = Label()
@@ -202,7 +203,6 @@ Example to a recursive ``display_block``::
 
     blocks = ControlFlowGraph.from_bytecode(bytecode)
     display_block(blocks, blocks[0])
-
 
 Output::
 
