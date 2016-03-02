@@ -7,7 +7,7 @@ class BaseBytecode:
     def __init__(self):
         self.argcount = 0
         # FIXME: rename to kwonlyargcount?
-        self.kw_only_argcount = 0
+        self.kwonlyargcount = 0
         # FIXME: insane and safe value until _ConvertBytecodeToConcrete is able
         # to compute the value itself
         self._stacksize = 256
@@ -24,7 +24,7 @@ class BaseBytecode:
 
     def _copy_attr_from(self, bytecode):
         self.argcount = bytecode.argcount
-        self.kw_only_argcount = bytecode.kw_only_argcount
+        self.kwonlyargcount = bytecode.kwonlyargcount
         self._stacksize = bytecode._stacksize
         self.flags = bytecode.flags
         self.first_lineno = bytecode.first_lineno
@@ -40,7 +40,7 @@ class BaseBytecode:
 
         if self.argcount != other.argcount:
             return False
-        if self.kw_only_argcount != other.kw_only_argcount:
+        if self.kwonlyargcount != other.kwonlyargcount:
             return False
         if self._stacksize != other._stacksize:
             return False

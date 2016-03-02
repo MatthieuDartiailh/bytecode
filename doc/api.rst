@@ -310,13 +310,16 @@ BaseBytecode
 
       List of free variable names (``list`` of ``str``), default: empty list.
 
-   .. attribute:: kw_only_argcount
+   .. attribute:: kwonlyargcount
 
       Keyword-only argument count (``int``), default: ``0``.
 
    .. attribute:: name
 
       Code name (``str``), default: ``'<module>'``.
+
+   .. versionchanged:: 0.3
+      Attribute ``kw_only_argcount`` renamed to :attr:`kwonlyargcount`.
 
 
 Bytecode

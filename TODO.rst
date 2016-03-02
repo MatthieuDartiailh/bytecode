@@ -1,8 +1,6 @@
-* CPython: Python/compile.c, add assertion to deny negative argument?
 * ConcreteBytecode.to_code(): compute the stack level, see byteplay
   and Python/compile.c?
 * ConcreteBytecode.to_code(): better error reporting on bugs in the code
-* Bytecode: rename kw_only_argcount to kwonlyargcount?
 * Document or expose CO_xxx flags
 * Support negative line number delta, error on Python < 3.6
 

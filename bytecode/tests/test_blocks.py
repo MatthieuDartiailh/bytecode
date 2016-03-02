@@ -36,7 +36,7 @@ class BytecodeBlocksTests(TestCase):
         self.assertEqual(code.argcount, 2)
         self.assertEqual(code.filename, "hello.py")
         self.assertEqual(code.first_lineno, 3)
-        self.assertEqual(code.kw_only_argcount, 1)
+        self.assertEqual(code.kwonlyargcount, 1)
         self.assertEqual(code.name, "func")
         self.assertEqual(code.cellvars, [])
 
@@ -300,7 +300,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         bytecode = BytecodeBlocks()
         bytecode.first_lineno = 3
         bytecode.argcount = 3
-        bytecode.kw_only_argcount = 2
+        bytecode.kwonlyargcount = 2
         bytecode._stacksize = 1
         bytecode.name = 'func'
         bytecode.filename = 'hello.py'

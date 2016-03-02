@@ -63,8 +63,8 @@ def dump_bytecode(code, lineno=True):
             print(indent + 'code = %s()' % name)
             if code.argcount:
                 print(indent + 'code.argcount = %s' % code.argcount)
-            if code.kw_only_argcount:
-                print(indent + 'code.argcount = %s' % code.kw_only_argcount)
+            if code.kwonlyargcount:
+                print(indent + 'code.argcount = %s' % code.kwonlyargcount)
             print(indent + 'code.flags = %#x' % code.flags)
             if code.consts:
                 print(indent + 'code.consts = %r' % code.consts)

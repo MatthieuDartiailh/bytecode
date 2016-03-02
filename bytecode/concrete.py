@@ -176,7 +176,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode.filename = code.co_filename
         bytecode.flags = code.co_flags
         bytecode.argcount = code.co_argcount
-        bytecode.kw_only_argcount = code.co_kwonlyargcount
+        bytecode.kwonlyargcount = code.co_kwonlyargcount
         bytecode._stacksize = code.co_stacksize
         bytecode.first_lineno = code.co_firstlineno
         bytecode.names = list(code.co_names)
@@ -249,7 +249,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         lnotab = self._assemble_lnotab(self.first_lineno, linenos)
         nlocals = len(self.varnames)
         return types.CodeType(self.argcount,
-                              self.kw_only_argcount,
+                              self.kwonlyargcount,
                               nlocals,
                               # FIXME: compute stack size
                               self._stacksize,
@@ -331,7 +331,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode = _bytecode.Bytecode()
         bytecode._copy_attr_from(self)
 
-        nargs = bytecode.argcount + bytecode.kw_only_argcount
+        nargs = bytecode.argcount + bytecode.kwonlyargcount
         if bytecode.flags & inspect.CO_VARARGS:
             nargs += 1
         if bytecode.flags & inspect.CO_VARKEYWORDS:

@@ -6,6 +6,9 @@ Version 0.3
 
 API changes:
 
+- :class:`Bytecode`: ``kw_only_argcount`` attribute to renamed to
+  ``kwonlyargcount`` to use a name closer to Python code object attribute
+  (``co_kwonlyargcount``)
 - :class:`Instr` constructor and :meth:`Instr.set` now validates the argument
   type
 - Add :class:`Compare` enum, used for ``COMPARE_OP`` argument
