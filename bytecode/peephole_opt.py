@@ -305,7 +305,11 @@ class PeepholeOptimizer:
         #    -->  x:POP_JUMP_IF_FALSE y+3
         # where y+3 is the instruction following the second test.
         target_block = instr.arg
-        target_instr = target_block[0]
+        try:
+            target_instr = target_block[0]
+        except IndexError:
+            return
+
         if not target_instr.is_cond_jump():
             self.optimize_jump_to_cond_jump(instr)
             return
@@ -356,7 +360,11 @@ class PeepholeOptimizer:
         jump_label = instr.arg
         assert isinstance(jump_label, BasicBlock), jump_label
 
-        target_instr = jump_label[0]
+        try:
+            target_instr = jump_label[0]
+        except IndexError:
+            return
+
         if (instr.is_uncond_jump()
            and target_instr.name == 'RETURN_VALUE'):
             # Replace JUMP_ABSOLUTE => RETURN_VALUE with RETURN_VALUE

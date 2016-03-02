@@ -456,27 +456,22 @@ class Tests(TestCase):
         #
         # if not x:
         #     y = 9
-        # y = 4
         label = Label()
         code = Bytecode([Instr('LOAD_NAME', 'x'),
                          Instr('UNARY_NOT'),
                          Instr('POP_JUMP_IF_FALSE', label),
-                         Instr('LOAD_CONST', 9),
-                         Instr('STORE_NAME', 'y'),
-                         label,
-                         Instr('LOAD_CONST', 4),
-                         Instr('STORE_NAME', 'y')])
+                             Instr('LOAD_CONST', 9),
+                             Instr('STORE_NAME', 'y'),
+                         label])
 
         code = self.optimize_blocks(code)
         label = Label()
         self.check(code,
                    Instr('LOAD_NAME', 'x'),
                    Instr('POP_JUMP_IF_TRUE', label),
-                   Instr('LOAD_CONST', 9),
-                   Instr('STORE_NAME', 'y'),
-                   label,
-                   Instr('LOAD_CONST', 4),
-                   Instr('STORE_NAME', 'y'))
+                       Instr('LOAD_CONST', 9),
+                       Instr('STORE_NAME', 'y'),
+                   label)
 
     def test_unconditional_jump_to_return(self):
         source = """

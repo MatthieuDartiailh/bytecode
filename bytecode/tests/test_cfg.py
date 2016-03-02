@@ -163,6 +163,24 @@ class BytecodeBlocksTests(TestCase):
                               Instr('RETURN_VALUE', lineno=3)])
         # FIXME: test other attributes
 
+    def test_label_at_the_end(self):
+        label = Label()
+        code = Bytecode([Instr('LOAD_NAME', 'x'),
+                         Instr('UNARY_NOT'),
+                         Instr('POP_JUMP_IF_FALSE', label),
+                             Instr('LOAD_CONST', 9),
+                             Instr('STORE_NAME', 'y'),
+                         label])
+
+        cfg = ControlFlowGraph.from_bytecode(code)
+        self.assertBlocksEqual(cfg,
+                               [Instr('LOAD_NAME', 'x'),
+                                Instr('UNARY_NOT'),
+                                Instr('POP_JUMP_IF_FALSE', cfg[2])],
+                               [Instr('LOAD_CONST', 9),
+                                Instr('STORE_NAME', 'y')],
+                               [])
+
     def test_from_bytecode(self):
         bytecode = Bytecode()
         label = Label()
