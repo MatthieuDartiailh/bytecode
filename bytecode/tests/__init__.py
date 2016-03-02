@@ -133,11 +133,8 @@ class TestCase(unittest.TestCase):
             labels = {}
             jumps = []
 
-            offset = 0
-            for block_index, block in enumerate(code, 1):
-                labels[id(block)] = offset
-                for instr in block:
-                    offset += 1
+            for block_index, block in enumerate(code):
+                labels[id(block)] = block_index
 
             for block_index, block in enumerate(expected_blocks, 1):
                 for index, instr in enumerate(block):

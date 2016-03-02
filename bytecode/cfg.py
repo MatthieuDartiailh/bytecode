@@ -77,24 +77,22 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
     def _flat(self):
         instructions = []
-        labels = {}
         jumps = []
-        offset = 0
 
-        for block_index, block in enumerate(self, 1):
-            labels[id(block)] = offset
+        for block in self:
+            target_block = block.get_jump()
+            if target_block is not None:
+                instr = block[-1]
+                instr = ConcreteInstr(instr.name, 0, lineno=instr.lineno)
+                jumps.append((target_block, instr))
 
-            for index, instr in enumerate(block):
-                offset += 1
-                if (isinstance(instr, Instr)
-                   and isinstance(instr.arg, BasicBlock)):
-                    target_block = instr.arg
-                    instr = ConcreteInstr(instr.name, 0, lineno=instr.lineno)
-                    jumps.append((target_block, instr))
+                instructions.extend(block[:-1])
                 instructions.append(instr)
+            else:
+                instructions.extend(block)
 
-        for block, instr in jumps:
-            instr.arg = labels[id(block)]
+        for target_block, instr in jumps:
+            instr.arg = self.get_block_index(target_block)
 
         return instructions
 
@@ -222,10 +220,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         return bytecode_blocks
 
     def to_bytecode(self):
-        """Convert to Bytecode.
-
-        Unused labels are removed.
-        """
+        """Convert to Bytecode."""
 
         used_blocks = set()
         for block in self:
