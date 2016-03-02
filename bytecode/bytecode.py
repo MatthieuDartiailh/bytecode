@@ -6,7 +6,6 @@ from bytecode.instr import UNSET, Label, SetLineno, Instr
 class BaseBytecode:
     def __init__(self):
         self.argcount = 0
-        # FIXME: rename to kwonlyargcount?
         self.kwonlyargcount = 0
         # FIXME: insane and safe value until _ConvertBytecodeToConcrete is able
         # to compute the value itself
