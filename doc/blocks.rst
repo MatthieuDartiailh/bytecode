@@ -32,21 +32,21 @@ Dump the blocks of the :ref:`conditional jump example <ex-cond-jump>`::
 
 Output::
 
-    label_block1:
+    block1:
         LOAD_NAME 'print'
         LOAD_NAME 'test'
-        POP_JUMP_IF_FALSE <label_block3>
-        -> label_block2
+        POP_JUMP_IF_FALSE <block3>
+        -> block2
 
-    label_block2:
+    block2:
         LOAD_CONST 'yes'
-        JUMP_FORWARD <label_block4>
+        JUMP_FORWARD <block4>
 
-    label_block3:
+    block3:
         LOAD_CONST 'no'
-        -> label_block4
+        -> block4
 
-    label_block4:
+    block4:
         CALL_FUNCTION 1
         LOAD_CONST None
         RETURN_VALUE
