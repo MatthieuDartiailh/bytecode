@@ -2,33 +2,25 @@
 Bytecode API
 ************
 
-bytecode module version string: ``bytecode.__version__`` (ex: ``'0.1'``).
+* Constants: :data:`__version__`, :data:`UNSET`
+* Abstract bytecode: :class:`Label`, :class:`Instr`, :class:`Bytecode`
+* Line number: :class:`SetLineno`
+* Arguments: :class:`CellVar`, :class:`Compare`, :class:`FreeVar`
+* Concrete bytecode: :class:`ConcreteInstr`, :class:`ConcreteBytecode`
+* Control Flow Graph (CFG): :class:`BasicBlock`, :class:`ControlFlowGraph`
+* Base classes: :class:`BaseInstr`, :class:`BaseBytecode`
+
+
+Constants
+=========
+
+.. data:: __version__
+
+   Module version string (ex: ``'0.1'``).
 
 .. data:: UNSET
 
    Singleton used to mark the lack of value. It is different than ``None``.
-
-Instruction classes:
-
-* :class:`BaseInstr`
-* :class:`Instr`
-* :class:`ConcreteInstr`
-* :class:`Compare`
-* :class:`Label`
-* :class:`SetLineno`
-
-Bytecode classes:
-
-* :class:`BaseBytecode`
-* :class:`Bytecode`
-* :class:`ConcreteBytecode`
-* :class:`BasicBlock`
-* :class:`ControlFlowGraph`
-
-Cell and Free Variables:
-
-* :class:`CellVar`
-* :class:`FreeVar`
 
 
 Functions
