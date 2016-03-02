@@ -34,6 +34,18 @@ class BasicBlock(_bytecode._InstrList):
 
             yield instr
 
+    def get_jump(self):
+        if not self:
+            return None
+
+        last_instr = self[-1]
+        if not(isinstance(last_instr, Instr) and last_instr.has_jump()):
+            return None
+
+        target_block = last_instr.arg
+        assert isinstance(target_block, BasicBlock)
+        return target_block
+
 
 class ControlFlowGraph(_bytecode.BaseBytecode):
     def __init__(self):
@@ -217,9 +229,9 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
         used_blocks = set()
         for block in self:
-            for instr in block:
-                if isinstance(instr, Instr) and isinstance(instr.arg, BasicBlock):
-                    used_blocks.add(id(instr.arg))
+            target_block = block.get_jump()
+            if target_block is not None:
+                used_blocks.add(id(target_block))
 
         labels = {}
         jumps = []

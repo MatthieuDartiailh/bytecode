@@ -449,8 +449,8 @@ BasicBlock
    It is possible to use concrete instructions (:class:`ConcreteInstr`) in
    blocks, but abstract instructions (:class:`Instr`) are preferred.
 
-   Only the last instruction can have a jump, and the jump target must be a
-   basic block (:class:`BasicBlock`).
+   Only the last instruction can have a jump argument, and the jump argument
+   must be a basic block (:class:`BasicBlock`).
 
    Labels (:class:`Label`) must not be used in blocks.
 
@@ -459,6 +459,14 @@ BasicBlock
    .. attribute:: next_block
 
       Next basic block (:class:`BasicBlock`), or ``None``.
+
+   Methods:
+
+   .. method:: get_jump()
+
+      Get the target block (:class:`BasicBlock`) of the jump if the basic block
+      ends with an instruction with a jump argument. Otherwise, return
+      ``None``.
 
 
 ControlFlowGraph
