@@ -7,10 +7,17 @@ from bytecode.tests import disassemble, TestCase, get_code
 
 class BlockTests(unittest.TestCase):
     def test_iter_invalid_types(self):
-        code = BasicBlock()
-        code.append(Label())
+        block = BasicBlock()
+        block.append(Label())
         with self.assertRaises(ValueError):
-            list(code)
+            list(block)
+
+        block = BasicBlock()
+        block2 = BasicBlock()
+        block.extend([Instr('JUMP_ABSOLUTE', block2),
+                     Instr('NOP')])
+        with self.assertRaises(ValueError):
+            list(block)
 
 
 class BytecodeBlocksTests(TestCase):
@@ -132,9 +139,10 @@ class BytecodeBlocksTests(TestCase):
     def test_to_bytecode_labels(self):
         blocks = ControlFlowGraph()
         label = Label()
+        blocks.add_block()
         blocks[0].extend([Instr('LOAD_NAME', 'test'),
-                          Instr('POP_JUMP_IF_FALSE', label),
-                          label])
+                          Instr('POP_JUMP_IF_FALSE', label)])
+        blocks[1].append(label)
 
         with self.assertRaises(ValueError) as cm:
             blocks.to_bytecode()
@@ -210,22 +218,23 @@ class BytecodeBlocksTests(TestCase):
         ))
         blocks = ControlFlowGraph.from_bytecode(code)
 
-        expected = [[Instr('SETUP_LOOP', blocks[6], lineno=1),
-                     Instr('LOAD_CONST', (1, 2, 3), lineno=1),
+        expected = [[Instr('SETUP_LOOP', blocks[8], lineno=1)],
+
+                    [Instr('LOAD_CONST', (1, 2, 3), lineno=1),
                      Instr('GET_ITER', lineno=1)],
 
-                    [Instr('FOR_ITER', blocks[5], lineno=1),
+                    [Instr('FOR_ITER', blocks[7], lineno=1),
                      Instr('STORE_NAME', 'x', lineno=1),
                      Instr('LOAD_NAME', 'x', lineno=2),
                      Instr('LOAD_CONST', 2, lineno=2),
                      Instr('COMPARE_OP', Compare.EQ, lineno=2),
-                     Instr('POP_JUMP_IF_FALSE', blocks[1], lineno=2)],
+                     Instr('POP_JUMP_IF_FALSE', blocks[2], lineno=2)],
 
                     [Instr('BREAK_LOOP', lineno=3)],
 
-                    [Instr('JUMP_ABSOLUTE', blocks[1], lineno=4)],
+                    [Instr('JUMP_ABSOLUTE', blocks[2], lineno=4)],
 
-                    [Instr('JUMP_ABSOLUTE', blocks[1], lineno=4)],
+                    [Instr('JUMP_ABSOLUTE', blocks[2], lineno=4)],
 
                     [Instr('POP_BLOCK', lineno=4)],
 
@@ -309,11 +318,12 @@ class BytecodeBlocksFunctionalTests(TestCase):
         bytecode.docstring = None
         block0 = bytecode[0]
         block1 = bytecode.add_block()
+        block2 = bytecode.add_block()
         block0.extend([Instr('LOAD_FAST', 'x', lineno=4),
-                       Instr('POP_JUMP_IF_FALSE', block1, lineno=4),
-                       Instr('LOAD_FAST', 'arg', lineno=5),
+                       Instr('POP_JUMP_IF_FALSE', block2, lineno=4)])
+        block1.extend([Instr('LOAD_FAST', 'arg', lineno=5),
                        Instr('STORE_FAST', 'x', lineno=5)])
-        block1.extend([Instr('LOAD_CONST', 3, lineno=6),
+        block2.extend([Instr('LOAD_CONST', 3, lineno=6),
                        Instr('STORE_FAST', 'x', lineno=6),
                        Instr('LOAD_FAST', 'x', lineno=7),
                        Instr('RETURN_VALUE', lineno=7)])

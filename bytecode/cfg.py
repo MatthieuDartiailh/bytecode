@@ -12,13 +12,21 @@ class BasicBlock(_bytecode._InstrList):
             super().__init__(instructions)
 
     def __iter__(self):
-        instructions = super().__iter__()
-        for instr in instructions:
+        index = 0
+        while index < len(self):
+            instr = self[index]
+            index += 1
+
             if not isinstance(instr, (SetLineno, Instr, ConcreteInstr)):
                 raise ValueError("BasicBlock must only contain SetLineno, "
                                  "Instr and ConcreteInstr objects, "
                                  "but %s was found"
                                  % instr.__class__.__name__)
+
+            if index < len(self):
+                if isinstance(instr, Instr) and instr.has_jump():
+                    raise ValueError("Only the last instruction of a basic "
+                                     "block can be a jump")
 
             yield instr
 
@@ -176,7 +184,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             elif block and isinstance(block[-1], Instr):
                 if block[-1].is_final():
                     block = bytecode_blocks.add_block()
-                elif block[-1].is_cond_jump():
+                elif block[-1].has_jump():
                     new_block = bytecode_blocks.add_block()
                     block.next_block = new_block
                     block = new_block
@@ -208,6 +216,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             for instr in block:
                 if isinstance(instr, Instr) and isinstance(instr.arg, BasicBlock):
                     used_blocks.add(id(instr.arg))
+
 
         labels = {}
         jumps = []
