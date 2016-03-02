@@ -7,15 +7,24 @@ from bytecode.tests import disassemble, TestCase, get_code
 
 class BlockTests(unittest.TestCase):
     def test_iter_invalid_types(self):
+        # Labels are not allowed in basic blocks
         block = BasicBlock()
         block.append(Label())
         with self.assertRaises(ValueError):
             list(block)
 
+        # Only one jump allowed and only at the end
         block = BasicBlock()
         block2 = BasicBlock()
         block.extend([Instr('JUMP_ABSOLUTE', block2),
                      Instr('NOP')])
+        with self.assertRaises(ValueError):
+            list(block)
+
+        # jump target must be a BasicBlock
+        block = BasicBlock()
+        label = Label()
+        block.extend([Instr('JUMP_ABSOLUTE', label)])
         with self.assertRaises(ValueError):
             list(block)
 
@@ -135,20 +144,6 @@ class BytecodeBlocksTests(TestCase):
                               Instr('LOAD_CONST', None, lineno=3),
                               Instr('RETURN_VALUE', lineno=3)])
         # FIXME: test other attributes
-
-    def test_to_bytecode_labels(self):
-        blocks = ControlFlowGraph()
-        label = Label()
-        blocks.add_block()
-        blocks[0].extend([Instr('LOAD_NAME', 'test'),
-                          Instr('POP_JUMP_IF_FALSE', label)])
-        blocks[1].append(label)
-
-        with self.assertRaises(ValueError) as cm:
-            blocks.to_bytecode()
-        self.assertEqual(str(cm.exception),
-                         'BasicBlock must only contain SetLineno, Instr and '
-                         'ConcreteInstr objects, but Label was found')
 
     def test_from_bytecode(self):
         bytecode = Bytecode()

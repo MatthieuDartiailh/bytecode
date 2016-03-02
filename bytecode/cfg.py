@@ -23,10 +23,14 @@ class BasicBlock(_bytecode._InstrList):
                                  "but %s was found"
                                  % instr.__class__.__name__)
 
-            if index < len(self):
-                if isinstance(instr, Instr) and instr.has_jump():
+            if isinstance(instr, Instr) and instr.has_jump():
+                if index < len(self):
                     raise ValueError("Only the last instruction of a basic "
                                      "block can be a jump")
+
+                if not isinstance(instr.arg, BasicBlock):
+                    raise ValueError("Jump target must a BasicBlock, got %s",
+                                     type(instr.arg).__name__)
 
             yield instr
 
@@ -216,7 +220,6 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             for instr in block:
                 if isinstance(instr, Instr) and isinstance(instr.arg, BasicBlock):
                     used_blocks.add(id(instr.arg))
-
 
         labels = {}
         jumps = []
