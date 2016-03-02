@@ -97,6 +97,17 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         self.names = []
         self.varnames = []
 
+    def __iter__(self):
+        instructions = super().__iter__()
+        for instr in instructions:
+            if not isinstance(instr, (ConcreteInstr, SetLineno)):
+                raise ValueError("ConcreteBytecode must only contain "
+                                 "ConcreteInstr and SetLineno objects, "
+                                 "but %s was found"
+                                 % instr.__class__.__name__)
+
+            yield instr
+
     def __repr__(self):
         return '<ConcreteBytecode instr#=%s>' % len(self)
 
@@ -383,7 +394,9 @@ class _ConvertBytecodeToConcrete:
 
             if isinstance(instr, ConcreteInstr):
                 instr = instr.copy()
-            elif isinstance(instr, Instr):
+            else:
+                assert isinstance(instr, Instr)
+
                 if instr.lineno is not None:
                     lineno = instr.lineno
 
@@ -412,9 +425,6 @@ class _ConvertBytecodeToConcrete:
                 instr = ConcreteInstr(instr.name, arg, lineno=lineno)
                 if is_jump:
                     self.jumps.append((len(self.instructions), label, instr))
-            else:
-                raise ValueError("Bytecode must not contain %s objects"
-                                 % instr.__class__.__name__)
 
             self.instructions.append(instr)
 

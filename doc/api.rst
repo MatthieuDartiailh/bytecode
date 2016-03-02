@@ -327,7 +327,7 @@ Bytecode
    Abstract bytecode: list of abstract instructions (:class:`Instr`).
    Inherit from :class:`BaseBytecode` and :class:`list`.
 
-   A :class:`Bytecode` object can contain 4 types of objects:
+   A bytecode must only contain objects of the 4 following types:
 
    * :class:`Label`
    * :class:`SetLineno`
@@ -375,9 +375,12 @@ ConcreteBytecode
    List of concrete instructions (:class:`ConcreteInstr`).
    Inherit from :class:`BaseBytecode`.
 
-   A concrete bytecode must only contain concrete instructions
-   (:class:`ConcreteInstr`): :class:`Label`, :class:`SetLineno` and
-   :class:`Instr` are not allowed in concrete bytecode.
+   A concrete bytecode must only contain objects of the 2 following types:
+
+   * :class:`SetLineno`
+   * :class:`ConcreteInstr`
+
+   :class:`Label` and :class:`Instr` must not be used in concrete bytecode.
 
    Attributes:
 
@@ -421,7 +424,7 @@ Block
 
    List of abstract instructions (:class:`Instr`). Inherit from :class:`list`.
 
-   A block can contain 3 types of objects:
+   A block must only contain objects of the 3 following types:
 
    * :class:`SetLineno`
    * :class:`Instr`

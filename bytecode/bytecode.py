@@ -1,6 +1,6 @@
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
-from bytecode.instr import Instr, Label, UNSET
+from bytecode.instr import UNSET, Label, SetLineno, Instr
 
 
 class BaseBytecode:
@@ -100,6 +100,18 @@ class Bytecode(_InstrList, BaseBytecode):
         if instructions is not None:
             self.extend(instructions)
         self.argnames = []
+
+    def __iter__(self):
+        instructions = super().__iter__()
+        for instr in instructions:
+            if not isinstance(instr, (Label, SetLineno, Instr,
+                                      _bytecode.ConcreteInstr)):
+                raise ValueError("Bytecode must only contain Label, "
+                                 "SetLineno, Instr and ConcreteInstr objects, "
+                                 "but %s was found"
+                                 % instr.__class__.__name__)
+
+            yield instr
 
     @staticmethod
     def from_code(code):

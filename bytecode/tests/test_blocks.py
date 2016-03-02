@@ -5,6 +5,14 @@ from bytecode import (Label, Compare, SetLineno, Instr, ConcreteInstr,
 from bytecode.tests import disassemble, TestCase, get_code
 
 
+class BlockTests(unittest.TestCase):
+    def test_iter_invalid_types(self):
+        code = Block()
+        code.append(Label())
+        with self.assertRaises(ValueError):
+            list(code)
+
+
 class BytecodeBlocksTests(TestCase):
     maxDiff = 80 * 100
 
@@ -130,7 +138,9 @@ class BytecodeBlocksTests(TestCase):
 
         with self.assertRaises(ValueError) as cm:
             blocks.to_bytecode()
-        self.assertEqual(str(cm.exception), 'Label must not be used in blocks')
+        self.assertEqual(str(cm.exception),
+                         'Block must only contain SetLineno, Instr and '
+                         'ConcreteInstr objects, but Label was found')
 
     def test_from_bytecode(self):
         bytecode = Bytecode()

@@ -1,7 +1,7 @@
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 from bytecode.concrete import ConcreteInstr
-from bytecode.instr import Instr, Label
+from bytecode.instr import Label, SetLineno, Instr
 
 
 class Block(_bytecode._InstrList):
@@ -10,6 +10,17 @@ class Block(_bytecode._InstrList):
         self.next_block = None
         if instructions:
             super().__init__(instructions)
+
+    def __iter__(self):
+        instructions = super().__iter__()
+        for instr in instructions:
+            if not isinstance(instr, (SetLineno, Instr, ConcreteInstr)):
+                raise ValueError("Block must only contain SetLineno, "
+                                 "Instr and ConcreteInstr objects, "
+                                 "but %s was found"
+                                 % instr.__class__.__name__)
+
+            yield instr
 
 
 class BytecodeBlocks(_bytecode.BaseBytecode):
@@ -196,8 +207,6 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         used_blocks = set()
         for block in self:
             for instr in block:
-                if isinstance(instr, Label):
-                    raise ValueError("Label must not be used in blocks")
                 if isinstance(instr, Instr) and isinstance(instr.arg, Block):
                     used_blocks.add(id(instr.arg))
 

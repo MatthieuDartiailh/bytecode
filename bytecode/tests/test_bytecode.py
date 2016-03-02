@@ -15,6 +15,12 @@ class BytecodeTests(TestCase):
         self.assertEqual(code.flags, 0)
         self.assertEqual(code, [])
 
+    def test_iter_invalid_types(self):
+        code = Bytecode()
+        code.append(123)
+        with self.assertRaises(ValueError):
+            list(code)
+
     def test_from_code(self):
         code = get_code("""
             if test:

@@ -150,6 +150,12 @@ class ConcreteBytecodeTests(TestCase):
                               ConcreteInstr('RETURN_VALUE', lineno=1)])
         # FIXME: test other attributes
 
+    def test_iter_invalid_types(self):
+        code = ConcreteBytecode()
+        code.append(Label())
+        with self.assertRaises(ValueError):
+            list(code)
+
     def test_to_code_lnotab(self):
         # x = 7
         # y = 8
