@@ -1,6 +1,6 @@
-***************
-Bytecode Blocks
-***************
+************************
+Control Flow Graph (CFG)
+************************
 
 To analyze or optimize existing code, ``bytecode`` provides a
 :class:`ControlFlowGraph` class which is a `control flow graph (CFG)
