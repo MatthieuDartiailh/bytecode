@@ -5,7 +5,7 @@ the bytecode module.
 import opcode
 import operator
 import sys
-from bytecode import Instr, Bytecode, BytecodeBlocks, Label, BasicBlock, Compare
+from bytecode import Instr, Bytecode, ControlFlowGraph, Label, BasicBlock, Compare
 
 JUMPS_ON_TRUE = frozenset((
     'POP_JUMP_IF_TRUE',
@@ -51,7 +51,7 @@ class PeepholeOptimizer:
     """
 
     def __init__(self):
-        # bytecode.BytecodeBlocks instance
+        # bytecode.ControlFlowGraph instance
         self.code = None
         self.const_stack = None
         self.block_index = None
@@ -466,11 +466,11 @@ class PeepholeOptimizer:
 
     def optimize(self, code_obj):
         bytecode = Bytecode.from_code(code_obj)
-        bytecode = BytecodeBlocks.from_bytecode(bytecode)
+        cfg = ControlFlowGraph.from_bytecode(bytecode)
 
-        self._optimize(bytecode)
+        self._optimize(cfg)
 
-        bytecode = bytecode.to_bytecode()
+        bytecode = cfg.to_bytecode()
         code = bytecode.to_code()
         return code
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import unittest
 from bytecode import (Label, Compare, SetLineno, Instr, ConcreteInstr,
-                      Bytecode, BasicBlock, BytecodeBlocks)
+                      Bytecode, BasicBlock, ControlFlowGraph)
 from bytecode.tests import disassemble, TestCase, get_code
 
 
@@ -17,7 +17,7 @@ class BytecodeBlocksTests(TestCase):
     maxDiff = 80 * 100
 
     def test_constructor(self):
-        code = BytecodeBlocks()
+        code = ControlFlowGraph()
         self.assertEqual(code.name, "<module>")
         self.assertEqual(code.filename, "<string>")
         self.assertEqual(code.flags, 0)
@@ -50,7 +50,7 @@ class BytecodeBlocksTests(TestCase):
         # FIXME: test non-empty cellvars
 
     def test_add_del_block(self):
-        code = BytecodeBlocks()
+        code = ControlFlowGraph()
         code[0].append(Instr('LOAD_CONST', 0))
 
         block = code.add_block()
@@ -84,7 +84,7 @@ class BytecodeBlocksTests(TestCase):
                      Instr("LOAD_CONST", 9),
                      Instr("STORE_NAME", 'z')])
 
-        blocks = BytecodeBlocks.from_bytecode(code)
+        blocks = ControlFlowGraph.from_bytecode(code)
         self.assertBlocksEqual(blocks,
                                [Instr("LOAD_CONST", 7),
                                 Instr("STORE_NAME", 'x'),
@@ -99,7 +99,7 @@ class BytecodeBlocksTests(TestCase):
         # if test:
         #     x = 2
         # x = 5
-        blocks = BytecodeBlocks()
+        blocks = ControlFlowGraph()
         blocks.add_block()
         blocks.add_block()
         blocks[0].extend([Instr('LOAD_NAME', 'test', lineno=1),
@@ -130,7 +130,7 @@ class BytecodeBlocksTests(TestCase):
         # FIXME: test other attributes
 
     def test_to_bytecode_labels(self):
-        blocks = BytecodeBlocks()
+        blocks = ControlFlowGraph()
         label = Label()
         blocks[0].extend([Instr('LOAD_NAME', 'test'),
                           Instr('POP_JUMP_IF_FALSE', label),
@@ -159,7 +159,7 @@ class BytecodeBlocksTests(TestCase):
                              Instr('LOAD_CONST', None, lineno=4),
                              Instr('RETURN_VALUE', lineno=4)])
 
-        blocks = BytecodeBlocks.from_bytecode(bytecode)
+        blocks = ControlFlowGraph.from_bytecode(bytecode)
         label2 = blocks[3]
         self.assertIsNot(label2, label)
         self.assertBlocksEqual(blocks,
@@ -208,7 +208,7 @@ class BytecodeBlocksTests(TestCase):
                      Instr('LOAD_CONST', None, lineno=4),
                      Instr('RETURN_VALUE', lineno=4),
         ))
-        blocks = BytecodeBlocks.from_bytecode(code)
+        blocks = ControlFlowGraph.from_bytecode(code)
 
         expected = [[Instr('SETUP_LOOP', blocks[6], lineno=1),
                      Instr('LOAD_CONST', (1, 2, 3), lineno=1),
@@ -297,7 +297,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
     def test_to_code(self):
         # test resolution of jump labels
-        bytecode = BytecodeBlocks()
+        bytecode = ControlFlowGraph()
         bytecode.first_lineno = 3
         bytecode.argcount = 3
         bytecode.kwonlyargcount = 2
@@ -343,7 +343,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(code.co_firstlineno, 3)
 
     def test_get_block_index(self):
-        blocks = BytecodeBlocks()
+        blocks = ControlFlowGraph()
         block0 = blocks[0]
         block1 = blocks.add_block()
         block2 = blocks.add_block()

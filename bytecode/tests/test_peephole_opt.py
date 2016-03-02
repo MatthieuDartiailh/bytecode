@@ -1,7 +1,7 @@
 import textwrap
 import types
 import unittest
-from bytecode import Label, Instr, Compare, Bytecode, BytecodeBlocks
+from bytecode import Label, Instr, Compare, Bytecode, ControlFlowGraph
 from bytecode import peephole_opt
 from bytecode.tests import TestCase
 from unittest import mock
@@ -12,14 +12,14 @@ class Tests(TestCase):
 
     def optimize_blocks(self, code):
         if isinstance(code, Bytecode):
-            code = BytecodeBlocks.from_bytecode(code)
+            code = ControlFlowGraph.from_bytecode(code)
         optimizer = peephole_opt.PeepholeOptimizer()
         optimizer._optimize(code)
         return code
 
     def check(self, code, *expected):
         if isinstance(code, Bytecode):
-            code = BytecodeBlocks.from_bytecode(code)
+            code = ControlFlowGraph.from_bytecode(code)
         optimizer = peephole_opt.PeepholeOptimizer()
         optimizer._optimize(code)
         code = code.to_bytecode()
@@ -30,7 +30,7 @@ class Tests(TestCase):
             self.assertListEqual(code, list(expected))
 
     def check_dont_optimize(self, code):
-        code = BytecodeBlocks.from_bytecode(code)
+        code = ControlFlowGraph.from_bytecode(code)
         noopt = code.to_bytecode()
 
         optim = self.optimize_blocks(code)
@@ -400,7 +400,7 @@ class Tests(TestCase):
                          Instr('RETURN_VALUE', lineno=2),
                          Instr('LOAD_CONST', 5, lineno=3),
                          Instr('RETURN_VALUE', lineno=3)])
-        code = BytecodeBlocks.from_bytecode(code)
+        code = ControlFlowGraph.from_bytecode(code)
         self.check(code,
                    Instr('LOAD_CONST', 4, lineno=2),
                    Instr('RETURN_VALUE', lineno=2))
@@ -420,7 +420,7 @@ class Tests(TestCase):
                          Instr('RETURN_VALUE', lineno=4),
                          Instr('LOAD_CONST', 7, lineno=5),
                          Instr('RETURN_VALUE', lineno=5)])
-        code = BytecodeBlocks.from_bytecode(code)
+        code = ControlFlowGraph.from_bytecode(code)
         self.check(code,
                    Instr('LOAD_CONST', 4, lineno=2),
                    Instr('RETURN_VALUE', lineno=2))
@@ -439,7 +439,7 @@ class Tests(TestCase):
                          return_label,
                              Instr('LOAD_CONST', None, lineno=3),
                              Instr('RETURN_VALUE', lineno=3)])
-        code = BytecodeBlocks.from_bytecode(code)
+        code = ControlFlowGraph.from_bytecode(code)
 
         end_loop = Label()
         self.check(code,

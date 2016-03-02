@@ -2,7 +2,7 @@ __version__ = '0.3'
 
 __all__ = ['Label', 'Instr', 'SetLineno', 'Bytecode',
            'ConcreteInstr', 'ConcreteBytecode',
-           'BytecodeBlocks']
+           'ControlFlowGraph']
 
 from bytecode.instr import (UNSET, Label, SetLineno, Instr, CellVar, FreeVar,
                             Compare)
@@ -10,7 +10,7 @@ from bytecode.bytecode import BaseBytecode, _InstrList, Bytecode
 from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,
                                # import needed to use it in bytecode.py
                                _ConvertBytecodeToConcrete)
-from bytecode.blocks import BasicBlock, BytecodeBlocks
+from bytecode.blocks import BasicBlock, ControlFlowGraph
 
 
 def dump_bytecode(bytecode, *, lineno=False):
@@ -86,7 +86,7 @@ def dump_bytecode(bytecode, *, lineno=False):
                 line = indent + format_line(index, line)
             print(line)
         print()
-    elif isinstance(bytecode, BytecodeBlocks):
+    elif isinstance(bytecode, ControlFlowGraph):
         labels = {}
         for block_index, block in enumerate(bytecode, 1):
             labels[id(block)] = 'block%s' % block_index

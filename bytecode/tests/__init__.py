@@ -3,7 +3,7 @@ import types
 import unittest
 
 from bytecode import (UNSET, Label, Instr, ConcreteInstr, BasicBlock,
-                      Bytecode, BytecodeBlocks, ConcreteBytecode)
+                      Bytecode, ControlFlowGraph, ConcreteBytecode)
 
 
 def _format_instr_list(block, labels, lineno):
@@ -95,7 +95,7 @@ def dump_bytecode(code, lineno=True):
 
         print()
     else:
-        assert isinstance(code, BytecodeBlocks)
+        assert isinstance(code, ControlFlowGraph)
         labels = {}
         for block_index, block in enumerate(code):
             labels[id(block)] = 'code[%s]' % block_index
@@ -123,7 +123,7 @@ def disassemble(source, *, filename="<string>", function=False,
     code = get_code(source, filename=filename, function=function)
 
     bytecode = Bytecode.from_code(code)
-    blocks = BytecodeBlocks.from_bytecode(bytecode)
+    blocks = ControlFlowGraph.from_bytecode(bytecode)
     if remove_last_return_none:
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter
@@ -141,8 +141,8 @@ def disassemble(source, *, filename="<string>", function=False,
 class TestCase(unittest.TestCase):
     def assertBlocksEqual(self, code, *expected_blocks):
 
-        # Code similar to BytecodeBlocks._flat(), but code is a list of
-        # Instr, not a BytecodeBlocks object
+        # Code similar to ControlFlowGraph._flat(), but code is a list of
+        # Instr, not a ControlFlowGraph object
         def _flat(code, expected_blocks):
             instructions = []
             labels = {}

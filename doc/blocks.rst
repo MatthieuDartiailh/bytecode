@@ -3,7 +3,7 @@ Bytecode Blocks
 ***************
 
 To analyze or optimize existing code, ``bytecode`` provides a
-:class:`BytecodeBlocks` class which is a `control flow graph (CFG)
+:class:`ControlFlowGraph` class which is a `control flow graph (CFG)
 <https://en.wikipedia.org/wiki/Control_flow_graph>`_.
 
 Example
@@ -11,7 +11,7 @@ Example
 
 Dump the blocks of the :ref:`conditional jump example <ex-cond-jump>`::
 
-    from bytecode import Label, Instr, Bytecode, BytecodeBlocks, dump_bytecode
+    from bytecode import Label, Instr, Bytecode, ControlFlowGraph, dump_bytecode
 
     label_else = Label()
     label_print = Label()
@@ -27,7 +27,7 @@ Dump the blocks of the :ref:`conditional jump example <ex-cond-jump>`::
                          Instr('LOAD_CONST', None),
                          Instr('RETURN_VALUE')])
 
-    blocks = BytecodeBlocks.from_bytecode(bytecode)
+    blocks = ControlFlowGraph.from_bytecode(bytecode)
     dump_bytecode(blocks)
 
 Output::
@@ -80,7 +80,7 @@ Iterating on blocks is a simple as this loop::
 
 Example of a ``display_blocks()`` function::
 
-    from bytecode import UNSET, Label, Instr, Bytecode, Block, BytecodeBlocks
+    from bytecode import UNSET, Label, Instr, Bytecode, Block, ControlFlowGraph
 
     def display_blocks(blocks):
         for block in blocks:
@@ -114,7 +114,7 @@ Example of a ``display_blocks()`` function::
                          Instr('LOAD_CONST', None),
                          Instr('RETURN_VALUE')])
 
-    blocks = BytecodeBlocks.from_bytecode(bytecode)
+    blocks = ControlFlowGraph.from_bytecode(bytecode)
     display_blocks(blocks)
 
 Output::
@@ -149,7 +149,7 @@ Recursive function is a simple solution to browse the control flow graph.
 
 Example to a recursive ``display_block``::
 
-    from bytecode import UNSET, Label, Instr, Bytecode, Block, BytecodeBlocks
+    from bytecode import UNSET, Label, Instr, Bytecode, Block, ControlFlowGraph
 
     def display_block(blocks, block, seen=None):
         # avoid loop: remember which blocks were already seen
@@ -200,7 +200,7 @@ Example to a recursive ``display_block``::
                          Instr('LOAD_CONST', None),
                          Instr('RETURN_VALUE')])
 
-    blocks = BytecodeBlocks.from_bytecode(bytecode)
+    blocks = ControlFlowGraph.from_bytecode(bytecode)
     display_block(blocks, blocks[0])
 
 

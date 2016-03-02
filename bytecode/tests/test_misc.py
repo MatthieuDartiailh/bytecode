@@ -5,7 +5,7 @@ import textwrap
 import unittest
 
 import bytecode
-from bytecode import Label, Instr, Bytecode, BasicBlock, BytecodeBlocks
+from bytecode import Label, Instr, Bytecode, BasicBlock, ControlFlowGraph
 from bytecode.tests import disassemble
 
 
@@ -91,7 +91,7 @@ label_instr13:
 
     def test_blocks_broken_jump(self):
         block = BasicBlock()
-        code = BytecodeBlocks()
+        code = ControlFlowGraph()
         code[0].append(Instr('JUMP_ABSOLUTE', block))
 
         expected = textwrap.dedent("""

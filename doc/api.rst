@@ -23,7 +23,7 @@ Bytecode classes:
 * :class:`Bytecode`
 * :class:`ConcreteBytecode`
 * :class:`BasicBlock`
-* :class:`BytecodeBlocks`
+* :class:`ControlFlowGraph`
 
 Cell and Free Variables:
 
@@ -37,7 +37,7 @@ Functions
 .. function:: dump_bytecode(bytecode, \*, lineno=False)
 
    Dump a bytecode to the standard output. :class:`ConcreteBytecode`,
-   :class:`Bytecode` and :class:`BytecodeBlocks` are accepted for *bytecode*.
+   :class:`Bytecode` and :class:`ControlFlowGraph` are accepted for *bytecode*.
 
    If *lineno*, show also line numbers and instruction index/offset.
 
@@ -156,7 +156,7 @@ Instr
    * If the operation has a jump argument (:meth:`has_jump`, ex:
      ``JUMP_ABSOLUTE``): *arg* must be a :class:`Label` (if the instruction is
      used in :class:`Bytecode`) or a :class:`BasicBlock` (used in
-     :class:`BytecodeBlocks`).
+     :class:`ControlFlowGraph`).
    * If the operation has a cell or free argument (ex: ``LOAD_DEREF``): *arg*
      must be a :class:`CellVar` or :class:`FreeVar` instance.
    * If the operation has a local variable (ex: ``LOAD_FAST``): *arg* must be a
@@ -433,7 +433,11 @@ BasicBlock
 
 .. class:: BasicBlock
 
-   List of abstract instructions (:class:`Instr`). Inherit from :class:`list`.
+   A basic block. Inherit from :class:`list`.
+
+   A basic block is a straight-line code sequence of abstract instructions
+   (:class:`Instr`) with no branches in except to the entry and no branches out
+   except at the exit.
 
    A block must only contain objects of the 3 following types:
 
@@ -453,15 +457,17 @@ BasicBlock
       Next block (:class:`BasicBlock`), or ``None``.
 
 
-BytecodeBlocks
+ControlFlowGraph
 --------------
 
-.. class:: BytecodeBlocks
+.. class:: ControlFlowGraph
 
    `Control flow graph (CFG)
-   <https://en.wikipedia.org/wiki/Control_flow_graph>`_: list of blocks
-   (:class:`BasicBlock`). A block is a list of abstract instructions
-   (:class:`Instr`). Inherit from :class:`BaseBytecode`.
+   <https://en.wikipedia.org/wiki/Control_flow_graph>`_: list of basic blocks
+   (:class:`BasicBlock`). A basic block is a straight-line code sequence of
+   abstract instructions (:class:`Instr`) with no branches in except to the
+   entry and no branches out except at the exit. Inherit from
+   :class:`BaseBytecode`.
 
    Jump targets are blocks (:class:`BasicBlock`).
 
@@ -478,9 +484,9 @@ BytecodeBlocks
 
    Methods:
 
-   .. staticmethod:: from_bytecode(bytecode: Bytecode) -> BytecodeBlocks
+   .. staticmethod:: from_bytecode(bytecode: Bytecode) -> ControlFlowGraph
 
-      Convert a :class:`Bytecode` object to a :class:`BytecodeBlocks` object:
+      Convert a :class:`Bytecode` object to a :class:`ControlFlowGraph` object:
       convert labels to blocks.
 
       Splits blocks after final instructions (:meth:`Instr.is_final`) and after

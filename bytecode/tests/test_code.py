@@ -1,6 +1,6 @@
 import unittest
 
-from bytecode import ConcreteBytecode, Bytecode, BytecodeBlocks
+from bytecode import ConcreteBytecode, Bytecode, ControlFlowGraph
 from bytecode.tests import get_code
 
 
@@ -17,7 +17,7 @@ class CodeTests(unittest.TestCase):
         self.assertEqual(code, ref_code)
 
         bytecode = Bytecode.from_code(ref_code)
-        blocks = BytecodeBlocks.from_bytecode(bytecode)
+        blocks = ControlFlowGraph.from_bytecode(bytecode)
         code = blocks.to_bytecode().to_code()
         self.assertEqual(code, ref_code)
 

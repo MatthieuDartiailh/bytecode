@@ -23,7 +23,7 @@ class BasicBlock(_bytecode._InstrList):
             yield instr
 
 
-class BytecodeBlocks(_bytecode.BaseBytecode):
+class ControlFlowGraph(_bytecode.BaseBytecode):
     def __init__(self):
         super().__init__()
         self._blocks = []
@@ -49,7 +49,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
         return block
 
     def __repr__(self):
-        return '<BytecodeBlocks block#=%s>' % len(self._blocks)
+        return '<ControlFlowGraph block#=%s>' % len(self._blocks)
 
     def _flat(self):
         instructions = []
@@ -155,7 +155,7 @@ class BytecodeBlocks(_bytecode.BaseBytecode):
             target_index = label_to_block_index[target_label]
             block_starts[target_index] = target_label
 
-        bytecode_blocks = _bytecode.BytecodeBlocks()
+        bytecode_blocks = _bytecode.ControlFlowGraph()
         bytecode_blocks._copy_attr_from(bytecode)
         bytecode_blocks.argnames = list(bytecode.argnames)
 
