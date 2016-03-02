@@ -10,7 +10,7 @@ from bytecode.bytecode import BaseBytecode, _InstrList, Bytecode
 from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,
                                # import needed to use it in bytecode.py
                                _ConvertBytecodeToConcrete)
-from bytecode.blocks import BasicBlock, ControlFlowGraph
+from bytecode.cfg import BasicBlock, ControlFlowGraph
 
 
 def dump_bytecode(bytecode, *, lineno=False):
