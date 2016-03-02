@@ -178,17 +178,27 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode[:] = instructions
         return bytecode
 
-    def _assemble_code(self):
-        offset = 0
-        code_str = []
-        linenos = []
+    def _normalize_lineno(self):
         lineno = self.first_lineno
         for instr in self:
-            code_str.append(instr.assemble())
             # if instr.lineno is not set, it's inherited from the previous
             # instruction, or from self.first_lineno
             if instr.lineno is not None:
                 lineno = instr.lineno
+
+            if isinstance(instr, ConcreteInstr):
+                yield (lineno, instr)
+            elif not isinstance(instr, SetLineno):
+                raise ValueError("ConcreteBytecode must only contain "
+                                 "ConcreteInstr and SetLineno, found %s"
+                                 % instr.__class__.__name__)
+
+    def _assemble_code(self):
+        offset = 0
+        code_str = []
+        linenos = []
+        for lineno, instr in self._normalize_lineno():
+            code_str.append(instr.assemble())
             linenos.append((offset, lineno))
             offset += instr.size
         code_str = b''.join(code_str)
@@ -253,6 +263,8 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         jump_targets = set()
         offset = 0
         for instr in self:
+            if not isinstance(instr, ConcreteInstr):
+                continue
             target = instr.get_jump_target(offset)
             if target is not None:
                 jump_targets.add(target)
@@ -265,12 +277,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         offset = 0
         ncells = len(self.cellvars)
 
-        for instr in self:
-            if not isinstance(instr, ConcreteInstr):
-                raise ValueError("ConcreteBytecode must only contain "
-                                 "ConcreteInstr, found %s"
-                                 % instr.__class__.__name__)
-
+        for lineno, instr in self._normalize_lineno():
             if offset in jump_targets:
                 label = Label()
                 labels[offset] = label
@@ -298,7 +305,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                 arg = Compare(arg)
 
             if jump_target is None:
-                instr = Instr(instr.name, arg, lineno=instr.lineno)
+                instr = Instr(instr.name, arg, lineno=lineno)
             else:
                 instr_index = len(instructions)
             instructions.append(instr)

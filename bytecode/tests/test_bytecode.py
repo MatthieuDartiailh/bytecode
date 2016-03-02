@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import textwrap
 import unittest
-from bytecode import Label, Instr, FreeVar, Bytecode
+from bytecode import Label, Instr, FreeVar, Bytecode, SetLineno, ConcreteInstr
 from bytecode.tests import TestCase, get_code, disassemble
 
 
@@ -70,6 +70,31 @@ class BytecodeTests(TestCase):
                           Instr('STORE_FAST', 'y', lineno=3),
                           Instr('LOAD_CONST', None, lineno=3),
                           Instr('RETURN_VALUE', lineno=3)])
+
+    def test_setlineno(self):
+        # x = 7
+        # y = 8
+        # z = 9
+        code = Bytecode()
+        code.first_lineno = 3
+        code.extend([Instr("LOAD_CONST", 7),
+                     Instr("STORE_NAME", 'x'),
+                     SetLineno(4),
+                     Instr("LOAD_CONST", 8),
+                     Instr("STORE_NAME", 'y'),
+                     SetLineno(5),
+                     Instr("LOAD_CONST", 9),
+                     Instr("STORE_NAME", 'z')])
+
+        concrete = code.to_concrete_bytecode()
+        self.assertEqual(concrete.consts, [7, 8, 9])
+        self.assertEqual(concrete.names, ['x', 'y', 'z'])
+        code.extend([ConcreteInstr("LOAD_CONST", 0, lineno=3),
+                     ConcreteInstr("STORE_NAME", 0, lineno=3),
+                     ConcreteInstr("LOAD_CONST", 1, lineno=4),
+                     ConcreteInstr("STORE_NAME", 1, lineno=4),
+                     ConcreteInstr("LOAD_CONST", 2, lineno=5),
+                     ConcreteInstr("STORE_NAME", 2, lineno=5)])
 
 
 if __name__ == "__main__":

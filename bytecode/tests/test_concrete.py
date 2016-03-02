@@ -154,25 +154,29 @@ class ConcreteBytecodeTests(TestCase):
         # x = 7
         # y = 8
         # z = 9
-        code = ConcreteBytecode()
-        code.consts = [7, 8, 9]
-        code.names = ['x', 'y', 'z']
-        code.extend([ConcreteInstr("LOAD_CONST", 0, lineno=1),
-                     ConcreteInstr("STORE_NAME", 0, lineno=1),
-                     ConcreteInstr("LOAD_CONST", 1, lineno=2),
-                     ConcreteInstr("STORE_NAME", 1, lineno=2),
-                     ConcreteInstr("LOAD_CONST", 2, lineno=3),
-                     ConcreteInstr("STORE_NAME", 2, lineno=3)])
+        concrete = ConcreteBytecode()
+        concrete.consts = [7, 8, 9]
+        concrete.names = ['x', 'y', 'z']
+        concrete.first_lineno = 3
+        concrete.extend([ConcreteInstr("LOAD_CONST", 0),
+                         ConcreteInstr("STORE_NAME", 0),
+                         SetLineno(4),
+                         ConcreteInstr("LOAD_CONST", 1),
+                         ConcreteInstr("STORE_NAME", 1),
+                         SetLineno(5),
+                         ConcreteInstr("LOAD_CONST", 2),
+                         ConcreteInstr("STORE_NAME", 2)])
 
-        code_obj = code.to_code()
+        code = concrete.to_code()
         expected = (b'd\x00\x00'
                     b'Z\x00\x00'
                     b'd\x01\x00'
                     b'Z\x01\x00'
                     b'd\x02\x00'
                     b'Z\x02\x00')
-        self.assertEqual(code_obj.co_code, expected)
-        self.assertEqual(code_obj.co_lnotab, b'\x06\x01\x06\x01')
+        self.assertEqual(code.co_code, expected)
+        self.assertEqual(code.co_firstlineno, 3)
+        self.assertEqual(code.co_lnotab, b'\x06\x01\x06\x01')
 
     def test_to_bytecode_consts(self):
         # x = -0.0
@@ -269,8 +273,8 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(bytecode.freevars, ['__class__'])
         self.assertEqual(bytecode.cellvars, ['__class__'])
         self.assertEqual(list(bytecode),
-                         [Instr('LOAD_CLASSDEREF', FreeVar('__class__')),
-                          Instr('STORE_DEREF', FreeVar('__class__'))])
+                         [Instr('LOAD_CLASSDEREF', FreeVar('__class__'), lineno=1),
+                          Instr('STORE_DEREF', FreeVar('__class__'), lineno=1)])
 
         concrete = bytecode.to_concrete_bytecode()
         self.assertEqual(concrete.freevars, ['__class__'])
@@ -406,25 +410,27 @@ class BytecodeToConcreteTests(TestCase):
         # x = 7
         # y = 8
         # z = 9
-        code = Bytecode()
-        code.extend([Instr("LOAD_CONST", 7),
-                     Instr("STORE_NAME", 'x'),
-                     SetLineno(2),
-                     Instr("LOAD_CONST", 8),
-                     Instr("STORE_NAME", 'y'),
-                     SetLineno(3),
-                     Instr("LOAD_CONST", 9),
-                     Instr("STORE_NAME", 'z')])
+        concrete = ConcreteBytecode()
+        concrete.consts = [7, 8, 9]
+        concrete.names = ['x', 'y', 'z']
+        concrete.first_lineno = 3
+        concrete.extend([ConcreteInstr("LOAD_CONST", 0),
+                         ConcreteInstr("STORE_NAME", 0),
+                         SetLineno(4),
+                         ConcreteInstr("LOAD_CONST", 1),
+                         ConcreteInstr("STORE_NAME", 1),
+                         SetLineno(5),
+                         ConcreteInstr("LOAD_CONST", 2),
+                         ConcreteInstr("STORE_NAME", 2)])
 
-        concrete = code.to_concrete_bytecode()
-        self.assertEqual(concrete.consts, [7, 8, 9])
-        self.assertEqual(concrete.names, ['x', 'y', 'z'])
-        code.extend([ConcreteInstr("LOAD_CONST", 0, lineno=1),
-                     ConcreteInstr("STORE_NAME", 0, lineno=1),
-                     ConcreteInstr("LOAD_CONST", 1, lineno=2),
-                     ConcreteInstr("STORE_NAME", 1, lineno=2),
-                     ConcreteInstr("LOAD_CONST", 2, lineno=3),
-                     ConcreteInstr("STORE_NAME", 2, lineno=3)])
+        code = concrete.to_bytecode()
+        self.assertEqual(code,
+                         [Instr("LOAD_CONST", 7, lineno=3),
+                          Instr("STORE_NAME", 'x', lineno=3),
+                          Instr("LOAD_CONST", 8, lineno=4),
+                          Instr("STORE_NAME", 'y', lineno=4),
+                          Instr("LOAD_CONST", 9, lineno=5),
+                          Instr("STORE_NAME", 'z', lineno=5)])
 
     def test_extended_jump(self):
         NOP = bytes((opcode.opmap['NOP'],))

@@ -17,6 +17,10 @@ API changes:
 - :class:`BytecodeBlocks`: remove undocumented ``to_concrete_bytecode()``
   and ``to_code()`` methods
 
+Changes:
+
+- :class:`SetLineno` is now supported in :class:`ConcreteBytecode`.
+
 :ref:`Peephole optimizer <peephole_opt>`:
 
 - better code for BUILD_TUPLE/BUILD_LIST + UNPACK_SEQUENCE: rewrite
