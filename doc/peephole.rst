@@ -89,8 +89,10 @@ Optimizations implemented in the peephole optimizer:
     * a << b, a >> b, a & b, a | b, a ^ b
 
   - BUILD_TUPLE: convert to a constant
-  - BUILD_TUPLE <n> + UNPACK_SEQUENCE <n> and BUILD_LIST <n>
-    + UNPACK_SEQUENCE <n>: rewrite LOAD_CONST instructions in the reverse order
+  - Replace BUILD_TUPLE <n> + UNPACK_SEQUENCE <n> and BUILD_LIST <n>
+    + UNPACK_SEQUENCE <n> with ROT_TWO (2 arguments) or ROT_THREE+ROT_TWO (3
+    arguments). For BUILD_LIST, if inputs are LOAD_CONST, rewrite LOAD_CONST in
+    the reverse order.
   - BUILD_LIST + COMPARE_OP(in/not in): convert list to tuple
   - BUILD_SET + COMPARE_OP(in/not in): convert set to frozenset
   - COMPARE_OP:

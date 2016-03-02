@@ -193,27 +193,45 @@ class PeepholeOptimizer:
         self.replace_load_const(instr.arg, instr, value)
 
     def build_tuple_unpack_seq(self, instr):
-        nconst = instr.arg
-        if nconst < 1:
-            return
-
         next_instr = self.get_next_instr('UNPACK_SEQUENCE')
         if next_instr is None or next_instr.arg != instr.arg:
             return
 
-        start = self.index - 1
+        if instr.arg < 1:
+            return
 
-        # Rewrite LOAD_CONST instructions in the reverse order
-        load_consts = self.block[start - nconst:start]
-        self.block[start - nconst:start] = reversed(load_consts)
+        if (self.const_stack
+            and instr.arg <= len(self.const_stack)):
+            nconst = instr.arg
+            start = self.index - 1
 
-        # Remove BUILD_TUPLE+UNPACK_SEQUENCE
-        self.block[start:start + 2] = ()
-        self.index -= 2
-        self.const_stack.clear()
+            # Rewrite LOAD_CONST instructions in the reverse order
+            load_consts = self.block[start - nconst:start]
+            self.block[start - nconst:start] = reversed(load_consts)
 
-        # FIXME: why not rewriting LOAD_CONST in the reverse order to support
-        # any number of aguments, rather than using ROT_TWO/ROT_THREE tricks?
+            # Remove BUILD_TUPLE+UNPACK_SEQUENCE
+            self.block[start:start + 2] = ()
+            self.index -= 2
+            self.const_stack.clear()
+            return
+
+        if instr.arg == 1:
+            # Replace BUILD_TUPLE 1 + UNPACK_SEQUENCE 1 with NOP
+            del self.block[self.index-1:self.index+1]
+        elif instr.arg == 2:
+            # Replace BUILD_TUPLE 2 + UNPACK_SEQUENCE 2 with ROT_TWO
+            rot2 = Instr('ROT_TWO', lineno=instr.lineno)
+            self.block[self.index - 1:self.index+1] = (rot2,)
+            self.index -= 1
+            self.const_stack.clear()
+        elif instr.arg == 3:
+            # Replace BUILD_TUPLE 3 + UNPACK_SEQUENCE 3
+            # with ROT_THREE + ROT_TWO
+            rot3 = Instr('ROT_THREE', lineno=instr.lineno)
+            rot2 = Instr('ROT_TWO', lineno=instr.lineno)
+            self.block[self.index-1:self.index+1] = (rot3, rot2)
+            self.index -= 1
+            self.const_stack.clear()
 
     def build_tuple(self, instr, container_type):
         if instr.arg > len(self.const_stack):

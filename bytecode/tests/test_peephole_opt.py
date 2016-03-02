@@ -243,8 +243,9 @@ class Tests(TestCase):
                              Instr('STORE_NAME', 'x'),
                              Instr('STORE_NAME', 'y')])
             self.check(code,
-                       Instr('LOAD_NAME', 'b'),
                        Instr('LOAD_NAME', 'a'),
+                       Instr('LOAD_NAME', 'b'),
+                       Instr('ROT_TWO'),
                        Instr('STORE_NAME', 'x'),
                        Instr('STORE_NAME', 'y'))
 
@@ -258,12 +259,46 @@ class Tests(TestCase):
                              Instr('STORE_NAME', 'y'),
                              Instr('STORE_NAME', 'z')])
             self.check(code,
-                       Instr('LOAD_NAME', 'c'),
-                       Instr('LOAD_NAME', 'b'),
                        Instr('LOAD_NAME', 'a'),
+                       Instr('LOAD_NAME', 'b'),
+                       Instr('LOAD_NAME', 'c'),
+                       Instr('ROT_THREE'),
+                       Instr('ROT_TWO'),
                        Instr('STORE_NAME', 'x'),
                        Instr('STORE_NAME', 'y'),
                        Instr('STORE_NAME', 'z'))
+
+    def test_build_tuple_unpack_seq_const(self):
+        # x, y = (3, 4)
+        code = Bytecode([Instr('LOAD_CONST', 3),
+                         Instr('LOAD_CONST', 4),
+                         Instr('BUILD_TUPLE', 2),
+                         Instr('UNPACK_SEQUENCE', 2),
+                         Instr('STORE_NAME', 'x'),
+                         Instr('STORE_NAME', 'y')])
+        self.check(code,
+                   Instr('LOAD_CONST', (3, 4)),
+                   Instr('UNPACK_SEQUENCE', 2),
+                   Instr('STORE_NAME', 'x'),
+                   Instr('STORE_NAME', 'y'))
+
+    def test_build_list_unpack_seq_const(self):
+        # x, y, z = [3, 4, 5]
+        code = Bytecode([Instr('LOAD_CONST', 3),
+                         Instr('LOAD_CONST', 4),
+                         Instr('LOAD_CONST', 5),
+                         Instr('BUILD_LIST', 3),
+                         Instr('UNPACK_SEQUENCE', 3),
+                         Instr('STORE_NAME', 'x'),
+                         Instr('STORE_NAME', 'y'),
+                         Instr('STORE_NAME', 'z')])
+        self.check(code,
+                   Instr('LOAD_CONST', 5),
+                   Instr('LOAD_CONST', 4),
+                   Instr('LOAD_CONST', 3),
+                   Instr('STORE_NAME', 'x'),
+                   Instr('STORE_NAME', 'y'),
+                   Instr('STORE_NAME', 'z'))
 
     def test_build_set(self):
         # test = x in {1, 2, 3}
