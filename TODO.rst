@@ -1,4 +1,5 @@
-* Add ControlFlowGraph.remove_dead_blocks(), copy from peephole_opt
+* Convert peephole_opt code to a more generic CFG optimizer?
+  For example, extract code to remove unreachable blocks?
 * ConcreteBytecode.to_code(): compute the stack level, see byteplay
   and Python/compile.c?
 * ConcreteBytecode.to_code(): better error reporting on bugs in the code

@@ -523,10 +523,6 @@ ControlFlowGraph
 
       Convert to a bytecode object using labels.
 
-   .. method:: remove_dead_code()
-
-      Remove unreachable basic blocks.
-
 
 Cell and Free Variables
 =======================

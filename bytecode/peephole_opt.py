@@ -437,11 +437,34 @@ class PeepholeOptimizer:
             # is never trigerred in practice. The compiler already optimizes if
             # and while statements.
 
+    def remove_dead_blocks(self):
+        # FIXME: remove empty blocks?
+
+        used_blocks = {id(self.code[0])}
+        for block in self.code:
+            if block.next_block is not None:
+                used_blocks.add(id(block.next_block))
+            for instr in block:
+                if (isinstance(instr, Instr)
+                   and isinstance(instr.arg, BasicBlock)):
+                    used_blocks.add(id(instr.arg))
+
+        block_index = 0
+        while block_index < len(self.code):
+            block = self.code[block_index]
+            if id(block) not in used_blocks:
+                del self.code[block_index]
+            else:
+                block_index += 1
+
+        # FIXME: merge following blocks if block1 does not contain any
+        # jump and block1.next_block is block2
+
     def _optimize(self, code):
         self.code = code
         self.const_stack = []
 
-        self.code.remove_dead_code()
+        self.remove_dead_blocks()
 
         self.block_index = 0
         while self.block_index < len(self.code):

@@ -7,7 +7,6 @@ Version 0.3
 New features:
 
 - Add :meth:`ControlFlowGraph.get_block_index` method
-- Add :meth:`ControlFlowGraph.remove_dead_code` method
 
 API changes:
 

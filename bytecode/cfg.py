@@ -256,28 +256,3 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         bytecode[:] = instructions
 
         return bytecode
-
-    def remove_dead_code(self):
-        # FIXME: remove empty blocks
-
-        used_blocks = {id(self[0])}
-        for block in self:
-            if block.next_block is not None:
-                used_blocks.add(id(block.next_block))
-
-            target_block = block.get_jump()
-            if target_block is not None:
-                used_blocks.add(id(target_block))
-
-        block_index = 0
-        while block_index < len(self):
-            block = self[block_index]
-            if id(block) not in used_blocks:
-                del self[block_index]
-            else:
-                block_index += 1
-
-        # FIXME: merge following blocks if block1 does not contain any
-        # jump and block1.next_block is block2
-        #
-        # Maybe add a new method "reorder blocks to reduce number of jumps"?
