@@ -139,10 +139,7 @@ Output::
         RETURN_VALUE
 
 .. note::
-   Displaying argument requires special case to display jump targets, since
-   jump targets are blocks.
-
-   :class:`SetLineno` is handled in example to keep it simple.
+   :class:`SetLineno` is not handled in the example to keep it simple.
 
 
 Browse the graph
