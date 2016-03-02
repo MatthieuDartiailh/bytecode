@@ -429,11 +429,12 @@ ConcreteBytecode
 
 
 BasicBlock
------
+----------
 
 .. class:: BasicBlock
 
-   A basic block. Inherit from :class:`list`.
+   `Basic block <https://en.wikipedia.org/wiki/Basic_block>`_. Inherit from
+   :class:`list`.
 
    A basic block is a straight-line code sequence of abstract instructions
    (:class:`Instr`) with no branches in except to the entry and no branches out
@@ -458,7 +459,7 @@ BasicBlock
 
 
 ControlFlowGraph
---------------
+----------------
 
 .. class:: ControlFlowGraph
 
@@ -494,7 +495,7 @@ ControlFlowGraph
 
    .. method:: add_block(instructions=None) -> BasicBlock
 
-      Add a new basic block. Return the newly created block.
+      Add a new basic block. Return the newly created basic block.
 
    .. method:: get_block_index(block: BasicBlock) -> int
 
