@@ -265,6 +265,10 @@ SetLineno
 
    *lineno* must be greater or equal than ``1``.
 
+   .. attribute:: lineno
+
+      Line number (``int``), read-only attribute.
+
 
 Bytecode classes
 ================
