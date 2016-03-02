@@ -1,8 +1,8 @@
 ChangeLog
 =========
 
-Version 0.3
------------
+2016-03-02: Version 0.3
+-----------------------
 
 New features:
 
@@ -12,14 +12,14 @@ API changes:
 
 - Rename ``Block`` class to :class:`BasicBlock`
 - Rename ``BytecodeBlocks`` class to :class:`ControlFlowGraph`
-- Rename ``Instr.op`` to :attr:`Instr.op`
-- :class:`Bytecode`: ``kw_only_argcount`` attribute to renamed to
-  ``kwonlyargcount`` to use a name closer to Python code object attribute
-  (``co_kwonlyargcount``)
-- :class:`Instr` constructor and :meth:`Instr.set` now validates the argument
-  type
-- Add :class:`Compare` enum, used for ``COMPARE_OP`` argument
-- Remove *lineno* parameter from :meth:`Instr.set`
+- Rename ``BaseInstr.op`` to :attr:`BaseInstr.opcode`
+- Rename ``BaseBytecode.kw_only_argcount`` attribute to
+  :attr:`BaseBytecode.kwonlyargcount`, name closer to the Python code object
+  attribute (``co_kwonlyargcount``)
+- :class:`Instr` constructor and its :meth:`~BaseInstr.set` method now
+  validates the argument type
+- Add :class:`Compare` enum, used for ``COMPARE_OP`` argument of :class:`Instr`
+- Remove *lineno* parameter from the :meth:`BaseInstr.set` method
 - Add :class:`CellVar` and :class:`FreeVar` classes: instructions having
   a cell or free variable now require a :class:`CellVar` or :class:`FreeVar`
   instance rather than a simple string (``str``). This change is required
