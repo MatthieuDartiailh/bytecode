@@ -367,7 +367,7 @@ class PeepholeOptimizer:
             self.block[self.index-1] = target_instr
 
         elif target_instr.is_uncond_jump():
-            # Replace JUMP_FORWARD t1 => JUMP_FORWARD t2
+            # Replace JUMP_FORWARD t1 jumping to JUMP_FORWARD t2
             # with JUMP_FORWARD t2 (and keep JUMP_FORWARD t2)
             jump_target2 = target_instr.arg
 

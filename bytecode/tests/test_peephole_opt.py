@@ -708,7 +708,8 @@ class Tests(TestCase):
         code = Bytecode([Instr('LOAD_NAME', 'x'),
                          Instr('JUMP_ABSOLUTE', label),
                              # dead code
-                             Instr('NOP'),
+                             Instr('LOAD_NAME', 'y'),
+                             Instr('STORE_NAME', 'test'),
                          label,
                              Instr('STORE_NAME', 'test')])
 
