@@ -368,21 +368,21 @@ class PeepholeOptimizer:
 
         elif target_instr.is_uncond_jump():
             # Replace JUMP_FORWARD t1 jumping to JUMP_FORWARD t2
-            # with JUMP_FORWARD t2 (and keep JUMP_FORWARD t2)
+            # with JUMP_ABSOLUTE t2
             jump_target2 = target_instr.arg
 
             name = instr.name
             if instr.name == 'JUMP_FORWARD':
                 name = 'JUMP_ABSOLUTE'
+            else:
+                # FIXME: reimplement this check
+                #if jump_target2 < 0:
+                #    # No backward relative jumps
+                #    return
 
-            # FIXME: reimplement this check
-            #if jump_target2 < 0:
-            #    # No backward relative jumps
-            #    return
-
-            # FIXME: remove this workaround and implement comment code ^^
-            if instr.opcode in opcode.hasjrel:
-                return
+                # FIXME: remove this workaround and implement comment code ^^
+                if instr.opcode in opcode.hasjrel:
+                    return
 
             instr.name = name
             instr.arg = jump_target2
