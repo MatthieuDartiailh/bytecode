@@ -535,8 +535,6 @@ class Tests(TestCase):
                    label1,
                        Instr('LOAD_CONST', 20, lineno=6),
                        Instr('STORE_FAST', 'x', lineno=6),
-
-                       # FIXME: optimize POP_JUMP_IF_FALSE+JUMP_FORWARD?
                        Instr('JUMP_FORWARD', label4, lineno=6),
 
                    label3,
