@@ -1,13 +1,13 @@
 ChangeLog
 =========
 
-Version 0.4
------------
+2016-04-12: Version 0.4
+-----------------------
 
 :ref:`Peephole optimizer <peephole_opt>`:
 
-* Reenable optimization on JUMP_IF_TRUE_OR_POP jumping to
-  POP_JUMP_IF_FALSE <target>.
+* Reenable optimization on ``JUMP_IF_TRUE_OR_POP`` jumping to
+  ``POP_JUMP_IF_FALSE <target>``.
 
 
 2016-03-02: Version 0.3
