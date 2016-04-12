@@ -31,13 +31,13 @@ Functions
    Dump a bytecode to the standard output. :class:`ConcreteBytecode`,
    :class:`Bytecode` and :class:`ControlFlowGraph` are accepted for *bytecode*.
 
-   If *lineno*, show also line numbers and instruction index/offset.
+   If *lineno* is true, show also line numbers and instruction index/offset.
 
    This function is written for debug purpose.
 
 
-Instruction classess
-====================
+Instruction classes
+===================
 
 BaseInstr
 ---------
@@ -47,7 +47,7 @@ BaseInstr
    Base class of instruction classes.
 
    To replace the operation name and the argument, the :meth:`set` method must
-   be used instead of than modifying the :attr:`name` attribute and then the
+   be used instead of modifying the :attr:`name` attribute and then the
    :attr:`arg` attribute. Otherwise, an exception is be raised if the previous
    operation requires an argument and the new operation has no argument (or the
    opposite).
@@ -66,11 +66,13 @@ BaseInstr
 
    .. attribute:: name
 
-      Operation name (``str``).
+      Operation name (``str``). Setting the name updates the :attr:`opcode`
+      attibute.
 
    .. attribute:: opcode
 
-      Operation code (``int``).
+      Operation code (``int``). Setting the operation code updates the
+      :attr:`name` attribute.
 
    .. versionchanged:: 0.3
       The ``op`` attribute was renamed to :attr:`opcode`.
@@ -127,9 +129,7 @@ BaseInstr
    .. method:: set(name: str, arg=UNSET)
 
       Modify the instruction in-place: replace :attr:`name` and :attr:`arg`
-      attributes.
-
-      The :attr:`lineno` attribute is unchanged.
+      attributes, and update the :attr:`opcode` attribute.
 
       .. versionchanged:: 0.3
          The *lineno* parameter has been removed.
@@ -145,7 +145,7 @@ Instr
    The type of the *arg* parameter (and the :attr:`arg` attribute) depends on
    the operation:
 
-   * If the operation has a jump argument (:meth:`has_jump`, ex:
+   * If the operation has a jump argument (:meth:`~BaseInstr.has_jump`, ex:
      ``JUMP_ABSOLUTE``): *arg* must be a :class:`Label` (if the instruction is
      used in :class:`Bytecode`) or a :class:`BasicBlock` (used in
      :class:`ControlFlowGraph`).
@@ -155,8 +155,8 @@ Instr
      variable name, type ``str``.
    * If the operation has a constant argument (``LOAD_CONST``): *arg* must not
      be a :class:`Label` or :class:`BasicBlock` instance.
-   * If the operation has a compare argument (``'COMPARE_OP'``):
-     *arg* must a :class:`Compare` enum.
+   * If the operation has a compare argument (``COMPARE_OP``):
+     *arg* must be a :class:`Compare` enum.
    * If the operation has no argument (ex: ``DUP_TOP``), *arg* must not be set.
    * Otherwise (the operation has an argument, ex: ``CALL_FUNCTION``), *arg*
      must be an integer (``int``) in the range ``0``..\ ``2,147,483,647``.
@@ -182,7 +182,7 @@ ConcreteInstr
    .. attribute:: arg
 
       Argument value: an integer (``int``) in the range ``0``..\
-      ``2,147,483,647``, or :data:`UNSET`. Changing the argument value can
+      ``2,147,483,647``, or :data:`UNSET`. Setting the argument value can
       change the instruction size (:attr:`size`).
 
    .. attribute:: size
@@ -237,7 +237,7 @@ Compare
    * ``Compare.IN`` (``6``): ``x in y``
    * ``Compare.NOT_IN`` (``7``): ``x not in y``
    * ``Compare.EXC_MATCH`` (``10``): used to compare exceptions
-     for ``except:`` block
+     in ``except:`` blocks
 
 
 Label
@@ -348,7 +348,7 @@ Bytecode
 
    Static methods:
 
-   .. staticmethod:: from_code() -> Bytecode
+   .. staticmethod:: from_code(code) -> Bytecode
 
       Create an abstract bytecode from a Python code object.
 
@@ -401,7 +401,7 @@ ConcreteBytecode
 
    Static methods:
 
-   .. staticmethod:: from_code(\*, extended_arg=false) -> ConcreteBytecode
+   .. staticmethod:: from_code(code, \*, extended_arg=false) -> ConcreteBytecode
 
       Create a concrete bytecode from a Python code object.
 
