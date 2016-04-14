@@ -3,8 +3,30 @@ TODO list
 
 * Compute the stack size of an overall bytecode object: Bytecode.to_concrete_bytecode()
 * Add stack effect: use ``opcode.stack_effect(opcode)``
-* Add instruction constants/enums? ex:
-  ``bytecode.instructions.LOAD_CONST("text", lineno=3)``
-* Nicer API for function arguments? Bytecode has argcount, kwonlyargcount and
-  argnames. 4 types of parameters: indexed, ``*args``, ``**kwargs`` and ``*,
-  kwonly=3``. See inspect.signature()
+* Add instruction constants/enums? Example::
+
+    from bytecode import instructions as i
+
+    bytecode = Bytecode([i.LOAD_NAME('print'),
+                         i.LOAD_CONST('Hello World!'),
+                         i.CALL_FUNCTION(1),
+                         i.POP_TOP(),
+                         i.LOAD_CONST(None),
+                         i.RETURN_VALUE()])
+
+  Should we support instructions without parenthesis for instruction with no
+  parameter? Example with POP_TOP and RETURN_VALUE::
+
+    from bytecode import instructions as i
+
+    bytecode = Bytecode([i.LOAD_NAME('print'),
+                         i.LOAD_CONST('Hello World!'),
+                         i.CALL_FUNCTION(1),
+                         i.POP_TOP,
+                         i.LOAD_CONST(None),
+                         i.RETURN_VALUE])
+
+
+* Nicer API for function arguments in bytecode object? Bytecode has argcount,
+  kwonlyargcount and argnames. 4 types of parameters: indexed, ``*args``,
+  ``**kwargs`` and ``*, kwonly=3``. See inspect.signature()
