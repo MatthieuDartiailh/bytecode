@@ -22,7 +22,7 @@ byteplay and codetransformer
 The `byteplay <https://github.com/serprex/byteplay>`_ and `codetransformer
 <https://pypi.python.org/pypi/codetransformer>`_ are clear inspiration for the
 design of the bytecode API. Sadly, byteplay and codetransformer API have design
-issues.
+issues (at least for my specific use cases).
 
 
 Free and cell variables
@@ -53,9 +53,8 @@ the variable. Trying to use a simple string raise a :exc:`TypeError` in the
 Line numbers
 ------------
 
-codetransformer base API for bytecode (the Code object) only supports a dict
-mapping offsets to line numbers. Line numbers are not updated when the
-bytecode is modified. It updates them using a second object.
+codetransformer uses internally a dictionary mapping offsets to line numbers.
+It is updated when the ``.steal()`` method is used.
 
 byteplay uses a pseudo-instruction ``SetLineno`` to set the current line number
 of the following instructions. It requires to handle these pseudo-instructions
@@ -77,9 +76,8 @@ object is converted to bytecode.
 Jump targets
 ------------
 
-In codetransformer, jump targets are integers. codetransformer base API for
-bytecode (the Code object) does not recompute line numbers when the code is
-modified. It requires another object to recompute them.
+In codetransformer, a jump target is an instruction. Jump targets are computed
+when the bytecode is converted to a code object.
 
 byteplay and bytecode use labels. Jump targets are computed when the abstract
 bytecode is converted to a code object.
