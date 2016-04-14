@@ -22,6 +22,7 @@ Table Of Contents
    cfg
    api
    peephole
+   byteplay_codetransformer
    changelog
    todo
 
