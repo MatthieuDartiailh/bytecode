@@ -142,7 +142,9 @@ def _check_arg_int(name, arg):
                          % name)
 
 
-class BaseInstr:
+class Instr:
+    """Abstract instruction."""
+
     __slots__ = ('_name', '_opcode', '_arg', '_lineno')
 
     def __init__(self, name, arg=UNSET, *, lineno=None):
@@ -315,9 +317,3 @@ class BaseInstr:
         if self.is_uncond_jump():
             return True
         return False
-
-
-class Instr(BaseInstr):
-    """Abstract instruction."""
-
-    __slots__ = ()

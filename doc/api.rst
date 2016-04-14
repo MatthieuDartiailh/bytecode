@@ -8,7 +8,7 @@ Bytecode API
 * Arguments: :class:`CellVar`, :class:`Compare`, :class:`FreeVar`
 * Concrete bytecode: :class:`ConcreteInstr`, :class:`ConcreteBytecode`
 * Control Flow Graph (CFG): :class:`BasicBlock`, :class:`ControlFlowGraph`
-* Base classes: :class:`BaseInstr`, :class:`BaseBytecode`
+* Base class: :class:`BaseBytecode`
 
 
 Constants
@@ -39,12 +39,31 @@ Functions
 Instruction classes
 ===================
 
-BaseInstr
+Instr
 ---------
 
-.. class:: BaseInstr(name: str, arg=UNSET, \*, lineno: int=None)
+.. class:: Instr(name: str, arg=UNSET, \*, lineno: int=None)
 
-   Base class of instruction classes.
+   Abstract instruction.
+
+   The type of the *arg* parameter (and the :attr:`arg` attribute) depends on
+   the operation:
+
+   * If the operation has a jump argument (:meth:`has_jump`, ex:
+     ``JUMP_ABSOLUTE``): *arg* must be a :class:`Label` (if the instruction is
+     used in :class:`Bytecode`) or a :class:`BasicBlock` (used in
+     :class:`ControlFlowGraph`).
+   * If the operation has a cell or free argument (ex: ``LOAD_DEREF``): *arg*
+     must be a :class:`CellVar` or :class:`FreeVar` instance.
+   * If the operation has a local variable (ex: ``LOAD_FAST``): *arg* must be a
+     variable name, type ``str``.
+   * If the operation has a constant argument (``LOAD_CONST``): *arg* must not
+     be a :class:`Label` or :class:`BasicBlock` instance.
+   * If the operation has a compare argument (``COMPARE_OP``):
+     *arg* must be a :class:`Compare` enum.
+   * If the operation has no argument (ex: ``DUP_TOP``), *arg* must not be set.
+   * Otherwise (the operation has an argument, ex: ``CALL_FUNCTION``), *arg*
+     must be an integer (``int``) in the range ``0``..\ ``2,147,483,647``.
 
    To replace the operation name and the argument, the :meth:`set` method must
    be used instead of modifying the :attr:`name` attribute and then the
@@ -135,42 +154,12 @@ BaseInstr
          The *lineno* parameter has been removed.
 
 
-Instr
------
-
-.. class:: Instr(name: str, arg=UNSET, \*, lineno: int=None)
-
-   Abstract instruction. Inherit from :class:`BaseInstr`.
-
-   The type of the *arg* parameter (and the :attr:`arg` attribute) depends on
-   the operation:
-
-   * If the operation has a jump argument (:meth:`~BaseInstr.has_jump`, ex:
-     ``JUMP_ABSOLUTE``): *arg* must be a :class:`Label` (if the instruction is
-     used in :class:`Bytecode`) or a :class:`BasicBlock` (used in
-     :class:`ControlFlowGraph`).
-   * If the operation has a cell or free argument (ex: ``LOAD_DEREF``): *arg*
-     must be a :class:`CellVar` or :class:`FreeVar` instance.
-   * If the operation has a local variable (ex: ``LOAD_FAST``): *arg* must be a
-     variable name, type ``str``.
-   * If the operation has a constant argument (``LOAD_CONST``): *arg* must not
-     be a :class:`Label` or :class:`BasicBlock` instance.
-   * If the operation has a compare argument (``COMPARE_OP``):
-     *arg* must be a :class:`Compare` enum.
-   * If the operation has no argument (ex: ``DUP_TOP``), *arg* must not be set.
-   * Otherwise (the operation has an argument, ex: ``CALL_FUNCTION``), *arg*
-     must be an integer (``int``) in the range ``0``..\ ``2,147,483,647``.
-
-   .. versionchanged:: 0.3
-      The argument is now validated.
-
-
 ConcreteInstr
 -------------
 
 .. class:: ConcreteInstr(name: str, arg=UNSET, \*, lineno: int=None)
 
-   Concrete instruction Inherit from :class:`BaseInstr`.
+   Concrete instruction Inherit from :class:`Instr`.
 
    If the operation requires an argument, *arg* must be an integer (``int``) in
    the range ``0``..\ ``2,147,483,647``. Otherwise, *arg* must not by set.

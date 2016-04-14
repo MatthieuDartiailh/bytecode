@@ -1,6 +1,12 @@
 ChangeLog
 =========
 
+Version 0.5
+-----------
+
+* Remove the ``BaseInstr`` class which became useless. It was replaced
+  with the :class:`Instr` class.
+
 2016-04-12: Version 0.4
 -----------------------
 
