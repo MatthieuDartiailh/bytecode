@@ -1,6 +1,8 @@
 TODO list
 =========
 
+* BaseBytecode.flags: use a class for flags?
+* Remove Bytecode.cellvars and Bytecode.freevars?
 * Remove Bytecode.first_lineno? Compute it on conversions.
 * Compute the stack size of an overall bytecode object: Bytecode.to_concrete_bytecode()
 * Add stack effect: use ``opcode.stack_effect(opcode)``
