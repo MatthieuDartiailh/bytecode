@@ -16,9 +16,7 @@ def _set_docstring(code, consts):
     if not consts:
         return
     first_const = consts[0]
-    if isinstance(first_const, str):
-        code.docstring = first_const
-    elif first_const is None:
+    if isinstance(first_const, str) or first_const is None:
         code.docstring = first_const
 
 
