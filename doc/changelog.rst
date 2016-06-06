@@ -63,7 +63,7 @@ Bugfixes:
 
 - Again, the API is deeply reworked.
 - The project has now a documentation:
-  `bytecode documentation <https://bytecode.readthedocs.org/>`_
+  `bytecode documentation <https://bytecode.readthedocs.io/>`_
 - Fix bug #1: support jumps larger than 2^16.
 - Add a new :ref:`bytecode.peephole_opt module <peephole_opt>`: a peephole
   optimizer, code based on peephole optimizer of CPython 3.6 which is
