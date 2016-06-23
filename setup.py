@@ -3,7 +3,7 @@
 # Prepare a release:
 #
 #  - git pull --rebase
-#  - update version in setup.py, bytecode/__init__.py and conf.py
+#  - update version in setup.py, bytecode/__init__.py and doc/conf.py
 #  - run tests: tox
 #  - set release date in the changelog
 #  - git commit -a
