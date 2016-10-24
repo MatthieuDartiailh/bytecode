@@ -3,7 +3,7 @@ import textwrap
 import types
 import unittest
 
-from bytecode import (UNSET, Label, Instr, ConcreteInstr, BasicBlock,
+from bytecode import (UNSET, Label, Instr, ConcreteInstr, BasicBlock,   # noqa
                       Bytecode, ControlFlowGraph, ConcreteBytecode)
 
 WORDCODE = (sys.version_info >= (3, 6))

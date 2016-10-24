@@ -126,7 +126,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
     def __delitem__(self, index):
         if isinstance(index, BasicBlock):
-            index = self.get_block_index(block)
+            index = self.get_block_index(index)
         block = self._blocks[index]
         del self._blocks[index]
         del self._block_index[id(block)]

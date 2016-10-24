@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import unittest
-from bytecode import (Label, Compare, SetLineno, Instr, ConcreteInstr,
+from bytecode import (Label, Compare, SetLineno, Instr,
                       Bytecode, BasicBlock, ControlFlowGraph)
-from bytecode.tests import disassemble as _disassemble, TestCase, get_code, WORDCODE
+from bytecode.tests import disassemble as _disassemble, TestCase, WORDCODE
 
 
 def disassemble(source, *, filename="<string>", function=False,

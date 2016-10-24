@@ -4,13 +4,13 @@ __all__ = ['Label', 'Instr', 'SetLineno', 'Bytecode',
            'ConcreteInstr', 'ConcreteBytecode',
            'ControlFlowGraph']
 
-from bytecode.instr import (UNSET, Label, SetLineno, Instr, CellVar, FreeVar,
+from bytecode.instr import (UNSET, Label, SetLineno, Instr, CellVar, FreeVar,   # noqa
                             Compare)
-from bytecode.bytecode import BaseBytecode, _InstrList, Bytecode
-from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,
+from bytecode.bytecode import BaseBytecode, _InstrList, Bytecode   # noqa
+from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,   # noqa
                                # import needed to use it in bytecode.py
                                _ConvertBytecodeToConcrete)
-from bytecode.cfg import BasicBlock, ControlFlowGraph
+from bytecode.cfg import BasicBlock, ControlFlowGraph   # noqa
 
 
 def dump_bytecode(bytecode, *, lineno=False):

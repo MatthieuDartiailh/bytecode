@@ -9,7 +9,7 @@ import types
 import bytecode as _bytecode
 from bytecode.instr import (UNSET, Instr, Label, SetLineno,
                             FreeVar, CellVar, Compare,
-                            const_key, _check_lineno, _check_arg_int)
+                            const_key, _check_arg_int)
 
 _WORDCODE = (sys.version_info >= (3, 6))
 

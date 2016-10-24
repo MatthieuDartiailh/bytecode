@@ -1,5 +1,3 @@
-import textwrap
-import types
 import unittest
 from bytecode import Label, Instr, Compare, Bytecode, ControlFlowGraph
 from bytecode import peephole_opt
@@ -479,16 +477,14 @@ class Tests(TestCase):
                    label)
 
     def test_unconditional_jump_to_return(self):
-        source = """
-            def func():
-                if test:
-                    if test2:
-                        x = 10
-                    else:
-                        x = 20
-                else:
-                    x = 30
-        """
+        # def func():
+        #     if test:
+        #         if test2:
+        #             x = 10
+        #         else:
+        #             x = 20
+        #     else:
+        #         x = 30
 
         label_instr11 = Label()
         label_instr14 = Label()
