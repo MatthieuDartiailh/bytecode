@@ -23,6 +23,7 @@ class Compare(enum.IntEnum):
 
 UNSET = object()
 
+
 def const_key(obj):
     # Python implmentation of the C function _PyCode_ConstantKey()
     # of Python 3.6
@@ -32,8 +33,8 @@ def const_key(obj):
     # to not merge instance of subtypes
 
     if (obj is None
-       or obj is Ellipsis
-       or obj_type in {int, bool, bytes, str, types.CodeType}):
+        or obj is Ellipsis
+            or obj_type in {int, bool, bytes, str, types.CodeType}):
         return (obj_type, obj)
 
     if obj_type == float:
@@ -171,7 +172,7 @@ class Instr:
                                 % (name, type(arg).__name__))
 
         elif (opcode in _opcode.haslocal
-             or opcode in _opcode.hasname):
+              or opcode in _opcode.hasname):
             if not isinstance(arg, str):
                 raise TypeError("operation %s argument must be a str, "
                                 "got %s"
@@ -189,7 +190,7 @@ class Instr:
             if not isinstance(arg, Compare):
                 raise TypeError("operation %s argument type must be "
                                 "Compare, got %s"
-                                 % (name, type(arg).__name__))
+                                % (name, type(arg).__name__))
 
         elif opcode >= _opcode.HAVE_ARGUMENT:
             _check_arg_int(name, arg)

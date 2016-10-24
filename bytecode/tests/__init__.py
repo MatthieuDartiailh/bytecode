@@ -8,6 +8,7 @@ from bytecode import (UNSET, Label, Instr, ConcreteInstr, BasicBlock,
 
 WORDCODE = (sys.version_info >= (3, 6))
 
+
 def _format_instr_list(block, labels, lineno):
     instr_list = []
     for instr in block:
@@ -25,18 +26,21 @@ def _format_instr_list(block, labels, lineno):
                 else:
                     arg = repr(arg)
                 if lineno:
-                    text = '%s(%r, %s, lineno=%s)' % (cls_name, instr.name, arg, instr.lineno)
+                    text = '%s(%r, %s, lineno=%s)' % (
+                        cls_name, instr.name, arg, instr.lineno)
                 else:
                     text = '%s(%r, %s)' % (cls_name, instr.name, arg)
             else:
                 if lineno:
-                    text = '%s(%r, lineno=%s)' % (cls_name, instr.name, instr.lineno)
+                    text = '%s(%r, lineno=%s)' % (
+                        cls_name, instr.name, instr.lineno)
                 else:
                     text = '%s(%r)' % (cls_name, instr.name)
         else:
             text = labels[instr]
         instr_list.append(text)
-    return '[%s]'  % ',\n '.join(instr_list)
+    return '[%s]' % ',\n '.join(instr_list)
+
 
 def dump_bytecode(code, lineno=False):
     """
@@ -58,7 +62,6 @@ def dump_bytecode(code, lineno=False):
             if isinstance(instr, Label):
                 name = 'label_instr%s' % index
                 labels[instr] = name
-
 
         if is_concrete:
             name = 'ConcreteBytecode'
@@ -109,6 +112,7 @@ def dump_bytecode(code, lineno=False):
             print(text)
             print()
 
+
 def get_code(source, *, filename="<string>", function=False):
     source = textwrap.dedent(source).strip()
     code = compile(source, filename, "exec")
@@ -120,12 +124,14 @@ def get_code(source, *, filename="<string>", function=False):
         code = sub_code[0]
     return code
 
+
 def disassemble(source, *, filename="<string>", function=False):
     code = get_code(source, filename=filename, function=function)
     return Bytecode.from_code(code)
 
 
 class TestCase(unittest.TestCase):
+
     def assertBlocksEqual(self, code, *expected_blocks):
         self.assertEqual(len(code), len(expected_blocks))
 

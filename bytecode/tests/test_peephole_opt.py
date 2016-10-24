@@ -157,7 +157,7 @@ class Tests(TestCase):
             size = (max_size + 1)
             code = Bytecode([Instr('LOAD_CONST', 9),
                              Instr('BUILD_TUPLE', 1),
-                             Instr('LOAD_CONST', size ),
+                             Instr('LOAD_CONST', size),
                              Instr('BINARY_MULTIPLY'),
                              Instr('STORE_NAME', 'x')])
             self.check(code,
@@ -193,7 +193,6 @@ class Tests(TestCase):
                          Instr('LOAD_CONST', None),
                          Instr('RETURN_VALUE')])
         self.check_dont_optimize(code)
-
 
         # 1 % 1j
         code = Bytecode([Instr('LOAD_CONST', 1),
@@ -438,14 +437,14 @@ class Tests(TestCase):
         setup_loop = Label()
         return_label = Label()
         code = Bytecode([setup_loop,
-                             Instr('SETUP_LOOP', return_label, lineno=2),
-                             Instr('LOAD_CONST', 7, lineno=3),
-                             Instr('RETURN_VALUE', lineno=3),
-                             Instr('JUMP_ABSOLUTE', setup_loop, lineno=3),
-                             Instr('POP_BLOCK', lineno=3),
+                         Instr('SETUP_LOOP', return_label, lineno=2),
+                         Instr('LOAD_CONST', 7, lineno=3),
+                         Instr('RETURN_VALUE', lineno=3),
+                         Instr('JUMP_ABSOLUTE', setup_loop, lineno=3),
+                         Instr('POP_BLOCK', lineno=3),
                          return_label,
-                             Instr('LOAD_CONST', None, lineno=3),
-                             Instr('RETURN_VALUE', lineno=3)])
+                         Instr('LOAD_CONST', None, lineno=3),
+                         Instr('RETURN_VALUE', lineno=3)])
         code = ControlFlowGraph.from_bytecode(code)
 
         end_loop = Label()
@@ -457,7 +456,6 @@ class Tests(TestCase):
                    Instr('LOAD_CONST', None, lineno=3),
                    Instr('RETURN_VALUE', lineno=3))
 
-
     def test_not_jump_if_false(self):
         # Replace UNARY_NOT+POP_JUMP_IF_FALSE with POP_JUMP_IF_TRUE
         #
@@ -467,8 +465,8 @@ class Tests(TestCase):
         code = Bytecode([Instr('LOAD_NAME', 'x'),
                          Instr('UNARY_NOT'),
                          Instr('POP_JUMP_IF_FALSE', label),
-                             Instr('LOAD_CONST', 9),
-                             Instr('STORE_NAME', 'y'),
+                         Instr('LOAD_CONST', 9),
+                         Instr('STORE_NAME', 'y'),
                          label])
 
         code = self.optimize_blocks(code)
@@ -476,8 +474,8 @@ class Tests(TestCase):
         self.check(code,
                    Instr('LOAD_NAME', 'x'),
                    Instr('POP_JUMP_IF_TRUE', label),
-                       Instr('LOAD_CONST', 9),
-                       Instr('STORE_NAME', 'y'),
+                   Instr('LOAD_CONST', 9),
+                   Instr('STORE_NAME', 'y'),
                    label)
 
     def test_unconditional_jump_to_return(self):
@@ -506,17 +504,17 @@ class Tests(TestCase):
                          Instr('JUMP_ABSOLUTE', label_instr14, lineno=4),
 
                          label_instr7,
-                             Instr('LOAD_CONST', 20, lineno=6),
-                             Instr('STORE_FAST', 'x', lineno=6),
-                             Instr('JUMP_FORWARD', label_instr14, lineno=6),
+                         Instr('LOAD_CONST', 20, lineno=6),
+                         Instr('STORE_FAST', 'x', lineno=6),
+                         Instr('JUMP_FORWARD', label_instr14, lineno=6),
 
                          label_instr11,
-                             Instr('LOAD_CONST', 30, lineno=8),
-                             Instr('STORE_FAST', 'x', lineno=8),
+                         Instr('LOAD_CONST', 30, lineno=8),
+                         Instr('STORE_FAST', 'x', lineno=8),
 
                          label_instr14,
-                             Instr('LOAD_CONST', None, lineno=8),
-                             Instr('RETURN_VALUE', lineno=8)])
+                         Instr('LOAD_CONST', None, lineno=8),
+                         Instr('RETURN_VALUE', lineno=8)])
 
         label1 = Label()
         label3 = Label()
@@ -533,17 +531,17 @@ class Tests(TestCase):
                    Instr('JUMP_ABSOLUTE', label4, lineno=4),
 
                    label1,
-                       Instr('LOAD_CONST', 20, lineno=6),
-                       Instr('STORE_FAST', 'x', lineno=6),
-                       Instr('JUMP_FORWARD', label4, lineno=6),
+                   Instr('LOAD_CONST', 20, lineno=6),
+                   Instr('STORE_FAST', 'x', lineno=6),
+                   Instr('JUMP_FORWARD', label4, lineno=6),
 
                    label3,
-                       Instr('LOAD_CONST', 30, lineno=8),
-                       Instr('STORE_FAST', 'x', lineno=8),
+                   Instr('LOAD_CONST', 30, lineno=8),
+                   Instr('STORE_FAST', 'x', lineno=8),
 
                    label4,
-                       Instr('LOAD_CONST', None, lineno=8),
-                       Instr('RETURN_VALUE', lineno=8))
+                   Instr('LOAD_CONST', None, lineno=8),
+                   Instr('RETURN_VALUE', lineno=8))
 
     def test_unconditional_jumps(self):
         # def func():
@@ -578,7 +576,6 @@ class Tests(TestCase):
                    Instr('LOAD_CONST', None, lineno=4),
                    Instr('RETURN_VALUE', lineno=4))
 
-
     def test_jump_to_return(self):
         # def func(condition):
         #     return 'yes' if condition else 'no'
@@ -589,9 +586,9 @@ class Tests(TestCase):
                          Instr('LOAD_CONST', 'yes'),
                          Instr('JUMP_FORWARD', label_instr6),
                          label_instr4,
-                             Instr('LOAD_CONST', 'no'),
+                         Instr('LOAD_CONST', 'no'),
                          label_instr6,
-                             Instr('RETURN_VALUE')])
+                         Instr('RETURN_VALUE')])
 
         label = Label()
         self.check(code,
@@ -614,28 +611,28 @@ class Tests(TestCase):
         label_instr7 = Label()
         code = Bytecode([Instr('LOAD_NAME', 'x'),
                          Instr('JUMP_IF_TRUE_OR_POP', label_instr3),
-                             Instr('LOAD_NAME', 'y'),
+                         Instr('LOAD_NAME', 'y'),
                          label_instr3,
-                             Instr('POP_JUMP_IF_FALSE', label_instr7),
-                             Instr('LOAD_CONST', 1),
-                             Instr('STORE_NAME', 'z'),
+                         Instr('POP_JUMP_IF_FALSE', label_instr7),
+                         Instr('LOAD_CONST', 1),
+                         Instr('STORE_NAME', 'z'),
                          label_instr7,
-                             Instr('LOAD_CONST', None),
-                             Instr('RETURN_VALUE')])
+                         Instr('LOAD_CONST', None),
+                         Instr('RETURN_VALUE')])
 
         label_instr4 = Label()
         label_instr7 = Label()
         self.check(code,
                    Instr('LOAD_NAME', 'x'),
                    Instr('POP_JUMP_IF_TRUE', label_instr4),
-                       Instr('LOAD_NAME', 'y'),
+                   Instr('LOAD_NAME', 'y'),
                    Instr('POP_JUMP_IF_FALSE', label_instr7),
                    label_instr4,
-                       Instr('LOAD_CONST', 1),
-                       Instr('STORE_NAME', 'z'),
+                   Instr('LOAD_CONST', 1),
+                   Instr('STORE_NAME', 'z'),
                    label_instr7,
-                       Instr('LOAD_CONST', None),
-                       Instr('RETURN_VALUE'))
+                   Instr('LOAD_CONST', None),
+                   Instr('RETURN_VALUE'))
 
     def test_jump_if_false_to_jump_if_false(self):
         # Replace JUMP_IF_FALSE_OR_POP jumping to POP_JUMP_IF_FALSE <label>
@@ -649,26 +646,26 @@ class Tests(TestCase):
         label_instr9 = Label()
         code = Bytecode([Instr('SETUP_LOOP', label_instr17),
                          label_instr1,
-                             Instr('LOAD_NAME', 'n'),
-                             Instr('LOAD_CONST', 0),
-                             Instr('COMPARE_OP', Compare.GT),
+                         Instr('LOAD_NAME', 'n'),
+                         Instr('LOAD_CONST', 0),
+                         Instr('COMPARE_OP', Compare.GT),
                          # JUMP_IF_FALSE_OR_POP jumps to POP_JUMP_IF_FALSE
                          # which jumps to label_instr15
                          Instr('JUMP_IF_FALSE_OR_POP', label_instr9),
-                             Instr('LOAD_NAME', 'start'),
-                             Instr('LOAD_CONST', 3),
-                             Instr('COMPARE_OP', Compare.GT),
+                         Instr('LOAD_NAME', 'start'),
+                         Instr('LOAD_CONST', 3),
+                         Instr('COMPARE_OP', Compare.GT),
                          label_instr9,
                          Instr('POP_JUMP_IF_FALSE', label_instr15),
-                             Instr('LOAD_NAME', 'func'),
-                             Instr('CALL_FUNCTION', 0),
-                             Instr('POP_TOP'),
+                         Instr('LOAD_NAME', 'func'),
+                         Instr('CALL_FUNCTION', 0),
+                         Instr('POP_TOP'),
                          Instr('JUMP_ABSOLUTE', label_instr1),
                          label_instr15,
-                             Instr('POP_BLOCK'),
+                         Instr('POP_BLOCK'),
                          label_instr17,
-                             Instr('LOAD_CONST', None),
-                             Instr('RETURN_VALUE')])
+                         Instr('LOAD_CONST', None),
+                         Instr('RETURN_VALUE')])
 
         label_instr1 = Label()
         label_instr14 = Label()
@@ -676,23 +673,23 @@ class Tests(TestCase):
         self.check(code,
                    Instr('SETUP_LOOP', label_instr16),
                    label_instr1,
-                       Instr('LOAD_NAME', 'n'),
-                       Instr('LOAD_CONST', 0),
-                       Instr('COMPARE_OP', Compare.GT),
+                   Instr('LOAD_NAME', 'n'),
+                   Instr('LOAD_CONST', 0),
+                   Instr('COMPARE_OP', Compare.GT),
                    Instr('POP_JUMP_IF_FALSE', label_instr14),
-                       Instr('LOAD_NAME', 'start'),
-                       Instr('LOAD_CONST', 3),
-                       Instr('COMPARE_OP', Compare.GT),
+                   Instr('LOAD_NAME', 'start'),
+                   Instr('LOAD_CONST', 3),
+                   Instr('COMPARE_OP', Compare.GT),
                    Instr('POP_JUMP_IF_FALSE', label_instr14),
-                       Instr('LOAD_NAME', 'func'),
-                       Instr('CALL_FUNCTION', 0),
-                       Instr('POP_TOP'),
+                   Instr('LOAD_NAME', 'func'),
+                   Instr('CALL_FUNCTION', 0),
+                   Instr('POP_TOP'),
                    Instr('JUMP_ABSOLUTE', label_instr1),
                    label_instr14,
-                       Instr('POP_BLOCK'),
+                   Instr('POP_BLOCK'),
                    label_instr16,
-                       Instr('LOAD_CONST', None),
-                       Instr('RETURN_VALUE'))
+                   Instr('LOAD_CONST', None),
+                   Instr('RETURN_VALUE'))
 
     def test_nop(self):
         code = Bytecode([Instr('LOAD_NAME', 'x'),
@@ -707,16 +704,15 @@ class Tests(TestCase):
         label = Label()
         code = Bytecode([Instr('LOAD_NAME', 'x'),
                          Instr('JUMP_ABSOLUTE', label),
-                             # dead code
-                             Instr('LOAD_NAME', 'y'),
-                             Instr('STORE_NAME', 'test'),
+                         # dead code
+                         Instr('LOAD_NAME', 'y'),
+                         Instr('STORE_NAME', 'test'),
                          label,
-                             Instr('STORE_NAME', 'test')])
+                         Instr('STORE_NAME', 'test')])
 
         self.check(code,
                    Instr('LOAD_NAME', 'x'),
                    Instr('STORE_NAME', 'test'))
-
 
     def test_uncond_jump_to_uncond_jump(self):
         # Replace JUMP_FORWARD t1 jumping to JUMP_FORWARD t2

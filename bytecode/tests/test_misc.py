@@ -262,6 +262,7 @@ L.  6  32: LOAD_CONST 3
 
 
 class MiscTests(unittest.TestCase):
+
     def test_version(self):
         import setup
         self.assertEqual(bytecode.__version__, setup.VERSION)

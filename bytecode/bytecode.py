@@ -4,6 +4,7 @@ from bytecode.instr import UNSET, Label, SetLineno, Instr
 
 
 class BaseBytecode:
+
     def __init__(self):
         self.argcount = 0
         self.kwonlyargcount = 0
@@ -62,6 +63,7 @@ class BaseBytecode:
 
 
 class _InstrList(list):
+
     def _flat(self):
         instructions = []
         labels = {}
@@ -94,6 +96,7 @@ class _InstrList(list):
 
 
 class Bytecode(_InstrList, BaseBytecode):
+
     def __init__(self, instructions=None):
         BaseBytecode.__init__(self)
         if instructions is not None:

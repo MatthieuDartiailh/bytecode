@@ -56,7 +56,7 @@ def dump_bytecode(bytecode, *, lineno=False):
         for instr in bytecode:
             fields = []
             if instr.lineno is not None:
-               cur_lineno = instr.lineno
+                cur_lineno = instr.lineno
             if lineno:
                 fields.append(format_instr(instr))
                 line = ''.join(fields)
@@ -81,7 +81,7 @@ def dump_bytecode(bytecode, *, lineno=False):
                     print()
             else:
                 if instr.lineno is not None:
-                   cur_lineno = instr.lineno
+                    cur_lineno = instr.lineno
                 line = format_instr(instr, labels)
                 line = indent + format_line(index, line)
             print(line)
@@ -96,7 +96,7 @@ def dump_bytecode(bytecode, *, lineno=False):
             prev_lineno = None
             for index, instr in enumerate(block):
                 if instr.lineno is not None:
-                   cur_lineno = instr.lineno
+                    cur_lineno = instr.lineno
                 line = format_instr(instr, labels)
                 line = indent + format_line(index, line)
                 print(line)

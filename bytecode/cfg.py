@@ -5,6 +5,7 @@ from bytecode.instr import Label, SetLineno, Instr
 
 
 class BasicBlock(_bytecode._InstrList):
+
     def __init__(self, instructions=None):
         # a BasicBlock object, or None
         self.next_block = None
@@ -48,6 +49,7 @@ class BasicBlock(_bytecode._InstrList):
 
 
 class ControlFlowGraph(_bytecode.BaseBytecode):
+
     def __init__(self):
         super().__init__()
         self._blocks = []
@@ -157,10 +159,10 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         block2 = BasicBlock(instructions)
         block.next_block = block2
 
-        for block in self[block_index+1:]:
+        for block in self[block_index + 1:]:
             self._block_index[id(block)] += 1
 
-        self._blocks.insert(block_index+1, block2)
+        self._blocks.insert(block_index + 1, block2)
         self._block_index[id(block2)] = block_index + 1
 
         return block2
@@ -178,7 +180,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 if isinstance(instr, Instr) and isinstance(instr.arg, Label):
                     jumps.append((index, instr.arg))
 
-        for target_index, target_label  in jumps:
+        for target_index, target_label in jumps:
             target_index = label_to_block_index[target_label]
             block_starts[target_index] = target_label
 

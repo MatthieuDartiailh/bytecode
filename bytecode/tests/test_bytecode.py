@@ -38,11 +38,11 @@ class BytecodeTests(TestCase):
                           Instr('STORE_NAME', 'x', lineno=2),
                           Instr('JUMP_FORWARD', label_exit, lineno=2),
                           label_else,
-                              Instr('LOAD_CONST', 2, lineno=4),
-                              Instr('STORE_NAME', 'x', lineno=4),
+                          Instr('LOAD_CONST', 2, lineno=4),
+                          Instr('STORE_NAME', 'x', lineno=4),
                           label_exit,
-                              Instr('LOAD_CONST', None, lineno=4),
-                              Instr('RETURN_VALUE', lineno=4)])
+                          Instr('LOAD_CONST', None, lineno=4),
+                          Instr('RETURN_VALUE', lineno=4)])
 
     def test_from_code_freevars(self):
         ns = {}

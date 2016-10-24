@@ -37,6 +37,8 @@ CLASSIFIERS = [
 # put most of the code inside main() to be able to import setup.py in
 # test_bytecode.py, to ensure that VERSION is the same than
 # bytecode.__version__.
+
+
 def main():
     try:
         from setuptools import setup

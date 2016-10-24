@@ -6,6 +6,7 @@ from bytecode.tests import TestCase
 
 
 class InstrTests(TestCase):
+
     def test_constructor(self):
         # invalid line number
         with self.assertRaises(TypeError):
@@ -185,7 +186,6 @@ class InstrTests(TestCase):
         nested_tuple2 = (nested_tuple2,)
         self.assertNotEqual(Instr('LOAD_CONST', nested_tuple1),
                             Instr('LOAD_CONST', nested_tuple2))
-
 
         # frozenset
         self.assertNotEqual(Instr('LOAD_CONST', frozenset({0})),

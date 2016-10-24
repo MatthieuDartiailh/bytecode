@@ -24,6 +24,7 @@ def disassemble(source, *, filename="<string>", function=False,
 
 
 class BlockTests(unittest.TestCase):
+
     def test_iter_invalid_types(self):
         # Labels are not allowed in basic blocks
         block = BasicBlock()
@@ -35,7 +36,7 @@ class BlockTests(unittest.TestCase):
         block = BasicBlock()
         block2 = BasicBlock()
         block.extend([Instr('JUMP_ABSOLUTE', block2),
-                     Instr('NOP')])
+                      Instr('NOP')])
         with self.assertRaises(ValueError):
             list(block)
 
@@ -153,14 +154,14 @@ class BytecodeBlocksTests(TestCase):
         self.assertEqual(bytecode,
                          [Instr('LOAD_NAME', 'test', lineno=1),
                           Instr('POP_JUMP_IF_FALSE', label, lineno=1),
-                              Instr('LOAD_CONST', 5, lineno=2),
-                              Instr('STORE_NAME', 'x', lineno=2),
-                              Instr('JUMP_FORWARD', label, lineno=2),
+                          Instr('LOAD_CONST', 5, lineno=2),
+                          Instr('STORE_NAME', 'x', lineno=2),
+                          Instr('JUMP_FORWARD', label, lineno=2),
                           label,
-                              Instr('LOAD_CONST', 7, lineno=3),
-                              Instr('STORE_NAME', 'x', lineno=3),
-                              Instr('LOAD_CONST', None, lineno=3),
-                              Instr('RETURN_VALUE', lineno=3)])
+                          Instr('LOAD_CONST', 7, lineno=3),
+                          Instr('STORE_NAME', 'x', lineno=3),
+                          Instr('LOAD_CONST', None, lineno=3),
+                          Instr('RETURN_VALUE', lineno=3)])
         # FIXME: test other attributes
 
     def test_label_at_the_end(self):
@@ -168,8 +169,8 @@ class BytecodeBlocksTests(TestCase):
         code = Bytecode([Instr('LOAD_NAME', 'x'),
                          Instr('UNARY_NOT'),
                          Instr('POP_JUMP_IF_FALSE', label),
-                             Instr('LOAD_CONST', 9),
-                             Instr('STORE_NAME', 'y'),
+                         Instr('LOAD_CONST', 9),
+                         Instr('STORE_NAME', 'y'),
                          label])
 
         cfg = ControlFlowGraph.from_bytecode(code)
@@ -189,14 +190,14 @@ class BytecodeBlocksTests(TestCase):
                          Instr('LOAD_CONST', 5, lineno=2),
                          Instr('STORE_NAME', 'x', lineno=2),
                          Instr('JUMP_FORWARD', label, lineno=2),
-                             # dead code!
-                             Instr('LOAD_CONST', 7, lineno=4),
-                             Instr('STORE_NAME', 'x', lineno=4),
-                             Label(),  # unused label
+                         # dead code!
+                         Instr('LOAD_CONST', 7, lineno=4),
+                         Instr('STORE_NAME', 'x', lineno=4),
+                         Label(),  # unused label
                          label,
-                             Label(),  # unused label
-                             Instr('LOAD_CONST', None, lineno=4),
-                             Instr('RETURN_VALUE', lineno=4)])
+                         Label(),  # unused label
+                         Instr('LOAD_CONST', None, lineno=4),
+                         Instr('RETURN_VALUE', lineno=4)])
 
         blocks = ControlFlowGraph.from_bytecode(bytecode)
         label2 = blocks[3]
@@ -245,7 +246,7 @@ class BytecodeBlocksTests(TestCase):
                      label_loop_end,
                      Instr('LOAD_CONST', None, lineno=4),
                      Instr('RETURN_VALUE', lineno=4),
-        ))
+                     ))
         blocks = ControlFlowGraph.from_bytecode(code)
 
         expected = [[Instr('SETUP_LOOP', blocks[8], lineno=1)],
@@ -275,6 +276,7 @@ class BytecodeBlocksTests(TestCase):
 
 
 class BytecodeBlocksFunctionalTests(TestCase):
+
     def test_eq(self):
         # compare codes with multiple blocks and labels,
         # Code.__eq__() renumbers labels to get equal labels
@@ -345,8 +347,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
         block = code.split_block(code[0], 0)
         self.assertIs(block, code[0])
         self.assertBlocksEqual(code,
-                              [Instr('LOAD_CONST', 1, lineno=1),
-                               Instr('STORE_NAME', 'x', lineno=1)])
+                               [Instr('LOAD_CONST', 1, lineno=1),
+                                Instr('STORE_NAME', 'x', lineno=1)])
 
     def test_split_block_error(self):
         code = self.sample_code()
@@ -408,7 +410,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(code.co_flags, 0x43)
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_names, ())
-        self.assertEqual(code.co_varnames, ('arg', 'arg2', 'arg3', 'kwonly', 'kwonly2', 'x'))
+        self.assertEqual(code.co_varnames, ('arg', 'arg2',
+                                            'arg3', 'kwonly', 'kwonly2', 'x'))
         self.assertEqual(code.co_filename, 'hello.py')
         self.assertEqual(code.co_name, 'func')
         self.assertEqual(code.co_firstlineno, 3)

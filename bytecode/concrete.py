@@ -95,8 +95,8 @@ class ConcreteInstr(Instr):
             arg = self._arg
             if arg > 0xffff:
                 return struct.pack('<BHBH',
-                                _opcode.EXTENDED_ARG, arg >> 16,
-                                self._opcode, arg & 0xffff)
+                                   _opcode.EXTENDED_ARG, arg >> 16,
+                                   self._opcode, arg & 0xffff)
             else:
                 return struct.pack('<BH', self._opcode, arg)
 
@@ -115,6 +115,7 @@ class ConcreteInstr(Instr):
 
 
 class ConcreteBytecode(_bytecode.BaseBytecode, list):
+
     def __init__(self):
         super().__init__()
         self.consts = []
@@ -378,6 +379,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
 
 class _ConvertBytecodeToConcrete:
+
     def __init__(self, code):
         assert isinstance(code, _bytecode.Bytecode)
         self.bytecode = code

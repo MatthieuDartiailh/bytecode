@@ -10,6 +10,7 @@ from bytecode.tests import get_code, TestCase, WORDCODE
 
 
 class ConcreteInstrTests(TestCase):
+
     def test_constructor(self):
         with self.assertRaises(ValueError):
             # need an argument
@@ -103,8 +104,10 @@ class ConcreteInstrTests(TestCase):
 
     def test_size(self):
         self.assertEqual(ConcreteInstr('ROT_TWO').size, 2 if WORDCODE else 1)
-        self.assertEqual(ConcreteInstr('LOAD_CONST', 3).size, 2 if WORDCODE else 3)
-        self.assertEqual(ConcreteInstr('LOAD_CONST', 0x1234abcd).size, 8 if WORDCODE else 6)
+        self.assertEqual(ConcreteInstr('LOAD_CONST', 3).size,
+                         2 if WORDCODE else 3)
+        self.assertEqual(ConcreteInstr(
+            'LOAD_CONST', 0x1234abcd).size, 8 if WORDCODE else 6)
 
     def test_disassemble(self):
         code = b'\t\x00d\x03' if WORDCODE else b'\td\x03\x00'
@@ -124,20 +127,24 @@ class ConcreteInstrTests(TestCase):
         self.assertEqual(instr.assemble(), b'\t\x00' if WORDCODE else b'\t')
 
         instr = ConcreteInstr("LOAD_CONST", 3)
-        self.assertEqual(instr.assemble(), b'd\x03' if WORDCODE else b'd\x03\x00')
+        self.assertEqual(instr.assemble(),
+                         b'd\x03' if WORDCODE else b'd\x03\x00')
 
         instr = ConcreteInstr("LOAD_CONST", 0x1234abcd)
-        self.assertEqual(instr.assemble(), b'\x90\x12\x904\x90\xabd\xcd' if WORDCODE else b'\x904\x12d\xcd\xab')
+        self.assertEqual(instr.assemble(
+        ), b'\x90\x12\x904\x90\xabd\xcd' if WORDCODE else b'\x904\x12d\xcd\xab')
 
     def test_get_jump_target(self):
         jump_abs = ConcreteInstr("JUMP_ABSOLUTE", 3)
         self.assertEqual(jump_abs.get_jump_target(100), 3)
 
         jump_forward = ConcreteInstr("JUMP_FORWARD", 5)
-        self.assertEqual(jump_forward.get_jump_target(10), 17 if WORDCODE else 18)
+        self.assertEqual(jump_forward.get_jump_target(10),
+                         17 if WORDCODE else 18)
 
 
 class ConcreteBytecodeTests(TestCase):
+
     def test_attr(self):
         code_obj = get_code("x = 5")
         code = ConcreteBytecode.from_code(code_obj)
@@ -187,7 +194,8 @@ class ConcreteBytecodeTests(TestCase):
                         b'Z\x02\x00')
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 3)
-        self.assertEqual(code.co_lnotab, b'\x04\x01\x04\x01' if WORDCODE else b'\x06\x01\x06\x01')
+        self.assertEqual(
+            code.co_lnotab, b'\x04\x01\x04\x01' if WORDCODE else b'\x06\x01\x06\x01')
 
     def test_negative_lnotab(self):
         # x = 7
@@ -324,10 +332,12 @@ class ConcreteBytecodeTests(TestCase):
         code = concrete.to_code()
         self.assertEqual(code.co_freevars, ('__class__',))
         self.assertEqual(code.co_cellvars, ('__class__',))
-        self.assertEqual(code.co_code, b'\x94\x01\x89\x01' if WORDCODE else b'\x94\x01\x00\x89\x01\x00')
+        self.assertEqual(
+            code.co_code, b'\x94\x01\x89\x01' if WORDCODE else b'\x94\x01\x00\x89\x01\x00')
 
 
 class ConcreteFromCodeTests(TestCase):
+
     def test_extended_arg(self):
         # Create a code object from arbitrary bytecode
         co_code = b'\x90\x12\x904\x90\xabd\xcd' if WORDCODE else b'\x904\x12d\xcd\xab'
@@ -419,13 +429,14 @@ class ConcreteFromCodeTests(TestCase):
 
 
 class BytecodeToConcreteTests(TestCase):
+
     def test_label(self):
         code = Bytecode()
         label = Label()
         code.extend([Instr('LOAD_CONST', 'hello', lineno=1),
                      Instr('JUMP_FORWARD', label, lineno=1),
                      label,
-                         Instr('POP_TOP', lineno=1)])
+                     Instr('POP_TOP', lineno=1)])
 
         code = code.to_concrete_bytecode()
         expected = [ConcreteInstr('LOAD_CONST', 0, lineno=1),
@@ -445,15 +456,17 @@ class BytecodeToConcreteTests(TestCase):
                          Instr('LOAD_CONST', 7, lineno=4),
                          Instr('STORE_NAME', 'x'),
                          label,
-                             Instr('LOAD_CONST', None),
-                             Instr('RETURN_VALUE')])
+                         Instr('LOAD_CONST', None),
+                         Instr('RETURN_VALUE')])
 
         concrete = bytecode.to_concrete_bytecode()
         expected = [ConcreteInstr('LOAD_NAME', 0, lineno=1),
-                    ConcreteInstr('POP_JUMP_IF_FALSE', 14 if WORDCODE else 21, lineno=1),
+                    ConcreteInstr('POP_JUMP_IF_FALSE',
+                                  14 if WORDCODE else 21, lineno=1),
                     ConcreteInstr('LOAD_CONST', 0, lineno=2),
                     ConcreteInstr('STORE_NAME', 1, lineno=2),
-                    ConcreteInstr('JUMP_FORWARD', 4 if WORDCODE else 6, lineno=2),
+                    ConcreteInstr('JUMP_FORWARD',
+                                  4 if WORDCODE else 6, lineno=2),
                     ConcreteInstr('LOAD_CONST', 1, lineno=4),
                     ConcreteInstr('STORE_NAME', 1, lineno=4),
                     ConcreteInstr('LOAD_CONST', 2, lineno=4),
@@ -493,6 +506,7 @@ class BytecodeToConcreteTests(TestCase):
         NOP = bytes((opcode.opmap['NOP'],))
 
         class BigInstr(ConcreteInstr):
+
             def __init__(self, size):
                 super().__init__('NOP')
                 self._size = size
@@ -531,18 +545,20 @@ class BytecodeToConcreteTests(TestCase):
                      Instr('STORE_NAME', 'x'),
                      Instr('JUMP_FORWARD', label_return),
                      label_else,
-                         Instr('LOAD_CONST', 37, lineno=4),
-                         Instr('STORE_NAME', 'x'),
+                     Instr('LOAD_CONST', 37, lineno=4),
+                     Instr('STORE_NAME', 'x'),
                      label_return,
-                         Instr('LOAD_CONST', None, lineno=4),
-                         Instr('RETURN_VALUE')])
+                     Instr('LOAD_CONST', None, lineno=4),
+                     Instr('RETURN_VALUE')])
 
         code = code.to_concrete_bytecode()
         expected = [ConcreteInstr('LOAD_NAME', 0, lineno=1),
-                    ConcreteInstr('POP_JUMP_IF_FALSE', 10 if WORDCODE else 15, lineno=1),
+                    ConcreteInstr('POP_JUMP_IF_FALSE',
+                                  10 if WORDCODE else 15, lineno=1),
                     ConcreteInstr('LOAD_CONST', 0, lineno=2),
                     ConcreteInstr('STORE_NAME', 1, lineno=2),
-                    ConcreteInstr('JUMP_FORWARD', 4 if WORDCODE else 6, lineno=2),
+                    ConcreteInstr('JUMP_FORWARD',
+                                  4 if WORDCODE else 6, lineno=2),
                     ConcreteInstr('LOAD_CONST', 1, lineno=4),
                     ConcreteInstr('STORE_NAME', 1, lineno=4),
                     ConcreteInstr('LOAD_CONST', 2, lineno=4),

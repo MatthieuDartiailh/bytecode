@@ -201,7 +201,7 @@ class PeepholeOptimizer:
             return
 
         if (self.const_stack
-            and instr.arg <= len(self.const_stack)):
+                and instr.arg <= len(self.const_stack)):
             nconst = instr.arg
             start = self.index - 1
 
@@ -217,11 +217,11 @@ class PeepholeOptimizer:
 
         if instr.arg == 1:
             # Replace BUILD_TUPLE 1 + UNPACK_SEQUENCE 1 with NOP
-            del self.block[self.index-1:self.index+1]
+            del self.block[self.index - 1:self.index + 1]
         elif instr.arg == 2:
             # Replace BUILD_TUPLE 2 + UNPACK_SEQUENCE 2 with ROT_TWO
             rot2 = Instr('ROT_TWO', lineno=instr.lineno)
-            self.block[self.index - 1:self.index+1] = (rot2,)
+            self.block[self.index - 1:self.index + 1] = (rot2,)
             self.index -= 1
             self.const_stack.clear()
         elif instr.arg == 3:
@@ -229,7 +229,7 @@ class PeepholeOptimizer:
             # with ROT_THREE + ROT_TWO
             rot3 = Instr('ROT_THREE', lineno=instr.lineno)
             rot2 = Instr('ROT_TWO', lineno=instr.lineno)
-            self.block[self.index-1:self.index+1] = (rot3, rot2)
+            self.block[self.index - 1:self.index + 1] = (rot3, rot2)
             self.index -= 1
             self.const_stack.clear()
 
@@ -239,7 +239,7 @@ class PeepholeOptimizer:
 
         next_instr = self.get_next_instr('COMPARE_OP')
         if (next_instr is None
-           or next_instr.arg not in (Compare.IN, Compare.NOT_IN)):
+                or next_instr.arg not in (Compare.IN, Compare.NOT_IN)):
             return
 
         self.replace_container_of_consts(instr, container_type)
@@ -285,7 +285,7 @@ class PeepholeOptimizer:
         # not (a is not b) -->  a is b
         # not (a not in b) -->  a in b
         instr.arg = new_arg
-        self.block[self.index-1:self.index+1] = (instr,)
+        self.block[self.index - 1:self.index + 1] = (instr,)
 
     def jump_if_or_pop(self, instr):
         # Simplify conditional jump to conditional jump where the
@@ -321,7 +321,7 @@ class PeepholeOptimizer:
             # The current opcode inherits its target's stack behaviour
             instr.name = target_instr.name
             instr.arg = target2
-            self.block[self.index-1] = instr
+            self.block[self.index - 1] = instr
             self.index -= 1
         else:
             # The second jump is not taken if the first is (so jump past it),
@@ -337,7 +337,7 @@ class PeepholeOptimizer:
 
             instr.name = name
             instr.arg = new_label
-            self.block[self.index-1] = instr
+            self.block[self.index - 1] = instr
             self.index -= 1
 
     def eval_JUMP_IF_FALSE_OR_POP(self, instr):
@@ -362,9 +362,9 @@ class PeepholeOptimizer:
             return
 
         if (instr.is_uncond_jump()
-           and target_instr.name == 'RETURN_VALUE'):
+                and target_instr.name == 'RETURN_VALUE'):
             # Replace JUMP_ABSOLUTE => RETURN_VALUE with RETURN_VALUE
-            self.block[self.index-1] = target_instr
+            self.block[self.index - 1] = target_instr
 
         elif target_instr.is_uncond_jump():
             # Replace JUMP_FORWARD t1 jumping to JUMP_FORWARD t2
@@ -376,7 +376,7 @@ class PeepholeOptimizer:
                 name = 'JUMP_ABSOLUTE'
             else:
                 # FIXME: reimplement this check
-                #if jump_target2 < 0:
+                # if jump_target2 < 0:
                 #    # No backward relative jumps
                 #    return
 
@@ -386,11 +386,11 @@ class PeepholeOptimizer:
 
             instr.name = name
             instr.arg = jump_target2
-            self.block[self.index-1] = instr
+            self.block[self.index - 1] = instr
 
     def optimize_jump(self, instr):
         if (instr.is_uncond_jump()
-           and self.index == len(self.block)):
+                and self.index == len(self.block)):
             # JUMP_ABSOLUTE at the end of a block which points to the
             # following block: remove the jump, link the current block
             # to the following block
@@ -442,7 +442,7 @@ class PeepholeOptimizer:
                 used_blocks.add(id(block.next_block))
             for instr in block:
                 if (isinstance(instr, Instr)
-                   and isinstance(instr.arg, BasicBlock)):
+                        and isinstance(instr.arg, BasicBlock)):
                     used_blocks.add(id(instr.arg))
 
         block_index = 0
