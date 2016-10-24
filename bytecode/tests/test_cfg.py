@@ -2,7 +2,7 @@
 import unittest
 from bytecode import (Label, Compare, SetLineno, Instr, ConcreteInstr,
                       Bytecode, BasicBlock, ControlFlowGraph)
-from bytecode.tests import disassemble as _disassemble, TestCase, get_code
+from bytecode.tests import disassemble as _disassemble, TestCase, get_code, WORDCODE
 
 
 def disassemble(source, *, filename="<string>", function=False,
@@ -379,14 +379,24 @@ class BytecodeBlocksFunctionalTests(TestCase):
                        Instr('LOAD_FAST', 'x', lineno=7),
                        Instr('RETURN_VALUE', lineno=7)])
 
-        expected = (b'|\x05\x00'
-                    b'r\x0c\x00'
-                    b'|\x00\x00'
-                    b'}\x05\x00'
-                    b'd\x01\x00'
-                    b'}\x05\x00'
-                    b'|\x05\x00'
-                    b'S')
+        if WORDCODE:
+            expected = (b'|\x05'
+                        b'r\x08'
+                        b'|\x00'
+                        b'}\x05'
+                        b'd\x01'
+                        b'}\x05'
+                        b'|\x05'
+                        b'S\x00')
+        else:
+            expected = (b'|\x05\x00'
+                        b'r\x0c\x00'
+                        b'|\x00\x00'
+                        b'}\x05\x00'
+                        b'd\x01\x00'
+                        b'}\x05\x00'
+                        b'|\x05\x00'
+                        b'S')
 
         code = bytecode.to_bytecode().to_code()
         self.assertEqual(code.co_consts, (None, 3))

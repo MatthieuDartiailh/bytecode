@@ -6,7 +6,7 @@ import unittest
 
 import bytecode
 from bytecode import Label, Instr, Bytecode, BasicBlock, ControlFlowGraph
-from bytecode.tests import disassemble
+from bytecode.tests import disassemble, WORDCODE
 
 
 class DumpCodeTests(unittest.TestCase):
@@ -187,7 +187,25 @@ label_instr13:
         code = code.to_concrete_bytecode()
 
         # without line numbers
-        expected = """
+        if WORDCODE:
+            expected = """
+  0    LOAD_FAST 0
+  2    LOAD_CONST 1
+  4    COMPARE_OP 2
+  6    POP_JUMP_IF_FALSE 12
+  8    LOAD_CONST 1
+ 10    RETURN_VALUE
+ 12    LOAD_FAST 0
+ 14    LOAD_CONST 2
+ 16    COMPARE_OP 2
+ 18    POP_JUMP_IF_FALSE 24
+ 20    LOAD_CONST 2
+ 22    RETURN_VALUE
+ 24    LOAD_CONST 3
+ 26    RETURN_VALUE
+""".lstrip("\n")
+        else:
+            expected = """
   0    LOAD_FAST 0
   3    LOAD_CONST 1
   6    COMPARE_OP 2
@@ -206,7 +224,25 @@ label_instr13:
         self.check_dump_bytecode(code, expected)
 
         # with line numbers
-        expected = """
+        if WORDCODE:
+            expected = """
+L.  2   0: LOAD_FAST 0
+        2: LOAD_CONST 1
+        4: COMPARE_OP 2
+        6: POP_JUMP_IF_FALSE 12
+L.  3   8: LOAD_CONST 1
+       10: RETURN_VALUE
+L.  4  12: LOAD_FAST 0
+       14: LOAD_CONST 2
+       16: COMPARE_OP 2
+       18: POP_JUMP_IF_FALSE 24
+L.  5  20: LOAD_CONST 2
+       22: RETURN_VALUE
+L.  6  24: LOAD_CONST 3
+       26: RETURN_VALUE
+""".lstrip("\n")
+        else:
+            expected = """
 L.  2   0: LOAD_FAST 0
         3: LOAD_CONST 1
         6: COMPARE_OP 2

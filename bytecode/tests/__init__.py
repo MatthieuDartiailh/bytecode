@@ -1,3 +1,4 @@
+import sys
 import textwrap
 import types
 import unittest
@@ -5,6 +6,7 @@ import unittest
 from bytecode import (UNSET, Label, Instr, ConcreteInstr, BasicBlock,
                       Bytecode, ControlFlowGraph, ConcreteBytecode)
 
+WORDCODE = (sys.version_info >= (3, 6))
 
 def _format_instr_list(block, labels, lineno):
     instr_list = []

@@ -11,6 +11,8 @@ from bytecode.instr import (UNSET, Instr, Label, SetLineno,
                             FreeVar, CellVar, Compare,
                             const_key, _check_lineno, _check_arg_int)
 
+_WORDCODE = (sys.version_info >= (3, 6))
+
 
 def _set_docstring(code, consts):
     if not consts:
@@ -45,11 +47,18 @@ class ConcreteInstr(Instr):
 
     def _set(self, name, arg, lineno):
         super()._set(name, arg, lineno)
-        size = 1
-        if arg is not UNSET:
-            size += 2
-            if arg > 0xffff:
-                size += 3
+        if _WORDCODE:
+            size = 2
+            if arg is not UNSET:
+                while arg > 0xff:
+                    size += 2
+                    arg >>= 8
+        else:
+            size = 1
+            if arg is not UNSET:
+                size += 2
+                if arg > 0xffff:
+                    size += 3
         self._size = size
 
     @property
@@ -66,23 +75,39 @@ class ConcreteInstr(Instr):
             return self._arg
         return None
 
-    def assemble(self):
-        if self._arg is UNSET:
-            return struct.pack('<B', self._opcode)
+    if _WORDCODE:
+        def assemble(self):
+            if self._arg is UNSET:
+                return bytes((self._opcode, 0))
 
-        arg = self._arg
-        if arg > 0xffff:
-            return struct.pack('<BHBH',
-                               _opcode.EXTENDED_ARG, arg >> 16,
-                               self._opcode, arg & 0xffff)
-        else:
-            return struct.pack('<BH', self._opcode, arg)
+            arg = self._arg
+            b = [self._opcode, arg & 0xff]
+            while arg > 0xff:
+                arg >>= 8
+                b[:0] = [_opcode.EXTENDED_ARG, arg & 0xff]
+
+            return bytes(b)
+    else:
+        def assemble(self):
+            if self._arg is UNSET:
+                return struct.pack('<B', self._opcode)
+
+            arg = self._arg
+            if arg > 0xffff:
+                return struct.pack('<BHBH',
+                                _opcode.EXTENDED_ARG, arg >> 16,
+                                self._opcode, arg & 0xffff)
+            else:
+                return struct.pack('<BH', self._opcode, arg)
 
     @classmethod
     def disassemble(cls, lineno, code, offset):
         op = code[offset]
         if op >= _opcode.HAVE_ARGUMENT:
-            arg = code[offset + 1] + code[offset + 2] * 256
+            if _WORDCODE:
+                arg = code[offset + 1]
+            else:
+                arg = code[offset + 1] + code[offset + 2] * 256
         else:
             arg = UNSET
         name = _opcode.opname[op]
@@ -150,16 +175,22 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
             while index < len(instructions):
                 instr = instructions[index]
 
-                if instr.name == 'EXTENDED_ARG' and not extended_arg:
+                if instr.name == 'EXTENDED_ARG':
                     if extended_arg is not None:
-                        raise ValueError("EXTENDED_ARG followed "
-                                         "by EXTENDED_ARG")
-                    extended_arg = instr.arg
+                        if not _WORDCODE:
+                            raise ValueError("EXTENDED_ARG followed "
+                                             "by EXTENDED_ARG")
+                        extended_arg = (extended_arg << 8) + instr.arg
+                    else:
+                        extended_arg = instr.arg
                     del instructions[index]
                     continue
 
                 if extended_arg is not None:
-                    arg = (extended_arg << 16) + instr.arg
+                    if _WORDCODE:
+                        arg = (extended_arg << 8) + instr.arg
+                    else:
+                        arg = (extended_arg << 16) + instr.arg
                     extended_arg = None
 
                     instr = ConcreteInstr(instr.name, arg, lineno=instr.lineno)
