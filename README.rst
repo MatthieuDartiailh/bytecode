@@ -2,6 +2,14 @@
 bytecode
 ********
 
+.. image:: https://img.shields.io/pypi/v/bytecode.svg
+   :alt: Latest release on the Python Cheeseshop (PyPI)
+   :target: https://pypi.python.org/pypi/bytecode
+
+.. image:: https://travis-ci.org/haypo/bytecode.svg?branch=master
+   :alt: Build status of bytecode on Travis CI
+   :target: https://travis-ci.org/haypo/bytecode
+
 ``bytecode`` is a Python module to generate and modify bytecode.
 
 * `bytecode project homepage at GitHub
