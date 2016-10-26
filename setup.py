@@ -8,6 +8,8 @@
 #  - set release date in the changelog
 #  - git commit -a
 #  - git push
+#  - check Travis CI status:
+#    https://travis-ci.org/haypo/bytecode
 #
 # Release a new version:
 #
