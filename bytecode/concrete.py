@@ -4,6 +4,7 @@ import opcode as _opcode
 import struct
 import sys
 import types
+from enum import Enum
 
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
@@ -279,6 +280,288 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
         return b''.join(lnotab)
 
+    def _compute_stacksize(self, logging=False):
+
+        # sf_targets are the targets of SETUP_FINALLY opcodes. They are
+        # recorded because they have special stack behaviour. If an exception
+        # was raised in the block pushed by a SETUP_FINALLY opcode, the block
+        # is popped and 3 objects are pushed. On return or continue, the block
+        # is popped and 2 objects are pushed. If nothing happened, the block is
+        # popped by a POP_BLOCK opcode and 1 object is pushed by a
+        # (LOAD_CONST, None) operation
+        # Our solution is to record the stack state of SETUP_FINALLY targets
+        # as having 3 objects pushed, which is the maximum. However, to make
+        # stack recording consistent, the get_next_stacks function will always
+        # yield the stack state of the target as if 1 object was pushed, but
+        # this will be corrected in the actual stack recording
+        finally_opcodes = ('SETUP_FINALLY', 'SETUP_WITH')
+        if sys.version_info > (3, 5):
+            finally_opcodes += ('SET)UP_ASYNC_WITH',)
+        sf_targets = {op.get_jump_target() for op in self
+                      if op.name in finally_opcodes}
+
+        states = [None] * len(self)
+        maxsize = 0
+
+        op = [_StackState(self, logging=logging)]
+
+        while op:
+            cur_state = op.pop()
+            o = sum(cur_state.stack)
+            if o > maxsize:
+                maxsize = o
+
+            o = self[cur_state.pos]
+
+            # HINT as there is no Label in concrete boytecode test on each
+            # opcode as it may be a target.
+            if cur_state.pos in sf_targets:
+                cur_state.stack = cur_state.newstack(5)
+            if states[cur_state.pos] is None:
+                states[cur_state.pos] = cur_state
+            elif states[cur_state.pos].stack != cur_state.stack:
+                check_pos = cur_state.pos + 1
+                while not self[check_pos].has_flow():
+                    check_pos += 1
+                if self[check_pos].name not in ('RETURN_VALUE', 'STOP_CODE',
+                                                'RAISE_VARARGS'):
+                    if cur_state.pos not in sf_targets:
+                        msg = "Inconsistent code at %s %s %s\n%s"
+                        args = (cur_state.pos, cur_state.stack,
+                                states[cur_state.pos].stack,
+                                self[cur_state.pos - 5:cur_state.pos + 4])
+                        raise ValueError(msg % args)
+                    else:
+                        # SETUP_FINALLY target inconsistent code!
+                        #
+                        # Since Python 3.2 assigned exception is cleared at the
+                        # end of the except clause (named exception handler).
+                        # To perform this CPython (checked in version 3.4.3)
+                        # adds special bytecode in exception handler which
+                        # currently breaks 'regularity' of bytecode. Exception
+                        # handler is wrapped in try/finally block and
+                        # POP_EXCEPT opcode is inserted before END_FINALLY, as
+                        # a result cleanup-finally block is executed outside
+                        # except handler. It's not a bug, as it doesn't cause
+                        # any problems during execution, but it breaks
+                        # 'regularity' and we can't check inconsistency here.
+                        # Maybe issue should be posted to Python bug tracker.
+                        pass
+
+            o_name = o.name
+
+            # Nothing to do here
+            if o_name in ('BREAK_LOOP', 'RETURN_VALUE', 'RAISE_VARARGS',
+                          'STOP_CODE'):
+                continue
+
+            next_pos = cur_state.pos + 1
+            if not o.has_flow():
+                if o_name in {'LOAD_GLOBAL', 'LOAD_CONST', 'LOAD_NAME',
+                              'LOAD_FAST', 'LOAD_ATTR', 'LOAD_DEREF',
+                              'LOAD_CLASSDEREF', 'LOAD_CLOSURE',
+                              'STORE_GLOBAL', 'STORE_NAME', 'STORE_FAST',
+                              'STORE_ATTR', 'STORE_DEREF', 'DELETE_GLOBAL',
+                              'DELETE_NAME', 'DELETE_FAST', 'DELETE_ATTR',
+                              'DELETE_DEREF', 'IMPORT_NAME', 'IMPORT_FROM',
+                              'COMPARE_OP'}:
+                    se = dis.stack_effect(o, 0)
+                else:
+                    se = dis.stack_effect(o, o.arg)
+
+                log = cur_state.newlog("non-flow command (" + str(o) +
+                                       ", se = " + str(se) + ")")
+                op += [_StackState(self, next_pos, cur_state.newstack(se),
+                                   cur_state.block_stack, log, logging)]
+
+            elif o_name == 'FOR_ITER':
+                inside_for_log = cur_state.newlog("FOR_ITER (+1)")
+                op += [_StackState(self, o.get_jump_target(),
+                                   cur_state.newstack(-1),
+                                   cur_state.block_stack, cur_state.log,
+                                   logging),
+                       _StackState(self, next_pos, cur_state.newstack(1),
+                                   cur_state.block_stack, inside_for_log,
+                                   logging)]
+
+            elif o_name in {'JUMP_FORWARD', 'JUMP_ABSOLUTE'}:
+                after_jump_log = cur_state.newlog(str(o))
+                op += [_StackState(self, o.get_jump_target(),
+                                   cur_state.stack, cur_state.block_stack,
+                                   after_jump_log, logging)]
+
+            elif o_name in {'JUMP_IF_FALSE_OR_POP', 'JUMP_IF_TRUE_OR_POP'}:
+                after_jump_log = cur_state.newlog(str(o) + ", jumped")
+                log = cur_state.newlog(str(o) + ", not jumped (-1)")
+                op += [_StackState(self, o.get_jump_target(),
+                                   cur_state.stack, cur_state.block_stack,
+                                   after_jump_log, logging),
+                       _StackState(self, next_pos, cur_state.newstack(-1),
+                                   cur_state.block_stack, log, logging)]
+
+            elif o_name in {'POP_JUMP_IF_TRUE', 'POP_JUMP_IF_FALSE'}:
+                after_jump_log = cur_state.newlog(str(o) + ", jumped (-1)")
+                log = cur_state.newlog(str(o) + ", not jumped (-1)")
+                op += [_StackState(self, o.get_jump_target(),
+                                   cur_state.newstack(-1),
+                                   cur_state.block_stack, after_jump_log,
+                                   logging),
+                       _StackState(self, next_pos, cur_state.newstack(-1),
+                                   cur_state.block_stack, log, logging)]
+
+            elif o_name == 'CONTINUE_LOOP':
+                next_stack, next_block_stack =\
+                    cur_state.stack, cur_state.block_stack
+                last_popped_block = None
+                while next_block_stack[-1] != _BlockType.LOOP_BODY:
+                    last_popped_block = next_block_stack[-1]
+                    next_stack, next_block_stack =\
+                        next_stack[:-1], next_block_stack[:-1]
+
+                if next_stack != cur_state.stack:
+                    msg = "CONTINUE_LOOP, from non-loop block"
+                    log = cur_state.newlog(msg)
+                else:
+                    log = cur_state.newlog("CONTINUE_LOOP")
+
+                if last_popped_block == _BlockType.WITH_BLOCK:
+                    next_stack = next_stack[:-1] + (next_stack[-1] - 1,)
+                op += [_StackState(self,  o.get_jump_target(), next_stack,
+                                   next_block_stack, log, logging)]
+
+            elif o_name == 'SETUP_LOOP':
+                inside_loop_log = cur_state.newlog("SETUP_LOOP (+block)")
+                op += [_StackState(self, o.get_jump_target(),
+                                   cur_state.stack, cur_state.block_stack,
+                                   cur_state.log, logging),
+                       _StackState(self, next_pos, cur_state.stack + (0,),
+                                   cur_state.block_stack +
+                                   (_BlockType.LOOP_BODY,),
+                                   inside_loop_log, logging)]
+
+            elif o_name == 'SETUP_EXCEPT':
+                inside_except_log = cur_state.newlog("SETUP_EXCEPT, "
+                                                     "exception (+6, +block)")
+                inside_try_log = cur_state.newlog("SETUP_EXCEPT, "
+                                                  "try-block (+block)")
+                op += [_StackState(self, o.get_jump_target(),
+                                   cur_state.stack + (6,),
+                                   cur_state.block_stack +
+                                   (_BlockType.EXCEPTION,),
+                                   inside_except_log, logging),
+                       _StackState(self, next_pos, cur_state.stack + (0,),
+                                   cur_state.block_stack +
+                                   (_BlockType.TRY_EXCEPT,), inside_try_log,
+                                   logging)]
+
+            elif o_name == 'SETUP_FINALLY':
+                inside_finally_block = cur_state.newlog("SETUP_FINALLY (+1)")
+                inside_try_log = cur_state.newlog("SETUP_FINALLY "
+                                                  "try-block (+block)")
+                op += [_StackState(self, o.get_jump_target(),
+                                   cur_state.newstack(1),
+                                   cur_state.block_stack, inside_finally_block,
+                                   logging),
+                       _StackState(self, next_pos, cur_state.stack + (0,),
+                                   cur_state.block_stack +
+                                   (_BlockType.TRY_FINALLY,), inside_try_log,
+                                   logging)]
+
+            elif o_name == 'POP_BLOCK':
+                log = cur_state.newlog("POP_BLOCK (-block)")
+                op += [_StackState(self, next_pos, cur_state.stack[:-1],
+                                   cur_state.block_stack[:-1], log, logging)]
+
+            elif o_name == 'POP_EXCEPT':
+                log = cur_state.newlog("POP_EXCEPT (-block)")
+                op += [_StackState(self, next_pos, cur_state.stack[:-1],
+                                   cur_state.block_stack[:-1], log, logging)]
+
+            elif o_name == 'END_FINALLY':
+                if (cur_state.block_stack[-1] ==
+                        _BlockType.SILENCED_EXCEPTION_BLOCK):
+                    msg = "END_FINALLY pop silenced exception block (-block)"
+                    log = cur_state.newlog(msg)
+                    op += [_StackState(next_pos, cur_state.stack[:-1],
+                                       cur_state.block_stack[:-1], log,
+                                       logging)]
+                elif cur_state.block_stack[-1] == _BlockType.EXCEPTION:
+                    # Reraise exception
+                    pass
+                else:
+                    log = cur_state.newlog("END_FINALLY (-6)")
+                    op += [_StackState(next_pos, cur_state.newstack(-6),
+                                       cur_state.block_stack, log, logging)]
+
+            elif o_name == 'SETUP_WITH' or (sys.version >= (3, 5) and
+                                            o_name == 'SETUP_ASYNC_WITH'):
+                inside_with_block = cur_state.newlog("SETUP_WITH, "
+                                                     "with-block (+1, +block)")
+                inside_finally_block = cur_state.newlog("SETUP_WITH, "
+                                                        "finally (+1)")
+                op += [_StackState(self, o.get_jump_target(),
+                                   cur_state.newstack(1),
+                                   cur_state.block_stack,
+                                   inside_finally_block, logging),
+                       _StackState(self, next_pos, cur_state.stack + (1,),
+                                   cur_state.block_stack +
+                                   (_BlockType.WITH_BLOCK,), inside_with_block,
+                                   logging)]
+
+            elif sys.version_info < (3, 5) and o_name == 'WITH_CLEANUP':
+                # There is special case when 'with' __exit__ function returns
+                # True, that's the signal to silence exception, in this case
+                # additional element is pushed and next END_FINALLY command
+                # won't reraise exception.
+                log = cur_state.newlog("WITH_CLEANUP (-1)")
+                msg = "WITH_CLEANUP silenced_exception (+1, +block)"
+                silenced_exception_log = cur_state.newlog(msg)
+                op += [_StackState(self, next_pos, cur_state.newstack(-1),
+                                   cur_state.block_stack, log, logging),
+                       _StackState(self, next_pos,
+                                   cur_state.newstack(-7) + (8,),
+                                   cur_state.block_stack +
+                                   (_BlockType.SILENCED_EXCEPTION_BLOCK,),
+                                   silenced_exception_log, logging)]
+
+            elif sys.version_info >= (3, 5) and o_name == 'WITH_CLEANUP_START':
+                # There is special case when 'with' __exit__ function returns
+                # True, that's the signal to silence exception, in this case
+                # additional element is pushed and next END_FINALLY command
+                # won't reraise exception. Emulate this situation on
+                # WITH_CLEANUP_START with creating special block which will be
+                # handled differently by WITH_CLEANUP_FINISH and will cause
+                # END_FINALLY not to reraise exception.
+                log = cur_state.newlog("WITH_CLEANUP_START (+1)")
+                msg = "WITH_CLEANUP_START silenced_exception (+block)"
+                silenced_exception_log = cur_state.newlog(msg)
+                op += [_StackState(self, next_pos, cur_state.newstack(1),
+                                   cur_state.block_stack, log, logging),
+                       _StackState(self, next_pos,
+                                   cur_state.newstack(-7) + (9,),
+                                   cur_state.block_stack +
+                                   (_BlockType.SILENCED_EXCEPTION_BLOCK,),
+                                   silenced_exception_log, logging)]
+
+            elif (sys.version_info >= (3, 5) and
+                  o_name == 'WITH_CLEANUP_FINISH'):
+                if (cur_state.block_stack[-1] ==
+                        _BlockType.SILENCED_EXCEPTION_BLOCK):
+                    # See comment in WITH_CLEANUP_START handler
+                    log = cur_state.newlog("WITH_CLEANUP_FINISH "
+                                           "silenced_exception (-1)")
+                    op += [_StackState(self, next_pos, cur_state.newstack(-1),
+                                       cur_state.block_stack, log, logging)]
+                else:
+                    log = cur_state.newlog("WITH_CLEANUP_FINISH (-2)")
+                    op += [_StackState(self, next_pos, cur_state.newstack(-2),
+                                       cur_state.block_stack, log, logging)]
+
+            else:
+                raise ValueError("Unhandled opcode %s" % o)
+
+        return maxsize + 6  # for exception raise in deepest place
+
     def to_code(self):
         code_str, linenos = self._assemble_code()
         lnotab = self._assemble_lnotab(self.first_lineno, linenos)
@@ -286,8 +569,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         return types.CodeType(self.argcount,
                               self.kwonlyargcount,
                               nlocals,
-                              # FIXME: compute stack size
-                              self._stacksize,
+                              self._compute_stacksize(),
                               self.flags,
                               code_str,
                               tuple(self.consts),
@@ -376,6 +658,78 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
         bytecode.extend(instructions)
         return bytecode
+
+
+class _BlockType(Enum):
+    """Helper to compute stack size.
+
+    """
+    DEFAULT = 0,
+    TRY_FINALLY = 1,
+    TRY_EXCEPT = 2,
+    LOOP_BODY = 3,
+    WITH_BLOCK = 4,
+    EXCEPTION = 5,
+    SILENCED_EXCEPTION_BLOCK = 6,
+
+
+class _StackState(object):
+    """Helper to compute the stack size of a code object.
+
+    """
+    __slots__ = ('_code', '_pos', '_stack', '_block_stack', '_log', '_logging')
+
+    def __init__(self, code, pos=0, stack=(0,),
+                 block_stack=(_BlockType.DEFAULT,), log=[], logging=False):
+            self._pos = pos
+            self._stack = stack
+            self._block_stack = block_stack
+            self._log = log
+            self._logging = logging
+
+    @property
+    def pos(self):
+        return self._pos
+
+    @property
+    def stack(self):
+        return self._stack
+
+    @stack.setter
+    def stack(self, val):
+        self._stack = val
+
+    def newstack(self, n):
+        if self._stack[-1] < -n:
+            raise ValueError("Popped a non-existing element at %s %s" %
+                             (self._pos,
+                              self._code[self._pos - 4: self._pos + 3]))
+        return self._stack[:-1] + (self._stack[-1] + n,)
+
+    @property
+    def block_stack(self):
+        return self._block_stack
+
+    @property
+    def log(self):
+        return self._log
+
+    def newlog(self, msg):
+        if not self._logging:
+            return None
+
+        log_msg = str(self._pos) + ": " + msg
+        if self._stack:
+            log_msg += " (on stack: "
+            log_depth = 2
+            log_depth = min(log_depth, len(self._stack))
+            for pos in range(-1, -log_depth, -1):
+                log_msg += str(self._stack[pos]) + ", "
+            log_msg += str(self._stack[-log_depth])
+            log_msg += ")"
+        else:
+            log_msg += " (empty stack)"
+        return [log_msg] + self._log
 
 
 class _ConvertBytecodeToConcrete:
