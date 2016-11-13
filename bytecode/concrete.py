@@ -495,7 +495,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
                 if last_popped_block == _BlockType.WITH_BLOCK:
                     next_stack = next_stack[:-1] + (next_stack[-1] - 1,)
-                op += [_StackState(self,  jump_targets[id(o)], next_stack,
+                op += [_StackState(self, jump_targets[id(o)], next_stack,
                                    next_block_stack, log, logging)]
 
             elif o_name == 'SETUP_LOOP':
