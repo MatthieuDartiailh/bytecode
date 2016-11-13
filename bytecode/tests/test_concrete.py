@@ -180,18 +180,20 @@ class ConcreteBytecodeTests(TestCase):
                          ConcreteInstr("STORE_NAME", 1),
                          SetLineno(5),
                          ConcreteInstr("LOAD_CONST", 2),
-                         ConcreteInstr("STORE_NAME", 2)])
+                         ConcreteInstr("STORE_NAME", 2),
+                         ConcreteInstr('RETURN_VALUE')])
 
         code = concrete.to_code()
         if WORDCODE:
-            expected = b'd\x00Z\x00d\x01Z\x01d\x02Z\x02'
+            expected = b'd\x00Z\x00d\x01Z\x01d\x02Z\x02S\x00'
         else:
             expected = (b'd\x00\x00'
                         b'Z\x00\x00'
                         b'd\x01\x00'
                         b'Z\x01\x00'
                         b'd\x02\x00'
-                        b'Z\x02\x00')
+                        b'Z\x02\x00'
+                        b'S')
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 3)
         self.assertEqual(
@@ -256,36 +258,42 @@ class ConcreteBytecodeTests(TestCase):
     def test_cellvar(self):
         concrete = ConcreteBytecode()
         concrete.cellvars = ['x']
-        concrete.append(ConcreteInstr('LOAD_DEREF', 0))
+        concrete.extend([ConcreteInstr('LOAD_DEREF', 0),
+                         ConcreteInstr('RETURN_VALUE')])
         code = concrete.to_code()
 
         concrete = ConcreteBytecode.from_code(code)
         self.assertEqual(concrete.cellvars, ['x'])
         self.assertEqual(concrete.freevars, [])
         self.assertEqual(list(concrete),
-                         [ConcreteInstr('LOAD_DEREF', 0, lineno=1)])
+                         [ConcreteInstr('LOAD_DEREF', 0, lineno=1),
+                          ConcreteInstr('RETURN_VALUE', lineno=1)])
 
         bytecode = concrete.to_bytecode()
         self.assertEqual(bytecode.cellvars, ['x'])
         self.assertEqual(list(bytecode),
-                         [Instr('LOAD_DEREF', CellVar('x'), lineno=1)])
+                         [Instr('LOAD_DEREF', CellVar('x'), lineno=1),
+                          Instr('RETURN_VALUE', lineno=1)])
 
     def test_freevar(self):
         concrete = ConcreteBytecode()
         concrete.freevars = ['x']
-        concrete.append(ConcreteInstr('LOAD_DEREF', 0))
+        concrete.extend([ConcreteInstr('LOAD_DEREF', 0),
+                         ConcreteInstr('RETURN_VALUE')])
         code = concrete.to_code()
 
         concrete = ConcreteBytecode.from_code(code)
         self.assertEqual(concrete.cellvars, [])
         self.assertEqual(concrete.freevars, ['x'])
         self.assertEqual(list(concrete),
-                         [ConcreteInstr('LOAD_DEREF', 0, lineno=1)])
+                         [ConcreteInstr('LOAD_DEREF', 0, lineno=1),
+                          ConcreteInstr('RETURN_VALUE', lineno=1)])
 
         bytecode = concrete.to_bytecode()
         self.assertEqual(bytecode.cellvars, [])
         self.assertEqual(list(bytecode),
-                         [Instr('LOAD_DEREF', FreeVar('x'), lineno=1)])
+                         [Instr('LOAD_DEREF', FreeVar('x'), lineno=1),
+                          Instr('RETURN_VALUE', lineno=1)])
 
     def test_cellvar_freevar(self):
         concrete = ConcreteBytecode()
@@ -293,6 +301,7 @@ class ConcreteBytecodeTests(TestCase):
         concrete.freevars = ['free']
         concrete.append(ConcreteInstr('LOAD_DEREF', 0))
         concrete.append(ConcreteInstr('LOAD_DEREF', 1))
+        concrete.append(ConcreteInstr('RETURN_VALUE'))
         code = concrete.to_code()
 
         concrete = ConcreteBytecode.from_code(code)
@@ -300,40 +309,45 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(concrete.freevars, ['free'])
         self.assertEqual(list(concrete),
                          [ConcreteInstr('LOAD_DEREF', 0, lineno=1),
-                          ConcreteInstr('LOAD_DEREF', 1, lineno=1)])
+                          ConcreteInstr('LOAD_DEREF', 1, lineno=1),
+                          ConcreteInstr('RETURN_VALUE', lineno=1)])
 
         bytecode = concrete.to_bytecode()
         self.assertEqual(bytecode.cellvars, ['cell'])
         self.assertEqual(list(bytecode),
                          [Instr('LOAD_DEREF', CellVar('cell'), lineno=1),
-                          Instr('LOAD_DEREF', FreeVar('free'), lineno=1)])
+                          Instr('LOAD_DEREF', FreeVar('free'), lineno=1),
+                          Instr('RETURN_VALUE', lineno=1)])
 
     def test_load_classderef(self):
         concrete = ConcreteBytecode()
         concrete.cellvars = ['__class__']
         concrete.freevars = ['__class__']
         concrete.extend([ConcreteInstr('LOAD_CLASSDEREF', 1),
-                         ConcreteInstr('STORE_DEREF', 1)])
+                         ConcreteInstr('STORE_DEREF', 1),
+                         ConcreteInstr('RETURN_VALUE')])
 
         bytecode = concrete.to_bytecode()
         self.assertEqual(bytecode.freevars, ['__class__'])
         self.assertEqual(bytecode.cellvars, ['__class__'])
         self.assertEqual(list(bytecode),
                          [Instr('LOAD_CLASSDEREF', FreeVar('__class__'), lineno=1),
-                          Instr('STORE_DEREF', FreeVar('__class__'), lineno=1)])
+                          Instr('STORE_DEREF', FreeVar('__class__'), lineno=1),
+                          Instr('RETURN_VALUE', lineno=1)])
 
         concrete = bytecode.to_concrete_bytecode()
         self.assertEqual(concrete.freevars, ['__class__'])
         self.assertEqual(concrete.cellvars, ['__class__'])
         self.assertEqual(list(concrete),
                          [ConcreteInstr('LOAD_CLASSDEREF', 1, lineno=1),
-                          ConcreteInstr('STORE_DEREF', 1, lineno=1)])
+                          ConcreteInstr('STORE_DEREF', 1, lineno=1),
+                          ConcreteInstr('RETURN_VALUE', lineno=1)])
 
         code = concrete.to_code()
         self.assertEqual(code.co_freevars, ('__class__',))
         self.assertEqual(code.co_cellvars, ('__class__',))
         self.assertEqual(
-            code.co_code, b'\x94\x01\x89\x01' if WORDCODE else b'\x94\x01\x00\x89\x01\x00')
+            code.co_code, b'\x94\x01\x89\x01S\x00' if WORDCODE else b'\x94\x01\x00\x89\x01\x00S')
 
 
 class ConcreteFromCodeTests(TestCase):
@@ -522,13 +536,14 @@ class BytecodeToConcreteTests(TestCase):
         nb_nop = 2**16
         code = Bytecode([Instr("JUMP_ABSOLUTE", label),
                          BigInstr(nb_nop),
-                         label])
+                         label,
+                         Instr('RETURN_VALUE')])
 
         code_obj = code.to_code()
         if WORDCODE:
             expected = (b'\x90\x01\x90\x00q\x06' + NOP * nb_nop)
         else:
-            expected = (b'\x90\x01\x00q\x06\x00' + NOP * nb_nop)
+            expected = (b'\x90\x01\x00q\x06\x00' + NOP * nb_nop + b'S')
         self.assertEqual(code_obj.co_code, expected)
 
     def test_jumps(self):
