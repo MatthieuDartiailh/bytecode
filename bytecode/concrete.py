@@ -338,12 +338,13 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         maxsize = 0
 
         # Analysis to carry out to determine the stack depth
-        op = [_StackState(self, logging=logging)]
+        ops = [_StackState(self, logging=logging)]
+        add_op = ops.append
 
-        while op:
+        while ops:
             # Get the nex analysis to run and update the stack depth if
             # necessary
-            cur_state = op.pop()
+            cur_state = ops.pop()
             o = sum(cur_state.stack)
             if o > maxsize:
                 maxsize = o
@@ -414,9 +415,9 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
             # Those can be SetLineno or None because we are looking at a
             # meaningless address, simply go to next opcode
             if not isinstance(o, Instr):
-                op += [_StackState(self, next_addr, cur_state.stack,
+                add_op(_StackState(self, next_addr, cur_state.stack,
                                    cur_state.block_stack, cur_state.log,
-                                   logging)]
+                                   logging))
                 continue
 
             o_name = o.name
@@ -440,45 +441,53 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
                 log = cur_state.newlog("non-flow command (" + str(o) +
                                        ", se = " + str(se) + ")")
-                op += [_StackState(self, next_addr, cur_state.newstack(se),
-                                   cur_state.block_stack, log, logging)]
+                add_op(_StackState(self, next_addr, cur_state.newstack(se),
+                                   cur_state.block_stack, log, logging))
 
             elif o_name == 'FOR_ITER':
+                # FOR_ITER pushes next(TOS) on success, and pops TOS and jumps
+                # on failure
                 inside_for_log = cur_state.newlog("FOR_ITER (+1)")
-                op += [_StackState(self, jump_targets[id(o)],
-                                   cur_state.newstack(-1),
-                                   cur_state.block_stack, cur_state.log,
-                                   logging),
-                       _StackState(self, next_addr, cur_state.newstack(1),
-                                   cur_state.block_stack, inside_for_log,
-                                   logging)]
+                ops += (_StackState(self, jump_targets[id(o)],
+                                    cur_state.newstack(-1),
+                                    cur_state.block_stack, cur_state.log,
+                                    logging),
+                        _StackState(self, next_addr, cur_state.newstack(1),
+                                    cur_state.block_stack, inside_for_log,
+                                    logging))
 
             elif o_name in {'JUMP_FORWARD', 'JUMP_ABSOLUTE'}:
+                # One possibility for a jump
                 after_jump_log = cur_state.newlog(str(o))
-                op += [_StackState(self, jump_targets[id(o)],
+                add_op(_StackState(self, jump_targets[id(o)],
                                    cur_state.stack, cur_state.block_stack,
-                                   after_jump_log, logging)]
+                                   after_jump_log, logging))
 
             elif o_name in {'JUMP_IF_FALSE_OR_POP', 'JUMP_IF_TRUE_OR_POP'}:
+                # Two possibilities for a jump
                 after_jump_log = cur_state.newlog(str(o) + ", jumped")
                 log = cur_state.newlog(str(o) + ", not jumped (-1)")
-                op += [_StackState(self, jump_targets[id(o)],
-                                   cur_state.stack, cur_state.block_stack,
-                                   after_jump_log, logging),
-                       _StackState(self, next_addr, cur_state.newstack(-1),
-                                   cur_state.block_stack, log, logging)]
+                ops += (_StackState(self, jump_targets[id(o)],
+                                    cur_state.stack, cur_state.block_stack,
+                                    after_jump_log, logging),
+                        _StackState(self, next_addr, cur_state.newstack(-1),
+                                    cur_state.block_stack, log, logging))
 
             elif o_name in {'POP_JUMP_IF_TRUE', 'POP_JUMP_IF_FALSE'}:
+                # Two possibilities for a jump
                 after_jump_log = cur_state.newlog(str(o) + ", jumped (-1)")
                 log = cur_state.newlog(str(o) + ", not jumped (-1)")
-                op += [_StackState(self, jump_targets[id(o)],
-                                   cur_state.newstack(-1),
-                                   cur_state.block_stack, after_jump_log,
-                                   logging),
-                       _StackState(self, next_addr, cur_state.newstack(-1),
-                                   cur_state.block_stack, log, logging)]
+                ops += (_StackState(self, jump_targets[id(o)],
+                                    cur_state.newstack(-1),
+                                    cur_state.block_stack, after_jump_log,
+                                    logging),
+                        _StackState(self, next_addr, cur_state.newstack(-1),
+                                    cur_state.block_stack, log, logging))
 
             elif o_name == 'CONTINUE_LOOP':
+                # CONTINUE_LOOP jumps to the beginning of a loop which should
+                # already ave been discovered, but we verify anyway.
+                # It pops a block.
                 next_stack, next_block_stack =\
                     cur_state.stack, cur_state.block_stack
                 last_popped_block = None
@@ -495,72 +504,88 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
                 if last_popped_block == _BlockType.WITH_BLOCK:
                     next_stack = next_stack[:-1] + (next_stack[-1] - 1,)
-                op += [_StackState(self, jump_targets[id(o)], next_stack,
-                                   next_block_stack, log, logging)]
+                add_op(_StackState(self, jump_targets[id(o)], next_stack,
+                                   next_block_stack, log, logging))
 
             elif o_name == 'SETUP_LOOP':
+                # We continue with a new block.
+                # On break, we jump to the label and return to current stack
+                # state.
                 inside_loop_log = cur_state.newlog("SETUP_LOOP (+block)")
-                op += [_StackState(self, jump_targets[id(o)],
-                                   cur_state.stack, cur_state.block_stack,
-                                   cur_state.log, logging),
-                       _StackState(self, next_addr, cur_state.stack + (0,),
-                                   cur_state.block_stack +
-                                   (_BlockType.LOOP_BODY,),
-                                   inside_loop_log, logging)]
+                ops += (_StackState(self, jump_targets[id(o)],
+                                    cur_state.stack, cur_state.block_stack,
+                                    cur_state.log, logging),
+                        _StackState(self, next_addr, cur_state.stack + (0,),
+                                    cur_state.block_stack +
+                                    (_BlockType.LOOP_BODY,),
+                                    inside_loop_log, logging))
 
             elif o_name == 'SETUP_EXCEPT':
+                # We continue with a new block.
+                # On exception, we jump to the label with 3 extra objects on
+                # stack
+                # FIXME : why use 6 here ?
                 inside_except_log = cur_state.newlog("SETUP_EXCEPT, "
                                                      "exception (+6, +block)")
                 inside_try_log = cur_state.newlog("SETUP_EXCEPT, "
                                                   "try-block (+block)")
-                op += [_StackState(self, jump_targets[id(o)],
-                                   cur_state.stack + (6,),
-                                   cur_state.block_stack +
-                                   (_BlockType.EXCEPTION,),
-                                   inside_except_log, logging),
-                       _StackState(self, next_addr, cur_state.stack + (0,),
-                                   cur_state.block_stack +
-                                   (_BlockType.TRY_EXCEPT,), inside_try_log,
-                                   logging)]
+                ops += (_StackState(self, jump_targets[id(o)],
+                                    cur_state.stack + (6,),
+                                    cur_state.block_stack +
+                                    (_BlockType.EXCEPTION,),
+                                    inside_except_log, logging),
+                        _StackState(self, next_addr, cur_state.stack + (0,),
+                                    cur_state.block_stack +
+                                    (_BlockType.TRY_EXCEPT,), inside_try_log,
+                                    logging))
 
             elif o_name == 'SETUP_FINALLY':
+                # We continue with a new block.
+                # On exception, we jump to the label with 3 extra objects on
+                # stack, but to keep stack recording consistent, we behave as
+                # if we add only 1 object. Extra 2 will be added to the actual
+                # recording.
                 inside_finally_block = cur_state.newlog("SETUP_FINALLY (+1)")
                 inside_try_log = cur_state.newlog("SETUP_FINALLY "
                                                   "try-block (+block)")
-                op += [_StackState(self, jump_targets[id(o)],
-                                   cur_state.newstack(1),
-                                   cur_state.block_stack, inside_finally_block,
-                                   logging),
-                       _StackState(self, next_addr, cur_state.stack + (0,),
-                                   cur_state.block_stack +
-                                   (_BlockType.TRY_FINALLY,), inside_try_log,
-                                   logging)]
+                ops += (_StackState(self, jump_targets[id(o)],
+                                    cur_state.newstack(1),
+                                    cur_state.block_stack,
+                                    inside_finally_block, logging),
+                        _StackState(self, next_addr, cur_state.stack + (0,),
+                                    cur_state.block_stack +
+                                    (_BlockType.TRY_FINALLY,), inside_try_log,
+                                    logging))
 
             elif o_name == 'POP_BLOCK':
+                # Just pop the block
                 log = cur_state.newlog("POP_BLOCK (-block)")
-                op += [_StackState(self, next_addr, cur_state.stack[:-1],
-                                   cur_state.block_stack[:-1], log, logging)]
+                add_op(_StackState(self, next_addr, cur_state.stack[:-1],
+                                   cur_state.block_stack[:-1], log, logging))
 
             elif o_name == 'POP_EXCEPT':
                 log = cur_state.newlog("POP_EXCEPT (-block)")
-                op += [_StackState(self, next_addr, cur_state.stack[:-1],
-                                   cur_state.block_stack[:-1], log, logging)]
+                add_op(_StackState(self, next_addr, cur_state.stack[:-1],
+                                   cur_state.block_stack[:-1], log, logging))
 
             elif o_name == 'END_FINALLY':
+                # Since stack recording of SETUP_FINALLY targets is of 3 pushed
+                # objects (as when an exception is raised), we pop 3 objects.
+                # FIXME : comment is wrong ! what changed between 2 and 3
                 if (cur_state.block_stack[-1] ==
                         _BlockType.SILENCED_EXCEPTION_BLOCK):
                     msg = "END_FINALLY pop silenced exception block (-block)"
                     log = cur_state.newlog(msg)
-                    op += [_StackState(next_addr, cur_state.stack[:-1],
+                    add_op(_StackState(next_addr, cur_state.stack[:-1],
                                        cur_state.block_stack[:-1], log,
-                                       logging)]
+                                       logging))
                 elif cur_state.block_stack[-1] == _BlockType.EXCEPTION:
                     # Reraise exception
                     pass
                 else:
                     log = cur_state.newlog("END_FINALLY (-6)")
-                    op += [_StackState(next_addr, cur_state.newstack(-6),
-                                       cur_state.block_stack, log, logging)]
+                    add_op(_StackState(next_addr, cur_state.newstack(-6),
+                                       cur_state.block_stack, log, logging))
 
             elif o_name == 'SETUP_WITH' or (sys.version >= (3, 5) and
                                             o_name == 'SETUP_ASYNC_WITH'):
@@ -568,14 +593,14 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                                                      "with-block (+1, +block)")
                 inside_finally_block = cur_state.newlog("SETUP_WITH, "
                                                         "finally (+1)")
-                op += [_StackState(self, jump_targets[id(o)],
-                                   cur_state.newstack(1),
-                                   cur_state.block_stack,
-                                   inside_finally_block, logging),
-                       _StackState(self, next_addr, cur_state.stack + (1,),
-                                   cur_state.block_stack +
-                                   (_BlockType.WITH_BLOCK,), inside_with_block,
-                                   logging)]
+                ops += (_StackState(self, jump_targets[id(o)],
+                                    cur_state.newstack(1),
+                                    cur_state.block_stack,
+                                    inside_finally_block, logging),
+                        _StackState(self, next_addr, cur_state.stack + (1,),
+                                    cur_state.block_stack +
+                                    (_BlockType.WITH_BLOCK,),
+                                    inside_with_block, logging))
 
             elif sys.version_info < (3, 5) and o_name == 'WITH_CLEANUP':
                 # There is special case when 'with' __exit__ function returns
@@ -585,13 +610,13 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                 log = cur_state.newlog("WITH_CLEANUP (-1)")
                 msg = "WITH_CLEANUP silenced_exception (+1, +block)"
                 silenced_exception_log = cur_state.newlog(msg)
-                op += [_StackState(self, next_addr, cur_state.newstack(-1),
-                                   cur_state.block_stack, log, logging),
-                       _StackState(self, next_addr,
-                                   cur_state.newstack(-7) + (8,),
-                                   cur_state.block_stack +
-                                   (_BlockType.SILENCED_EXCEPTION_BLOCK,),
-                                   silenced_exception_log, logging)]
+                ops += (_StackState(self, next_addr, cur_state.newstack(-1),
+                                    cur_state.block_stack, log, logging),
+                        _StackState(self, next_addr,
+                                    cur_state.newstack(-7) + (8,),
+                                    cur_state.block_stack +
+                                    (_BlockType.SILENCED_EXCEPTION_BLOCK,),
+                                    silenced_exception_log, logging))
 
             elif sys.version_info >= (3, 5) and o_name == 'WITH_CLEANUP_START':
                 # There is special case when 'with' __exit__ function returns
@@ -604,13 +629,13 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                 log = cur_state.newlog("WITH_CLEANUP_START (+1)")
                 msg = "WITH_CLEANUP_START silenced_exception (+block)"
                 silenced_exception_log = cur_state.newlog(msg)
-                op += [_StackState(self, next_addr, cur_state.newstack(1),
-                                   cur_state.block_stack, log, logging),
-                       _StackState(self, next_addr,
-                                   cur_state.newstack(-7) + (9,),
-                                   cur_state.block_stack +
-                                   (_BlockType.SILENCED_EXCEPTION_BLOCK,),
-                                   silenced_exception_log, logging)]
+                ops += (_StackState(self, next_addr, cur_state.newstack(1),
+                                    cur_state.block_stack, log, logging),
+                        _StackState(self, next_addr,
+                                    cur_state.newstack(-7) + (9,),
+                                    cur_state.block_stack +
+                                    (_BlockType.SILENCED_EXCEPTION_BLOCK,),
+                                    silenced_exception_log, logging))
 
             elif (sys.version_info >= (3, 5) and
                   o_name == 'WITH_CLEANUP_FINISH'):
@@ -619,12 +644,12 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                     # See comment in WITH_CLEANUP_START handler
                     log = cur_state.newlog("WITH_CLEANUP_FINISH "
                                            "silenced_exception (-1)")
-                    op += [_StackState(self, next_addr, cur_state.newstack(-1),
-                                       cur_state.block_stack, log, logging)]
+                    add_op(_StackState(self, next_addr, cur_state.newstack(-1),
+                                       cur_state.block_stack, log, logging))
                 else:
                     log = cur_state.newlog("WITH_CLEANUP_FINISH (-2)")
-                    op += [_StackState(self, next_addr, cur_state.newstack(-2),
-                                       cur_state.block_stack, log, logging)]
+                    add_op(_StackState(self, next_addr, cur_state.newstack(-2),
+                                       cur_state.block_stack, log, logging))
 
             else:
                 raise ValueError("Unhandled opcode %s" % o)
