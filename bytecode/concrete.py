@@ -522,9 +522,8 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
             elif o_name == 'SETUP_EXCEPT':
                 # We continue with a new block.
-                # On exception, we jump to the label with 3 extra objects on
-                # stack
-                # FIXME : why use 6 here ?
+                # On exception, we jump to the label with 6 extra objects on
+                # stack.
                 inside_except_log = cur_state.newlog("SETUP_EXCEPT, "
                                                      "exception (+6, +block)")
                 inside_try_log = cur_state.newlog("SETUP_EXCEPT, "
