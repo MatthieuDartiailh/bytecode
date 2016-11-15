@@ -4,7 +4,7 @@ import types
 import unittest
 
 from bytecode import (UNSET, Label, Instr, ConcreteInstr, BasicBlock,   # noqa
-                      Bytecode, ControlFlowGraph, ConcreteBytecode)
+                      Bytecode, ControlFlowGraph, ConcreteBytecode, IS_PY2)
 
 WORDCODE = (sys.version_info >= (3, 6))
 
@@ -113,7 +113,7 @@ def dump_bytecode(code, lineno=False):
             print()
 
 
-def get_code(source, *, filename="<string>", function=False):
+def get_code(source, filename="<string>", function=False):
     source = textwrap.dedent(source).strip()
     code = compile(source, filename, "exec")
     if function:
@@ -125,9 +125,45 @@ def get_code(source, *, filename="<string>", function=False):
     return code
 
 
-def disassemble(source, *, filename="<string>", function=False):
+def disassemble(source, filename="<string>", function=False):
     code = get_code(source, filename=filename, function=function)
     return Bytecode.from_code(code)
+
+
+if not IS_PY2:
+    from contextlib import redirect_stdout
+else:
+    # Copied from Python 3.4 contextlib.py
+    class _RedirectStream:
+
+        _stream = None
+
+        def __init__(self, new_target):
+            self._new_target = new_target
+            # We use a list of old targets to make this CM re-entrant
+            self._old_targets = []
+
+        def __enter__(self):
+            self._old_targets.append(getattr(sys, self._stream))
+            setattr(sys, self._stream, self._new_target)
+            return self._new_target
+
+        def __exit__(self, exctype, excinst, exctb):
+            setattr(sys, self._stream, self._old_targets.pop())
+
+    class redirect_stdout(_RedirectStream):
+        """Context manager for temporarily redirecting stdout to another file.
+
+            # How to send help() to stderr
+            with redirect_stdout(sys.stderr):
+                help(dir)
+
+            # How to write help() to a file
+            with open('help.txt', 'w') as f:
+                with redirect_stdout(f):
+                    help(pow)
+        """
+        _stream = "stdout"
 
 
 class TestCase(unittest.TestCase):

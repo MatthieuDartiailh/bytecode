@@ -1,6 +1,6 @@
 import unittest
 
-from bytecode import ConcreteBytecode, Bytecode, ControlFlowGraph
+from bytecode import ConcreteBytecode, Bytecode, ControlFlowGraph, IS_PY2
 from bytecode.tests import get_code
 
 
@@ -46,11 +46,12 @@ class CodeTests(unittest.TestCase):
                 pass
         ''', function=True)
 
-    def test_kwonlyargs(self):
-        self.check('''
-            def func(*, arg, arg2):
-                pass
-        ''', function=True)
+    if not IS_PY2:
+        def test_kwonlyargs(self):
+            self.check('''
+                def func(*, arg, arg2):
+                    pass
+            ''', function=True)
 
 
 if __name__ == "__main__":

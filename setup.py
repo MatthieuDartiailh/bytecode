@@ -42,6 +42,7 @@ CLASSIFIERS = [
 
 
 def main():
+    import sys
     try:
         from setuptools import setup
     except ImportError:
@@ -61,6 +62,7 @@ def main():
         'author_email': 'victor.stinner@gmail.com',
         'classifiers': CLASSIFIERS,
         'packages': ['bytecode', 'bytecode.tests'],
+        'extra_requires': {':python_version=="2.7"': ['enum34']}
     }
     setup(**options)
 

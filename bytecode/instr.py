@@ -1,8 +1,10 @@
+from __future__ import absolute_import
 import enum
 import math
 import opcode as _opcode
 import types
 
+# alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 
 
@@ -84,7 +86,7 @@ def _check_lineno(lineno):
         raise ValueError("invalid lineno")
 
 
-class SetLineno:
+class SetLineno(object):
     __slots__ = ('_lineno',)
 
     def __init__(self, lineno):
@@ -101,11 +103,11 @@ class SetLineno:
         return (self._lineno == other._lineno)
 
 
-class Label:
+class Label(object):
     __slots__ = ()
 
 
-class _Variable:
+class _Variable(object):
     __slots__ = ('name',)
 
     def __init__(self, name):
@@ -132,7 +134,8 @@ class FreeVar(_Variable):
 
 
 def _check_arg_int(name, arg):
-    if not isinstance(arg, int):
+    ints = int if not _bytecode.IS_PY2 else (int, long)  # noqa
+    if not isinstance(arg, ints):
         raise TypeError("operation %s argument must be an int, "
                         "got %s"
                         % (name, type(arg).__name__))
@@ -143,15 +146,16 @@ def _check_arg_int(name, arg):
                          % name)
 
 
-class Instr:
+class Instr(object):
     """Abstract instruction."""
 
     __slots__ = ('_name', '_opcode', '_arg', '_lineno')
 
-    def __init__(self, name, arg=UNSET, *, lineno=None):
+    def __init__(self, name, arg=UNSET, lineno=None):
         self._set(name, arg, lineno)
 
     def _check_arg(self, name, opcode, arg):
+
         if opcode >= _opcode.HAVE_ARGUMENT:
             if arg is UNSET:
                 raise ValueError("operation %s requires an argument" % name)

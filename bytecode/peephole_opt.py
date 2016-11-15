@@ -2,6 +2,7 @@
 Peephole optimizer of CPython 3.6 reimplemented in pure Python using
 the bytecode module.
 """
+from __future__ import absolute_import
 import opcode
 import operator
 import sys
@@ -27,7 +28,7 @@ class ExitUnchanged(Exception):
     pass
 
 
-class PeepholeOptimizer:
+class PeepholeOptimizer(object):
     """Python reimplementation of the peephole optimizer.
 
     Copy of the C comment:
@@ -212,7 +213,7 @@ class PeepholeOptimizer:
             # Remove BUILD_TUPLE+UNPACK_SEQUENCE
             self.block[start:start + 2] = ()
             self.index -= 2
-            self.const_stack.clear()
+            del self.const_stack[:]
             return
 
         if instr.arg == 1:
@@ -223,7 +224,7 @@ class PeepholeOptimizer:
             rot2 = Instr('ROT_TWO', lineno=instr.lineno)
             self.block[self.index - 1:self.index + 1] = (rot2,)
             self.index -= 1
-            self.const_stack.clear()
+            del self.const_stack[:]
         elif instr.arg == 3:
             # Replace BUILD_TUPLE 3 + UNPACK_SEQUENCE 3
             # with ROT_THREE + ROT_TWO
@@ -231,7 +232,7 @@ class PeepholeOptimizer:
             rot2 = Instr('ROT_TWO', lineno=instr.lineno)
             self.block[self.index - 1:self.index + 1] = (rot3, rot2)
             self.index -= 1
-            self.const_stack.clear()
+            del self.const_stack[:]
 
     def build_tuple(self, instr, container_type):
         if instr.arg > len(self.const_stack):
@@ -413,12 +414,12 @@ class PeepholeOptimizer:
             yield instr
 
     def optimize_block(self, block):
-        self.const_stack.clear()
+        del self.const_stack[:]
         self.in_consts = False
 
         for instr in self.iterblock(block):
             if not self.in_consts:
-                self.const_stack.clear()
+                del self.const_stack[:]
             self.in_consts = False
 
             meth_name = 'eval_%s' % instr.name
@@ -480,7 +481,7 @@ class PeepholeOptimizer:
 
 
 # Code transformer for the PEP 511
-class CodeTransformer:
+class CodeTransformer(object):
     name = "pyopt"
 
     def code_transformer(self, code, context):
