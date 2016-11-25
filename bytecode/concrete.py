@@ -116,22 +116,27 @@ class ConcreteInstr(Instr):
 
 class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
-    def __init__(self):
+    def __init__(self, instructions=[]):
         super().__init__()
         self.consts = []
         self.names = []
         self.varnames = []
+        for instr in instructions:
+            self._check_item(instr)
+        self.extend(instructions)
 
     def __iter__(self):
         instructions = super().__iter__()
         for instr in instructions:
-            if not isinstance(instr, (ConcreteInstr, SetLineno)):
-                raise ValueError("ConcreteBytecode must only contain "
-                                 "ConcreteInstr and SetLineno objects, "
-                                 "but %s was found"
-                                 % instr.__class__.__name__)
-
+            self._check_item(instr)
             yield instr
+
+    def _check_item(self, instr):
+        if not isinstance(instr, (ConcreteInstr, SetLineno)):
+            raise ValueError("ConcreteBytecode must only contain "
+                             "ConcreteInstr and SetLineno objects, "
+                             "but %s was found"
+                             % type(instr).__name__)
 
     def __repr__(self):
         return '<ConcreteBytecode instr#=%s>' % len(self)
