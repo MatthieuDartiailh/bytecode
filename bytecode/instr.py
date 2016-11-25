@@ -318,3 +318,21 @@ class Instr:
         if self.is_uncond_jump():
             return True
         return False
+
+    def has_flow(self):
+        """
+
+        """
+        # WITH_CLEANUP is used only for python < (3, 5)
+        # WITH_CLEANUP_START, WITH_CLEANUP_FINISH, SETUP_ASYNC_WITH are used
+        # only for python >= (3, 5)
+        if self._name in {'POP_BLOCK', 'END_FINALLY', 'BREAK_LOOP',
+                          'RETURN_VALUE', 'RAISE_VARARGS', 'STOP_CODE',
+                          'POP_EXEPT', 'WITH_CLEANUP', 'WITH_CLEANUP_START',
+                          'WITH_CLEANUP_FINISH', 'SETUP_ASYNC_WITH'}:
+            return True
+
+        elif self.has_jump():
+            return True
+
+        return False

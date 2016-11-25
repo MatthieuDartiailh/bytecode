@@ -405,7 +405,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(code.co_argcount, 3)
         self.assertEqual(code.co_kwonlyargcount, 2)
         self.assertEqual(code.co_nlocals, 6)
-        self.assertEqual(code.co_stacksize, 1)
+        self.assertEqual(code.co_stacksize, 7)
         # FIXME: don't use hardcoded constants
         self.assertEqual(code.co_flags, 0x43)
         self.assertEqual(code.co_code, expected)
