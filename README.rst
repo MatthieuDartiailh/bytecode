@@ -9,6 +9,10 @@ bytecode
 .. image:: https://travis-ci.org/haypo/bytecode.svg?branch=master
    :alt: Build status of bytecode on Travis CI
    :target: https://travis-ci.org/haypo/bytecode
+   
+.. image:: https://codecov.io/github/haypo/bytecode/coverage.svg?branch=master
+   :alt: Code coverage of bytecode on codecov.io
+   :target: https://codecov.io/github/haypo/bytecode
 
 ``bytecode`` is a Python module to generate and modify bytecode.
 
