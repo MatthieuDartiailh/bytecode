@@ -116,22 +116,22 @@ class ConcreteInstr(Instr):
 
 class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
-    def __init__(self, instructions=[]):
+    def __init__(self, instructions=(), *, consts=(), names=(), varnames=()):
         super().__init__()
-        self.consts = []
-        self.names = []
-        self.varnames = []
+        self.consts = list(consts)
+        self.names = list(names)
+        self.varnames = list(varnames)
         for instr in instructions:
-            self._check_item(instr)
+            self._check_instr(instr)
         self.extend(instructions)
 
     def __iter__(self):
         instructions = super().__iter__()
         for instr in instructions:
-            self._check_item(instr)
+            self._check_instr(instr)
             yield instr
 
-    def _check_item(self, instr):
+    def _check_instr(self, instr):
         if not isinstance(instr, (ConcreteInstr, SetLineno)):
             raise ValueError("ConcreteBytecode must only contain "
                              "ConcreteInstr and SetLineno objects, "
@@ -512,12 +512,11 @@ class _ConvertBytecodeToConcrete:
             # const_key(value)[1] is value: see const_key() function
             consts[index] = item[1]
 
-        concrete = ConcreteBytecode()
+        concrete = ConcreteBytecode(
+            self.instructions,
+            consts=consts,
+            names=self.names,
+            varnames=self.varnames
+        )
         concrete._copy_attr_from(self.bytecode)
-        concrete.consts = consts
-        concrete.names = self.names
-        concrete.varnames = self.varnames
-
-        # copy instructions
-        concrete[:] = self.instructions
         return concrete

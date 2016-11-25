@@ -101,16 +101,16 @@ class Bytecode(_InstrList, BaseBytecode):
         BaseBytecode.__init__(self)
         self.argnames = []
         for instr in instructions:
-            self._check_item(instr)
+            self._check_instr(instr)
         self.extend(instructions)
 
     def __iter__(self):
         instructions = super().__iter__()
         for instr in instructions:
-            self._check_item(instr)
+            self._check_instr(instr)
             yield instr
 
-    def _check_item(self, instr):
+    def _check_instr(self, instr):
         if not isinstance(instr, (Label, SetLineno, Instr,
                                   _bytecode.ConcreteInstr)):
             raise ValueError("Bytecode must only contain Label, "
