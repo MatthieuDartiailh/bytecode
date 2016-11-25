@@ -377,6 +377,46 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode.extend(instructions)
         return bytecode
 
+    def index_at_code_offset(self, offset):
+        """
+        Returns the index `i`, for use in slicing, such that:
+            `self[i:]` is the decoded version of `self.to_code()[offset:]`
+            `self[:i]` is the decoded version of `self.to_code()[:offset]`
+
+        For getting a single instruction an offset, use instr_at_code_offset
+
+        Raises IndexError if `offset` > len(self.to_code()), or `offset`
+        lies midway through an instruction.
+        """
+        if offset < 0:
+            raise IndexError('Offset {} is out of range'.format(offset))
+
+        at = 0
+        for i, instr in enumerate(self):
+            if offset == at:
+                return i
+            elif offset < at:
+                raise IndexError('Offset {} lies within instruction #{}, {}'.format(offset, i, instr))
+            if isinstance(instr, ConcreteInstr):
+                at += instr.size
+
+        # returning the length of the array is ok
+        if offset == at:
+            return i + 1
+
+        raise IndexError('Offset {} is out of range for code of length {}'.format(offset, at))
+
+    def instr_at_code_offset(self, offset):
+        """
+        Return the instruction starting at `offset` within `self.to_code()`
+        """
+        i = self.index_at_code_offset(offset)
+        while i < len(self):
+            if isinstance(self[i], ConcreteInstr):
+                return self[i]
+            i += 1
+        raise IndexError('Instruction at {} is out of range'.format(i))
+
 
 class _ConvertBytecodeToConcrete:
 
