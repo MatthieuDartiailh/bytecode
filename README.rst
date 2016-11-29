@@ -22,7 +22,9 @@ bytecode
 Install bytecode: ``python3 -m pip install bytecode``. It requires Python 3.4
 or newer.
 
-Example executing ``print('Hello World!')``::
+Example executing ``print('Hello World!')``
+
+.. highlight:: python
 
     from bytecode import Instr, Bytecode
 
