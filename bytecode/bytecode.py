@@ -97,7 +97,7 @@ class _InstrList(list):
 
 class Bytecode(_InstrList, BaseBytecode):
 
-    def __init__(self, instructions=[]):
+    def __init__(self, instructions=()):
         BaseBytecode.__init__(self)
         self.argnames = []
         for instr in instructions:
