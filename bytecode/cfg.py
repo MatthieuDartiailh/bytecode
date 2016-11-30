@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 from bytecode.concrete import ConcreteInstr
@@ -10,7 +11,7 @@ class BasicBlock(_bytecode._InstrList):
         # a BasicBlock object, or None
         self.next_block = None
         if instructions:
-            super().__init__(instructions)
+            super(BasicBlock, self).__init__(instructions)
 
     def __iter__(self):
         index = 0
@@ -51,7 +52,7 @@ class BasicBlock(_bytecode._InstrList):
 class ControlFlowGraph(_bytecode.BaseBytecode):
 
     def __init__(self):
-        super().__init__()
+        super(ControlFlowGraph, self).__init__()
         self._blocks = []
         self._block_index = {}
         self.argnames = []
@@ -111,7 +112,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             return False
         # FIXME: compare block.next_block
 
-        return super().__eq__(other)
+        return super(ControlFlowGraph, self).__eq__(other)
 
     def __len__(self):
         return len(self._blocks)
@@ -184,7 +185,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             target_index = label_to_block_index[target_label]
             block_starts[target_index] = target_label
 
-        bytecode_blocks = _bytecode.ControlFlowGraph()
+        bytecode_blocks = ControlFlowGraph()
         bytecode_blocks._copy_attr_from(bytecode)
         bytecode_blocks.argnames = list(bytecode.argnames)
 

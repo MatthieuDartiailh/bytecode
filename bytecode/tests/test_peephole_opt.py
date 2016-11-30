@@ -1,9 +1,12 @@
+from __future__ import division
 import unittest
 from bytecode import Label, Instr, Compare, Bytecode, ControlFlowGraph
 from bytecode import peephole_opt
 from bytecode.tests import TestCase, dump_bytecode
-from unittest import mock
-
+try:
+    from unittest import mock
+except ImportError:
+    import mock
 
 class Tests(TestCase):
     maxDiff = 80 * 100

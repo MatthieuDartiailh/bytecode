@@ -1,9 +1,12 @@
+from __future__ import print_function, absolute_import, unicode_literals
+
 __version__ = '0.5'
 
 __all__ = ['Label', 'Instr', 'SetLineno', 'Bytecode',
            'ConcreteInstr', 'ConcreteBytecode',
            'ControlFlowGraph']
 
+import sys
 from bytecode.instr import (UNSET, Label, SetLineno, Instr, CellVar, FreeVar,   # noqa
                             Compare)
 from bytecode.bytecode import BaseBytecode, _InstrList, Bytecode   # noqa
@@ -12,11 +15,11 @@ from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,   # noqa
                                _ConvertBytecodeToConcrete)
 from bytecode.cfg import BasicBlock, ControlFlowGraph   # noqa
 
+IS_PY2 = sys.version_info < (3,)
 
-def dump_bytecode(bytecode, *, lineno=False):
+def dump_bytecode(bytecode, lineno=False):
 
-    def format_line(index, line):
-        nonlocal cur_lineno, prev_lineno
+    def format_line(index, line, cur_lineno, prev_lineno):
         if lineno:
             if cur_lineno != prev_lineno:
                 line = 'L.% 3s % 3s: %s' % (cur_lineno, index, line)
@@ -25,7 +28,7 @@ def dump_bytecode(bytecode, *, lineno=False):
                 line = '      % 3s: %s' % (index, line)
         else:
             line = line
-        return line
+        return line, cur_lineno, prev_lineno
 
     def format_instr(instr, labels=None):
         text = instr.name
@@ -60,7 +63,9 @@ def dump_bytecode(bytecode, *, lineno=False):
             if lineno:
                 fields.append(format_instr(instr))
                 line = ''.join(fields)
-                line = format_line(offset, line)
+                line, cur_lineno, prev_lineno = format_line(offset, line,
+                                                            cur_lineno,
+                                                            prev_lineno)
             else:
                 fields.append("% 3s    %s" % (offset, format_instr(instr)))
                 line = ''.join(fields)
@@ -83,7 +88,10 @@ def dump_bytecode(bytecode, *, lineno=False):
                 if instr.lineno is not None:
                     cur_lineno = instr.lineno
                 line = format_instr(instr, labels)
-                line = indent + format_line(index, line)
+                line, cur_lineno, prev_lineno = format_line(index, line,
+                                                            cur_lineno,
+                                                            prev_lineno)
+                line = indent + line
             print(line)
         print()
     elif isinstance(bytecode, ControlFlowGraph):
@@ -98,7 +106,10 @@ def dump_bytecode(bytecode, *, lineno=False):
                 if instr.lineno is not None:
                     cur_lineno = instr.lineno
                 line = format_instr(instr, labels)
-                line = indent + format_line(index, line)
+                line, cur_lineno, prev_lineno = format_line(index, line,
+                                                            cur_lineno,
+                                                            prev_lineno)
+                line = indent + line
                 print(line)
             if block.next_block is not None:
                 print(indent + "-> %s" % labels[id(block.next_block)])

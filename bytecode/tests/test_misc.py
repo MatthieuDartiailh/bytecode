@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-import contextlib
 import io
 import textwrap
 import unittest
 
 import bytecode
 from bytecode import Label, Instr, Bytecode, BasicBlock, ControlFlowGraph
-from bytecode.tests import disassemble, WORDCODE
+from bytecode.tests import disassemble, WORDCODE, redirect_stdout
 
 
 class DumpCodeTests(unittest.TestCase):
     maxDiff = 80 * 100
 
     def check_dump_bytecode(self, code, expected, lineno=None):
-        with contextlib.redirect_stdout(io.StringIO()) as stderr:
+        with redirect_stdout(io.StringIO()) as stderr:
             if lineno is not None:
                 bytecode.dump_bytecode(code, lineno=True)
             else:

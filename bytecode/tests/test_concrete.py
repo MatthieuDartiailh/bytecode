@@ -5,7 +5,8 @@ import types
 import unittest
 from bytecode import (UNSET, Label, Instr, SetLineno, Bytecode,
                       CellVar, FreeVar,
-                      ConcreteInstr, ConcreteBytecode)
+                      ConcreteInstr, ConcreteBytecode,
+                      IS_PY2)
 from bytecode.tests import get_code, TestCase, WORDCODE
 
 
@@ -110,7 +111,7 @@ class ConcreteInstrTests(TestCase):
             'LOAD_CONST', 0x1234abcd).size, 8 if WORDCODE else 6)
 
     def test_disassemble(self):
-        code = b'\t\x00d\x03' if WORDCODE else b'\td\x03\x00'
+        code = b'\t\x00d\x03' if WORDCODE else bytearray(b'\td\x03\x00')
         instr = ConcreteInstr.disassemble(1, code, 0)
         self.assertEqual(instr, ConcreteInstr("NOP", lineno=1))
 
@@ -118,7 +119,7 @@ class ConcreteInstrTests(TestCase):
         self.assertEqual(instr, ConcreteInstr("LOAD_CONST", 3, lineno=2))
 
         code = b'\x90\x12\x904\x90\xabd\xcd' if WORDCODE else b'\x904\x12d\xcd\xab'
-        instr = ConcreteInstr.disassemble(3, code, 0)
+        instr = ConcreteInstr.disassemble(3, bytearray(code), 0)
         self.assertEqual(instr,
                          ConcreteInstr('EXTENDED_ARG', 0x12 if WORDCODE else 0x1234, lineno=3))
 
@@ -308,32 +309,33 @@ class ConcreteBytecodeTests(TestCase):
                          [Instr('LOAD_DEREF', CellVar('cell'), lineno=1),
                           Instr('LOAD_DEREF', FreeVar('free'), lineno=1)])
 
-    def test_load_classderef(self):
-        concrete = ConcreteBytecode()
-        concrete.cellvars = ['__class__']
-        concrete.freevars = ['__class__']
-        concrete.extend([ConcreteInstr('LOAD_CLASSDEREF', 1),
-                         ConcreteInstr('STORE_DEREF', 1)])
+    if not IS_PY2:
+        def test_load_classderef(self):
+            concrete = ConcreteBytecode()
+            concrete.cellvars = ['__class__']
+            concrete.freevars = ['__class__']
+            concrete.extend([ConcreteInstr('LOAD_CLASSDEREF', 1),
+                             ConcreteInstr('STORE_DEREF', 1)])
 
-        bytecode = concrete.to_bytecode()
-        self.assertEqual(bytecode.freevars, ['__class__'])
-        self.assertEqual(bytecode.cellvars, ['__class__'])
-        self.assertEqual(list(bytecode),
-                         [Instr('LOAD_CLASSDEREF', FreeVar('__class__'), lineno=1),
-                          Instr('STORE_DEREF', FreeVar('__class__'), lineno=1)])
+            bytecode = concrete.to_bytecode()
+            self.assertEqual(bytecode.freevars, ['__class__'])
+            self.assertEqual(bytecode.cellvars, ['__class__'])
+            self.assertEqual(list(bytecode),
+                             [Instr('LOAD_CLASSDEREF', FreeVar('__class__'), lineno=1),
+                              Instr('STORE_DEREF', FreeVar('__class__'), lineno=1)])
 
-        concrete = bytecode.to_concrete_bytecode()
-        self.assertEqual(concrete.freevars, ['__class__'])
-        self.assertEqual(concrete.cellvars, ['__class__'])
-        self.assertEqual(list(concrete),
-                         [ConcreteInstr('LOAD_CLASSDEREF', 1, lineno=1),
-                          ConcreteInstr('STORE_DEREF', 1, lineno=1)])
+            concrete = bytecode.to_concrete_bytecode()
+            self.assertEqual(concrete.freevars, ['__class__'])
+            self.assertEqual(concrete.cellvars, ['__class__'])
+            self.assertEqual(list(concrete),
+                             [ConcreteInstr('LOAD_CLASSDEREF', 1, lineno=1),
+                              ConcreteInstr('STORE_DEREF', 1, lineno=1)])
 
-        code = concrete.to_code()
-        self.assertEqual(code.co_freevars, ('__class__',))
-        self.assertEqual(code.co_cellvars, ('__class__',))
-        self.assertEqual(
-            code.co_code, b'\x94\x01\x89\x01' if WORDCODE else b'\x94\x01\x00\x89\x01\x00')
+            code = concrete.to_code()
+            self.assertEqual(code.co_freevars, ('__class__',))
+            self.assertEqual(code.co_cellvars, ('__class__',))
+            self.assertEqual(
+                code.co_code, b'\x94\x01\x89\x01' if WORDCODE else b'\x94\x01\x00\x89\x01\x00')
 
 
 class ConcreteFromCodeTests(TestCase):
@@ -342,21 +344,22 @@ class ConcreteFromCodeTests(TestCase):
         # Create a code object from arbitrary bytecode
         co_code = b'\x90\x12\x904\x90\xabd\xcd' if WORDCODE else b'\x904\x12d\xcd\xab'
         code = get_code('x=1')
-        code = types.CodeType(code.co_argcount,
-                              code.co_kwonlyargcount,
-                              code.co_nlocals,
-                              code.co_stacksize,
-                              code.co_flags,
-                              co_code,
-                              code.co_consts,
-                              code.co_names,
-                              code.co_varnames,
-                              code.co_filename,
-                              code.co_name,
-                              code.co_firstlineno,
-                              code.co_lnotab,
-                              code.co_freevars,
-                              code.co_cellvars)
+        args = ((code.co_argcount, code.co_kwonlyargcount,) if not IS_PY2 else
+                (code.co_argcount,))
+        args += (code.co_nlocals,
+                 code.co_stacksize,
+                 code.co_flags,
+                 co_code,
+                 code.co_consts,
+                 code.co_names,
+                 code.co_varnames,
+                 code.co_filename,
+                 code.co_name,
+                 code.co_firstlineno,
+                 code.co_lnotab,
+                 code.co_freevars,
+                 code.co_cellvars)
+        code = types.CodeType(*args)
 
         # without EXTENDED_ARG opcode
         bytecode = ConcreteBytecode.from_code(code)
@@ -376,15 +379,21 @@ class ConcreteFromCodeTests(TestCase):
         self.assertListEqual(list(bytecode), expected)
 
     def test_extended_arg_make_function(self):
-        code_obj = get_code('''
-            def foo(x: int, y: int):
-                pass
-        ''')
+        if not IS_PY2:
+            code_obj = get_code('''
+                def foo(x: int, y: int):
+                    pass
+            ''')
+        else:
+            code_obj = get_code('''
+                def foo(x, y):
+                    pass
+            ''')
 
         # without EXTENDED_ARG
         concrete = ConcreteBytecode.from_code(code_obj)
         func_code = concrete.consts[1]
-        self.assertEqual(concrete.names, ['int', 'foo'])
+        self.assertEqual(concrete.names, ['int', 'foo'] if not IS_PY2 else ['foo'])
         self.assertEqual(concrete.consts, [('x', 'y'), func_code, 'foo', None])
         if WORDCODE:
             expected = [ConcreteInstr("LOAD_NAME", 0, lineno=1),
@@ -503,12 +512,12 @@ class BytecodeToConcreteTests(TestCase):
                           Instr("STORE_NAME", 'z', lineno=5)])
 
     def test_extended_jump(self):
-        NOP = bytes((opcode.opmap['NOP'],))
+        NOP = chr(opcode.opmap['NOP'])
 
         class BigInstr(ConcreteInstr):
 
             def __init__(self, size):
-                super().__init__('NOP')
+                super(BigInstr, self).__init__('NOP')
                 self._size = size
 
             def copy(self):

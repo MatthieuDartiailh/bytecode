@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import unittest
 from bytecode import (Label, Compare, SetLineno, Instr,
-                      Bytecode, BasicBlock, ControlFlowGraph)
+                      Bytecode, BasicBlock, ControlFlowGraph, IS_PY2)
 from bytecode.tests import disassemble as _disassemble, TestCase, WORDCODE
 
 
-def disassemble(source, *, filename="<string>", function=False,
+def disassemble(source, filename="<string>", function=False,
                 remove_last_return_none=False):
     code = _disassemble(source, filename=filename, function=function)
     blocks = ControlFlowGraph.from_bytecode(code)
@@ -59,19 +59,31 @@ class BytecodeBlocksTests(TestCase):
         self.assertBlocksEqual(code, [])
 
     def test_attr(self):
-        source = """
+        if IS_PY2:
+            source = """
             first_line = 1
 
-            def func(arg1, arg2, *, arg3):
+            def func(arg1, arg2, arg3):
                 x = 1
                 y = 2
                 return arg1
-        """
+            """
+        else:
+            source = """
+                first_line = 1
+
+                def func(arg1, arg2, *, arg3):
+                    x = 1
+                    y = 2
+                    return arg1
+            """
+
         code = disassemble(source, filename="hello.py", function=True)
-        self.assertEqual(code.argcount, 2)
+        self.assertEqual(code.argcount, 2 if not IS_PY2 else 3)
         self.assertEqual(code.filename, "hello.py")
         self.assertEqual(code.first_lineno, 3)
-        self.assertEqual(code.kwonlyargcount, 1)
+        if not IS_PY2:
+            self.assertEqual(code.kwonlyargcount, 1)
         self.assertEqual(code.name, "func")
         self.assertEqual(code.cellvars, [])
 
@@ -361,8 +373,9 @@ class BytecodeBlocksFunctionalTests(TestCase):
         # test resolution of jump labels
         bytecode = ControlFlowGraph()
         bytecode.first_lineno = 3
-        bytecode.argcount = 3
-        bytecode.kwonlyargcount = 2
+        bytecode.argcount = 3 if not IS_PY2 else 5
+        if not IS_PY2:
+            bytecode.kwonlyargcount = 2
         bytecode._stacksize = 1
         bytecode.name = 'func'
         bytecode.filename = 'hello.py'
@@ -402,8 +415,11 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
         code = bytecode.to_bytecode().to_code()
         self.assertEqual(code.co_consts, (None, 3))
-        self.assertEqual(code.co_argcount, 3)
-        self.assertEqual(code.co_kwonlyargcount, 2)
+        if not IS_PY2:
+            self.assertEqual(code.co_argcount, 3)
+            self.assertEqual(code.co_kwonlyargcount, 2)
+        else:
+            self.assertEqual(code.co_argcount, 5)
         self.assertEqual(code.co_nlocals, 6)
         self.assertEqual(code.co_stacksize, 1)
         # FIXME: don't use hardcoded constants

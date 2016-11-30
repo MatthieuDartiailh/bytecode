@@ -1,9 +1,10 @@
+from __future__ import absolute_import
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 from bytecode.instr import UNSET, Label, SetLineno, Instr
 
 
-class BaseBytecode:
+class BaseBytecode(object):
 
     def __init__(self):
         self.argcount = 0
@@ -104,7 +105,7 @@ class Bytecode(_InstrList, BaseBytecode):
         self.argnames = []
 
     def __iter__(self):
-        instructions = super().__iter__()
+        instructions = super(Bytecode, self).__iter__()
         for instr in instructions:
             if not isinstance(instr, (Label, SetLineno, Instr,
                                       _bytecode.ConcreteInstr)):
