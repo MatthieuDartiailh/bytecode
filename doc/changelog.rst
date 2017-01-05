@@ -4,8 +4,12 @@ ChangeLog
 Version 0.5
 -----------
 
+* Add the new bytecode format of Python 3.6.
 * Remove the ``BaseInstr`` class which became useless. It was replaced
   with the :class:`Instr` class.
+* Documentation: Add a comparison with byteplay and codetransformer.
+* Remove the BaseIntr class: Instr becomes the new base class.
+* Fix PEP 8 issues and check PEP 8 on Travis CI.
 
 2016-04-12: Version 0.4
 -----------------------
