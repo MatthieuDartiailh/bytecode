@@ -15,7 +15,9 @@
 #
 #  - git tag VERSION
 #  - git push --tags
-#  - python3 setup.py register sdist bdist_wheel upload
+#  - rm -rf dist/
+#  - python3 setup.py sdist bdist_wheel
+#  - twine upload dist/*
 #
 # After the release:
 #
