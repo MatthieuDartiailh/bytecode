@@ -1,4 +1,5 @@
 import enum
+import dis
 import math
 import opcode as _opcode
 import types
@@ -268,10 +269,16 @@ class Instr:
     def lineno(self, lineno):
         self._set(self._name, self._arg, lineno)
 
+    @property
+    def stack_effect(self):
+        # All opcodes whose arguments are not represented by integers have
+        # a stack_effect indepent of their argument.
+        arg = (self._arg if isinstance(self._arg, int) else
+               0 if self._opcode >= _opcode.HAVE_ARGUMENT else None)
+        return dis.stack_effect(self._opcode, arg)
+
     def copy(self):
         return self.__class__(self._name, self._arg, lineno=self._lineno)
-
-    # FIXME: stack effect
 
     def __repr__(self):
         if self._arg is not UNSET:

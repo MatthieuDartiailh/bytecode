@@ -208,7 +208,6 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode.flags = code.co_flags
         bytecode.argcount = code.co_argcount
         bytecode.kwonlyargcount = code.co_kwonlyargcount
-        bytecode._stacksize = code.co_stacksize
         bytecode.first_lineno = code.co_firstlineno
         bytecode.names = list(code.co_names)
         bytecode.consts = list(code.co_consts)
@@ -279,15 +278,20 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
         return b''.join(lnotab)
 
+    def compute_stacksize(self):
+        bytecode = self.to_bytecode()
+        cfg = _bytecode.ControlFlowGraph.from_bytecode(bytecode)
+        return cfg.compute_stacksize()
+
     def to_code(self):
         code_str, linenos = self._assemble_code()
         lnotab = self._assemble_lnotab(self.first_lineno, linenos)
         nlocals = len(self.varnames)
+        stacksize = self.compute_stacksize()
         return types.CodeType(self.argcount,
                               self.kwonlyargcount,
                               nlocals,
-                              # FIXME: compute stack size
-                              self._stacksize,
+                              stacksize,
                               self.flags,
                               code_str,
                               tuple(self.consts),

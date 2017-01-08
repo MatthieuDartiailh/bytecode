@@ -1,6 +1,11 @@
 ChangeLog
 =========
 
+Version 0.6
+-----------
+* Add stack depth computation based on control flow graph analysis
+
+
 Version 0.5
 -----------
 
@@ -10,6 +15,7 @@ Version 0.5
 * Documentation: Add a comparison with byteplay and codetransformer.
 * Remove the BaseIntr class: Instr becomes the new base class.
 * Fix PEP 8 issues and check PEP 8 on Travis CI.
+
 
 2016-04-12: Version 0.4
 -----------------------

@@ -8,9 +8,6 @@ class BaseBytecode:
     def __init__(self):
         self.argcount = 0
         self.kwonlyargcount = 0
-        # FIXME: insane and safe value until _ConvertBytecodeToConcrete is able
-        # to compute the value itself
-        self._stacksize = 256
         # FIXME: use something higher level? make it private?
         self.flags = 0
         self.first_lineno = 1
@@ -25,7 +22,6 @@ class BaseBytecode:
     def _copy_attr_from(self, bytecode):
         self.argcount = bytecode.argcount
         self.kwonlyargcount = bytecode.kwonlyargcount
-        self._stacksize = bytecode._stacksize
         self.flags = bytecode.flags
         self.first_lineno = bytecode.first_lineno
         self.name = bytecode.name
@@ -42,7 +38,7 @@ class BaseBytecode:
             return False
         if self.kwonlyargcount != other.kwonlyargcount:
             return False
-        if self._stacksize != other._stacksize:
+        if self.compute_stacksize() != other.compute_stacksize():
             return False
         if self.flags != other.flags:
             return False
@@ -119,6 +115,10 @@ class Bytecode(_InstrList, BaseBytecode):
     def from_code(code):
         concrete = _bytecode.ConcreteBytecode.from_code(code)
         return concrete.to_bytecode()
+
+    def compute_stacksize(self):
+        cfg = _bytecode.ControlFlowGraph.from_bytecode(self)
+        return cfg.compute_stacksize()
 
     def to_code(self):
         return self.to_concrete_bytecode().to_code()

@@ -48,6 +48,52 @@ class BasicBlock(_bytecode._InstrList):
         return target_block
 
 
+def _compute_stack_size(block, size, maxsize):
+
+    if block.seen or block.startsize >= size:
+        return maxsize
+
+    block.seen = True
+    block.startsize = size
+
+    for instr in block:
+
+        if isinstance(instr, SetLineno):
+            continue
+
+        size += instr.stack_effect
+        maxsize = max(maxsize, size)
+
+        if size < 0:
+            msg = 'Failed to compute stacksize, got negative size'
+            raise RuntimeError(msg)
+
+        if instr.has_jump():
+            target_size = size
+
+            if instr.name == 'FOR_ITER':
+                target_size = size - 2
+
+            elif instr.name in {'SETUP_FINALLY', 'SETUP_EXCEPT'}:
+                target_size = size + 3
+                maxsize = max(target_size, maxsize)
+
+            elif instr.name.startswith('JUMP_IF'):
+                size -= 1
+
+            maxsize = _compute_stack_size(instr.arg, target_size, maxsize)
+
+            if instr.is_uncond_jump():
+                block.seen = False
+                return maxsize
+
+    if block.next_block:
+        maxsize = _compute_stack_size(block.next_block, size, maxsize)
+
+    block.seen = 0
+    return maxsize
+
+
 class ControlFlowGraph(_bytecode.BaseBytecode):
 
     def __init__(self):
@@ -73,6 +119,17 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         block = BasicBlock(instructions)
         self._add_block(block)
         return block
+
+    def compute_stacksize(self):
+
+        if not self:
+            return 0
+
+        for block in self:
+            block.seen = False
+            block.startsize = -32768  # INT_MIN
+
+        return _compute_stack_size(self[0], 0, 0)
 
     def __repr__(self):
         return '<ControlFlowGraph block#=%s>' % len(self._blocks)

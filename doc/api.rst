@@ -93,6 +93,11 @@ Instr
       Operation code (``int``). Setting the operation code updates the
       :attr:`name` attribute.
 
+   .. attribute:: stack_effect
+
+       Operation effect on the stack size as computed by
+       :func:`dis.stack_effect`.
+
    .. versionchanged:: 0.3
       The ``op`` attribute was renamed to :attr:`opcode`.
 
@@ -357,6 +362,14 @@ Bytecode
 
       It is based on :meth:`to_concrete_bytecode` and so resolve jump targets.
 
+   .. method:: compute_stacksize() -> int
+
+      Compute the stacksize needed to execute the code. Will raise an
+      exception if the bytecode is invalid.
+
+      This computation requires to build the control flow graph associated with
+      the code.
+
 
 
 ConcreteBytecode
@@ -410,6 +423,14 @@ ConcreteBytecode
    .. method:: to_bytecode() -> Bytecode
 
       Convert to abstract bytecode with abstract instructions.
+
+   .. method:: compute_stacksize() -> int
+
+      Compute the stacksize needed to execute the code. Will raise an
+      exception if the bytecode is invalid.
+
+      This computation requires to build the control flow graph associated with
+      the code.
 
 
 BasicBlock
@@ -506,6 +527,11 @@ ControlFlowGraph
    .. method:: to_bytecode() -> Bytecode
 
       Convert to a bytecode object using labels.
+
+   .. method:: compute_stacksize() -> int
+
+      Compute the stack size required by a bytecode object. Will raise an
+      exception if the bytecode is invalid.
 
 
 Cell and Free Variables
