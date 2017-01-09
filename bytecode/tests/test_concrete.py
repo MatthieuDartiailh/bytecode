@@ -522,13 +522,15 @@ class BytecodeToConcreteTests(TestCase):
         nb_nop = 2**16
         code = Bytecode([Instr("JUMP_ABSOLUTE", label),
                          BigInstr(nb_nop),
-                         label])
+                         label,
+                         Instr('LOAD_CONST', None),
+                         Instr('RETURN_VALUE')])
 
         code_obj = code.to_code()
         if WORDCODE:
-            expected = (b'\x90\x01\x90\x00q\x06' + NOP * nb_nop)
+            expected = b'\x90\x01\x90\x00q\x06' + NOP * nb_nop + b'd\x00S\x00'
         else:
-            expected = (b'\x90\x01\x00q\x06\x00' + NOP * nb_nop)
+            expected = b'\x90\x01\x00q\x06\x00' + NOP * nb_nop + b'd\x00\x00S'
         self.assertEqual(code_obj.co_code, expected)
 
     def test_jumps(self):

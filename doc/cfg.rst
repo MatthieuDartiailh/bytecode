@@ -6,6 +6,10 @@ To analyze or optimize existing code, ``bytecode`` provides a
 :class:`ControlFlowGraph` class which is a `control flow graph (CFG)
 <https://en.wikipedia.org/wiki/Control_flow_graph>`_.
 
+The control flow graph is used to perform the stack depth analysis when
+converting to code. Because it is better at identifying dead code than CPython
+it can lead to reduced stack size.
+
 Example
 =======
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
+import io
 import unittest
+import contextlib
 from bytecode import (Label, Compare, SetLineno, Instr,
                       Bytecode, BasicBlock, ControlFlowGraph)
 from bytecode.tests import disassemble as _disassemble, TestCase, WORDCODE
@@ -363,7 +365,6 @@ class BytecodeBlocksFunctionalTests(TestCase):
         bytecode.first_lineno = 3
         bytecode.argcount = 3
         bytecode.kwonlyargcount = 2
-        bytecode._stacksize = 1
         bytecode.name = 'func'
         bytecode.filename = 'hello.py'
         bytecode.flags = 0x43
@@ -429,5 +430,199 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertRaises(ValueError, blocks.get_block_index, other_block)
 
 
+class CFGStacksizeComputationTests(TestCase):
+
+    def check_stack_size(self, func):
+        code = func.__code__
+        bytecode = Bytecode.from_code(code)
+        cfg = ControlFlowGraph.from_bytecode(bytecode)
+        self.assertEqual(code.co_stacksize, cfg.compute_stacksize())
+
+    def test_empty_code(self):
+        self.assertEqual(ControlFlowGraph().compute_stacksize(), 0)
+
+    def test_handling_of_set_lineno(self):
+        code = Bytecode()
+        code.first_lineno = 3
+        code.extend([Instr("LOAD_CONST", 7),
+                     Instr("STORE_NAME", 'x'),
+                     SetLineno(4),
+                     Instr("LOAD_CONST", 8),
+                     Instr("STORE_NAME", 'y'),
+                     SetLineno(5),
+                     Instr("LOAD_CONST", 9),
+                     Instr("STORE_NAME", 'z')])
+        self.assertEqual(code.compute_stacksize(), 1)
+
+    def test_invalid_stacksize(self):
+        code = Bytecode()
+        code.extend([Instr("STORE_NAME", 'x')])
+        with self.assertRaises(RuntimeError):
+            code.compute_stacksize()
+
+    def test_stack_size_computation_and(self):
+        def test(arg1, *args, **kwargs):  # pragma: no cover
+            return arg1 and args  # Test JUMP_IF_FALSE_OR_POP
+
+        self.check_stack_size(test)
+
+    def test_stack_size_computation_or(self):
+        def test(arg1, *args, **kwargs):  # pragma: no cover
+            return arg1 or args  # Test JUMP_IF_TRUE_OR_POP
+
+        self.check_stack_size(test)
+
+    def test_stack_size_computation_if_else(self):
+        def test(arg1, *args, **kwargs):  # pragma: no cover
+            if args:
+                return 0
+            elif kwargs:
+                return 1
+            else:
+                return 2
+
+        self.check_stack_size(test)
+
+    def test_stack_size_computation_for_loop_continue(self):
+        def test(arg1, *args, **kwargs):  # pragma: no cover
+            for k in kwargs:
+                if k in args:
+                    continue
+            else:
+                return 1
+
+        self.check_stack_size(test)
+
+    def test_stack_size_computation_while_loop_break(self):
+        def test(arg1, *args, **kwargs):  # pragma: no cover
+            while True:
+                if arg1:
+                    break
+
+        self.check_stack_size(test)
+
+    def test_stack_size_computation_with(self):
+        def test(arg1, *args, **kwargs):  # pragma: no cover
+            with open(arg1) as f:
+                return f.read()
+
+        import dis
+        dis.dis(test.__code__)
+        self.check_stack_size(test)
+
+    def test_stack_size_computation_try_except(self):
+        def test(arg1, *args, **kwargs):  # pragma: no cover
+            try:
+                return args[0]
+            except Exception:
+                return 2
+
+        self.check_stack_size(test)
+
+    def test_stack_size_computation_try_finally(self):
+        def test(arg1, *args, **kwargs):  # pragma: no cover
+            try:
+                return args[0]
+            finally:
+                return 2
+
+        self.check_stack_size(test)
+
+    def test_stack_size_computation_try_except_finally(self):
+        def test(arg1, *args, **kwargs):  # pragma: no cover
+            try:
+                return args[0]
+            except Exception:
+                return 2
+            finally:
+                print('Interrupt')
+
+        self.check_stack_size(test)
+
+    def test_stack_size_computation_try_except_else_finally(self):
+        def test(arg1, *args, **kwargs):  # pragma: no cover
+            try:
+                return args[0]
+            except Exception:
+                return 2
+            else:
+                return arg1
+            finally:
+                print('Interrupt')
+
+        self.check_stack_size(test)
+
+    def test_stack_size_computation_nested_try_except_finally(self):
+        def test(arg1, *args, **kwargs):  # pragma: no cover
+            k = 1
+            try:
+                getattr(arg1, k)
+            except AttributeError:
+                pass
+            except Exception:
+                try:
+                    assert False
+                except Exception:
+                    return 2
+                finally:
+                    print('unexpected')
+            finally:
+                print('attempted to get {}'.format(k))
+
+        self.check_stack_size(test)
+
+    def test_stack_size_computation_nested_try_except_else_finally(self):
+        def test(*args, **kwargs):
+            try:
+                v = args[1]
+            except IndexError:
+                try:
+                    w = kwargs['value']
+                except KeyError:
+                    return -1
+                else:
+                    return w
+                finally:
+                    print('second finally')
+            else:
+                return v
+            finally:
+                print('first finally')
+
+        # A direct comparison of the stack depth fails because CPython
+        # generate dead code that is used in stack computation.
+        cpython_stacksize = test.__code__.co_stacksize
+        test.__code__ = Bytecode.from_code(test.__code__).to_code()
+        self.assertLessEqual(test.__code__.co_stacksize, cpython_stacksize)
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            self.assertEqual(test(1, 4), 4)
+            self.assertEqual(stdout.getvalue(), 'first finally\n')
+
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            self.assertEqual(test([], value=3), 3)
+            self.assertEqual(stdout.getvalue(),
+                             'second finally\nfirst finally\n')
+
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            self.assertEqual(test([], name=None), -1)
+            self.assertEqual(stdout.getvalue(),
+                             'second finally\nfirst finally\n')
+
+    def test_stack_size_with_dead_code(self):
+        # Simply demonstrate more directly the previously mentioned issue.
+        def test(*args):  # pragma: no cover
+            return 0
+            try:
+                a = args[0]
+            except IndexError:
+                return -1
+            else:
+                return a
+
+        test.__code__ = Bytecode.from_code(test.__code__).to_code()
+        self.assertEqual(test.__code__.co_stacksize, 1)
+        self.assertEqual(test(1), 0)
+
+
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main()  # pragma: no cover
