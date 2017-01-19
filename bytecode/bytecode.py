@@ -8,8 +8,6 @@ class BaseBytecode:
     def __init__(self):
         self.argcount = 0
         self.kwonlyargcount = 0
-        # FIXME: use something higher level? make it private?
-        self.flags = 0
         self.first_lineno = 1
         self.name = '<module>'
         self.filename = '<string>'
@@ -18,6 +16,19 @@ class BaseBytecode:
         # we cannot recreate freevars from instructions because of super()
         # special-case
         self.freevars = []
+        self._flags = _bytecode.Flags
+
+    @property
+    def flags(self):
+        """
+        """
+        return self._flags
+
+    @flags.setter
+    def flags(self, value):
+        if not isinstance(_bytecode.Flags):
+            value = _bytecode.Flags(value)
+        self._flags = value
 
     def _copy_attr_from(self, bytecode):
         self.argcount = bytecode.argcount

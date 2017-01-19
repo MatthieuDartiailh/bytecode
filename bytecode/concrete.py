@@ -205,7 +205,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode = ConcreteBytecode()
         bytecode.name = code.co_name
         bytecode.filename = code.co_filename
-        bytecode.flags = code.co_flags
+        bytecode.flags = _bytecode.Flags(code.co_flags)
         bytecode.argcount = code.co_argcount
         bytecode.kwonlyargcount = code.co_kwonlyargcount
         bytecode.first_lineno = code.co_firstlineno
@@ -284,6 +284,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         return cfg.compute_stacksize()
 
     def to_code(self):
+        # XXX handle Flags conversion
         code_str, linenos = self._assemble_code()
         lnotab = self._assemble_lnotab(self.first_lineno, linenos)
         nlocals = len(self.varnames)
@@ -305,6 +306,8 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                               tuple(self.cellvars))
 
     def to_bytecode(self):
+        # XXX handle flags
+
         # find jump targets
         jump_targets = set()
         offset = 0
@@ -371,6 +374,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode._copy_attr_from(self)
 
         nargs = bytecode.argcount + bytecode.kwonlyargcount
+        # XXX handle flags
         if bytecode.flags & inspect.CO_VARARGS:
             nargs += 1
         if bytecode.flags & inspect.CO_VARKEYWORDS:
