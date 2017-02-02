@@ -20,8 +20,6 @@ class BaseBytecode:
 
     @property
     def flags(self):
-        """
-        """
         return self._flags
 
     @flags.setter
