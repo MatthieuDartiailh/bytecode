@@ -372,9 +372,9 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode._copy_attr_from(self)
 
         nargs = bytecode.argcount + bytecode.kwonlyargcount
-        if bytecode.flags['varargs']:
+        if bytecode.flags.varargs:
             nargs += 1
-        if bytecode.flags['varkeywords']:
+        if bytecode.flags.varkeywords:
             nargs += 1
         bytecode.argnames = self.varnames[:nargs]
         _set_docstring(bytecode, self.consts)

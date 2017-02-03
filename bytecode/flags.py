@@ -1,5 +1,6 @@
 # alias to keep the 'bytecode' variable free
 from enum import IntEnum
+from collections import defaultdict
 
 import bytecode as _bytecode
 
@@ -19,13 +20,13 @@ class CoFlags(IntEnum):
     CO_VARKEYWORDS           = 0x0008
     CO_NESTED                = 0x0010
     CO_GENERATOR             = 0x0020
-    CO_NOFREE                = 0x0400
+    CO_NOFREE                = 0x0040
     # New in Python 3.5
     CO_COROUTINE             = 0x0080
     CO_ITERABLE_COROUTINE    = 0x0100
     #♣ New in Python 3.6
     CO_ASYNC_GENERATOR       = 0x0200
-    CO_FUTURE_GENERATOR8STOP = 0x80000
+    CO_FUTURE_GENERATOR_STOP = 0x80000
 
 
 _CAN_DEDUCE_FROM_CODE = ('optimized', 'generator', 'nofree', 'coroutine')
@@ -49,9 +50,11 @@ class Flags:
 
     def __init__(self, int_or_flags=None):
 
-        self._defaults = {}
+        self._defaults = defaultdict(bool)
         self._forced = {}
 
+        if int_or_flags is None:
+            return
         if isinstance(int_or_flags, Flags):
             self._defaults = int_or_flags._defaults.copy()
             self._forced = int_or_flags._forced.copy()
@@ -60,14 +63,26 @@ class Flags:
                               bool(int_or_flags & val)
                               for name, val in CoFlags.__members__.items()}
         else:
-            raise TypeError("Flags object should be passed either None, an int"
-                            " or a Flags instance at init.")
+            msg = ("Flags object should be passed either None, an int  or a "
+                   "Flags instance at init, got {}.")
+            raise TypeError(msg.format(int_or_flags))
+
+    def __eq__(self, other):
+        if isinstance(other, int):
+            return self.to_int() == other
+        elif isinstance(other, Flags):
+            return ((self._defaults == other._defaults) and
+                    (self._forced == other._forced))
+        else:
+            raise TypeError('Cannot compare Flags to {}'.format(other))
 
     def to_int(self, bytecode=None):
 
-        flags = self._forced.copy()
+        flags = defaultdict(bool)
+        flags.update(self._forced)
         if bytecode:
-            instr_names = {i.name for i in bytecode}
+            instr_names = {i.name for i in bytecode
+                           if not isinstance(i, _bytecode.SetLineno)}
         for k, v in self._defaults.items():
             if k not in flags:
                 if k in _CAN_DEDUCE_FROM_CODE and bytecode:
@@ -76,10 +91,10 @@ class Flags:
                                                        'LOAD_NAME',
                                                        'DELETE_NAME'})
                     elif k == 'generator':
-                        if not any(self.async_generator, self.coroutine,
-                                   self.iterable_coroutine):
-                            flags[k] = instr_names & {'YIELD_VALUE',
-                                                      'YIELD_FROM'}
+                        if not any((self.async_generator, self.coroutine,
+                                    self.iterable_coroutine)):
+                            flags[k] = bool(instr_names & {'YIELD_VALUE',
+                                                           'YIELD_FROM'})
                         else:
                             flags[k] = False
                     elif k == 'nofree':
@@ -90,18 +105,18 @@ class Flags:
                                                        'LOAD_CLASSDEREF'})
                     else:
                         if not self.iterable_coroutine:
-                            flags[k] = instr_names & {'GET_AWAITABLE',
-                                                      'GET_AITER',
-                                                      'GET_ANEXT',
-                                                      'BEFORE_ASYNC_WITH',
-                                                      'SETUP_ASYNC_WITH'}
+                            flags[k] = bool(instr_names & {'GET_AWAITABLE',
+                                                           'GET_AITER',
+                                                           'GET_ANEXT',
+                                                           'BEFORE_ASYNC_WITH',
+                                                           'SETUP_ASYNC_WITH'})
                         else:
                             flags[k] = False
                 else:
                     flags[k] = v
 
         if [flags[k] for k in ('coroutine', 'iterable_coroutine',
-                               'async_generator')].count() > 1:
+                               'async_generator')].count(True) > 1:
             raise ValueError("Code cannot be a coroutine and an iterable "
                              "coroutine and an async generator")
         if flags['generator'] and flags['async_generator']:

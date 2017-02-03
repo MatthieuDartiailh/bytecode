@@ -16,7 +16,7 @@ class BaseBytecode:
         # we cannot recreate freevars from instructions because of super()
         # special-case
         self.freevars = []
-        self._flags = _bytecode.Flags
+        self._flags = _bytecode.Flags()
 
     @property
     def flags(self):
@@ -24,7 +24,7 @@ class BaseBytecode:
 
     @flags.setter
     def flags(self, value):
-        if not isinstance(_bytecode.Flags):
+        if not isinstance(value, _bytecode.Flags):
             value = _bytecode.Flags(value)
         self._flags = value
 
