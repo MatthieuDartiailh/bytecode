@@ -7,7 +7,7 @@ import types
 
 import bytecode as _bytecode
 
-if sys.version_info == (3, 6, 0):
+if (3, 6, 0) <= version_info < (3, 6, 1):
     CALL_FUNCTION_EX = _opcode.opmap['CALL_FUNCTION_EX']
 
     def stack_effect(op, arg):
