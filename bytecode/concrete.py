@@ -1,5 +1,4 @@
 import dis
-import inspect
 import opcode as _opcode
 import struct
 import sys
