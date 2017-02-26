@@ -1,3 +1,4 @@
+import sys
 import enum
 import dis
 import math
@@ -5,6 +6,16 @@ import opcode as _opcode
 import types
 
 import bytecode as _bytecode
+
+if sys.version_info == (3, 6, 0):
+    CALL_FUNCTION_EX = _opcode.opmap['CALL_FUNCTION_EX']
+
+    def stack_effect(op, arg):
+        return (dis.stack_effect(op, arg)
+                if op != CALL_FUNCTION_EX else -2 if arg else -1)
+
+else:
+    stack_effect = dis.stack_effect
 
 
 @enum.unique
@@ -275,7 +286,7 @@ class Instr:
         # a stack_effect indepent of their argument.
         arg = (self._arg if isinstance(self._arg, int) else
                0 if self._opcode >= _opcode.HAVE_ARGUMENT else None)
-        return dis.stack_effect(self._opcode, arg)
+        return stack_effect(self._opcode, arg)
 
     def copy(self):
         return self.__class__(self._name, self._arg, lineno=self._lineno)
