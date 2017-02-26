@@ -4,6 +4,7 @@ ChangeLog
 Version 0.6
 -----------
 * Add stack depth computation based on control flow graph analysis
+* Add Flags object to manage flags of code object
 
 
 Version 0.5
