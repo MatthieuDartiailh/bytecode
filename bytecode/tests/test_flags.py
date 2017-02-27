@@ -25,6 +25,19 @@ class FlagsTests(unittest.TestCase):
         new.newlocals = True
         self.assertFalse(flags.newlocals)
 
+        # Check type validation
+        with self.assertRaises(TypeError):
+            Flags(object())
+
+    def test_equality(self):
+
+        f1, f2 = Flags(1), Flags(1)
+        self.assertEqual(f1, f2)
+        f2.nested = True
+        self.assertNotEqual(f1, f2)
+        with self.assertRaises(TypeError):
+            Flags(1) == object()
+
     def test_conversions(self):
 
         self.assertEqual(Flags().to_int(), 0)
@@ -65,6 +78,10 @@ class FlagsTests(unittest.TestCase):
                             (async_flags, False)):
             self.assertEqual(bool(f.to_int(code) & CoFlags.CO_COROUTINE),
                              expected)
+
+        # Test check flag sanity
+        with self.assertRaises(ValueError):
+            Flags(CoFlags.CO_GENERATOR + CoFlags.CO_COROUTINE).to_int()
 
     def test_descriptors(self):
 

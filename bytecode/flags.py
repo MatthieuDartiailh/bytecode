@@ -79,7 +79,6 @@ class Flags:
 
         flags = defaultdict(bool)
         flags.update(self._forced)
-        print(bytecode)
         if bytecode is not None:
             if not isinstance(bytecode, _bytecode.ConcreteBytecode):
                 msg = 'Expected a ConcreteBytecode instance not %s'
@@ -87,12 +86,9 @@ class Flags:
             instr_names = {i.name for i in bytecode
                            if not isinstance(i, _bytecode.SetLineno)}
 
-        print(self._defaults)
         for k, v in self._defaults.items():
             if k not in flags:
-                print(k in _CAN_DEDUCE_FROM_CODE, bytecode is not None)
                 if k in _CAN_DEDUCE_FROM_CODE and bytecode is not None:
-                    print('y')
                     if k == 'optimized':
                         flags[k] = not (instr_names & {'STORE_NAME',
                                                        'LOAD_NAME',
@@ -122,13 +118,11 @@ class Flags:
                 else:
                     flags[k] = v
 
-        if [flags[k] for k in ('coroutine', 'iterable_coroutine',
+        if [flags[k] for k in ('coroutine', 'iterable_coroutine', 'generator',
                                'async_generator')].count(True) > 1:
-            raise ValueError("Code cannot be a coroutine and an iterable "
-                             "coroutine and an async generator")
-        if flags['generator'] and flags['async_generator']:
-            raise ValueError("Code cannot be both generator and async "
-                             "generator.")
+            raise ValueError("Code should not have more than one of the "
+                             "following flag set : generator, coroutine, "
+                             "iterable coroutine and async generator")
 
         return sum(flags[k] and getattr(CoFlags, 'CO_' + k.upper())
                    for k in flags)
@@ -145,7 +139,6 @@ class Flags:
 
     @optimized.setter
     def optimized(self, value):
-        print(value)
         if value is None:
             del self._forced['optimized']
         elif not isinstance(value, bool):
