@@ -1,5 +1,4 @@
 import dis
-import inspect
 import opcode as _opcode
 import struct
 import sys
@@ -292,7 +291,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                               self.kwonlyargcount,
                               nlocals,
                               stacksize,
-                              self.flags,
+                              self.flags.to_int(self),
                               code_str,
                               tuple(self.consts),
                               tuple(self.names),
@@ -305,6 +304,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                               tuple(self.cellvars))
 
     def to_bytecode(self):
+
         # find jump targets
         jump_targets = set()
         offset = 0
@@ -371,9 +371,9 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode._copy_attr_from(self)
 
         nargs = bytecode.argcount + bytecode.kwonlyargcount
-        if bytecode.flags & inspect.CO_VARARGS:
+        if bytecode.flags.varargs:
             nargs += 1
-        if bytecode.flags & inspect.CO_VARKEYWORDS:
+        if bytecode.flags.varkeywords:
             nargs += 1
         bytecode.argnames = self.varnames[:nargs]
         _set_docstring(bytecode, self.consts)

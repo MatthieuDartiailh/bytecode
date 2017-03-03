@@ -2,7 +2,7 @@ __version__ = '0.5'
 
 __all__ = ['Label', 'Instr', 'SetLineno', 'Bytecode',
            'ConcreteInstr', 'ConcreteBytecode',
-           'ControlFlowGraph']
+           'ControlFlowGraph', 'Flags', 'Flag']
 
 from bytecode.instr import (UNSET, Label, SetLineno, Instr, CellVar, FreeVar,   # noqa
                             Compare)
@@ -11,6 +11,7 @@ from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,   # noqa
                                # import needed to use it in bytecode.py
                                _ConvertBytecodeToConcrete)
 from bytecode.cfg import BasicBlock, ControlFlowGraph   # noqa
+from bytecode.flags import Flags, Flag  # noqa
 
 
 def dump_bytecode(bytecode, *, lineno=False):
