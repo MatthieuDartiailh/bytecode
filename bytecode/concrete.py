@@ -204,7 +204,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode = ConcreteBytecode()
         bytecode.name = code.co_name
         bytecode.filename = code.co_filename
-        bytecode.flags = _bytecode.Flags(code.co_flags)
+        bytecode.flags = code.co_flags
         bytecode.argcount = code.co_argcount
         bytecode.kwonlyargcount = code.co_kwonlyargcount
         bytecode.first_lineno = code.co_firstlineno
