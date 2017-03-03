@@ -5,32 +5,31 @@ from collections import defaultdict
 import bytecode as _bytecode
 
 
-class CoFlags(IntEnum):
+class Flag(IntEnum):
     """Possible values of the co_flags attribute of Code object.
 
-    Notes
-    -----
-    We do not rely on inspect values here as some of them are missing and
+    Note: We do not rely on inspect values here as some of them are missing and
     furthermore would be version dependent.
 
     """
-    CO_OPTIMIZED             = 0x00001  # noqa
-    CO_NEWLOCALS             = 0x00002  # noqa
-    CO_VARARGS               = 0x00004  # noqa
-    CO_VARKEYWORDS           = 0x00008  # noqa
-    CO_NESTED                = 0x00010  # noqa
-    CO_GENERATOR             = 0x00020  # noqa
-    CO_NOFREE                = 0x00040  # noqa
+    OPTIMIZED             = 0x00001  # noqa
+    NEWLOCALS             = 0x00002  # noqa
+    VARARGS               = 0x00004  # noqa
+    VARKEYWORDS           = 0x00008  # noqa
+    NESTED                = 0x00010  # noqa
+    GENERATOR             = 0x00020  # noqa
+    NOFREE                = 0x00040  # noqa
     # New in Python 3.5
-    CO_COROUTINE             = 0x00080  # noqa
-    CO_ITERABLE_COROUTINE    = 0x00100  # noqa
+    COROUTINE             = 0x00080  # noqa
+    ITERABLE_COROUTINE    = 0x00100  # noqa
     # New in Python 3.6
-    CO_ASYNC_GENERATOR       = 0x00200  # noqa
+    ASYNC_GENERATOR       = 0x00200  # noqa
 
     # __future__ flags
-    CO_FUTURE_GENERATOR_STOP = 0x80000  # noqa
+    FUTURE_GENERATOR_STOP = 0x80000  # noqa
 
 
+# The value of those flags can be inferred from the code.
 _CAN_DEDUCE_FROM_CODE = ('optimized', 'generator', 'nofree', 'coroutine')
 
 
@@ -50,21 +49,24 @@ class Flags:
 
     """
 
-    def __init__(self, int_or_flags=0):
+    def __init__(self, value=0):
 
-        self._forced = {}
-
-        if isinstance(int_or_flags, Flags):
-            self._defaults = int_or_flags._defaults.copy()
-            self._forced = int_or_flags._forced.copy()
-        elif isinstance(int_or_flags, int):
-            self._defaults = {name.split('_', 1)[1].lower():
-                              bool(int_or_flags & val)
-                              for name, val in CoFlags.__members__.items()}
+        # _defaults is used to hold the flags values at instantiation time.
+        # Those may be overwritten by automatic inference.
+        # _forced is used to hold the flags values set by the user.
+        # Those are never overwritten by automatic inference.
+        if isinstance(value, Flags):
+            self._forced = value._forced.copy()
+            self._defaults = value._defaults.copy()
+        elif isinstance(value, int):
+            self._forced = {}
+            self._defaults = {name.lower():
+                              bool(value & val)
+                              for name, val in Flag.__members__.items()}
         else:
-            msg = ("Flags object should be passed either None, an int  or a "
+            msg = ("Flags object should be passed either an int or a "
                    "Flags instance at init, got {}.")
-            raise TypeError(msg.format(int_or_flags))
+            raise TypeError(msg.format(value))
 
     def __eq__(self, other):
         if isinstance(other, int):
@@ -124,8 +126,7 @@ class Flags:
                              "following flag set : generator, coroutine, "
                              "iterable coroutine and async generator")
 
-        return sum(flags[k] and getattr(CoFlags, 'CO_' + k.upper())
-                   for k in flags)
+        return sum(flags[k] and getattr(Flag, k.upper()) for k in flags)
 
     def get_default(self, flag_name):
         return self._defaults[flag_name]

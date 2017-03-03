@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import unittest
-from bytecode import Flags, CoFlags, Bytecode, ConcreteBytecode, ConcreteInstr
+from bytecode import Flags, Flag, Bytecode, ConcreteBytecode, ConcreteInstr
 
 
 class FlagsTests(unittest.TestCase):
@@ -11,13 +11,12 @@ class FlagsTests(unittest.TestCase):
         self.assertFalse(any(empty_flag._defaults.values()))
         self.assertFalse(empty_flag._forced)
 
-        flags = Flags(CoFlags.CO_OPTIMIZED + CoFlags.CO_NESTED)
-        for m in CoFlags.__members__:
+        flags = Flags(Flag.OPTIMIZED | Flag.NESTED)
+        for m in Flag.__members__:
             expected = (True
-                        if m in {'CO_OPTIMIZED', 'CO_NESTED'} else
+                        if m in {'OPTIMIZED', 'NESTED'} else
                         False)
-            self.assertEqual(flags.get_default(m.split('_', 1)[1].lower()),
-                             expected)
+            self.assertEqual(flags.get_default(m.lower()), expected)
 
         new = Flags(flags)
         self.assertEqual(new, flags)
@@ -43,7 +42,7 @@ class FlagsTests(unittest.TestCase):
         self.assertEqual(Flags().to_int(), 0)
 
         # Test conversion without inference.
-        for val in CoFlags.__members__.values():
+        for val in Flag.__members__.values():
             self.assertEqual(Flags(val).to_int(), val)
 
         with self.assertRaises(ValueError):
@@ -53,41 +52,40 @@ class FlagsTests(unittest.TestCase):
         forced_flag = Flags()
         forced_flag.optimized = False
         forced_flag.nofree = False
+        code = ConcreteBytecode()
         for f, expected in ((Flags(), True), (forced_flag, False)):
-            self.assertEqual(bool(f.to_int(ConcreteBytecode()) &
-                                  CoFlags.CO_OPTIMIZED),
+            self.assertEqual(bool(f.to_int(code) & Flag.OPTIMIZED),
                              expected)
-            self.assertEqual(bool(f.to_int(ConcreteBytecode()) &
-                                  CoFlags.CO_NOFREE),
+            self.assertEqual(bool(f.to_int(code) & Flag.NOFREE),
                              expected)
 
         # Infer generator
         code = ConcreteBytecode()
         code.append(ConcreteInstr('YIELD_VALUE'))
-        async_flags = Flags(CoFlags.CO_ASYNC_GENERATOR)
+        async_flags = Flags(Flag.ASYNC_GENERATOR)
         for f, expected in ((Flags(), True), (async_flags, False)):
-            self.assertEqual(bool(f.to_int(code) & CoFlags.CO_GENERATOR),
+            self.assertEqual(bool(f.to_int(code) & Flag.GENERATOR),
                              expected)
 
         # Infer coroutine
         code = ConcreteBytecode()
         code.append(ConcreteInstr('GET_AWAITABLE'))
-        iter_flags = Flags(CoFlags.CO_ITERABLE_COROUTINE)
-        async_flags = Flags(CoFlags.CO_ASYNC_GENERATOR)
+        iter_flags = Flags(Flag.ITERABLE_COROUTINE)
+        async_flags = Flags(Flag.ASYNC_GENERATOR)
         for f, expected in ((Flags(), True), (iter_flags, False),
                             (async_flags, False)):
-            self.assertEqual(bool(f.to_int(code) & CoFlags.CO_COROUTINE),
+            self.assertEqual(bool(f.to_int(code) & Flag.COROUTINE),
                              expected)
 
         # Test check flag sanity
         with self.assertRaises(ValueError):
-            Flags(CoFlags.CO_GENERATOR + CoFlags.CO_COROUTINE).to_int()
+            Flags(Flag.GENERATOR | Flag.COROUTINE).to_int()
 
     def test_descriptors(self):
 
         from bytecode.flags import _CAN_DEDUCE_FROM_CODE
         flags = Flags()
-        for m in [m.split('_', 1)[1].lower() for m in CoFlags.__members__]:
+        for m in [m.lower() for m in Flag.__members__]:
             if m in _CAN_DEDUCE_FROM_CODE:
                 self.assertIs(getattr(flags, m), None)
             else:
