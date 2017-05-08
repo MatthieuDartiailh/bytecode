@@ -320,3 +320,6 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         bytecode[:] = instructions
 
         return bytecode
+
+    def update_flags(self, *, is_async=False):
+        raise NotImplementedError()

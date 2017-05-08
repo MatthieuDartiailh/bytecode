@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+import unittest
+from bytecode import CompilerFlags, ConcreteBytecode, ConcreteInstr
+from bytecode.flags import infer_flags
+
+
+class FlagsTests(unittest.TestCase):
+
+    def test_flag_inference(self):
+
+        # Infer optimized and nofree
+        code = ConcreteBytecode()
+        flags = infer_flags(code)
+        self.assertTrue(bool(flags & CompilerFlags.OPTIMIZED))
+        self.assertTrue(bool(flags & CompilerFlags.NOFREE))
+        code.append(ConcreteInstr('STORE_NAME', 1))
+        flags = infer_flags(code)
+        self.assertFalse(bool(flags & CompilerFlags.OPTIMIZED))
+        self.assertTrue(bool(flags & CompilerFlags.NOFREE))
+        code.append(ConcreteInstr('STORE_DEREF', 2))
+        flags = infer_flags(code)
+        self.assertFalse(bool(flags & CompilerFlags.OPTIMIZED))
+        self.assertFalse(bool(flags & CompilerFlags.NOFREE))
+
+        # Infer generator
+        code = ConcreteBytecode()
+        code.append(ConcreteInstr('YIELD_VALUE'))
+        for is_async, expected in ((False, CompilerFlags.GENERATOR),
+                                   (True, CompilerFlags.ASYNC_GENERATOR)):
+            self.assertTrue(bool(infer_flags(code, is_async) & expected))
+
+        # Infer coroutine
+        code = ConcreteBytecode()
+        code.append(ConcreteInstr('GET_AWAITABLE'))
+        iter_flags = CompilerFlags(CompilerFlags.ITERABLE_COROUTINE)
+        async_flags = CompilerFlags(CompilerFlags.ASYNC_GENERATOR)
+        for f, expected in ((CompilerFlags(0), True), (iter_flags, False),
+                            (async_flags, False)):
+            code.flags = f
+            self.assertEqual(bool(infer_flags(code) & CompilerFlags.COROUTINE),
+                             expected)
+
+        # Test check flag sanity
+        with self.assertRaises(ValueError):
+            infer_flags(CompilerFlags(CompilerFlags.GENERATOR |
+                                      CompilerFlags.COROUTINE))
