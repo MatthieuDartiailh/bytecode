@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import unittest
-from bytecode import CompilerFlags, ConcreteBytecode, ConcreteInstr
+from bytecode import (CompilerFlags, ConcreteBytecode, ConcreteInstr, Bytecode,
+                      ControlFlowGraph)
 from bytecode.flags import infer_flags
 
 
@@ -8,8 +9,19 @@ class FlagsTests(unittest.TestCase):
 
     def test_flag_inference(self):
 
+        # Check no loss of non-infered flags
+        code = ControlFlowGraph()
+        code.flags |= (CompilerFlags.NEWLOCALS | CompilerFlags.VARARGS |
+                       CompilerFlags.VARKEYWORDS | CompilerFlags.NESTED |
+                       CompilerFlags.FUTURE_GENERATOR_STOP)
+        flags = infer_flags(code)
+        for f in (CompilerFlags.NEWLOCALS, CompilerFlags.VARARGS,
+                  CompilerFlags.VARKEYWORDS, CompilerFlags.NESTED,
+                  CompilerFlags.FUTURE_GENERATOR_STOP):
+            self.assertTrue(bool(flags & f))
+
         # Infer optimized and nofree
-        code = ConcreteBytecode()
+        code = Bytecode()
         flags = infer_flags(code)
         self.assertTrue(bool(flags & CompilerFlags.OPTIMIZED))
         self.assertTrue(bool(flags & CompilerFlags.NOFREE))

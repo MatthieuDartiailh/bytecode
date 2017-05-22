@@ -1,10 +1,7 @@
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 import opcode
-try:
-    from enum import IntFlag
-except ImportError:
-    from bytecode.enum_backport import IntFlag
+from aenum import IntFlag
 
 _haslocal = {opcode.opname[i] for i in opcode.haslocal}
 
@@ -39,12 +36,16 @@ def infer_flags(bytecode, is_async=False):
     """
     flags = CompilerFlags(0)
     if not isinstance(bytecode, (_bytecode.Bytecode,
-                                 _bytecode.ConcreteBytecode)):
-        msg = 'Expected a Bytecode or ConcreteBytecode instance not %s'
+                                 _bytecode.ConcreteBytecode,
+                                 _bytecode.ControlFlowGraph)):
+        msg = ('Expected a Bytecode, ConcreteBytecode or ControlFlowGraph '
+               'instance not %s')
         raise ValueError(msg % bytecode)
 
-    # XXX use _flat for a CFG
-    instr_names = {i.name for i in bytecode
+    instructions = (bytecode.get_instructions()
+                    if isinstance(bytecode, _bytecode.ControlFlowGraph) else
+                    bytecode)
+    instr_names = {i.name for i in instructions
                    if not isinstance(i, (_bytecode.SetLineno,
                                          _bytecode.Label))}
 
