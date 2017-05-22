@@ -67,8 +67,8 @@ def infer_flags(bytecode, is_async=False):
                            'DELETE_DEREF', 'LOAD_CLASSDEREF'}):
         flags |= CompilerFlags.NOFREE
 
-    if (not bytecode.flags & (CompilerFlags.ITERABLE_COROUTINE |
-                              CompilerFlags.ASYNC_GENERATOR) and
+    if (not (bytecode.flags & CompilerFlags.ITERABLE_COROUTINE or
+             flags & CompilerFlags.ASYNC_GENERATOR) and
             (instr_names & {'GET_AWAITABLE', 'GET_AITER', 'GET_ANEXT',
                             'BEFORE_ASYNC_WITH', 'SETUP_ASYNC_WITH'} or
              bytecode.flags & CompilerFlags.COROUTINE)):

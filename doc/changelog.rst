@@ -4,6 +4,7 @@ ChangeLog
 Version 0.6
 -----------
 * Add stack depth computation based on control flow graph analysis
+* Add higher level flags handling using IntFlags enum and inference function
 
 
 Version 0.5

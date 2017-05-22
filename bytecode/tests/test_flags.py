@@ -14,11 +14,12 @@ class FlagsTests(unittest.TestCase):
         code.flags |= (CompilerFlags.NEWLOCALS | CompilerFlags.VARARGS |
                        CompilerFlags.VARKEYWORDS | CompilerFlags.NESTED |
                        CompilerFlags.FUTURE_GENERATOR_STOP)
-        flags = infer_flags(code)
+        code.update_flags()
         for f in (CompilerFlags.NEWLOCALS, CompilerFlags.VARARGS,
                   CompilerFlags.VARKEYWORDS, CompilerFlags.NESTED,
+                  CompilerFlags.NOFREE, CompilerFlags.OPTIMIZED,
                   CompilerFlags.FUTURE_GENERATOR_STOP):
-            self.assertTrue(bool(flags & f))
+            self.assertTrue(bool(code.flags & f))
 
         # Infer optimized and nofree
         code = Bytecode()
@@ -30,9 +31,9 @@ class FlagsTests(unittest.TestCase):
         self.assertFalse(bool(flags & CompilerFlags.OPTIMIZED))
         self.assertTrue(bool(flags & CompilerFlags.NOFREE))
         code.append(ConcreteInstr('STORE_DEREF', 2))
-        flags = infer_flags(code)
-        self.assertFalse(bool(flags & CompilerFlags.OPTIMIZED))
-        self.assertFalse(bool(flags & CompilerFlags.NOFREE))
+        code.update_flags()
+        self.assertFalse(bool(code.flags & CompilerFlags.OPTIMIZED))
+        self.assertFalse(bool(code.flags & CompilerFlags.NOFREE))
 
         # Infer generator
         code = ConcreteBytecode()
@@ -45,14 +46,18 @@ class FlagsTests(unittest.TestCase):
         code = ConcreteBytecode()
         code.append(ConcreteInstr('GET_AWAITABLE'))
         iter_flags = CompilerFlags(CompilerFlags.ITERABLE_COROUTINE)
-        async_flags = CompilerFlags(CompilerFlags.ASYNC_GENERATOR)
-        for f, expected in ((CompilerFlags(0), True), (iter_flags, False),
-                            (async_flags, False)):
+        for f, expected in ((CompilerFlags(0), True), (iter_flags, False)):
             code.flags = f
             self.assertEqual(bool(infer_flags(code) & CompilerFlags.COROUTINE),
                              expected)
 
         # Test check flag sanity
+        code.append(ConcreteInstr('YIELD_VALUE'))
+        code.flags = CompilerFlags(CompilerFlags.GENERATOR |
+                                   CompilerFlags.COROUTINE)
+        infer_flags(code, is_async=True)  # Just want to be sure it pases
         with self.assertRaises(ValueError):
-            infer_flags(CompilerFlags(CompilerFlags.GENERATOR |
-                                      CompilerFlags.COROUTINE))
+            code.update_flags()
+
+        with self.assertRaises(ValueError):
+            infer_flags(None)
