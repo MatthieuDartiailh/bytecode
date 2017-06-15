@@ -370,6 +370,9 @@ Bytecode
       This computation requires to build the control flow graph associated with
       the code.
 
+    .. method:: update_flags(is_async: bool = False)
+
+      Update the object flags by calling :py:func:infer_flags on itself.
 
 
 ConcreteBytecode
@@ -431,6 +434,10 @@ ConcreteBytecode
 
       This computation requires to build the control flow graph associated with
       the code.
+
+   .. method:: update_flags(is_async: bool = False)
+
+      Update the object flags by calling :py:func:infer_flags on itself.
 
 
 BasicBlock
@@ -533,6 +540,10 @@ ControlFlowGraph
       Compute the stack size required by a bytecode object. Will raise an
       exception if the bytecode is invalid.
 
+   .. method:: update_flags(is_async: bool = False)
+
+      Update the object flags by calling :py:func:infer_flags on itself.
+
 
 Cell and Free Variables
 =======================
@@ -577,3 +588,70 @@ previous instruction, starting at ``first_lineno`` of the bytecode.
 
 :class:`SetLineno` pseudo-instruction can be used to set the line number of
 following instructions.
+
+
+Compiler Flags
+==============
+
+.. class:: CompilerFlags()
+
+    .. attribute:: OPTIMIZED
+
+        Set if a code object only uses fast locals
+
+    .. attribute:: NEWLOCALS
+
+        Set if the code execution should be done with a new local scope
+
+    .. attribute:: VARARGS
+
+        Set if a code object expects variable number of positional arguments
+
+    .. attribute:: VARKEYWORDS
+
+        Set if a code object expects variable number of keyword arguments
+
+    .. attribute:: NESTED
+
+        Set if a code object correspond to function defined in another function
+
+    .. attribute:: GENERATOR
+
+        Set if a code object is a generator (contains yield instructions)
+
+    .. attribute:: NOFREE
+
+        Set if a code object does not use free variables
+
+    .. attribute:: COROUTINE
+
+        Set if a code object is a coroutine. New in Python 3.5
+
+    .. attribute:: ITERABLE_COROUTINE
+
+        Set if a code object is an iterable coroutine. New in Python 3.5
+
+    .. attribute:: ASYNC_GENERATOR
+
+        Set if a code object is an asynchronous generator. New in Python 3.6
+
+    .. attribute:: FUTURE_GENERATOR_STOP
+
+        Set if a code object is defined in a context in which generator_stop
+        has been imported from \_\_future\_\_
+
+
+.. function:: infer_flags(bytecode, async: bool = False) -> CompilerFlags
+
+    Infer the correct values for the compiler flags for a given bytecode based
+    on the instructions. The flags that can be inferred are :
+
+    - OPTIMIZED
+    - GENRATOR
+    - NOFREE
+    - COROUTINE
+    - ASYNC_GENERATOR
+
+    The async optional keyword allow to force a detected generator to be turned
+    into a generator. A code will be marked as a COROUTINE only if it contains
+    an async related instruction.

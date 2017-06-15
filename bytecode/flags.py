@@ -1,9 +1,6 @@
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
-import opcode
 from aenum import IntFlag
-
-_haslocal = {opcode.opname[i] for i in opcode.haslocal}
 
 
 class CompilerFlags(IntFlag):

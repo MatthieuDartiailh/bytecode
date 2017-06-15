@@ -60,6 +60,32 @@ Output::
     Hello World!
 
 
+Setting the compiler flags
+--------------------------
+
+Bytecode,  ConcreteBytecode and ControlFlowGraph instances all have a flags
+attribute which is an instance of the CompilerFlag enum. The value can be
+manipulated liked any binary flags.
+
+Setting the OPTIMIZED flag::
+
+    from bytecode import Bytecode, CompilerFlags
+
+    bytecode = Bytecode()
+    bytecode.flags |= CompilerFlags.OPTIMIZED
+
+Clearing the OPTIMIZED flag::
+
+    from bytecode import Bytecode, CompilerFlags
+
+    bytecode = Bytecode()
+    bytecode.flags ^= CompilerFlags.OPTIMIZED
+
+
+The flags can be updated based on the instructions stored in the code object
+can be updated using the method update_flags.
+
+
 Simple loop
 ===========
 
