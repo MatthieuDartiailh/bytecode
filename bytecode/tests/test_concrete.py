@@ -159,11 +159,13 @@ class ConcreteBytecodeTests(TestCase):
                               ConcreteInstr('RETURN_VALUE', lineno=1)])
         # FIXME: test other attributes
 
-    def test_iter_invalid_types(self):
+    def test_invalid_types(self):
         code = ConcreteBytecode()
         code.append(Label())
         with self.assertRaises(ValueError):
             list(code)
+        with self.assertRaises(ValueError):
+            ConcreteBytecode([Label()])
 
     def test_to_code_lnotab(self):
         # x = 7
@@ -200,16 +202,17 @@ class ConcreteBytecodeTests(TestCase):
     def test_negative_lnotab(self):
         # x = 7
         # y = 8
-        concrete = ConcreteBytecode()
+        concrete = ConcreteBytecode([
+            ConcreteInstr("LOAD_CONST", 0),
+            ConcreteInstr("STORE_NAME", 0),
+            # line number goes backward!
+            SetLineno(2),
+            ConcreteInstr("LOAD_CONST", 1),
+            ConcreteInstr("STORE_NAME", 1)
+        ])
         concrete.consts = [7, 8]
         concrete.names = ['x', 'y']
         concrete.first_lineno = 5
-        concrete.extend([ConcreteInstr("LOAD_CONST", 0),
-                         ConcreteInstr("STORE_NAME", 0),
-                         # line number goes backward!
-                         SetLineno(2),
-                         ConcreteInstr("LOAD_CONST", 1),
-                         ConcreteInstr("STORE_NAME", 1)])
 
         if sys.version_info >= (3, 6):
             code = concrete.to_code()

@@ -106,23 +106,26 @@ class _InstrList(list):
 
 class Bytecode(_InstrList, BaseBytecode):
 
-    def __init__(self, instructions=None):
+    def __init__(self, instructions=()):
         BaseBytecode.__init__(self)
-        if instructions is not None:
-            self.extend(instructions)
         self.argnames = []
+        for instr in instructions:
+            self._check_instr(instr)
+        self.extend(instructions)
 
     def __iter__(self):
         instructions = super().__iter__()
         for instr in instructions:
-            if not isinstance(instr, (Label, SetLineno, Instr,
-                                      _bytecode.ConcreteInstr)):
-                raise ValueError("Bytecode must only contain Label, "
-                                 "SetLineno, Instr and ConcreteInstr objects, "
-                                 "but %s was found"
-                                 % instr.__class__.__name__)
-
+            self._check_instr(instr)
             yield instr
+
+    def _check_instr(self, instr):
+        if not isinstance(instr, (Label, SetLineno, Instr,
+                                  _bytecode.ConcreteInstr)):
+            raise ValueError("Bytecode must only contain Label, "
+                             "SetLineno, Instr and ConcreteInstr objects, "
+                             "but %s was found"
+                             % type(instr).__name__)
 
     @staticmethod
     def from_code(code):
