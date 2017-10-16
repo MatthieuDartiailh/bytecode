@@ -121,7 +121,6 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         return block
 
     def compute_stacksize(self):
-
         if not self:
             return 0
 
@@ -134,7 +133,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
     def __repr__(self):
         return '<ControlFlowGraph block#=%s>' % len(self._blocks)
 
-    def _flat(self):
+    def get_instructions(self):
         instructions = []
         jumps = []
 
@@ -162,8 +161,8 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         if self.argnames != other.argnames:
             return False
 
-        instrs1 = self._flat()
-        instrs2 = other._flat()
+        instrs1 = self.get_instructions()
+        instrs2 = other.get_instructions()
         if instrs1 != instrs2:
             return False
         # FIXME: compare block.next_block

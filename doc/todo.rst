@@ -1,7 +1,6 @@
 TODO list
 =========
 
-* BaseBytecode.flags: use a class for flags?
 * Remove Bytecode.cellvars and Bytecode.freevars?
 * Remove Bytecode.first_lineno? Compute it on conversions.
 * Add instruction constants/enums? Example::

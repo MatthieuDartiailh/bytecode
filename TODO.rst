@@ -1,7 +1,6 @@
 * Convert peephole_opt code to a more generic CFG optimizer?
   For example, extract code to remove unreachable blocks?
 * ConcreteBytecode.to_code(): better error reporting on bugs in the code
-* Document or expose CO_xxx flags
 
 Peephole
 ========

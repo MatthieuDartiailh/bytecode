@@ -292,7 +292,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                               self.kwonlyargcount,
                               nlocals,
                               stacksize,
-                              self.flags,
+                              int(self.flags),
                               code_str,
                               tuple(self.consts),
                               tuple(self.names),

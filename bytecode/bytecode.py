@@ -1,6 +1,7 @@
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 from bytecode.instr import UNSET, Label, SetLineno, Instr
+from bytecode.flags import infer_flags
 
 
 class BaseBytecode:
@@ -8,8 +9,6 @@ class BaseBytecode:
     def __init__(self):
         self.argcount = 0
         self.kwonlyargcount = 0
-        # FIXME: use something higher level? make it private?
-        self.flags = 0
         self.first_lineno = 1
         self.name = '<module>'
         self.filename = '<string>'
@@ -18,6 +17,7 @@ class BaseBytecode:
         # we cannot recreate freevars from instructions because of super()
         # special-case
         self.freevars = []
+        self._flags = _bytecode.CompilerFlags(0)
 
     def _copy_attr_from(self, bytecode):
         self.argcount = bytecode.argcount
@@ -56,6 +56,19 @@ class BaseBytecode:
             return False
 
         return True
+
+    @property
+    def flags(self):
+        return self._flags
+
+    @flags.setter
+    def flags(self, value):
+        if not isinstance(value, _bytecode.CompilerFlags):
+            value = _bytecode.CompilerFlags(value)
+        self._flags = value
+
+    def update_flags(self, *, is_async=False):
+        self.flags = infer_flags(self, is_async)
 
 
 class _InstrList(list):
