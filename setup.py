@@ -58,7 +58,7 @@ def main():
         'license': 'MIT license',
         'description': DESCRIPTION,
         'long_description': long_description,
-        'url': 'https://github.com/haypo/bytecode',
+        'url': 'https://github.com/vstinner/bytecode',
         'author': 'Victor Stinner',
         'author_email': 'victor.stinner@gmail.com',
         'classifiers': CLASSIFIERS,
