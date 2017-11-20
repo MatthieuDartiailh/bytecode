@@ -6,13 +6,13 @@ bytecode
    :alt: Latest release on the Python Cheeseshop (PyPI)
    :target: https://pypi.python.org/pypi/bytecode
 
-.. image:: https://img.shields.io/travis/haypo/bytecode/master.svg
+.. image:: https://img.shields.io/travis/vstinner/bytecode/master.svg
    :alt: Build status of bytecode on Travis CI
-   :target: https://travis-ci.org/haypo/bytecode
-   
-.. image:: https://img.shields.io/codecov/c/github/haypo/bytecode/master.svg
+   :target: https://travis-ci.org/vstinner/bytecode
+
+.. image:: https://img.shields.io/codecov/c/github/vstinner/bytecode/master.svg
    :alt: Code coverage of bytecode on codecov.io
-   :target: https://codecov.io/github/haypo/bytecode
+   :target: https://codecov.io/github/vstinner/bytecode
 
 ``bytecode`` is a Python module to generate and modify bytecode.
 
