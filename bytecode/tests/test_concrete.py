@@ -520,12 +520,12 @@ class BytecodeToConcreteTests(TestCase):
                 elif x == 16:
                     return x + 1
                 elif x == 17:
-                    return x + 1 
-                return -1                   
+                    return x + 1
+                return -1
         """, function=True)
         code = Bytecode.from_code(code)
         concrete = code.to_concrete_bytecode()
-        self.assertIsInstance(concrete,ConcreteBytecode)
+        self.assertIsInstance(concrete, ConcreteBytecode)
 
     def test_setlineno(self):
         # x = 7
