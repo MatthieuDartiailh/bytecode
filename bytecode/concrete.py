@@ -189,8 +189,10 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                         extended_arg = (extended_arg << 8) + instr.arg
                     else:
                         extended_arg = instr.arg
-                    del instructions[index]
-                    continue
+
+                    if extended_arg > 0:
+                        del instructions[index]
+                        continue
 
                 if extended_arg is not None:
                     if _WORDCODE:
