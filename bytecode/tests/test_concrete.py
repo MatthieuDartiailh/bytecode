@@ -479,6 +479,54 @@ class BytecodeToConcreteTests(TestCase):
         self.assertListEqual(concrete.names, ['test', 'x'])
         self.assertListEqual(concrete.varnames, [])
 
+    def test_label3(self):
+        """
+        When you delete ``extended_arg`` that have a value of 0, the following
+        will fail when calling ``Bytecode.to_concrete_bytecode()`` because
+        it cant find a label to correspond to the jump target
+        """
+        code = get_code("""
+            def func(x):
+                if x == 1:
+                    return x +1
+                elif x == 2:
+                    return x + 1
+                elif x == 3:
+                    return x + 1
+                elif x == 4:
+                    return x + 1
+                elif x == 5:
+                    return x + 1
+                elif x == 6:
+                    return x + 1
+                elif x == 7:
+                    return x + 1
+                elif x == 8:
+                    return x + 1
+                elif x == 9:
+                    return x + 1
+                elif x == 10:
+                    return x + 1
+                elif x == 11:
+                    return x + 1
+                elif x == 12:
+                    return x + 1
+                elif x == 13:
+                    return x + 1
+                elif x == 14:
+                    return x + 1
+                elif x == 15:
+                    return x + 1
+                elif x == 16:
+                    return x + 1
+                elif x == 17:
+                    return x + 1 
+                return -1                   
+        """, function=True)
+        code = Bytecode.from_code(code)
+        concrete = code.to_concrete_bytecode()
+        self.assertIsInstance(concrete,ConcreteBytecode)
+
     def test_setlineno(self):
         # x = 7
         # y = 8
