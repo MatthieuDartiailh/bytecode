@@ -1,14 +1,23 @@
 ChangeLog
 =========
 
-Version 0.6
+Version 0.7
 -----------
+
+Nothing yet
+
+
+2017-03-24: Version 0.6
+-----------------------
+
 * Add stack depth computation based on control flow graph analysis
 * Add higher level flags handling using IntFlags enum and inference function
+* Add an instructions argument to ConcreteBytecode, and validate its value
+* Do not delete `EXTENDED_ARG` instructions that have no arg
 
 
-Version 0.5
------------
+2017-01-05: Version 0.5
+-----------------------
 
 * Add the new bytecode format of Python 3.6.
 * Remove the ``BaseInstr`` class which became useless. It was replaced

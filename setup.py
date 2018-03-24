@@ -25,7 +25,7 @@
 #  - git commit -a -m "post-release"
 #  - git push
 
-VERSION = '0.5.1'
+VERSION = '0.6.0'
 
 DESCRIPTION = 'Python module to generate and modify bytecode'
 CLASSIFIERS = [
