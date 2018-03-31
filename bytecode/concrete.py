@@ -506,12 +506,12 @@ class _ConvertBytecodeToConcrete:
         self.varnames.extend(self.bytecode.argnames)
 
         self.concrete_instructions()
-        modified = self.compute_jumps()
-        if modified:
+        for step in range(0, 10):
             modified = self.compute_jumps()
-            if modified:
-                raise RuntimeError("compute_jumps() must not modify jumps "
-                                   "at the second iteration")
+            if not modified:
+                break
+        else:
+            raise RuntimeError("compute_jumps() failed to converge")
 
         consts = [None] * len(self.consts)
         for item, index in self.consts.items():
