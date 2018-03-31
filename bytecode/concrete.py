@@ -329,6 +329,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         labels = {}
         offset = 0
         ncells = len(self.cellvars)
+        deletions = []
 
         for lineno, instr in self._normalize_lineno():
             if offset in jump_targets:
@@ -367,12 +368,23 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
             if jump_target is not None:
                 jumps.append((instr_index, jump_target))
 
+            if instr.opcode == _opcode.EXTENDED_ARG:
+                if instr.arg != 0:
+                    raise ValueError("all EXTENED_ARG with non-zero args"
+                                     " should have been removed: %d %s"
+                                     % (offset, instr))
+                deletions.append(len(instructions) - 1)
+
         # replace jump targets with labels
         for index, jump_target in jumps:
             instr = instructions[index]
             # FIXME: better error reporting on missing label
             label = labels[jump_target]
             instructions[index] = Instr(instr.name, label, lineno=instr.lineno)
+
+        # remove any instrs marked for deletion
+        for index in reversed(deletions):
+            del instructions[index]
 
         bytecode = _bytecode.Bytecode()
         bytecode._copy_attr_from(self)
