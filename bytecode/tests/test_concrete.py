@@ -540,10 +540,6 @@ class BytecodeToConcreteTests(TestCase):
                     return x + 1
                 return -1
         """, function=True)
-        bcode = ConcreteBytecode.from_code(code).to_bytecode()
-        concrete = bcode.to_concrete_bytecode()
-        self.assertIsInstance(concrete, ConcreteBytecode)
-
         bcode = Bytecode.from_code(code)
         concrete = bcode.to_concrete_bytecode()
         self.assertIsInstance(concrete, ConcreteBytecode)

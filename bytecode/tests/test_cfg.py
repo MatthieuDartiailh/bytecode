@@ -454,6 +454,16 @@ class CFGStacksizeComputationTests(TestCase):
                      Instr("STORE_NAME", 'z')])
         self.assertEqual(code.compute_stacksize(), 1)
 
+    def test_handling_of_extended_arg(self):
+        code = Bytecode()
+        code.first_lineno = 3
+        code.extend([Instr("LOAD_CONST", 7),
+                     Instr("STORE_NAME", 'x'),
+                     Instr("EXTENDED_ARG", 1),
+                     Instr("LOAD_CONST", 8),
+                     Instr("STORE_NAME", 'y')])
+        self.assertEqual(code.compute_stacksize(), 1)
+
     def test_invalid_stacksize(self):
         code = Bytecode()
         code.extend([Instr("STORE_NAME", 'x')])
