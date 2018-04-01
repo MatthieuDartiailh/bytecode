@@ -58,7 +58,7 @@ class ConcreteInstr(Instr):
                     size += 2
                     arg >>= 8
             if self._extended_args is not None:
-                size = 2 + 2*self._extended_args
+                size = 2 + 2 * self._extended_args
         else:
             size = 1
             if arg is not UNSET:
@@ -66,7 +66,7 @@ class ConcreteInstr(Instr):
                 if arg > 0xffff:
                     size += 3
                 if self._extended_args is not None:
-                    size = 1 + 3*self._extended_args
+                    size = 1 + 3 * self._extended_args
         self._size = size
 
     @property
