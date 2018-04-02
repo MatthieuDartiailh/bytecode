@@ -7,6 +7,7 @@ from bytecode import (UNSET, Label, Instr, SetLineno, Bytecode,
                       CellVar, FreeVar,
                       ConcreteInstr, ConcreteBytecode)
 from bytecode.tests import get_code, TestCase, WORDCODE
+from bytecode.concrete import _ConvertBytecodeToConcrete
 
 
 class ConcreteInstrTests(TestCase):
@@ -649,6 +650,59 @@ class BytecodeToConcreteTests(TestCase):
         code.extend([ConcreteInstr("LOAD_DEREF", 0, lineno=1),
                      ConcreteInstr("LOAD_DEREF", 1, lineno=1)])
 
+    def test_compute_jumps_convergence(self):
+        # Consider the following sequence of instructions:
+        #
+        #     JUMP_ABSOLUTE Label1
+        #     JUMP_ABSOLUTE Label2
+        #     ...126 instructions...
+        #   Label1:                 Offset 254 on first pass, 256 second pass
+        #     NOP
+        #     ... many more instructions ...
+        #   Label2:                 Offset > 256 on first pass
+        #
+        # On first pass of compute_jumps(), Label2 will be at address 254, so
+        # that value encodes into the single byte arg of JUMP_ABSOLUTE.
+        #
+        # On second pass compute_jumps() the instr at Label1 will have offset
+        # of 256 so will also be given an EXTENDED_ARG.
+        #
+        # Thus we need to make an additional pass.  FIXME This test currently
+        # only verifies case where 2 passes is insufficient but three is
+        # enough.
+
+        if not WORDCODE:
+            # Could be done pre-WORDCODE, but that requires 2**16 bytes of
+            # code.
+            return
+
+        # Create code from comment above.
+        code = Bytecode()
+        label1 = Label()
+        label2 = Label()
+        nop = 'UNARY_POSITIVE' # don't use NOP, dis.stack_effect will raise
+        code.append(Instr('JUMP_ABSOLUTE', label1))
+        code.append(Instr('JUMP_ABSOLUTE', label2))
+        for x in range(4, 254, 2):
+            code.append(Instr(nop))
+        code.append(label1)
+        code.append(Instr(nop))
+        for x in range(256, 300, 2):
+            code.append(Instr(nop))
+        code.append(label2)
+        code.append(Instr(nop))
+
+        # This should pass by default.
+        c = code.to_code()
+
+        # Try with max of two passes:  it should raise
+        try:
+            save_max = _ConvertBytecodeToConcrete.max_compute_jumps_steps
+            _ConvertBytecodeToConcrete.max_compute_jumps_steps = 2
+            with self.assertRaises(RuntimeError):
+                c = code.to_code()
+        finally:
+            _ConvertBytecodeToConcrete.max_compute_jumps_steps = save_max
 
 if __name__ == "__main__":
     unittest.main()

@@ -498,6 +498,8 @@ class _ConvertBytecodeToConcrete:
 
         return modified
 
+    max_compute_jumps_steps = 10
+
     def to_concrete_bytecode(self):
         first_const = self.bytecode.docstring
         if first_const is not UNSET:
@@ -506,7 +508,7 @@ class _ConvertBytecodeToConcrete:
         self.varnames.extend(self.bytecode.argnames)
 
         self.concrete_instructions()
-        for step in range(0, 10):
+        for step in range(0, self.max_compute_jumps_steps):
             modified = self.compute_jumps()
             if not modified:
                 break
