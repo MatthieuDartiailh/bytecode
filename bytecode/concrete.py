@@ -94,6 +94,10 @@ class ConcreteInstr(Instr):
                 arg >>= 8
                 b[:0] = [_opcode.EXTENDED_ARG, arg & 0xff]
 
+            if self._extended_args:
+                while len(b) < self._size:
+                    b[:0] = [_opcode.EXTENDED_ARG, 0x00]
+
             return bytes(b)
     else:
         def assemble(self):
@@ -102,11 +106,17 @@ class ConcreteInstr(Instr):
 
             arg = self._arg
             if arg > 0xffff:
-                return struct.pack('<BHBH',
-                                   _opcode.EXTENDED_ARG, arg >> 16,
-                                   self._opcode, arg & 0xffff)
+                b = struct.pack('<BHBH',
+                                _opcode.EXTENDED_ARG, arg >> 16,
+                                self._opcode, arg & 0xffff)
             else:
-                return struct.pack('<BH', self._opcode, arg)
+                b = struct.pack('<BH', self._opcode, arg)
+
+            if self._extended_args:
+                while len(b) < self._size:
+                    b = struct.pack('<BH', _opcode.EXTENDED_ARG, 0) + b
+
+            return b
 
     @classmethod
     def disassemble(cls, lineno, code, offset):
