@@ -680,7 +680,7 @@ class BytecodeToConcreteTests(TestCase):
         code = Bytecode()
         label1 = Label()
         label2 = Label()
-        nop = 'UNARY_POSITIVE' # don't use NOP, dis.stack_effect will raise
+        nop = 'UNARY_POSITIVE'   # don't use NOP, dis.stack_effect will raise
         code.append(Instr('JUMP_ABSOLUTE', label1))
         code.append(Instr('JUMP_ABSOLUTE', label2))
         for x in range(4, 254, 2):
@@ -693,16 +693,17 @@ class BytecodeToConcreteTests(TestCase):
         code.append(Instr(nop))
 
         # This should pass by default.
-        c = code.to_code()
+        code.to_code()
 
         # Try with max of two passes:  it should raise
         try:
             save_max = _ConvertBytecodeToConcrete.max_compute_jumps_steps
             _ConvertBytecodeToConcrete.max_compute_jumps_steps = 2
             with self.assertRaises(RuntimeError):
-                c = code.to_code()
+                code.to_code()
         finally:
             _ConvertBytecodeToConcrete.max_compute_jumps_steps = save_max
+
 
 if __name__ == "__main__":
     unittest.main()
