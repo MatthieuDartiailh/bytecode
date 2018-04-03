@@ -391,6 +391,10 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
 
 class _ConvertBytecodeToConcrete:
 
+    # Number of passes of compute_jumps() before giving up.  Refer to
+    # assemble_jump_offsets() in compile.c for background.
+    _max_compute_jumps_steps = 129
+
     def __init__(self, code):
         assert isinstance(code, _bytecode.Bytecode)
         self.bytecode = code
@@ -498,8 +502,6 @@ class _ConvertBytecodeToConcrete:
 
         return modified
 
-    max_compute_jumps_steps = 10
-
     def to_concrete_bytecode(self):
         first_const = self.bytecode.docstring
         if first_const is not UNSET:
@@ -508,12 +510,14 @@ class _ConvertBytecodeToConcrete:
         self.varnames.extend(self.bytecode.argnames)
 
         self.concrete_instructions()
-        for step in range(0, self.max_compute_jumps_steps):
+        for step in range(0, self._max_compute_jumps_steps):
             modified = self.compute_jumps()
             if not modified:
                 break
         else:
-            raise RuntimeError("compute_jumps() failed to converge")
+            raise RuntimeError("compute_jumps() failed to converge after"
+                               " %d passes"
+                               % (step + 1))
 
         consts = [None] * len(self.consts)
         for item, index in self.consts.items():

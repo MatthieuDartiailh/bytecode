@@ -697,12 +697,12 @@ class BytecodeToConcreteTests(TestCase):
 
         # Try with max of two passes:  it should raise
         try:
-            save_max = _ConvertBytecodeToConcrete.max_compute_jumps_steps
-            _ConvertBytecodeToConcrete.max_compute_jumps_steps = 2
+            save_max = _ConvertBytecodeToConcrete._max_compute_jumps_steps
+            _ConvertBytecodeToConcrete._max_compute_jumps_steps = 2
             with self.assertRaises(RuntimeError):
                 code.to_code()
         finally:
-            _ConvertBytecodeToConcrete.max_compute_jumps_steps = save_max
+            _ConvertBytecodeToConcrete._max_compute_jumps_steps = save_max
 
 
 if __name__ == "__main__":
