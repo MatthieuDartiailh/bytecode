@@ -30,9 +30,13 @@ class ConcreteInstr(Instr):
     It has a read-only size attribute.
     """
 
-    __slots__ = ('_size',)
+    __slots__ = ('_size', '_extended_args')
 
-    def __init__(self, name, arg=UNSET, *, lineno=None):
+    def __init__(self, name, arg=UNSET, *, lineno=None, extended_args=None):
+        # Allow to remember a potentially meaningless EXTENDED_ARG emitted by
+        # Python to properly compute the size and avoid messing up the jump
+        # targets
+        self._extended_args = extended_args
         self._set(name, arg, lineno)
 
     def _check_arg(self, name, opcode, arg):
@@ -53,12 +57,16 @@ class ConcreteInstr(Instr):
                 while arg > 0xff:
                     size += 2
                     arg >>= 8
+            if self._extended_args is not None:
+                size = 2 + 2 * self._extended_args
         else:
             size = 1
             if arg is not UNSET:
                 size += 2
                 if arg > 0xffff:
                     size += 3
+                if self._extended_args is not None:
+                    size = 1 + 3 * self._extended_args
         self._size = size
 
     @property
@@ -86,6 +94,10 @@ class ConcreteInstr(Instr):
                 arg >>= 8
                 b[:0] = [_opcode.EXTENDED_ARG, arg & 0xff]
 
+            if self._extended_args:
+                while len(b) < self._size:
+                    b[:0] = [_opcode.EXTENDED_ARG, 0x00]
+
             return bytes(b)
     else:
         def assemble(self):
@@ -94,11 +106,17 @@ class ConcreteInstr(Instr):
 
             arg = self._arg
             if arg > 0xffff:
-                return struct.pack('<BHBH',
-                                   _opcode.EXTENDED_ARG, arg >> 16,
-                                   self._opcode, arg & 0xffff)
+                b = struct.pack('<BHBH',
+                                _opcode.EXTENDED_ARG, arg >> 16,
+                                self._opcode, arg & 0xffff)
             else:
-                return struct.pack('<BH', self._opcode, arg)
+                b = struct.pack('<BH', self._opcode, arg)
+
+            if self._extended_args:
+                while len(b) < self._size:
+                    b = struct.pack('<BH', _opcode.EXTENDED_ARG, 0) + b
+
+            return b
 
     @classmethod
     def disassemble(cls, lineno, code, offset):
@@ -175,13 +193,20 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
             offset += instr.size
 
         # replace jump targets with blocks
+        # HINT : in some cases Python generate useless EXTENDED_ARG opcode
+        # with a value of zero. Such opcodes do not increases the size of the
+        # following opcode the way a normal EXTENDED_ARG does. As a
+        # consequence, they need to be tracked manually as otherwise the
+        # offsets in jump targets can end up being wrong.
         if not extended_arg:
+            nb_extended_args = 0
             extended_arg = None
             index = 0
             while index < len(instructions):
                 instr = instructions[index]
 
                 if instr.name == 'EXTENDED_ARG':
+                    nb_extended_args += 1
                     if extended_arg is not None:
                         if not _WORDCODE:
                             raise ValueError("EXTENDED_ARG followed "
@@ -190,9 +215,8 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                     else:
                         extended_arg = instr.arg
 
-                    if extended_arg > 0:
-                        del instructions[index]
-                        continue
+                    del instructions[index]
+                    continue
 
                 if extended_arg is not None:
                     if _WORDCODE:
@@ -201,8 +225,10 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                         arg = (extended_arg << 16) + instr.arg
                     extended_arg = None
 
-                    instr = ConcreteInstr(instr.name, arg, lineno=instr.lineno)
+                    instr = ConcreteInstr(instr.name, arg, lineno=instr.lineno,
+                                          extended_args=nb_extended_args)
                     instructions[index] = instr
+                    nb_extended_args = 0
 
                 index += 1
 

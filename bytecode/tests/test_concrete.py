@@ -3,6 +3,7 @@ import opcode
 import sys
 import types
 import unittest
+import textwrap
 from bytecode import (UNSET, Label, Instr, SetLineno, Bytecode,
                       CellVar, FreeVar,
                       ConcreteInstr, ConcreteBytecode)
@@ -34,6 +35,13 @@ class ConcreteInstrTests(TestCase):
             ConcreteInstr("LOAD_CONST", 2147483647 + 1)
         instr = ConcreteInstr("LOAD_CONST", 2147483647)
         self.assertEqual(instr.arg, 2147483647)
+
+        # test meaningless extended args
+        instr = ConcreteInstr('LOAD_FAST', 8, lineno=3, extended_args=1)
+        self.assertEqual(instr.name, 'LOAD_FAST')
+        self.assertEqual(instr.arg, 8)
+        self.assertEqual(instr.lineno, 3)
+        self.assertEqual(instr.size, 4)
 
     def test_attr(self):
         instr = ConcreteInstr("LOAD_CONST", 5, lineno=12)
@@ -117,10 +125,13 @@ class ConcreteInstrTests(TestCase):
         instr = ConcreteInstr.disassemble(2, code, 2 if WORDCODE else 1)
         self.assertEqual(instr, ConcreteInstr("LOAD_CONST", 3, lineno=2))
 
-        code = b'\x90\x12\x904\x90\xabd\xcd' if WORDCODE else b'\x904\x12d\xcd\xab'
+        code = (b'\x90\x12\x904\x90\xabd\xcd' if WORDCODE else
+                b'\x904\x12d\xcd\xab')
+
         instr = ConcreteInstr.disassemble(3, code, 0)
         self.assertEqual(instr,
-                         ConcreteInstr('EXTENDED_ARG', 0x12 if WORDCODE else 0x1234, lineno=3))
+                         ConcreteInstr('EXTENDED_ARG',
+                                       0x12 if WORDCODE else 0x1234, lineno=3))
 
     def test_assemble(self):
         instr = ConcreteInstr("NOP")
@@ -131,8 +142,14 @@ class ConcreteInstrTests(TestCase):
                          b'd\x03' if WORDCODE else b'd\x03\x00')
 
         instr = ConcreteInstr("LOAD_CONST", 0x1234abcd)
-        self.assertEqual(instr.assemble(
-        ), b'\x90\x12\x904\x90\xabd\xcd' if WORDCODE else b'\x904\x12d\xcd\xab')
+        self.assertEqual(instr.assemble(),
+                         (b'\x90\x12\x904\x90\xabd\xcd' if WORDCODE else
+                          b'\x904\x12d\xcd\xab'))
+
+        instr = ConcreteInstr("LOAD_CONST", 3, extended_args=1)
+        self.assertEqual(instr.assemble(),
+                         (b'\x90\x00d\x03' if WORDCODE else
+                          b'\x90\x00\x00d\x03\x00'))
 
     def test_get_jump_target(self):
         jump_abs = ConcreteInstr("JUMP_ABSOLUTE", 3)
@@ -197,7 +214,8 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 3)
         self.assertEqual(
-            code.co_lnotab, b'\x04\x01\x04\x01' if WORDCODE else b'\x06\x01\x06\x01')
+            code.co_lnotab,
+            b'\x04\x01\x04\x01' if WORDCODE else b'\x06\x01\x06\x01')
 
     def test_negative_lnotab(self):
         # x = 7
@@ -322,8 +340,10 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(bytecode.freevars, ['__class__'])
         self.assertEqual(bytecode.cellvars, ['__class__'])
         self.assertEqual(list(bytecode),
-                         [Instr('LOAD_CLASSDEREF', FreeVar('__class__'), lineno=1),
-                          Instr('STORE_DEREF', FreeVar('__class__'), lineno=1)])
+                         [Instr('LOAD_CLASSDEREF', FreeVar('__class__'),
+                                lineno=1),
+                          Instr('STORE_DEREF', FreeVar('__class__'), lineno=1)]
+                         )
 
         concrete = bytecode.to_concrete_bytecode()
         self.assertEqual(concrete.freevars, ['__class__'])
@@ -336,14 +356,16 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(code.co_freevars, ('__class__',))
         self.assertEqual(code.co_cellvars, ('__class__',))
         self.assertEqual(
-            code.co_code, b'\x94\x01\x89\x01' if WORDCODE else b'\x94\x01\x00\x89\x01\x00')
+            code.co_code,
+            b'\x94\x01\x89\x01' if WORDCODE else b'\x94\x01\x00\x89\x01\x00')
 
 
 class ConcreteFromCodeTests(TestCase):
 
     def test_extended_arg(self):
         # Create a code object from arbitrary bytecode
-        co_code = b'\x90\x12\x904\x90\xabd\xcd' if WORDCODE else b'\x904\x12d\xcd\xab'
+        co_code = (b'\x90\x12\x904\x90\xabd\xcd' if WORDCODE else
+                   b'\x904\x12d\xcd\xab')
         code = get_code('x=1')
         code = types.CodeType(code.co_argcount,
                               code.co_kwonlyargcount,
@@ -364,7 +386,8 @@ class ConcreteFromCodeTests(TestCase):
         # without EXTENDED_ARG opcode
         bytecode = ConcreteBytecode.from_code(code)
         self.assertListEqual(list(bytecode),
-                             [ConcreteInstr("LOAD_CONST", 0x1234abcd, lineno=1)])
+                             [ConcreteInstr("LOAD_CONST", 0x1234abcd,
+                                            lineno=1)])
 
         # with EXTENDED_ARG opcode
         bytecode = ConcreteBytecode.from_code(code, extended_arg=True)
@@ -481,51 +504,65 @@ class BytecodeToConcreteTests(TestCase):
 
     def test_label3(self):
         """
-        When you delete ``extended_arg`` that have a value of 0, the following
-        will fail when calling ``Bytecode.to_concrete_bytecode()`` because
-        it cant find a label to correspond to the jump target
+        CPython generates useless EXTENDED_ARG 0 in some cases. We need to
+        properly track them as otherwise we can end up with broken offset for
+        jumps.
         """
-        code = get_code("""
+        source = """
             def func(x):
                 if x == 1:
-                    return x +1
+                    return x + 0
                 elif x == 2:
                     return x + 1
                 elif x == 3:
-                    return x + 1
+                    return x + 2
                 elif x == 4:
-                    return x + 1
+                    return x + 3
                 elif x == 5:
-                    return x + 1
+                    return x + 4
                 elif x == 6:
-                    return x + 1
+                    return x + 5
                 elif x == 7:
-                    return x + 1
+                    return x + 6
                 elif x == 8:
-                    return x + 1
+                    return x + 7
                 elif x == 9:
-                    return x + 1
+                    return x + 8
                 elif x == 10:
-                    return x + 1
+                    return x + 9
                 elif x == 11:
-                    return x + 1
+                    return x + 10
                 elif x == 12:
-                    return x + 1
+                    return x + 11
                 elif x == 13:
-                    return x + 1
+                    return x + 12
                 elif x == 14:
-                    return x + 1
+                    return x + 13
                 elif x == 15:
-                    return x + 1
+                    return x + 14
                 elif x == 16:
-                    return x + 1
+                    return x + 15
                 elif x == 17:
-                    return x + 1
+                    return x + 16
                 return -1
-        """, function=True)
-        code = Bytecode.from_code(code)
-        concrete = code.to_concrete_bytecode()
+        """
+        code = get_code(source, function=True)
+        bcode = Bytecode.from_code(code)
+        concrete = bcode.to_concrete_bytecode()
         self.assertIsInstance(concrete, ConcreteBytecode)
+
+        # Ensure that we do not generate broken code
+        loc = {}
+        exec(textwrap.dedent(source), loc)
+        func = loc['func']
+        func.__code__ = bcode.to_code()
+        for i, x in enumerate(range(1, 18)):
+            self.assertEqual(func(x), x + i)
+        self.assertEqual(func(18), -1)
+
+        # Ensure that we properly round trip in such cases
+        self.assertEqual(ConcreteBytecode.from_code(code).to_code().co_code,
+                         code.co_code)
 
     def test_setlineno(self):
         # x = 7

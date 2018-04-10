@@ -275,6 +275,9 @@ class Instr:
         # a stack_effect indepent of their argument.
         arg = (self._arg if isinstance(self._arg, int) else
                0 if self._opcode >= _opcode.HAVE_ARGUMENT else None)
+        # EXTENDED_ARG has no stack effect but is not supported by dis
+        if self._name == 'EXTENDED_ARG':
+            return 0
         return dis.stack_effect(self._opcode, arg)
 
     def copy(self):
