@@ -348,19 +348,29 @@ Bytecode
 
    Methods:
 
-   .. method:: to_concrete_bytecode() -> ConcreteBytecode
+   .. method:: to_concrete_bytecode(compute_jumps_passes: int = None) -> ConcreteBytecode
 
       Convert to concrete bytecode with concrete instructions.
 
       Resolve jump targets: replace abstract labels (:class:`Label`) with
-      concrete instruction offsets (relative or absolute, depending on the jump
-      operation).
+      concrete instruction offsets (relative or absolute, depending on the
+      jump operation).  It will also add EXTENDED_ARG prefixes to jump
+      instrctions to ensure that the target instructions can be reached.
 
-   .. method:: to_code() -> types.CodeType
+      If *compute_jumps_passes* is not None, it sets the upper limit for the
+      number of passes that can be made to generate EXTENDED_ARG prefixes for
+      jump instructions. If None then an internal default is used.  The number
+      of passes is (in theory) limited only by the number of input
+      instructions, however a much smaller default is used because most code
+      converges quickly.
+
+   .. method:: to_code(compute_jumps_passes: int = None) -> types.CodeType
 
       Convert to a Python code object.
 
       It is based on :meth:`to_concrete_bytecode` and so resolve jump targets.
+
+      *compute_jumps_passes*: see :meth:`to_concrete_bytecode`
 
    .. method:: compute_stacksize() -> int
 
