@@ -7,7 +7,6 @@ from bytecode import (UNSET, Label, Instr, SetLineno, Bytecode,
                       CellVar, FreeVar,
                       ConcreteInstr, ConcreteBytecode)
 from bytecode.tests import get_code, TestCase, WORDCODE
-from bytecode.concrete import _ConvertBytecodeToConcrete
 
 
 class ConcreteInstrTests(TestCase):
@@ -695,13 +694,8 @@ class BytecodeToConcreteTests(TestCase):
         code.to_code()
 
         # Try with max of two passes:  it should raise
-        try:
-            save_max = _ConvertBytecodeToConcrete._max_compute_jumps_steps
-            _ConvertBytecodeToConcrete._max_compute_jumps_steps = 2
-            with self.assertRaises(RuntimeError):
-                code.to_code()
-        finally:
-            _ConvertBytecodeToConcrete._max_compute_jumps_steps = save_max
+        with self.assertRaises(RuntimeError):
+            code.to_code(compute_jumps_passes=2)
 
     def test_extreme_compute_jumps_convergence(self):
         """Test of compute_jumps() requiring absurd number of passes.
@@ -760,13 +754,7 @@ class BytecodeToConcreteTests(TestCase):
         del end_of_jumps
         code.append(Instr('RETURN_VALUE'))
 
-        try:
-            cbtc = _ConvertBytecodeToConcrete
-            save_max = cbtc._max_compute_jumps_steps
-            cbtc._max_compute_jumps_steps = len(labels) + 1
-            code.to_code()
-        finally:
-            cbtc._max_compute_jumps_steps = save_max
+        code.to_code(compute_jumps_passes=(len(labels) + 1))
 
 
 if __name__ == "__main__":
