@@ -360,9 +360,11 @@ Bytecode
       If *compute_jumps_passes* is not None, it sets the upper limit for the
       number of passes that can be made to generate EXTENDED_ARG prefixes for
       jump instructions. If None then an internal default is used.  The number
-      of passes is (in theory) limited only by the number of input
-      instructions, however a much smaller default is used because most code
-      converges quickly.
+      of passes is, in theory, limited only by the number of input
+      instructions, however a much smaller default is used because the
+      algorithm converges quickly on most code.  For example, running CPython
+      3.6.5 unittests on OS X 11.13 results in 264996 compiled methods, only
+      one of which requires 5 passes, and none requiring more.
 
    .. method:: to_code(compute_jumps_passes: int = None) -> types.CodeType
 
