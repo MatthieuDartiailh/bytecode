@@ -355,7 +355,7 @@ Bytecode
       Resolve jump targets: replace abstract labels (:class:`Label`) with
       concrete instruction offsets (relative or absolute, depending on the
       jump operation).  It will also add EXTENDED_ARG prefixes to jump
-      instrctions to ensure that the target instructions can be reached.
+      instructions to ensure that the target instructions can be reached.
 
       If *compute_jumps_passes* is not None, it sets the upper limit for the
       number of passes that can be made to generate EXTENDED_ARG prefixes for
