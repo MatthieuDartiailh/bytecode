@@ -686,6 +686,113 @@ class BytecodeToConcreteTests(TestCase):
         code.extend([ConcreteInstr("LOAD_DEREF", 0, lineno=1),
                      ConcreteInstr("LOAD_DEREF", 1, lineno=1)])
 
+    def test_compute_jumps_convergence(self):
+        # Consider the following sequence of instructions:
+        #
+        #     JUMP_ABSOLUTE Label1
+        #     JUMP_ABSOLUTE Label2
+        #     ...126 instructions...
+        #   Label1:                 Offset 254 on first pass, 256 second pass
+        #     NOP
+        #     ... many more instructions ...
+        #   Label2:                 Offset > 256 on first pass
+        #
+        # On first pass of compute_jumps(), Label2 will be at address 254, so
+        # that value encodes into the single byte arg of JUMP_ABSOLUTE.
+        #
+        # On second pass compute_jumps() the instr at Label1 will have offset
+        # of 256 so will also be given an EXTENDED_ARG.
+        #
+        # Thus we need to make an additional pass.  This test only verifies
+        # case where 2 passes is insufficient but three is enough.
+
+        if not WORDCODE:
+            # Could be done pre-WORDCODE, but that requires 2**16 bytes of
+            # code.
+            return
+
+        # Create code from comment above.
+        code = Bytecode()
+        label1 = Label()
+        label2 = Label()
+        nop = 'UNARY_POSITIVE'   # don't use NOP, dis.stack_effect will raise
+        code.append(Instr('JUMP_ABSOLUTE', label1))
+        code.append(Instr('JUMP_ABSOLUTE', label2))
+        for x in range(4, 254, 2):
+            code.append(Instr(nop))
+        code.append(label1)
+        code.append(Instr(nop))
+        for x in range(256, 300, 2):
+            code.append(Instr(nop))
+        code.append(label2)
+        code.append(Instr(nop))
+
+        # This should pass by default.
+        code.to_code()
+
+        # Try with max of two passes:  it should raise
+        with self.assertRaises(RuntimeError):
+            code.to_code(compute_jumps_passes=2)
+
+    def test_extreme_compute_jumps_convergence(self):
+        """Test of compute_jumps() requiring absurd number of passes.
+
+        NOTE:  This test also serves to demonstrate that there is no worst
+        case: the number of passes can be unlimited (or, actually, limited by
+        the size of the provided code).
+
+        This is an extension of test_compute_jumps_convergence.  Instead of
+        two jumps, where the earlier gets extended after the latter, we
+        instead generate a series of many jumps.  Each pass of compute_jumps()
+        extends one more instruction, which in turn causes the one behind it
+        to be extended on the next pass.
+        """
+        if not WORDCODE:
+            return
+
+        # N: the number of unextended instructions that can be squeezed into a
+        # set of bytes adressable by the arg of an unextended instruction.
+        # The answer is "128", but here's how we arrive at it (and it also
+        # hints at how to make this work for pre-WORDCODE).
+        max_unextended_offset = 1 << 8
+        unextended_branch_instr_size = 2
+        N = max_unextended_offset // unextended_branch_instr_size
+
+        nop = 'UNARY_POSITIVE'   # don't use NOP, dis.stack_effect will raise
+
+        # The number of jumps will be equal to the number of labels.  The
+        # number of passes of compute_jumps() required will be one greater
+        # than this.
+        labels = [Label() for x in range(0, 3 * N)]
+
+        code = Bytecode()
+        code.extend(Instr('JUMP_FORWARD', labels[len(labels) - x - 1])
+                    for x in range(0, len(labels)))
+        end_of_jumps = len(code)
+        code.extend(Instr(nop) for x in range(0, N))
+
+        # Now insert the labels.  The first is N instructions (i.e. 256
+        # bytes) after the last jump.  Then they proceed to earlier positions
+        # 4 bytes at a time.  While the targets are in the range of the nop
+        # instructions, 4 bytes is two instructions.  When the targets are in
+        # the range of JUMP_FORWARD instructions we have to allow for the fact
+        # that the instructions will have been extended to four bytes each, so
+        # working backwards 4 bytes per label means just one instruction per
+        # label.
+        offset = end_of_jumps + N
+        for l in range(0, len(labels)):
+            code.insert(offset, labels[l])
+            if offset <= end_of_jumps:
+                offset -= 1
+            else:
+                offset -= 2
+
+        code.insert(0, Instr("LOAD_CONST", 0))
+        del end_of_jumps
+        code.append(Instr('RETURN_VALUE'))
+
+        code.to_code(compute_jumps_passes=(len(labels) + 1))
+
 
 if __name__ == "__main__":
     unittest.main()
