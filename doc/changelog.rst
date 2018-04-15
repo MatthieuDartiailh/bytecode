@@ -1,13 +1,28 @@
 ChangeLog
 =========
 
-Version 0.7
------------
+2018-04-15: Version 0.7.0
+-------------------------
 
-Nothing yet
+New features:
+
+- Add `compute_jumps_passes` optioanl argument to :meth:`Bytecode.to_code` and
+  to :meth:`Bytecode.to_concrete_bytecode` to control the number of passes
+  performed to compute jump targets. In theory the required number is only
+  bounded by the size of the code, but usually the algorithm converges quickly
+  (< 10 iterations).
+
+Bugfixes:
+
+- proper handling of `EXTENDED_ARG` without arguments PR #28:
+
+  `EXTENDED_ARG` are once again removed but their presence is recorded to avoid
+  having issues with offsets in jumps. Similarly when round tripping code
+  through :class:`ConcreteBytecode` the `EXTENDED_ARG` without args are
+  preserved while if going through :class:`Bytecode` they are removed.
 
 
-2017-03-24: Version 0.6
+2018-03-24: Version 0.6
 -----------------------
 
 * Add stack depth computation based on control flow graph analysis
