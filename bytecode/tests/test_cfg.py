@@ -417,6 +417,11 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(code.co_name, 'func')
         self.assertEqual(code.co_firstlineno, 3)
 
+        # verify stacksize argument is honored
+        explicit_stacksize = code.co_stacksize + 42
+        code = bytecode.to_bytecode().to_code(stacksize=explicit_stacksize)
+        self.assertEqual(code.co_stacksize, explicit_stacksize)
+
     def test_get_block_index(self):
         blocks = ControlFlowGraph()
         block0 = blocks[0]

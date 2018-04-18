@@ -316,11 +316,12 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         cfg = _bytecode.ControlFlowGraph.from_bytecode(bytecode)
         return cfg.compute_stacksize()
 
-    def to_code(self):
+    def to_code(self, stacksize=None):
         code_str, linenos = self._assemble_code()
         lnotab = self._assemble_lnotab(self.first_lineno, linenos)
         nlocals = len(self.varnames)
-        stacksize = self.compute_stacksize()
+        if stacksize is None:
+            stacksize = self.compute_stacksize()
         return types.CodeType(self.argcount,
                               self.kwonlyargcount,
                               nlocals,

@@ -136,9 +136,10 @@ class Bytecode(_InstrList, BaseBytecode):
         cfg = _bytecode.ControlFlowGraph.from_bytecode(self)
         return cfg.compute_stacksize()
 
-    def to_code(self, compute_jumps_passes=None):
-        return self.to_concrete_bytecode(
-            compute_jumps_passes=compute_jumps_passes).to_code()
+    def to_code(self, compute_jumps_passes=None, stacksize=None):
+        bc = self.to_concrete_bytecode(
+            compute_jumps_passes=compute_jumps_passes)
+        return bc.to_code(stacksize=stacksize)
 
     def to_concrete_bytecode(self, compute_jumps_passes=None):
         converter = _bytecode._ConvertBytecodeToConcrete(self)

@@ -366,13 +366,15 @@ Bytecode
       3.6.5 unittests on OS X 11.13 results in 264996 compiled methods, only
       one of which requires 5 passes, and none requiring more.
 
-   .. method:: to_code(compute_jumps_passes: int = None) -> types.CodeType
+   .. method:: to_code(compute_jumps_passes: int = None, stacksize: int = None) -> types.CodeType
 
       Convert to a Python code object.
 
       It is based on :meth:`to_concrete_bytecode` and so resolve jump targets.
 
       *compute_jumps_passes*: see :meth:`to_concrete_bytecode`
+
+      *stacksize*: see :meth:`ConcreteBytecode.to_code`
 
    .. method:: compute_stacksize() -> int
 
@@ -428,12 +430,17 @@ ConcreteBytecode
 
    Methods:
 
-   .. method:: to_code() -> types.CodeType
+   .. method:: to_code(stacksize: int = None) -> types.CodeType
 
       Convert to a Python code object.
 
       On Python older than 3.6, raise an exception on negative line number
       delta.
+
+      *stacksize* Allows caller to explicitly specify a stacksize.  If not
+      specified a ControlFlowGraph is created internally in order to call
+      ControlFlowGraph.compute_stacksize().  It's cheaper to pass a value if
+      the value is known.
 
    .. method:: to_bytecode() -> Bytecode
 
@@ -556,6 +563,10 @@ ControlFlowGraph
 
       Update the object flags by calling :py:func:infer_flags on itself.
 
+   .. method:: to_code(stacksize: int = None)
+
+      Convert to a Python code object.  Refer to descriptions of
+      :meth:`Bytecode.to_code` and :meth:`ConcreteBytecode.to_code`.
 
 Cell and Free Variables
 =======================
