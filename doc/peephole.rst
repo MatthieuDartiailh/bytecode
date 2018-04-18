@@ -23,6 +23,16 @@ Content of the ``bytecode.peephole_opt`` module:
 
       Return a new optimized Python code object.
 
+      Note:  This method will disassemble code to a ConcreteBytecode, then a
+      Bytecode, then a ControlFlowGraph.  Then the CFG is optimized.  And then
+      the optimized CFG is converted back to a Bytecode, ConcreteBytecode, and
+      then code.  Depending on what you are doing you may get better
+      performance by calling :meth:`optimize_cfg`.
+
+   .. method:: optimize_cfg(cfg: ControlFlowGraph)
+
+      Optimizes an existing ControlFlowGraph.  The specified CFG is modified
+      in-place.
 
 .. class:: CodeTransformer
 

@@ -456,8 +456,8 @@ class PeepholeOptimizer:
         # FIXME: merge following blocks if block1 does not contain any
         # jump and block1.next_block is block2
 
-    def _optimize(self, code):
-        self.code = code
+    def optimize_cfg(self, cfg):
+        self.code = cfg
         self.const_stack = []
 
         self.remove_dead_blocks()
@@ -472,7 +472,7 @@ class PeepholeOptimizer:
         bytecode = Bytecode.from_code(code_obj)
         cfg = ControlFlowGraph.from_bytecode(bytecode)
 
-        self._optimize(cfg)
+        self.optimize_cfg(cfg)
 
         bytecode = cfg.to_bytecode()
         code = bytecode.to_code()
