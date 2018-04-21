@@ -93,11 +93,6 @@ Instr
       Operation code (``int``). Setting the operation code updates the
       :attr:`name` attribute.
 
-   .. attribute:: stack_effect
-
-       Operation effect on the stack size as computed by
-       :func:`dis.stack_effect`.
-
    .. versionchanged:: 0.3
       The ``op`` attribute was renamed to :attr:`opcode`.
 
@@ -157,6 +152,11 @@ Instr
 
       .. versionchanged:: 0.3
          The *lineno* parameter has been removed.
+
+   .. method:: stack_effect() -> int
+
+       Operation effect on the stack size as computed by
+       :func:`dis.stack_effect`.
 
 
 ConcreteInstr

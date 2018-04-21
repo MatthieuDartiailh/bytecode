@@ -269,7 +269,6 @@ class Instr:
     def lineno(self, lineno):
         self._set(self._name, self._arg, lineno)
 
-    @property
     def stack_effect(self):
         # All opcodes whose arguments are not represented by integers have
         # a stack_effect indepent of their argument.

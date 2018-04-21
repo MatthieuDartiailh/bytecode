@@ -61,7 +61,7 @@ def _compute_stack_size(block, size, maxsize):
         if isinstance(instr, SetLineno):
             continue
 
-        size += instr.stack_effect
+        size += instr.stack_effect()
         maxsize = max(maxsize, size)
 
         if size < 0:
