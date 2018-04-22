@@ -166,7 +166,7 @@ _stack_effects = {
 }
 
 # More stack effect values that are unique to the version of Python.
-if not (sys.version_info >= (3, 7)):
+if sys.version_info < (3, 7):
     _stack_effects.update({
         _opcode.opmap['SETUP_WITH']: (7, 7, 7),
         _opcode.opmap['SETUP_EXCEPT']: (6, 9, 9),
