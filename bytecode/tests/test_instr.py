@@ -203,6 +203,17 @@ class InstrTests(TestCase):
             self.assertEqual(3, len(effect), msg)
             self.assertEqual(effect[-1], max(effect[0], effect[1]), msg)
 
+        # Verify all opcodes are handled.  Use ConcreteInstr instead of Instr
+        # because it doesn't care what kind of argument it is constructed
+        # with.
+        from bytecode.concrete import ConcreteInstr
+        for name, op in opcode.opmap.items():
+            if op < opcode.HAVE_ARGUMENT:
+                instr = ConcreteInstr(name)
+            else:
+                instr = ConcreteInstr(name, 0)
+            effect = instr.stack_effect(-1)
+
 
 if __name__ == "__main__":
     unittest.main()
