@@ -191,6 +191,18 @@ class InstrTests(TestCase):
         self.assertNotEqual(Instr('LOAD_CONST', frozenset({0})),
                             Instr('LOAD_CONST', frozenset({0.0})))
 
+    def test_stack_effects(self):
+        # Manually dig through the internal overrides of dis.stack_effect to
+        # verify that they make sense.  They should all be 3-tuples, and the
+        # last entry should be the max of the other two.
+
+        import bytecode.instr
+
+        for op, effect in bytecode.instr._stack_effects.items():
+            msg = "opcode=%s" % opcode.opname[op]
+            self.assertEqual(3, len(effect), msg)
+            self.assertEqual(effect[-1], max(effect[0], effect[1]), msg)
+
 
 if __name__ == "__main__":
     unittest.main()

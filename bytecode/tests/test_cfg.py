@@ -436,6 +436,16 @@ class CFGStacksizeComputationTests(TestCase):
         code = func.__code__
         bytecode = Bytecode.from_code(code)
         cfg = ControlFlowGraph.from_bytecode(bytecode)
+
+        # XYZZY import bytecode as _bytecode
+        # XYZZY _bytecode.dump_bytecode(cfg)
+        # XYZZY for i in bytecode:
+        # XYZZY     print("%s %s" % (i,
+        # XYZZY                      i.stack_effect if isinstance(i, Instr) else "???"))
+        # XYZZY print("")
+        # XYZZY print("code.co_stacksize=%d" % code.co_stacksize)
+        # XYZZY print("cfg.compute_stacksize=%d" % cfg.compute_stacksize())
+
         self.assertEqual(code.co_stacksize, cfg.compute_stacksize())
 
     def test_empty_code(self):
@@ -516,8 +526,6 @@ class CFGStacksizeComputationTests(TestCase):
             with open(arg1) as f:
                 return f.read()
 
-        import dis
-        dis.dis(test.__code__)
         self.check_stack_size(test)
 
     def test_stack_size_computation_try_except(self):

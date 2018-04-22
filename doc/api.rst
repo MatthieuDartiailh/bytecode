@@ -153,11 +153,15 @@ Instr
       .. versionchanged:: 0.3
          The *lineno* parameter has been removed.
 
-   .. method:: stack_effect() -> int
+   .. method:: stack_effect(jump:int = -1) -> int
 
-       Operation effect on the stack size as computed by
-       :func:`dis.stack_effect`.
+      Operation effect on the stack size as computed by
+      :func:`dis.stack_effect`.
 
+      The *jump* argument takes one of three values.  -1 (default) requests
+      the largest known stack effect.  This works fine with most instructions.
+      0 means return the stack effect for non-taken branches.  1 means return
+      the stack effect for taken branches.
 
 ConcreteInstr
 -------------
