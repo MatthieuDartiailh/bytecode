@@ -146,12 +146,10 @@ def _check_arg_int(name, arg):
 
 
 _stack_effects = {
-    # NOTE: the entries are all 3-tuples, to leverage tuple[-1] being the last
-    # value.  Entry[0] is non-taken jumps.  Entry[1] is for taken jumps.
-    # Entry[2] is the max of the others.  It is maintained manually here but
-    # verified in a unittest.  Entry [2] is so that we do not need a runtime
-    # test when callers of stack_effect() specify "jump=-1".  Remember that
-    # Entry[2] is also addressable as Entry[-1].
+    # NOTE: the entries are all 3-tuples.  Entry[0/False] is non-taken jumps.
+    # Entry[1/True] is for taken jumps.  Entry[2] is the max of the others.
+    # The final entry as the max is maintained manually here but verified in a
+    # unittest.
 
     # opcodes not in dis.stack_effect
     _opcode.opmap['EXTENDED_ARG']: (0, 0, 0),
@@ -301,20 +299,18 @@ class Instr:
     def lineno(self, lineno):
         self._set(self._name, self._arg, lineno)
 
-    def stack_effect(self, jump=-1):
+    def stack_effect(self, jump=None):
         """Return stack effect of the instruction.
 
         Some opcodes have different stack effect when jump to the target and
-        when not jump. The 'jump' parameter specifies the case:
-
-        * 0 -- when not jump
-        * 1 -- when jump
-        * -1 -- maximal
+        when not jump. The jump parameter indicates whether to return the jump
+        taken or not-taken scenario.  Specifying None means to return the
+        maximum value.
         """
 
         effect = _stack_effects.get(self._opcode, None)
         if effect is not None:
-            return effect[jump]
+            return effect[-1] if jump is None else effect[jump]
 
         # TODO: if dis.stack_effect ever expands to take the 'jump' parameter
         # then we should pass that through, and perhaps remove some of the

@@ -73,7 +73,7 @@ def _compute_stack_size(block, size, maxsize):
         if instr.has_jump():
             # first compute the taken-jump path
             before_size = size
-            update_size(instr.stack_effect(1))
+            update_size(instr.stack_effect(jump=True))
             target_size = size
             maxsize = _compute_stack_size(instr.arg, target_size, maxsize)
             size = before_size
@@ -83,10 +83,10 @@ def _compute_stack_size(block, size, maxsize):
                 return maxsize
 
             # compute non-taken-jump path
-            update_size(instr.stack_effect(0))
+            update_size(instr.stack_effect(jump=False))
 
         else:  # no jump
-            update_size(instr.stack_effect())
+            update_size(instr.stack_effect(jump=None))
     if block.next_block:
         maxsize = _compute_stack_size(block.next_block, size, maxsize)
 

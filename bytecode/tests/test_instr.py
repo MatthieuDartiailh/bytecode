@@ -192,27 +192,21 @@ class InstrTests(TestCase):
                             Instr('LOAD_CONST', frozenset({0.0})))
 
     def test_stack_effects(self):
-        # Manually dig through the internal overrides of dis.stack_effect to
-        # verify that they make sense.  They should all be 3-tuples, and the
-        # last entry should be the max of the other two.
-
-        import bytecode.instr
-
-        for op, effect in bytecode.instr._stack_effects.items():
-            msg = "opcode=%s" % opcode.opname[op]
-            self.assertEqual(3, len(effect), msg)
-            self.assertEqual(effect[-1], max(effect[0], effect[1]), msg)
-
-        # Verify all opcodes are handled.  Use ConcreteInstr instead of Instr
-        # because it doesn't care what kind of argument it is constructed
-        # with.
+        # Verify all opcodes are handled and that "jump=None" really returns
+        # the max of the other cases.
         from bytecode.concrete import ConcreteInstr
         for name, op in opcode.opmap.items():
+            # Use ConcreteInstr instead of Instr because it doesn't care what
+            # kind of argument it is constructed with.
             if op < opcode.HAVE_ARGUMENT:
                 instr = ConcreteInstr(name)
             else:
                 instr = ConcreteInstr(name, 0)
-            effect = instr.stack_effect(-1)
+            jump = instr.stack_effect(jump=True)
+            no_jump = instr.stack_effect(jump=False)
+            max_effect = instr.stack_effect(jump=None)
+            self.assertEqual(instr.stack_effect(), max_effect, "op=%s" % name)
+            self.assertEqual(max_effect, max(jump, no_jump), "op=%s" % name)
 
 
 if __name__ == "__main__":
