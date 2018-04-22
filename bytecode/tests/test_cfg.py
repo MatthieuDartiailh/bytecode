@@ -401,7 +401,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
                         b'|\x05\x00'
                         b'S')
 
-        code = bytecode.to_bytecode().to_code()
+        code = bytecode.to_code()
         self.assertEqual(code.co_consts, (None, 3))
         self.assertEqual(code.co_argcount, 3)
         self.assertEqual(code.co_kwonlyargcount, 2)
@@ -419,7 +419,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
         # verify stacksize argument is honored
         explicit_stacksize = code.co_stacksize + 42
-        code = bytecode.to_bytecode().to_code(stacksize=explicit_stacksize)
+        code = bytecode.to_code(stacksize=explicit_stacksize)
         self.assertEqual(code.co_stacksize, explicit_stacksize)
 
     def test_get_block_index(self):
