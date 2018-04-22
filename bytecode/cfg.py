@@ -2,7 +2,6 @@
 import bytecode as _bytecode
 from bytecode.concrete import ConcreteInstr
 from bytecode.instr import Label, SetLineno, Instr
-import logging                                  # XYZZY
 
 
 class BasicBlock(_bytecode._InstrList):
@@ -49,12 +48,8 @@ class BasicBlock(_bytecode._InstrList):
         return target_block
 
 
-logger = logging.getLogger(__name__)           # XYZZY
-
-
 def _compute_stack_size(block, size, maxsize):
 
-    logger.debug("%s:  size=%d maxsize=%d", block.name, size, maxsize)
     if block.seen or block.startsize >= size:
         return maxsize
 
@@ -66,14 +61,6 @@ def _compute_stack_size(block, size, maxsize):
             msg = 'Failed to compute stacksize, got negative size'
             raise RuntimeError(msg)
         maxsize = max(maxsize, size)
-
-    def show(jump):
-        nonlocal size
-        nonlocal maxsize
-        nonlocal instr
-        logger.debug("    %s(%d) %s", instr.name, instr.opcode, instr.arg)
-        logger.debug("    ;; effect=%d size=%d maxsize=%d jump=%d",
-                     instr.stack_effect(jump), size, maxsize, jump)
 
     block.seen = True
     block.startsize = size
@@ -87,36 +74,23 @@ def _compute_stack_size(block, size, maxsize):
             # first compute the taken-jump path
             before_size = size
             update_size(instr.stack_effect(1))
-            show(1)
             target_size = size
-            logger.debug("    ;; taken jmp from %s to %s, target_size=%d, maxsize=%d",
-                         block.name, instr.arg.name, target_size, maxsize)
             maxsize = _compute_stack_size(instr.arg, target_size, maxsize)
-            logger.debug("    ;; taken jmp from %s to %s, returns %d",
-                         block.name, instr.arg.name, maxsize)
             size = before_size
 
             if instr.is_uncond_jump():
                 block.seen = False
-                logger.debug("    ;; %s returns %d (is_uncond_jump)",
-                             block.name, maxsize)
                 return maxsize
 
             # compute non-taken-jump path
             update_size(instr.stack_effect(0))
-            show(0)
 
         else:  # no jump
             update_size(instr.stack_effect())
-            show(-1)                            # XYZZY
-    logger.debug("    ;; %s ended with %d", block.name, maxsize)
     if block.next_block:
-        logger.debug("    ;; %s falling through to %s",
-                     block.name, block.next_block.name)
         maxsize = _compute_stack_size(block.next_block, size, maxsize)
 
     block.seen = 0
-    logger.debug("    ;; %s returning %d", block.name, maxsize)
     return maxsize
 
 
@@ -151,7 +125,6 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             return 0
 
         for block in self:
-            block.name = "block%d" % (1 + self.get_block_index(block))  # XYZZY
             block.seen = False
             block.startsize = -32768  # INT_MIN
 
