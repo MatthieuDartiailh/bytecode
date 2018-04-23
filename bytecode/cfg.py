@@ -86,7 +86,7 @@ def _compute_stack_size(block, size, maxsize):
             update_size(instr.stack_effect(jump=False))
 
         else:  # no jump
-            update_size(instr.stack_effect(jump=None))
+            update_size(instr.stack_effect())
     if block.next_block:
         maxsize = _compute_stack_size(block.next_block, size, maxsize)
 

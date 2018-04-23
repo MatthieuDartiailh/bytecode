@@ -147,30 +147,28 @@ def _check_arg_int(name, arg):
 
 _stack_effects = {
     # NOTE: the entries are all 3-tuples.  Entry[0/False] is non-taken jumps.
-    # Entry[1/True] is for taken jumps.  Entry[2] is the max of the others.
-    # The final entry as the max is maintained manually here but verified in a
-    # unittest.
+    # Entry[1/True] is for taken jumps.
 
     # opcodes not in dis.stack_effect
-    _opcode.opmap['EXTENDED_ARG']: (0, 0, 0),
-    _opcode.opmap['NOP']: (0, 0, 0),
+    _opcode.opmap['EXTENDED_ARG']: (0, 0),
+    _opcode.opmap['NOP']: (0, 0),
 
     # Jump taken/not-taken are different:
-    _opcode.opmap['JUMP_IF_TRUE_OR_POP']: (-1, 0, 0),
-    _opcode.opmap['JUMP_IF_FALSE_OR_POP']: (-1, 0, 0),
-    _opcode.opmap['FOR_ITER']: (1, -1, 1),
-    _opcode.opmap['SETUP_WITH']: (1, 6, 6),
-    _opcode.opmap['SETUP_ASYNC_WITH']: (0, 5, 5),
-    _opcode.opmap['SETUP_EXCEPT']: (0, 6, 6),   # as of 3.7, below for <=3.6
-    _opcode.opmap['SETUP_FINALLY']: (0, 6, 6),  # as of 3.7, below for <=3.6
+    _opcode.opmap['JUMP_IF_TRUE_OR_POP']: (-1, 0),
+    _opcode.opmap['JUMP_IF_FALSE_OR_POP']: (-1, 0),
+    _opcode.opmap['FOR_ITER']: (1, -1),
+    _opcode.opmap['SETUP_WITH']: (1, 6),
+    _opcode.opmap['SETUP_ASYNC_WITH']: (0, 5),
+    _opcode.opmap['SETUP_EXCEPT']: (0, 6),   # as of 3.7, below for <=3.6
+    _opcode.opmap['SETUP_FINALLY']: (0, 6),  # as of 3.7, below for <=3.6
 }
 
 # More stack effect values that are unique to the version of Python.
 if sys.version_info < (3, 7):
     _stack_effects.update({
-        _opcode.opmap['SETUP_WITH']: (7, 7, 7),
-        _opcode.opmap['SETUP_EXCEPT']: (6, 9, 9),
-        _opcode.opmap['SETUP_FINALLY']: (6, 9, 9),
+        _opcode.opmap['SETUP_WITH']: (7, 7),
+        _opcode.opmap['SETUP_EXCEPT']: (6, 9),
+        _opcode.opmap['SETUP_FINALLY']: (6, 9),
     })
 
 
@@ -300,17 +298,9 @@ class Instr:
         self._set(self._name, self._arg, lineno)
 
     def stack_effect(self, jump=None):
-        """Return stack effect of the instruction.
-
-        Some opcodes have different stack effect when jump to the target and
-        when not jump. The jump parameter indicates whether to return the jump
-        taken or not-taken scenario.  Specifying None means to return the
-        maximum value.
-        """
-
         effect = _stack_effects.get(self._opcode, None)
         if effect is not None:
-            return effect[-1] if jump is None else effect[jump]
+            return max(effect) if jump is None else effect[jump]
 
         # TODO: if dis.stack_effect ever expands to take the 'jump' parameter
         # then we should pass that through, and perhaps remove some of the

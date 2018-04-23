@@ -158,10 +158,10 @@ Instr
       Operation effect on the stack size as computed by
       :func:`dis.stack_effect`.
 
-      The *jump* argument takes one of three values.  -1 (default) requests
-      the largest known stack effect.  This works fine with most instructions.
-      0 means return the stack effect for non-taken branches.  1 means return
-      the stack effect for taken branches.
+      The *jump* argument takes one of three values.  None (the default)
+      requests the largest stack effect.  This works fine with most
+      instructions.  True returns the stack effect for taken branches.  False
+      returns the stack effect for non-taken branches.
 
       .. versionchanged:: 0.8
          ``stack_method`` was changed from a property to a method in order to
