@@ -12,14 +12,14 @@ class Tests(TestCase):
         if isinstance(code, Bytecode):
             code = ControlFlowGraph.from_bytecode(code)
         optimizer = peephole_opt.PeepholeOptimizer()
-        optimizer._optimize(code)
+        optimizer.optimize_cfg(code)
         return code
 
     def check(self, code, *expected):
         if isinstance(code, Bytecode):
             code = ControlFlowGraph.from_bytecode(code)
         optimizer = peephole_opt.PeepholeOptimizer()
-        optimizer._optimize(code)
+        optimizer.optimize_cfg(code)
         code = code.to_bytecode()
 
         try:

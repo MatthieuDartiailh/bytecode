@@ -319,3 +319,10 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         bytecode[:] = instructions
 
         return bytecode
+
+    def to_code(self, stacksize=None):
+        """Convert to code."""
+        if stacksize is None:
+            stacksize = self.compute_stacksize()
+        bc = self.to_bytecode()
+        return bc.to_code(stacksize=stacksize)

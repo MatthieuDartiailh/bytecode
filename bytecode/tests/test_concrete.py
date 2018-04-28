@@ -359,6 +359,26 @@ class ConcreteBytecodeTests(TestCase):
             code.co_code,
             b'\x94\x01\x89\x01' if WORDCODE else b'\x94\x01\x00\x89\x01\x00')
 
+    def test_explicit_stacksize(self):
+        # Passing stacksize=... to ConcreteBytecode.to_code should result in a
+        # code object with the specified stacksize.  We pass some silly values
+        # and assert that they are honored.
+        code_obj = get_code("print('%s' % (a,b,c))")
+        original_stacksize = code_obj.co_stacksize
+        concrete = ConcreteBytecode.from_code(code_obj)
+
+        # First with something bigger than necessary.
+        explicit_stacksize = original_stacksize + 42
+        new_code_obj = concrete.to_code(stacksize=explicit_stacksize)
+        self.assertEqual(new_code_obj.co_stacksize, explicit_stacksize)
+
+        # Then with something bogus.  We probably don't want to advertise this
+        # in the documentation.  If this fails then decide if it's for good
+        # reason, and remove if so.
+        explicit_stacksize = 0
+        new_code_obj = concrete.to_code(stacksize=explicit_stacksize)
+        self.assertEqual(new_code_obj.co_stacksize, explicit_stacksize)
+
 
 class ConcreteFromCodeTests(TestCase):
 

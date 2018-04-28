@@ -104,6 +104,22 @@ class BytecodeTests(TestCase):
                      ConcreteInstr("LOAD_CONST", 2, lineno=5),
                      ConcreteInstr("STORE_NAME", 2, lineno=5)])
 
+    def test_to_code(self):
+        code = Bytecode()
+        code.first_lineno = 50
+        code.extend([Instr("LOAD_NAME", "print"),
+                     Instr("LOAD_CONST", "%s"),
+                     Instr("LOAD_GLOBAL", "a"),
+                     Instr("BINARY_MODULO"),
+                     Instr("CALL_FUNCTION", 1),
+                     Instr("RETURN_VALUE")])
+        co = code.to_code()
+        # hopefully this is obvious from inspection? :-)
+        self.assertEqual(co.co_stacksize, 3)
+
+        co = code.to_code(stacksize=42)
+        self.assertEqual(co.co_stacksize, 42)
+
 
 if __name__ == "__main__":
     unittest.main()
