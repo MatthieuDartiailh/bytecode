@@ -146,7 +146,7 @@ def _check_arg_int(name, arg):
 
 
 _stack_effects = {
-    # NOTE: the entries are all 3-tuples.  Entry[0/False] is non-taken jumps.
+    # NOTE: the entries are all 2-tuples.  Entry[0/False] is non-taken jumps.
     # Entry[1/True] is for taken jumps.
 
     # opcodes not in dis.stack_effect

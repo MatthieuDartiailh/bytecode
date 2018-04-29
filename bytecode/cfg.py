@@ -53,40 +53,34 @@ def _compute_stack_size(block, size, maxsize):
     if block.seen or block.startsize >= size:
         return maxsize
 
-    def update_size(delta):
-        nonlocal size
-        nonlocal maxsize
+    def update_size(delta, size, maxsize):
         size += delta
         if size < 0:
             msg = 'Failed to compute stacksize, got negative size'
             raise RuntimeError(msg)
         maxsize = max(maxsize, size)
+        return size, maxsize
 
     block.seen = True
     block.startsize = size
 
     for instr in block:
-
         if isinstance(instr, SetLineno):
             continue
 
         if instr.has_jump():
             # first compute the taken-jump path
-            before_size = size
-            update_size(instr.stack_effect(jump=True))
-            target_size = size
-            maxsize = _compute_stack_size(instr.arg, target_size, maxsize)
-            size = before_size
+            taken_size, maxsize = update_size(instr.stack_effect(jump=True),
+                                              size, maxsize)
+            maxsize = _compute_stack_size(instr.arg, taken_size, maxsize)
 
             if instr.is_uncond_jump():
                 block.seen = False
                 return maxsize
 
-            # compute non-taken-jump path
-            update_size(instr.stack_effect(jump=False))
-
-        else:  # no jump
-            update_size(instr.stack_effect())
+        # jump=False: non-taken path of jumps, or any non-jump
+        size, maxsize = update_size(instr.stack_effect(jump=False),
+                                    size, maxsize)
     if block.next_block:
         maxsize = _compute_stack_size(block.next_block, size, maxsize)
 

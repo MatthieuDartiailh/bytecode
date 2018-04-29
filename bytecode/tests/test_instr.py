@@ -205,8 +205,12 @@ class InstrTests(TestCase):
             jump = instr.stack_effect(jump=True)
             no_jump = instr.stack_effect(jump=False)
             max_effect = instr.stack_effect(jump=None)
-            self.assertEqual(instr.stack_effect(), max_effect, "op=%s" % name)
-            self.assertEqual(max_effect, max(jump, no_jump), "op=%s" % name)
+            msg = "op=%s" % name
+            self.assertEqual(instr.stack_effect(), max_effect, msg)
+            self.assertEqual(max_effect, max(jump, no_jump), msg)
+
+            if not instr.has_jump():
+                self.assertEqual(jump, no_jump, msg)
 
 
 if __name__ == "__main__":
