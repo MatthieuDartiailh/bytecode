@@ -2,6 +2,7 @@ import enum
 import dis
 import math
 import opcode as _opcode
+import sys
 import types
 
 import bytecode as _bytecode
@@ -144,6 +145,33 @@ def _check_arg_int(name, arg):
                          % name)
 
 
+_stack_effects = {
+    # NOTE: the entries are all 2-tuples.  Entry[0/False] is non-taken jumps.
+    # Entry[1/True] is for taken jumps.
+
+    # opcodes not in dis.stack_effect
+    _opcode.opmap['EXTENDED_ARG']: (0, 0),
+    _opcode.opmap['NOP']: (0, 0),
+
+    # Jump taken/not-taken are different:
+    _opcode.opmap['JUMP_IF_TRUE_OR_POP']: (-1, 0),
+    _opcode.opmap['JUMP_IF_FALSE_OR_POP']: (-1, 0),
+    _opcode.opmap['FOR_ITER']: (1, -1),
+    _opcode.opmap['SETUP_WITH']: (1, 6),
+    _opcode.opmap['SETUP_ASYNC_WITH']: (0, 5),
+    _opcode.opmap['SETUP_EXCEPT']: (0, 6),   # as of 3.7, below for <=3.6
+    _opcode.opmap['SETUP_FINALLY']: (0, 6),  # as of 3.7, below for <=3.6
+}
+
+# More stack effect values that are unique to the version of Python.
+if sys.version_info < (3, 7):
+    _stack_effects.update({
+        _opcode.opmap['SETUP_WITH']: (7, 7),
+        _opcode.opmap['SETUP_EXCEPT']: (6, 9),
+        _opcode.opmap['SETUP_FINALLY']: (6, 9),
+    })
+
+
 class Instr:
     """Abstract instruction."""
 
@@ -269,15 +297,19 @@ class Instr:
     def lineno(self, lineno):
         self._set(self._name, self._arg, lineno)
 
-    @property
-    def stack_effect(self):
+    def stack_effect(self, jump=None):
+        effect = _stack_effects.get(self._opcode, None)
+        if effect is not None:
+            return max(effect) if jump is None else effect[jump]
+
+        # TODO: if dis.stack_effect ever expands to take the 'jump' parameter
+        # then we should pass that through, and perhaps remove some of the
+        # overrides that are set up in _init_stack_effects()
+
         # All opcodes whose arguments are not represented by integers have
         # a stack_effect indepent of their argument.
         arg = (self._arg if isinstance(self._arg, int) else
                0 if self._opcode >= _opcode.HAVE_ARGUMENT else None)
-        # EXTENDED_ARG has no stack effect but is not supported by dis
-        if self._name == 'EXTENDED_ARG':
-            return 0
         return dis.stack_effect(self._opcode, arg)
 
     def copy(self):

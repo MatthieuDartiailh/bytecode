@@ -53,40 +53,34 @@ def _compute_stack_size(block, size, maxsize):
     if block.seen or block.startsize >= size:
         return maxsize
 
+    def update_size(delta, size, maxsize):
+        size += delta
+        if size < 0:
+            msg = 'Failed to compute stacksize, got negative size'
+            raise RuntimeError(msg)
+        maxsize = max(maxsize, size)
+        return size, maxsize
+
     block.seen = True
     block.startsize = size
 
     for instr in block:
-
         if isinstance(instr, SetLineno):
             continue
 
-        size += instr.stack_effect
-        maxsize = max(maxsize, size)
-
-        if size < 0:
-            msg = 'Failed to compute stacksize, got negative size'
-            raise RuntimeError(msg)
-
         if instr.has_jump():
-            target_size = size
-
-            if instr.name == 'FOR_ITER':
-                target_size = size - 2
-
-            elif instr.name in {'SETUP_FINALLY', 'SETUP_EXCEPT'}:
-                target_size = size + 3
-                maxsize = max(target_size, maxsize)
-
-            elif instr.name.startswith('JUMP_IF'):
-                size -= 1
-
-            maxsize = _compute_stack_size(instr.arg, target_size, maxsize)
+            # first compute the taken-jump path
+            taken_size, maxsize = update_size(instr.stack_effect(jump=True),
+                                              size, maxsize)
+            maxsize = _compute_stack_size(instr.arg, taken_size, maxsize)
 
             if instr.is_uncond_jump():
                 block.seen = False
                 return maxsize
 
+        # jump=False: non-taken path of jumps, or any non-jump
+        size, maxsize = update_size(instr.stack_effect(jump=False),
+                                    size, maxsize)
     if block.next_block:
         maxsize = _compute_stack_size(block.next_block, size, maxsize)
 

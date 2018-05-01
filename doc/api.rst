@@ -93,11 +93,6 @@ Instr
       Operation code (``int``). Setting the operation code updates the
       :attr:`name` attribute.
 
-   .. attribute:: stack_effect
-
-       Operation effect on the stack size as computed by
-       :func:`dis.stack_effect`.
-
    .. versionchanged:: 0.3
       The ``op`` attribute was renamed to :attr:`opcode`.
 
@@ -157,6 +152,20 @@ Instr
 
       .. versionchanged:: 0.3
          The *lineno* parameter has been removed.
+
+   .. method:: stack_effect(jump: bool = None) -> int
+
+      Operation effect on the stack size as computed by
+      :func:`dis.stack_effect`.
+
+      The *jump* argument takes one of three values.  None (the default)
+      requests the largest stack effect.  This works fine with most
+      instructions.  True returns the stack effect for taken branches.  False
+      returns the stack effect for non-taken branches.
+
+      .. versionchanged:: 0.8
+         ``stack_method`` was changed from a property to a method in order to
+         add the keyword argument *jump*.
 
 
 ConcreteInstr

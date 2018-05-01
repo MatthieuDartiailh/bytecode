@@ -521,8 +521,6 @@ class CFGStacksizeComputationTests(TestCase):
             with open(arg1) as f:
                 return f.read()
 
-        import dis
-        dis.dis(test.__code__)
         self.check_stack_size(test)
 
     def test_stack_size_computation_try_except(self):

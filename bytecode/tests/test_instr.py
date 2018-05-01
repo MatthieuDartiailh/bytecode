@@ -191,6 +191,27 @@ class InstrTests(TestCase):
         self.assertNotEqual(Instr('LOAD_CONST', frozenset({0})),
                             Instr('LOAD_CONST', frozenset({0.0})))
 
+    def test_stack_effects(self):
+        # Verify all opcodes are handled and that "jump=None" really returns
+        # the max of the other cases.
+        from bytecode.concrete import ConcreteInstr
+        for name, op in opcode.opmap.items():
+            # Use ConcreteInstr instead of Instr because it doesn't care what
+            # kind of argument it is constructed with.
+            if op < opcode.HAVE_ARGUMENT:
+                instr = ConcreteInstr(name)
+            else:
+                instr = ConcreteInstr(name, 0)
+            jump = instr.stack_effect(jump=True)
+            no_jump = instr.stack_effect(jump=False)
+            max_effect = instr.stack_effect(jump=None)
+            msg = "op=%s" % name
+            self.assertEqual(instr.stack_effect(), max_effect, msg)
+            self.assertEqual(max_effect, max(jump, no_jump), msg)
+
+            if not instr.has_jump():
+                self.assertEqual(jump, no_jump, msg)
+
 
 if __name__ == "__main__":
     unittest.main()
