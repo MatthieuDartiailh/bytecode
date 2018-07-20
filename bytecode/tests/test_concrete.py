@@ -813,6 +813,32 @@ class BytecodeToConcreteTests(TestCase):
 
         code.to_code(compute_jumps_passes=(len(labels) + 1))
 
+    def test_general_constants(self):
+        """Test if general object could be linked as constants.
+
+        """
+        class CustomObject:
+            pass
+
+        class UnHashableCustomObject:
+            def __eq__(self, other):
+                return self is other
+
+        obj1 = [1, 2, 3]
+        obj2 = {1, 2, 3}
+        obj3 = CustomObject()
+        obj4 = UnHashableCustomObject()
+
+        code = Bytecode([
+                Instr('LOAD_CONST', obj1),
+                Instr('LOAD_CONST', obj2),
+                Instr('LOAD_CONST', obj3),
+                Instr('LOAD_CONST', obj4)]
+        )
+
+        self.assertEqual(code.to_code().co_consts,
+                         (obj1, obj2, obj3, obj4))
+
 
 if __name__ == "__main__":
     unittest.main()
