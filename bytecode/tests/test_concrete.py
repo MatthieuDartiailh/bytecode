@@ -829,12 +829,10 @@ class BytecodeToConcreteTests(TestCase):
         obj3 = CustomObject()
         obj4 = UnHashableCustomObject()
 
-        code = Bytecode([
-                Instr('LOAD_CONST', obj1),
-                Instr('LOAD_CONST', obj2),
-                Instr('LOAD_CONST', obj3),
-                Instr('LOAD_CONST', obj4)]
-        )
+        code = Bytecode([Instr('LOAD_CONST', obj1),
+                         Instr('LOAD_CONST', obj2),
+                         Instr('LOAD_CONST', obj3),
+                         Instr('LOAD_CONST', obj4)])
 
         self.assertEqual(code.to_code().co_consts,
                          (obj1, obj2, obj3, obj4))
