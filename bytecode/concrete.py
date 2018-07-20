@@ -417,7 +417,10 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode.extend(instructions)
         return bytecode
 
-_undef = object() # for people might save None object sometimes.
+
+_undef = object()  # for people might save None object sometimes.
+
+
 class _GeneralMapping(Mapping):
     def __init__(self):
 
