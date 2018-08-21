@@ -834,6 +834,7 @@ class BytecodeToConcreteTests(TestCase):
                          Instr('RETURN_VALUE', lineno=1)])
         self.assertEqual(code.to_code().co_consts,
                          (obj1, obj2, obj3, obj4))
+
         def f():
             return
         f.__code__ = code.to_code()
