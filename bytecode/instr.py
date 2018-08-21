@@ -74,9 +74,15 @@ def const_key(obj):
         key = frozenset(const_key(item) for item in obj)
         return (obj_type, obj, key)
 
-    # for other types, use the object identifier as an unique identifier
+    # Here we move away from CPython and check for object hashability.
+    # Non-hashable objects are only identified by their type and id.
+    # For hashable types, we use the object identifier as an unique identifier
     # to ensure that they are seen as unequal.
-    return (obj_type, obj, id(obj))
+    try:
+        hash(obj)
+        return (obj_type, obj, id(obj))
+    except TypeError:
+        return (obj_type, id(obj))
 
 
 def _check_lineno(lineno):
