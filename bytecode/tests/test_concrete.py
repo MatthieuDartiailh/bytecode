@@ -819,9 +819,11 @@ class BytecodeToConcreteTests(TestCase):
         """
         class CustomObject:
             pass
+
         class UnHashableCustomObject:
             def __eq__(self, other):
                 return self is other
+
         obj1 = [1, 2, 3]
         obj2 = {1, 2, 3}
         obj3 = CustomObject()
@@ -837,6 +839,7 @@ class BytecodeToConcreteTests(TestCase):
 
         def f():
             return
+
         f.__code__ = code.to_code()
         assert f() == (obj1, obj2, obj3, obj4)
 
