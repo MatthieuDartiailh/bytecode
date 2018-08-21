@@ -439,9 +439,9 @@ class _ConvertBytecodeToConcrete:
     def add_const(self, value):
         key = const_key(value)
         if key in self.consts:
-            return self.consts[key]
+            return self.consts[key][0]
         index = len(self.consts)
-        self.consts[key] = index
+        self.consts[key] = (index, value)
         return index
 
     @staticmethod
@@ -550,9 +550,9 @@ class _ConvertBytecodeToConcrete:
                                % (pas + 1))
 
         consts = [None] * len(self.consts)
-        for item, index in self.consts.items():
-            # const_key(value)[1] is value: see const_key() function
-            consts[index] = item[1]
+        for index, const in self.consts.values():
+            # self.consts[key][1] is value: see add_const() method
+            consts[index] = const
 
         concrete = ConcreteBytecode(
             self.instructions,

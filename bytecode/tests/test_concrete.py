@@ -826,12 +826,12 @@ class BytecodeToConcreteTests(TestCase):
         obj2 = {1, 2, 3}
         obj3 = CustomObject()
         obj4 = UnHashableCustomObject()
-        code = Bytecode([ConcreteInstr('LOAD_CONST', obj1, lineno=1),
-                         ConcreteInstr('LOAD_CONST', obj2, lineno=1),
-                         ConcreteInstr('LOAD_CONST', obj3, lineno=1),
-                         ConcreteInstr('LOAD_CONST', obj4, lineno=1),
-                         ConcreteInstr('BUILD_TUPLE', 4, lineno=1),
-                         ConcreteInstr('RETURN_VALUE', lineno=1)])
+        code = Bytecode([Instr('LOAD_CONST', obj1, lineno=1),
+                         Instr('LOAD_CONST', obj2, lineno=1),
+                         Instr('LOAD_CONST', obj3, lineno=1),
+                         Instr('LOAD_CONST', obj4, lineno=1),
+                         Instr('BUILD_TUPLE', 4, lineno=1),
+                         Instr('RETURN_VALUE', lineno=1)])
         self.assertEqual(code.to_code().co_consts,
                          (obj1, obj2, obj3, obj4))
         def f():
