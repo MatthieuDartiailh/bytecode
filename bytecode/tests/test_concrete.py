@@ -821,8 +821,7 @@ class BytecodeToConcreteTests(TestCase):
             pass
 
         class UnHashableCustomObject:
-            def __eq__(self, other):
-                return self is other  # pragma: no cover
+            __hash__ = None
 
         obj1 = [1, 2, 3]
         obj2 = {1, 2, 3}
@@ -841,7 +840,7 @@ class BytecodeToConcreteTests(TestCase):
             return  # pragma: no cover
 
         f.__code__ = code.to_code()
-        assert f() == (obj1, obj2, obj3, obj4)
+        self.assertEqual(f(), (obj1, obj2, obj3, obj4))
 
 
 if __name__ == "__main__":
