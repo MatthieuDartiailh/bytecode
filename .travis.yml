@@ -1,11 +1,21 @@
 language: python
+
+# newer python versions are available only on xenial
+# (while some older only on trusty) Ubuntu distribution
+dist: xenial
+sudo: required
+cache: pip
+
 matrix:
   include:
   - python: 3.5
     env: TOXENV=py35
+    dist: trusty
   - python: 3.6
     env: TOXENV=py36
-  - python: 3.5
+  - python: 3.7
+    env: TOXENV=py37
+  - python: 3.6
     env: TOXENV=pep8
 install: pip install -U tox
 script: tox
