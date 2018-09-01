@@ -432,16 +432,19 @@ class _ConvertBytecodeToConcrete:
         self.labels = {}
 
         # used to build ConcreteBytecode() object
-        self.consts = {}
+        self.const_indices = {}
+        self.const_values = []
         self.names = []
         self.varnames = []
 
     def add_const(self, value):
         key = const_key(value)
-        if key in self.consts:
-            return self.consts[key][0]
-        index = len(self.consts)
-        self.consts[key] = (index, value)
+        if key in self.const_indices:
+            return self.const_indices[key]
+        index = len(self.const_indices)
+        assert index == len(self.const_values)
+        self.const_indices[key] = index
+        self.const_values.append(value)
         return index
 
     @staticmethod
@@ -549,11 +552,7 @@ class _ConvertBytecodeToConcrete:
                                " %d passes"
                                % (pas + 1))
 
-        consts = [None] * len(self.consts)
-        for index, const in self.consts.values():
-            # self.consts[key][1] is value: see add_const() method
-            consts[index] = const
-
+        consts = self.const_values.copy()
         concrete = ConcreteBytecode(
             self.instructions,
             consts=consts,
