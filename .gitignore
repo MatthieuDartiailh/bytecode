@@ -9,4 +9,6 @@ dist
 bytecode.egg-info/
 
 .mypy_cache
-.spyproject
+.spyproject/
+.idea/
+.vscode/
