@@ -12,3 +12,4 @@ bytecode.egg-info/
 .spyproject/
 .idea/
 .vscode/
+.coverage
