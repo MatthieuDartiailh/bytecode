@@ -432,17 +432,17 @@ class _ConvertBytecodeToConcrete:
         self.labels = {}
 
         # used to build ConcreteBytecode() object
-        self.consts = {}
+        self.consts_indices = {}
         self.consts_list = []
         self.names = []
         self.varnames = []
 
     def add_const(self, value):
         key = const_key(value)
-        if key in self.consts:
-            return self.consts[key]
-        index = len(self.consts)
-        self.consts[key] = index
+        if key in self.consts_indices:
+            return self.consts_indices[key]
+        index = len(self.consts_indices)
+        self.consts_indices[key] = index
         self.consts_list.append(value)
         return index
 
@@ -553,7 +553,7 @@ class _ConvertBytecodeToConcrete:
 
         concrete = ConcreteBytecode(
             self.instructions,
-            consts=self.consts_list,
+            consts=self.consts_list.copy(),
             names=self.names,
             varnames=self.varnames
         )
