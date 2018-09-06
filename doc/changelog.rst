@@ -1,6 +1,21 @@
 ChangeLog
 =========
 
+unreleased: Version 0.8.0
+-------------------------
+
+New features:
+
+- Add support for Python 3.7 PR #29
+- Allow to use any Python object as constants to enable aggressive
+  optimizations PR #34
+
+API changes:
+- `stack_effect` is now a method of `Instr` and not as property anymore. PR #29
+
+Bugfixes:
+
+
 2018-04-15: Version 0.7.0
 -------------------------
 
