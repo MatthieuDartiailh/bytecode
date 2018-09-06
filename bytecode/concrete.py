@@ -433,6 +433,7 @@ class _ConvertBytecodeToConcrete:
 
         # used to build ConcreteBytecode() object
         self.consts = {}
+        self.consts_list = []
         self.names = []
         self.varnames = []
 
@@ -442,6 +443,7 @@ class _ConvertBytecodeToConcrete:
             return self.consts[key]
         index = len(self.consts)
         self.consts[key] = index
+        self.consts_list.append(value)
         return index
 
     @staticmethod
@@ -549,14 +551,9 @@ class _ConvertBytecodeToConcrete:
                                " %d passes"
                                % (pas + 1))
 
-        consts = [None] * len(self.consts)
-        for item, index in self.consts.items():
-            # const_key(value)[1] is value: see const_key() function
-            consts[index] = item[1]
-
         concrete = ConcreteBytecode(
             self.instructions,
-            consts=consts,
+            consts=self.consts_list,
             names=self.names,
             varnames=self.varnames
         )

@@ -74,9 +74,9 @@ def const_key(obj):
         key = frozenset(const_key(item) for item in obj)
         return (obj_type, obj, key)
 
-    # for other types, use the object identifier as an unique identifier
+    # For other types, we use the object identifier as an unique identifier
     # to ensure that they are seen as unequal.
-    return (obj_type, obj, id(obj))
+    return (obj_type, id(obj))
 
 
 def _check_lineno(lineno):
