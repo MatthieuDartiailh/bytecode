@@ -11,3 +11,4 @@ bytecode.egg-info/
 .mypy_cache
 .spyproject
 .idea/
+.coverage
