@@ -63,7 +63,7 @@ def main():
         'author_email': 'victor.stinner@gmail.com',
         'classifiers': CLASSIFIERS,
         'packages': ['bytecode', 'bytecode.tests'],
-        'install_requires': ['aenum >=2.0']
+        'install_requires': ['aenum >=2.0;python_version<"3.6"']
     }
     setup(**options)
 
