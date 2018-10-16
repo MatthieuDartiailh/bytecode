@@ -1,6 +1,9 @@
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
-from aenum import IntFlag
+try:
+    from enum import IntFlag
+except ImportError:
+    from aenum import IntFlag
 
 
 class CompilerFlags(IntFlag):
