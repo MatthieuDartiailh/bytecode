@@ -316,7 +316,7 @@ class Instr:
         # then we should pass that through, and perhaps remove some of the
         # overrides that are set up in _init_stack_effects()
 
-        # Each of following opcodes has a stack_effect indepent of its
+        # Each of the following opcodes has a stack_effect independent of its
         # argument:
         # 1. Whose argument is not represented by an integer.
         # 2. Whose stack effect can be calculated without using oparg
