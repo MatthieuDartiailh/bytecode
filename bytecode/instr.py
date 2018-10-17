@@ -170,7 +170,7 @@ if sys.version_info < (3, 7):
         _opcode.opmap['SETUP_EXCEPT']: (6, 9),
         _opcode.opmap['SETUP_FINALLY']: (6, 9),
     })
-
+# Opcodes for which the value of the argument has an impact on the stack effect
 _stack_effects_use_opargs = {
     _opcode.opmap.get(op_name, None) for op_name in
     (
