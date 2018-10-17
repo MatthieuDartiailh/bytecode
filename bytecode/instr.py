@@ -170,6 +170,16 @@ if sys.version_info < (3, 7):
         _opcode.opmap['SETUP_EXCEPT']: (6, 9),
         _opcode.opmap['SETUP_FINALLY']: (6, 9),
     })
+# Opcodes for which the value of the argument has an impact on the stack effect
+_stack_effects_use_opargs = {
+    _opcode.opmap.get(op_name, None) for op_name in
+    (
+        'UNPACK_SEQUENCE', 'UNPACK_EX', 'BUILD_STRING',
+        'BUILD_MAP_UNPACK_WITH_CALL', 'BUILD_MAP', 'BUILD_CONST_KEY_MAP',
+        'RAISE_VARARGS', 'CALL_FUNCTION', 'CALL_METHOD', 'CALL_FUNCTION_KW',
+        'CALL_FUNCTION_EX', 'MAKE_FUNCTION', 'BUILD_SLICE', 'FORMAT_VALUE'
+    )
+}
 
 
 class Instr:
@@ -306,9 +316,15 @@ class Instr:
         # then we should pass that through, and perhaps remove some of the
         # overrides that are set up in _init_stack_effects()
 
-        # All opcodes whose arguments are not represented by integers have
-        # a stack_effect indepent of their argument.
-        arg = (self._arg if isinstance(self._arg, int) else
+        # Each of the following opcodes has a stack_effect independent of its
+        # argument:
+        # 1. Whose argument is not represented by an integer.
+        # 2. Whose stack effect can be calculated without using oparg
+        #    from this link:
+        # https://github.com/python/cpython/blob/master/Python/compile.c#L859
+
+        use_oparg = self._opcode in _stack_effects_use_opargs
+        arg = (self._arg if use_oparg and isinstance(self._arg, int) else
                0 if self._opcode >= _opcode.HAVE_ARGUMENT else None)
         return dis.stack_effect(self._opcode, arg)
 

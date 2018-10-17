@@ -212,6 +212,23 @@ class InstrTests(TestCase):
             if not instr.has_jump():
                 self.assertEqual(jump, no_jump, msg)
 
+        # LOAD_CONST uses a concrete python object as its oparg, however, in
+        #       dis.stack_effect(opcode.opmap['LOAD_CONST'], oparg),
+        # oparg should be the index of that python object in the constants.
+        #
+        # Fortunately, for an instruction whose oparg isn't equivalent to its
+        # form in binary files(pyc format), the stack effect is a
+        # constant which does not depend on its oparg.
+        #
+        # The second argument of dis.stack_effect cannot be
+        # more than 2**31 - 1. If stack effect of an instruction is
+        # independent of its oparg, we pass 0 as the second argument
+        # of dis.stack_effect.
+        # (As a result we can calculate stack_effect for
+        #  any LOAD_CONST instructions, even for large integers)
+
+        self.assertEqual(Instr('LOAD_CONST', 0xFFFFFFFFFFF).stack_effect(jump=None), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
