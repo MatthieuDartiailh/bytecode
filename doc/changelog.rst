@@ -7,6 +7,7 @@ unreleased: Version 0.8.0
 New features:
 
 - Add support for Python 3.7 PR #29
+- Add preliminary support for Python 3.8-dev PR #41
 - Allow to use any Python object as constants to enable aggressive
   optimizations PR #34
 
