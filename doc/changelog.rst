@@ -11,10 +11,14 @@ New features:
   optimizations PR #34
 
 API changes:
+
 - `stack_effect` is now a method of `Instr` and not as property anymore. PR #29
 
 Bugfixes:
-- Avoid throwing `OverflowError` when applying `stack_effect` on valid `Instr` objects. PR #43
+
+- Avoid throwing `OverflowError` when applying `stack_effect` on valid `Instr`
+  objects. PR #43, PR #44
+
 
 2018-04-15: Version 0.7.0
 -------------------------

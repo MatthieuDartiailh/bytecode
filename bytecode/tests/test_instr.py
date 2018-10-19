@@ -195,22 +195,26 @@ class InstrTests(TestCase):
         # Verify all opcodes are handled and that "jump=None" really returns
         # the max of the other cases.
         from bytecode.concrete import ConcreteInstr
-        for name, op in opcode.opmap.items():
-            # Use ConcreteInstr instead of Instr because it doesn't care what
-            # kind of argument it is constructed with.
-            if op < opcode.HAVE_ARGUMENT:
-                instr = ConcreteInstr(name)
-            else:
-                instr = ConcreteInstr(name, 0)
+
+        def check(instr):
             jump = instr.stack_effect(jump=True)
             no_jump = instr.stack_effect(jump=False)
             max_effect = instr.stack_effect(jump=None)
-            msg = "op=%s" % name
-            self.assertEqual(instr.stack_effect(), max_effect, msg)
-            self.assertEqual(max_effect, max(jump, no_jump), msg)
+            self.assertEqual(instr.stack_effect(), max_effect)
+            self.assertEqual(max_effect, max(jump, no_jump))
 
             if not instr.has_jump():
-                self.assertEqual(jump, no_jump, msg)
+                self.assertEqual(jump, no_jump)
+
+        for name, op in opcode.opmap.items():
+            with self.subTest(name):
+                # Use ConcreteInstr instead of Instr because it doesn't care
+                # what kind of argument it is constructed with.
+                if op < opcode.HAVE_ARGUMENT:
+                    check(ConcreteInstr(name))
+                else:
+                    for arg in range(256):
+                        check(ConcreteInstr(name, arg))
 
         # LOAD_CONST uses a concrete python object as its oparg, however, in
         #       dis.stack_effect(opcode.opmap['LOAD_CONST'], oparg),
@@ -227,7 +231,8 @@ class InstrTests(TestCase):
         # (As a result we can calculate stack_effect for
         #  any LOAD_CONST instructions, even for large integers)
 
-        self.assertEqual(Instr('LOAD_CONST', 0xFFFFFFFFFFF).stack_effect(jump=None), 1)
+        for arg in 2**31, 2**32, 2**63, 2**64, -1:
+            self.assertEqual(Instr('LOAD_CONST', arg).stack_effect(), 1)
 
 
 if __name__ == "__main__":
