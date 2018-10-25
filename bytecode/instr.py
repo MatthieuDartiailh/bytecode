@@ -145,31 +145,32 @@ def _check_arg_int(name, arg):
                          % name)
 
 
-_stack_effects = {
-    # NOTE: the entries are all 2-tuples.  Entry[0/False] is non-taken jumps.
-    # Entry[1/True] is for taken jumps.
+if sys.version_info < (3, 8):
+    _stack_effects = {
+        # NOTE: the entries are all 2-tuples.  Entry[0/False] is non-taken jumps.
+        # Entry[1/True] is for taken jumps.
 
-    # opcodes not in dis.stack_effect
-    _opcode.opmap['EXTENDED_ARG']: (0, 0),
-    _opcode.opmap['NOP']: (0, 0),
+        # opcodes not in dis.stack_effect
+        _opcode.opmap['EXTENDED_ARG']: (0, 0),
+        _opcode.opmap['NOP']: (0, 0),
 
-    # Jump taken/not-taken are different:
-    _opcode.opmap['JUMP_IF_TRUE_OR_POP']: (-1, 0),
-    _opcode.opmap['JUMP_IF_FALSE_OR_POP']: (-1, 0),
-    _opcode.opmap['FOR_ITER']: (1, -1),
-    _opcode.opmap['SETUP_WITH']: (1, 6),
-    _opcode.opmap['SETUP_ASYNC_WITH']: (0, 5),
-    _opcode.opmap['SETUP_EXCEPT']: (0, 6),   # as of 3.7, below for <=3.6
-    _opcode.opmap['SETUP_FINALLY']: (0, 6),  # as of 3.7, below for <=3.6
-}
+        # Jump taken/not-taken are different:
+        _opcode.opmap['JUMP_IF_TRUE_OR_POP']: (-1, 0),
+        _opcode.opmap['JUMP_IF_FALSE_OR_POP']: (-1, 0),
+        _opcode.opmap['FOR_ITER']: (1, -1),
+        _opcode.opmap['SETUP_WITH']: (1, 6),
+        _opcode.opmap['SETUP_ASYNC_WITH']: (0, 5),
+        _opcode.opmap['SETUP_EXCEPT']: (0, 6),   # as of 3.7, below for <=3.6
+        _opcode.opmap['SETUP_FINALLY']: (0, 6),  # as of 3.7, below for <=3.6
+    }
 
-# More stack effect values that are unique to the version of Python.
-if sys.version_info < (3, 7):
-    _stack_effects.update({
-        _opcode.opmap['SETUP_WITH']: (7, 7),
-        _opcode.opmap['SETUP_EXCEPT']: (6, 9),
-        _opcode.opmap['SETUP_FINALLY']: (6, 9),
-    })
+    # More stack effect values that are unique to the version of Python.
+    if sys.version_info < (3, 7):
+        _stack_effects.update({
+            _opcode.opmap['SETUP_WITH']: (7, 7),
+            _opcode.opmap['SETUP_EXCEPT']: (6, 9),
+            _opcode.opmap['SETUP_FINALLY']: (6, 9),
+        })
 
 
 class Instr:
@@ -307,15 +308,13 @@ class Instr:
         else:
             arg = self._arg
 
-        effect = _stack_effects.get(self._opcode, None)
-        if effect is not None:
-            return max(effect) if jump is None else effect[jump]
-
-        # TODO: if dis.stack_effect ever expands to take the 'jump' parameter
-        # then we should pass that through, and perhaps remove some of the
-        # overrides that are set up in _init_stack_effects()
-
-        return dis.stack_effect(self._opcode, arg)
+        if sys.version_info < (3, 8):
+            effect = _stack_effects.get(self._opcode, None)
+            if effect is not None:
+                return max(effect) if jump is None else effect[jump]
+            return dis.stack_effect(self._opcode, arg)
+        else:
+            return dis.stack_effect(self._opcode, arg, jump=jump)
 
     def copy(self):
         return self.__class__(self._name, self._arg, lineno=self._lineno)
