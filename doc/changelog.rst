@@ -1,7 +1,7 @@
 ChangeLog
 =========
 
-unreleased: Version 0.8.0
+2019-02-18: Version 0.8.0
 -------------------------
 
 New features:
