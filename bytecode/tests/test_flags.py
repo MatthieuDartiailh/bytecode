@@ -11,9 +11,9 @@ class FlagsTests(unittest.TestCase):
 
         # Check no loss of non-infered flags
         code = ControlFlowGraph()
-        code.flags |= (CompilerFlags.NEWLOCALS | CompilerFlags.VARARGS |
-                       CompilerFlags.VARKEYWORDS | CompilerFlags.NESTED |
-                       CompilerFlags.FUTURE_GENERATOR_STOP)
+        code.flags |= (CompilerFlags.NEWLOCALS | CompilerFlags.VARARGS
+                       | CompilerFlags.VARKEYWORDS | CompilerFlags.NESTED
+                       | CompilerFlags.FUTURE_GENERATOR_STOP)
         code.update_flags()
         for f in (CompilerFlags.NEWLOCALS, CompilerFlags.VARARGS,
                   CompilerFlags.VARKEYWORDS, CompilerFlags.NESTED,
