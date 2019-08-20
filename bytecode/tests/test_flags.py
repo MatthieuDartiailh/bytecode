@@ -53,8 +53,8 @@ class FlagsTests(unittest.TestCase):
 
         # Test check flag sanity
         code.append(ConcreteInstr('YIELD_VALUE'))
-        code.flags = CompilerFlags(CompilerFlags.GENERATOR |
-                                   CompilerFlags.COROUTINE)
+        code.flags = CompilerFlags(CompilerFlags.GENERATOR
+                                   | CompilerFlags.COROUTINE)
         infer_flags(code, is_async=True)  # Just want to be sure it pases
         with self.assertRaises(ValueError):
             code.update_flags()
