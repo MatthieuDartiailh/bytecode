@@ -41,7 +41,7 @@ class BaseBytecode:
         if self.argcount != other.argcount:
             return False
         if sys.version_info > (3, 8):
-            if self.posargonlycount = other.posargonlycount:
+            if self.posargonlycount != other.posargonlycount:
                 return False
         if self.kwonlyargcount != other.kwonlyargcount:
             return False
