@@ -390,7 +390,8 @@ class ConcreteFromCodeTests(TestCase):
         args = ((code.co_argcount,)
                 if sys.version_info < (3, 8) else
                 (code.co_argcount, code.co_posonlyargcount))
-        args += (code.co_nlocals,
+        args += (code.co_kwonlyargcount,
+                 code.co_nlocals,
                  code.co_stacksize,
                  code.co_flags,
                  co_code,
