@@ -416,7 +416,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         bytecode.first_lineno = 3
         bytecode.argcount = 3
         if sys.version_info > (3, 8):
-            bytecode.posargonlycount = 0
+            bytecode.posonlyargcount = 0
         bytecode.kwonlyargcount = 2
         bytecode.name = 'func'
         bytecode.filename = 'hello.py'
@@ -458,7 +458,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(code.co_consts, (None, 3))
         self.assertEqual(code.co_argcount, 3)
         if sys.version_info > (3, 8):
-            self.assertEqual(code.co_posargonlycount, 0)
+            self.assertEqual(code.co_posonlyargcount, 0)
         self.assertEqual(code.co_kwonlyargcount, 2)
         self.assertEqual(code.co_nlocals, 6)
         self.assertEqual(code.co_stacksize, 1)
