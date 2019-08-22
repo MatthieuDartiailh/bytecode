@@ -52,10 +52,10 @@ def infer_flags(bytecode, is_async=False):
     if not (instr_names & {'STORE_NAME', 'LOAD_NAME', 'DELETE_NAME'}):
         flags |= CompilerFlags.OPTIMIZED
 
-    flags |= bytecode.flags & (CompilerFlags.NEWLOCALS |
-                               CompilerFlags.VARARGS |
-                               CompilerFlags.VARKEYWORDS |
-                               CompilerFlags.NESTED)
+    flags |= bytecode.flags & (CompilerFlags.NEWLOCALS
+                               | CompilerFlags.VARARGS
+                               | CompilerFlags.VARKEYWORDS
+                               | CompilerFlags.NESTED)
 
     if instr_names & {'YIELD_VALUE', 'YIELD_FROM'}:
         if not is_async and not bytecode.flags & CompilerFlags.ASYNC_GENERATOR:
@@ -67,11 +67,11 @@ def infer_flags(bytecode, is_async=False):
                            'DELETE_DEREF', 'LOAD_CLASSDEREF'}):
         flags |= CompilerFlags.NOFREE
 
-    if (not (bytecode.flags & CompilerFlags.ITERABLE_COROUTINE or
-             flags & CompilerFlags.ASYNC_GENERATOR) and
-            (instr_names & {'GET_AWAITABLE', 'GET_AITER', 'GET_ANEXT',
-                            'BEFORE_ASYNC_WITH', 'SETUP_ASYNC_WITH'} or
-             bytecode.flags & CompilerFlags.COROUTINE)):
+    if (not (bytecode.flags & CompilerFlags.ITERABLE_COROUTINE
+             or flags & CompilerFlags.ASYNC_GENERATOR)
+        and (instr_names & {'GET_AWAITABLE', 'GET_AITER', 'GET_ANEXT',
+                            'BEFORE_ASYNC_WITH', 'SETUP_ASYNC_WITH'}
+             or bytecode.flags & CompilerFlags.COROUTINE)):
         flags |= CompilerFlags.COROUTINE
 
     flags |= bytecode.flags & CompilerFlags.ITERABLE_COROUTINE

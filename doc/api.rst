@@ -313,6 +313,12 @@ BaseBytecode
 
       List of free variable names (``list`` of ``str``), default: empty list.
 
+   .. attribute:: posonlyargcount
+
+      Positional-only argument count (``int``), default: ``0``.
+
+      New in Python 3.8
+
    .. attribute:: kwonlyargcount
 
       Keyword-only argument count (``int``), default: ``0``.

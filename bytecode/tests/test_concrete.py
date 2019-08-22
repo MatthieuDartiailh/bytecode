@@ -387,21 +387,25 @@ class ConcreteFromCodeTests(TestCase):
         co_code = (b'\x90\x12\x904\x90\xabd\xcd' if WORDCODE else
                    b'\x904\x12d\xcd\xab')
         code = get_code('x=1')
-        code = types.CodeType(code.co_argcount,
-                              code.co_kwonlyargcount,
-                              code.co_nlocals,
-                              code.co_stacksize,
-                              code.co_flags,
-                              co_code,
-                              code.co_consts,
-                              code.co_names,
-                              code.co_varnames,
-                              code.co_filename,
-                              code.co_name,
-                              code.co_firstlineno,
-                              code.co_lnotab,
-                              code.co_freevars,
-                              code.co_cellvars)
+        args = ((code.co_argcount,)
+                if sys.version_info < (3, 8) else
+                (code.co_argcount, code.co_posonlyargcount))
+        args += (code.co_kwonlyargcount,
+                 code.co_nlocals,
+                 code.co_stacksize,
+                 code.co_flags,
+                 co_code,
+                 code.co_consts,
+                 code.co_names,
+                 code.co_varnames,
+                 code.co_filename,
+                 code.co_name,
+                 code.co_firstlineno,
+                 code.co_lnotab,
+                 code.co_freevars,
+                 code.co_cellvars)
+
+        code = types.CodeType(*args)
 
         # without EXTENDED_ARG opcode
         bytecode = ConcreteBytecode.from_code(code)
