@@ -402,7 +402,7 @@ class ConcreteFromCodeTests(TestCase):
                  code.co_firstlineno,
                  code.co_lnotab,
                  code.co_freevars,
-                 code.co_cellvars))
+                 code.co_cellvars)
 
         code = types.CodeType(*args)
 
