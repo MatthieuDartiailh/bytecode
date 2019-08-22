@@ -343,7 +343,7 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                                   tuple(self.cellvars))
         else:
             return types.CodeType(self.argcount,
-                                  self.posonlyargcount
+                                  self.posonlyargcount,
                                   self.kwonlyargcount,
                                   nlocals,
                                   stacksize,
