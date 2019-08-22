@@ -1,4 +1,5 @@
 # alias to keep the 'bytecode' variable free
+import sys
 import bytecode as _bytecode
 from bytecode.instr import UNSET, Label, SetLineno, Instr
 from bytecode.flags import infer_flags

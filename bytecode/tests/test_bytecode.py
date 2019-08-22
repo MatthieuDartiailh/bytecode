@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import textwrap
 import unittest
 from bytecode import Label, Instr, FreeVar, Bytecode, SetLineno, ConcreteInstr
