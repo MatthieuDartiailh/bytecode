@@ -240,6 +240,8 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode.filename = code.co_filename
         bytecode.flags = code.co_flags
         bytecode.argcount = code.co_argcount
+        if sys.version_info >= (3, 8):
+            bytecode.posonlyargcount = code.co_posonlyargcount
         bytecode.kwonlyargcount = code.co_kwonlyargcount
         bytecode.first_lineno = code.co_firstlineno
         bytecode.names = list(code.co_names)
@@ -322,21 +324,40 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         nlocals = len(self.varnames)
         if stacksize is None:
             stacksize = self.compute_stacksize()
-        return types.CodeType(self.argcount,
-                              self.kwonlyargcount,
-                              nlocals,
-                              stacksize,
-                              int(self.flags),
-                              code_str,
-                              tuple(self.consts),
-                              tuple(self.names),
-                              tuple(self.varnames),
-                              self.filename,
-                              self.name,
-                              self.first_lineno,
-                              lnotab,
-                              tuple(self.freevars),
-                              tuple(self.cellvars))
+
+        if sys.version_info < (3, 8):
+            return types.CodeType(self.argcount,
+                                  self.kwonlyargcount,
+                                  nlocals,
+                                  stacksize,
+                                  int(self.flags),
+                                  code_str,
+                                  tuple(self.consts),
+                                  tuple(self.names),
+                                  tuple(self.varnames),
+                                  self.filename,
+                                  self.name,
+                                  self.first_lineno,
+                                  lnotab,
+                                  tuple(self.freevars),
+                                  tuple(self.cellvars))
+        else:
+            return types.CodeType(self.argcount,
+                                  self.posonlyargcount
+                                  self.kwonlyargcount,
+                                  nlocals,
+                                  stacksize,
+                                  int(self.flags),
+                                  code_str,
+                                  tuple(self.consts),
+                                  tuple(self.names),
+                                  tuple(self.varnames),
+                                  self.filename,
+                                  self.name,
+                                  self.first_lineno,
+                                  lnotab,
+                                  tuple(self.freevars),
+                                  tuple(self.cellvars))
 
     def to_bytecode(self):
         # find jump targets
@@ -405,6 +426,8 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
         bytecode._copy_attr_from(self)
 
         nargs = bytecode.argcount + bytecode.kwonlyargcount
+        if sys.version_info > (3, 8):
+            nargs += bytecode.posonlyargcount
         if bytecode.flags & inspect.CO_VARARGS:
             nargs += 1
         if bytecode.flags & inspect.CO_VARKEYWORDS:

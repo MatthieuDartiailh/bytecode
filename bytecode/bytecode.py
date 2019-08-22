@@ -8,6 +8,8 @@ class BaseBytecode:
 
     def __init__(self):
         self.argcount = 0
+        if sys.version_info > (3, 8):
+            self.posargonlycount = 0
         self.kwonlyargcount = 0
         self.first_lineno = 1
         self.name = '<module>'
@@ -21,6 +23,8 @@ class BaseBytecode:
 
     def _copy_attr_from(self, bytecode):
         self.argcount = bytecode.argcount
+        if sys.version_info > (3, 8):
+            self.posargonlycount = bytecode.posargonlycount
         self.kwonlyargcount = bytecode.kwonlyargcount
         self.flags = bytecode.flags
         self.first_lineno = bytecode.first_lineno
@@ -36,6 +40,9 @@ class BaseBytecode:
 
         if self.argcount != other.argcount:
             return False
+        if sys.version_info > (3, 8):
+            if self.posargonlycount = other.posargonlycount:
+                return False
         if self.kwonlyargcount != other.kwonlyargcount:
             return False
         if self.compute_stacksize() != other.compute_stacksize():

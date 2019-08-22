@@ -74,6 +74,8 @@ class BytecodeBlocksTests(TestCase):
         self.assertEqual(code.argcount, 2)
         self.assertEqual(code.filename, "hello.py")
         self.assertEqual(code.first_lineno, 3)
+        if sys.version_info > (3, 8):
+            self.assertEqual(code.posonlyargcount, 0)
         self.assertEqual(code.kwonlyargcount, 1)
         self.assertEqual(code.name, "func")
         self.assertEqual(code.cellvars, [])
@@ -413,6 +415,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
         bytecode = ControlFlowGraph()
         bytecode.first_lineno = 3
         bytecode.argcount = 3
+        if sys.version_info > (3, 8):
+            bytecode.posargonlycount = 0
         bytecode.kwonlyargcount = 2
         bytecode.name = 'func'
         bytecode.filename = 'hello.py'
@@ -453,6 +457,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
         code = bytecode.to_code()
         self.assertEqual(code.co_consts, (None, 3))
         self.assertEqual(code.co_argcount, 3)
+        if sys.version_info > (3, 8):
+            self.assertEqual(code.co_posargonlycount, 0)
         self.assertEqual(code.co_kwonlyargcount, 2)
         self.assertEqual(code.co_nlocals, 6)
         self.assertEqual(code.co_stacksize, 1)
