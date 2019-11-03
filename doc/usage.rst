@@ -65,7 +65,7 @@ Setting the compiler flags
 
 Bytecode,  ConcreteBytecode and ControlFlowGraph instances all have a flags
 attribute which is an instance of the CompilerFlag enum. The value can be
-manipulated liked any binary flags.
+manipulated like any binary flags.
 
 Setting the OPTIMIZED flag::
 
