@@ -150,7 +150,7 @@ Bytecode of ``for x in (1, 2, 3): print(x)``:
                         Instr("CALL_FUNCTION", 1),
                         Instr("POP_TOP"),
                         Instr("JUMP_ABSOLUTE", loop_start),
-                    # Python 3.8 removed the need to manually manage blocks
+                    # Python 3.8 removed the need to manually manage blocks in loops
                     # This is now handled internally by the interpreter
                     loop_exit,
                         Instr("LOAD_CONST", None),
