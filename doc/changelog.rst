@@ -1,8 +1,12 @@
 ChangeLog
 =========
 
-unreleased: Version 0.9.0
+2019-12-01: Version 0.9.0
 -------------------------
+
+New features:
+
+- Add support for released version of Python 3.8 and update documentation.
 
 
 2019-02-18: Version 0.8.0
