@@ -79,6 +79,32 @@ class BaseBytecode:
         self.flags = infer_flags(self, is_async)
 
 
+class _BaseBytecodeList(BaseBytecode, list):
+    """List subclass providing type stable slicing and copying.
+
+    """
+    def __getitem__(self, index):
+        value = super().__getitem__(index)
+        if isinstance(index, slice):
+            value = type(self)(value)
+            value._copy_attr_from(self)
+
+        return value
+
+    def copy(self):
+        new = type(self)(super().copy())
+        new._copy_attr_from(self)
+        return new
+
+    def __iter__(self):
+        instructions = super().__iter__()
+        for instr in instructions:
+            self._check_instr(instr)
+            yield instr
+
+    def _check_instr(self, instr):
+        raise NotImplementedError()
+
 class _InstrList(list):
 
     def _flat(self):

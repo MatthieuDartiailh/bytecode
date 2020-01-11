@@ -7,7 +7,7 @@ __all__ = ['Label', 'Instr', 'SetLineno', 'Bytecode',
 from bytecode.flags import CompilerFlags
 from bytecode.instr import (UNSET, Label, SetLineno, Instr, CellVar, FreeVar,   # noqa
                             Compare)
-from bytecode.bytecode import BaseBytecode, _InstrList, Bytecode   # noqa
+from bytecode.bytecode import BaseBytecode, _BaseBytecodeList, _InstrList, Bytecode   # noqa
 from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,   # noqa
                                # import needed to use it in bytecode.py
                                _ConvertBytecodeToConcrete)

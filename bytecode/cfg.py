@@ -35,6 +35,19 @@ class BasicBlock(_bytecode._InstrList):
 
             yield instr
 
+    def __getitem__(self, index):
+        value = super().__getitem__(index)
+        if isinstance(index, slice):
+            value = type(self)(value)
+            value.next_block = self.next_block
+
+        return value
+
+    def copy(self):
+        new = type(self)(super().copy())
+        new.next_block = self.next_block
+        return new
+
     def get_jump(self):
         if not self:
             return None
