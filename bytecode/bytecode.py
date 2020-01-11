@@ -109,6 +109,9 @@ class _BaseBytecodeList(BaseBytecode, list):
                 set_lineno = instr.lineno
                 lineno_pos.append(pos)
                 continue
+            # Filter out Labels
+            if not isinstance(instr, Instr):
+                continue
             if set_lineno is not None:
                 instr.lineno = set_lineno
             elif instr.lineno is None:
