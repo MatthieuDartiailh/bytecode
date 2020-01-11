@@ -96,6 +96,29 @@ class _BaseBytecodeList(BaseBytecode, list):
         new._copy_attr_from(self)
         return new
 
+    def legalize(self):
+        """Check that all the element of the list are valid and remove SetLineno.
+
+        """
+        lineno_pos = []
+        set_lineno = None
+        current_lineno = self.first_lineno
+
+        for pos, instr in enumerate(self):
+            if isinstance(instr, SetLineno):
+                set_lineno = instr.lineno
+                lineno_pos.append(pos)
+                continue
+            if set_lineno is not None:
+                instr.lineno = set_lineno
+            elif instr.lineno is None:
+                instr.lineno = current_lineno
+            else:
+                current_lineno = instr.lineno
+
+        for i in reversed(lineno_pos):
+            del self[i]
+
     def __iter__(self):
         instructions = super().__iter__()
         for instr in instructions:
@@ -138,7 +161,7 @@ class _InstrList(list):
         return (self._flat() == other._flat())
 
 
-class Bytecode(_InstrList, BaseBytecode):
+class Bytecode(_InstrList, _BaseBytecodeList):
 
     def __init__(self, instructions=()):
         BaseBytecode.__init__(self)
