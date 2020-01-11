@@ -363,6 +363,11 @@ Bytecode
 
    Methods:
 
+   .. method:: legalize()
+
+      Check the validity of all the instruction and remove the :class:`SetLineno`
+      instances after updating the instructions.
+
    .. method:: to_concrete_bytecode(compute_jumps_passes: int = None) -> ConcreteBytecode
 
       Convert to concrete bytecode with concrete instructions.
@@ -445,6 +450,12 @@ ConcreteBytecode
 
    Methods:
 
+   .. method:: legalize()
+
+      Check the validity of all the instruction and remove the :class:`SetLineno`
+      instances after updating the instructions.
+
+
    .. method:: to_code(stacksize: int = None) -> types.CodeType
 
       Convert to a Python code object.
@@ -508,6 +519,13 @@ BasicBlock
 
    Methods:
 
+   .. method:: legalize(first_lineno: int)
+
+      Check the validity of all the instruction and remove the :class:`SetLineno`
+      instances after updating the instructions. :parameter:`first_lineno` specifies
+      the line number to use for instruction without a set line number encountered
+      before the first :class:`SetLineno` instance.
+
    .. method:: get_jump()
 
       Get the target block (:class:`BasicBlock`) of the jump if the basic block
@@ -547,6 +565,10 @@ ControlFlowGraph
 
       Splits blocks after final instructions (:meth:`Instr.is_final`) and after
       conditional jumps (:meth:`Instr.is_cond_jump`).
+
+    .. method:: legalize(first_lineno: int)
+
+      Legalize all the blocks of the CFG.
 
    .. method:: add_block(instructions=None) -> BasicBlock
 
@@ -691,5 +713,5 @@ Compiler Flags
     - ASYNC_GENERATOR
 
     The async optional keyword allow to force a detected generator to be turned
-    into a generator. A code will be marked as a COROUTINE only if it contains
-    an async related instruction.
+    into an async generator. A code will be marked as a COROUTINE only if it
+    contains an async related instruction.

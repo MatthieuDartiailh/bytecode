@@ -83,7 +83,7 @@ Clearing the OPTIMIZED flag::
 
 
 The flags can be updated based on the instructions stored in the code object
-can be updated using the method update_flags.
+using the method update_flags.
 
 
 Simple loop
