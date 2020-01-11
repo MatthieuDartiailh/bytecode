@@ -182,6 +182,8 @@ class ConcreteBytecodeTests(TestCase):
         with self.assertRaises(ValueError):
             list(code)
         with self.assertRaises(ValueError):
+            code.legalize()
+        with self.assertRaises(ValueError):
             ConcreteBytecode([Label()])
 
     def test_to_code_lnotab(self):
@@ -378,6 +380,57 @@ class ConcreteBytecodeTests(TestCase):
         explicit_stacksize = 0
         new_code_obj = concrete.to_code(stacksize=explicit_stacksize)
         self.assertEqual(new_code_obj.co_stacksize, explicit_stacksize)
+
+    def test_legalize(self):
+        concrete = ConcreteBytecode()
+        concrete.first_lineno = 3
+        concrete.consts = [7, 8, 9]
+        concrete.names = ['x', 'y', 'z']
+        concrete.extend([ConcreteInstr("LOAD_CONST", 0),
+                         ConcreteInstr("STORE_NAME", 0),
+                         ConcreteInstr("LOAD_CONST", 1, lineno=4),
+                         ConcreteInstr("STORE_NAME", 1),
+                         SetLineno(5),
+                         ConcreteInstr("LOAD_CONST", 2, lineno=6),
+                         ConcreteInstr("STORE_NAME", 2)])
+
+        concrete.legalize()
+        self.assertListEqual(list(concrete), [ConcreteInstr("LOAD_CONST", 0, lineno=3),
+                                              ConcreteInstr("STORE_NAME", 0, lineno=3),
+                                              ConcreteInstr("LOAD_CONST", 1, lineno=4),
+                                              ConcreteInstr("STORE_NAME", 1, lineno=4),
+                                              ConcreteInstr("LOAD_CONST", 2, lineno=5),
+                                              ConcreteInstr("STORE_NAME", 2, lineno=5)])
+
+    def test_slice(self):
+        concrete = ConcreteBytecode()
+        concrete.first_lineno = 3
+        concrete.consts = [7, 8, 9]
+        concrete.names = ['x', 'y', 'z']
+        concrete.extend([ConcreteInstr("LOAD_CONST", 0),
+                         ConcreteInstr("STORE_NAME", 0),
+                         SetLineno(4),
+                         ConcreteInstr("LOAD_CONST", 1),
+                         ConcreteInstr("STORE_NAME", 1),
+                         SetLineno(5),
+                         ConcreteInstr("LOAD_CONST", 2),
+                         ConcreteInstr("STORE_NAME", 2)])
+        self.assertEqual(concrete, concrete[:])
+
+    def test_copy(self):
+        concrete = ConcreteBytecode()
+        concrete.first_lineno = 3
+        concrete.consts = [7, 8, 9]
+        concrete.names = ['x', 'y', 'z']
+        concrete.extend([ConcreteInstr("LOAD_CONST", 0),
+                         ConcreteInstr("STORE_NAME", 0),
+                         SetLineno(4),
+                         ConcreteInstr("LOAD_CONST", 1),
+                         ConcreteInstr("STORE_NAME", 1),
+                         SetLineno(5),
+                         ConcreteInstr("LOAD_CONST", 2),
+                         ConcreteInstr("STORE_NAME", 2)])
+        self.assertEqual(concrete, concrete.copy())
 
 
 class ConcreteFromCodeTests(TestCase):
