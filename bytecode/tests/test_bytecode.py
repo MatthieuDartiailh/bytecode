@@ -38,13 +38,13 @@ class BytecodeTests(TestCase):
                      Instr("STORE_NAME", 'z')])
 
         code.legalize()
-        self.assertListEqual(code,[Instr("LOAD_CONST", 7, lineno=3),
-                                   Instr("STORE_NAME", "x", lineno=3),
-                                   Instr("LOAD_CONST", 8, lineno=4),
-                                   Instr("STORE_NAME", "y", lineno=4),
-                                   Label(),
-                                   Instr("LOAD_CONST", 9, lineno=5),
-                                   Instr("STORE_NAME", "z", lineno=5)])
+        self.assertListEqual(code, [Instr("LOAD_CONST", 7, lineno=3),
+                                    Instr("STORE_NAME", "x", lineno=3),
+                                    Instr("LOAD_CONST", 8, lineno=4),
+                                    Instr("STORE_NAME", "y", lineno=4),
+                                    Label(),
+                                    Instr("LOAD_CONST", 9, lineno=5),
+                                    Instr("STORE_NAME", "z", lineno=5)])
 
     def test_slice(self):
         code = Bytecode()

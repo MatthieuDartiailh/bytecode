@@ -131,6 +131,7 @@ class _BaseBytecodeList(BaseBytecode, list):
     def _check_instr(self, instr):
         raise NotImplementedError()
 
+
 class _InstrList(list):
 
     def _flat(self):
