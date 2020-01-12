@@ -57,7 +57,13 @@ class BytecodeTests(TestCase):
                      SetLineno(5),
                      Instr("LOAD_CONST", 9),
                      Instr("STORE_NAME", 'z')])
-        self.assertEqual(code, code[:])
+        sliced_code = code[:]
+        self.assertEqual(code, sliced_code)
+        for name in ("argcount", "posonlyargcount", "kwonlyargcount", "first_lineno",
+                     "name", "filename", "docstring", "cellvars", "freevars",
+                     "argnames"):
+            self.assertEqual(getattr(code, name, None),
+                             getattr(sliced_code, name, None))
 
     def test_copy(self):
         code = Bytecode()
@@ -70,7 +76,14 @@ class BytecodeTests(TestCase):
                      SetLineno(5),
                      Instr("LOAD_CONST", 9),
                      Instr("STORE_NAME", 'z')])
-        self.assertEqual(code, code.copy())
+
+        copy_code = code.copy()
+        self.assertEqual(code, copy_code)
+        for name in ("argcount", "posonlyargcount", "kwonlyargcount", "first_lineno",
+                     "name", "filename", "docstring", "cellvars", "freevars",
+                     "argnames"):
+            self.assertEqual(getattr(code, name, None),
+                             getattr(copy_code, name, None))
 
     def test_from_code(self):
         code = get_code("""

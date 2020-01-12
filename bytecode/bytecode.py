@@ -187,6 +187,11 @@ class Bytecode(_InstrList, _BaseBytecodeList):
                              "but %s was found"
                              % type(instr).__name__)
 
+    def _copy_attr_from(self, bytecode):
+        super()._copy_attr_from(bytecode)
+        if isinstance(bytecode, Bytecode):
+            self.argnames = bytecode.argnames
+
     @staticmethod
     def from_code(code):
         concrete = _bytecode.ConcreteBytecode.from_code(code)
