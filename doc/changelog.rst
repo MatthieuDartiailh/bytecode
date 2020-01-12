@@ -1,6 +1,16 @@
 ChangeLog
 =========
 
+unreleased: Version 0.10.0
+-------------------------
+
+New features:
+
+- Slices and copy of Bytecode, ConcreteBytecode and BasicBlock are now of the
+  same type as the original container. PR #52
+- Bytecode, ConcreteBytecode, BasicBlock and ControlFlowGraph have a new legalize
+  method validating their content and removing SetLineno. PR #52
+
 2019-12-01: Version 0.9.0
 -------------------------
 
