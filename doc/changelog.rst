@@ -1,6 +1,13 @@
 ChangeLog
 =========
 
+unreleased: Version 0.10.0
+-------------------------
+
+API changes:
+
+- Add :class:`Compare` enum to public API. PR #53
+
 2019-12-01: Version 0.9.0
 -------------------------
 
