@@ -6,10 +6,16 @@ unreleased: Version 0.10.0
 
 New features:
 
-- Slices and copy of Bytecode, ConcreteBytecode and BasicBlock are now of the
-  same type as the original container. PR #52
-- Bytecode, ConcreteBytecode, BasicBlock and ControlFlowGraph have a new legalize
-  method validating their content and removing SetLineno. PR #52
+- Slices and copy of :class:`Bytecode`, :class:`ConcreteBytecode` and 
+  :class:`BasicBlock` are now  of the same type as the original container. PR #52
+- :class:`Bytecode`, :class:`ConcreteBytecode`, :class:`BasicBlock` and 
+  :class:`ControlFlowGraph` have a new :meth:`legalize` method validating 
+  their content and removing SetLineno. PR #52
+
+API changes:
+
+- Add :class:`Compare` enum to public API. PR #53
+
 
 2019-12-01: Version 0.9.0
 -------------------------
@@ -31,11 +37,11 @@ New features:
 
 API changes:
 
-- `stack_effect` is now a method of `Instr` and not as property anymore. PR #29
+- `stack_effect` is now a method of :class:`Instr` and not as property anymore. PR #29
 
 Bugfixes:
 
-- Avoid throwing `OverflowError` when applying `stack_effect` on valid `Instr`
+- Avoid throwing `OverflowError` when applying `stack_effect` on valid :class:`Instr`
   objects. PR #43, PR #44
 
 
@@ -44,7 +50,7 @@ Bugfixes:
 
 New features:
 
-- Add `compute_jumps_passes` optioanl argument to :meth:`Bytecode.to_code` and
+- Add `compute_jumps_passes` optional argument to :meth:`Bytecode.to_code` and
   to :meth:`Bytecode.to_concrete_bytecode` to control the number of passes
   performed to compute jump targets. In theory the required number is only
   bounded by the size of the code, but usually the algorithm converges quickly

@@ -2,7 +2,7 @@ __version__ = '0.10.0.dev'
 
 __all__ = ['Label', 'Instr', 'SetLineno', 'Bytecode',
            'ConcreteInstr', 'ConcreteBytecode',
-           'ControlFlowGraph', 'CompilerFlags']
+           'ControlFlowGraph', 'CompilerFlags', 'Compare']
 
 from bytecode.flags import CompilerFlags
 from bytecode.instr import (UNSET, Label, SetLineno, Instr, CellVar, FreeVar,   # noqa
