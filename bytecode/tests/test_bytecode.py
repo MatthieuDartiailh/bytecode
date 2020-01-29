@@ -21,7 +21,69 @@ class BytecodeTests(TestCase):
         with self.assertRaises(ValueError):
             list(code)
         with self.assertRaises(ValueError):
+            code.legalize()
+        with self.assertRaises(ValueError):
             Bytecode([123])
+
+    def test_legalize(self):
+        code = Bytecode()
+        code.first_lineno = 3
+        code.extend([Instr("LOAD_CONST", 7),
+                     Instr("STORE_NAME", 'x'),
+                     Instr("LOAD_CONST", 8, lineno=4),
+                     Instr("STORE_NAME", 'y'),
+                     Label(),
+                     SetLineno(5),
+                     Instr("LOAD_CONST", 9, lineno=6),
+                     Instr("STORE_NAME", 'z')])
+
+        code.legalize()
+        self.assertListEqual(code, [Instr("LOAD_CONST", 7, lineno=3),
+                                    Instr("STORE_NAME", "x", lineno=3),
+                                    Instr("LOAD_CONST", 8, lineno=4),
+                                    Instr("STORE_NAME", "y", lineno=4),
+                                    Label(),
+                                    Instr("LOAD_CONST", 9, lineno=5),
+                                    Instr("STORE_NAME", "z", lineno=5)])
+
+    def test_slice(self):
+        code = Bytecode()
+        code.first_lineno = 3
+        code.extend([Instr("LOAD_CONST", 7),
+                     Instr("STORE_NAME", 'x'),
+                     SetLineno(4),
+                     Instr("LOAD_CONST", 8),
+                     Instr("STORE_NAME", 'y'),
+                     SetLineno(5),
+                     Instr("LOAD_CONST", 9),
+                     Instr("STORE_NAME", 'z')])
+        sliced_code = code[:]
+        self.assertEqual(code, sliced_code)
+        for name in ("argcount", "posonlyargcount", "kwonlyargcount", "first_lineno",
+                     "name", "filename", "docstring", "cellvars", "freevars",
+                     "argnames"):
+            self.assertEqual(getattr(code, name, None),
+                             getattr(sliced_code, name, None))
+
+    def test_copy(self):
+        code = Bytecode()
+        code.first_lineno = 3
+        code.extend([Instr("LOAD_CONST", 7),
+                     Instr("STORE_NAME", 'x'),
+                     SetLineno(4),
+                     Instr("LOAD_CONST", 8),
+                     Instr("STORE_NAME", 'y'),
+                     SetLineno(5),
+                     Instr("LOAD_CONST", 9),
+                     Instr("STORE_NAME", 'z')])
+
+        copy_code = code.copy()
+        self.assertEqual(code, copy_code)
+        for name in ("argcount", "posonlyargcount", "kwonlyargcount", "first_lineno",
+                     "name", "filename", "docstring", "cellvars", "freevars",
+                     "argnames"):
+            self.assertEqual(getattr(code, name, None),
+                             getattr(copy_code, name, None))
 
     def test_from_code(self):
         code = get_code("""
@@ -97,12 +159,12 @@ class BytecodeTests(TestCase):
         concrete = code.to_concrete_bytecode()
         self.assertEqual(concrete.consts, [7, 8, 9])
         self.assertEqual(concrete.names, ['x', 'y', 'z'])
-        code.extend([ConcreteInstr("LOAD_CONST", 0, lineno=3),
-                     ConcreteInstr("STORE_NAME", 0, lineno=3),
-                     ConcreteInstr("LOAD_CONST", 1, lineno=4),
-                     ConcreteInstr("STORE_NAME", 1, lineno=4),
-                     ConcreteInstr("LOAD_CONST", 2, lineno=5),
-                     ConcreteInstr("STORE_NAME", 2, lineno=5)])
+        self.assertListEqual(list(concrete), [ConcreteInstr("LOAD_CONST", 0, lineno=3),
+                                              ConcreteInstr("STORE_NAME", 0, lineno=3),
+                                              ConcreteInstr("LOAD_CONST", 1, lineno=4),
+                                              ConcreteInstr("STORE_NAME", 1, lineno=4),
+                                              ConcreteInstr("LOAD_CONST", 2, lineno=5),
+                                              ConcreteInstr("STORE_NAME", 2, lineno=5)])
 
     def test_to_code(self):
         code = Bytecode()

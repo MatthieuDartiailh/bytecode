@@ -34,6 +34,8 @@ class BlockTests(unittest.TestCase):
         block.append(Label())
         with self.assertRaises(ValueError):
             list(block)
+        with self.assertRaises(ValueError):
+            block.legalize(1)
 
         # Only one jump allowed and only at the end
         block = BasicBlock()
@@ -42,6 +44,8 @@ class BlockTests(unittest.TestCase):
                       Instr('NOP')])
         with self.assertRaises(ValueError):
             list(block)
+        with self.assertRaises(ValueError):
+            block.legalize(1)
 
         # jump target must be a BasicBlock
         block = BasicBlock()
@@ -49,6 +53,22 @@ class BlockTests(unittest.TestCase):
         block.extend([Instr('JUMP_ABSOLUTE', label)])
         with self.assertRaises(ValueError):
             list(block)
+        with self.assertRaises(ValueError):
+            block.legalize(1)
+
+    def test_slice(self):
+        block = BasicBlock([Instr("NOP")])
+        next_block = BasicBlock()
+        block.next_block = next_block
+        self.assertEqual(block, block[:])
+        self.assertIs(next_block, block[:].next_block)
+
+    def test_copy(self):
+        block = BasicBlock([Instr("NOP")])
+        next_block = BasicBlock()
+        block.next_block = next_block
+        self.assertEqual(block, block.copy())
+        self.assertIs(next_block, block.copy().next_block)
 
 
 class BytecodeBlocksTests(TestCase):
@@ -134,6 +154,27 @@ class BytecodeBlocksTests(TestCase):
                                 SetLineno(5),
                                 Instr("LOAD_CONST", 9),
                                 Instr("STORE_NAME", 'z')])
+
+    def test_legalize(self):
+        code = Bytecode()
+        code.first_lineno = 3
+        code.extend([Instr("LOAD_CONST", 7),
+                     Instr("STORE_NAME", 'x'),
+                     Instr("LOAD_CONST", 8, lineno=4),
+                     Instr("STORE_NAME", 'y'),
+                     SetLineno(5),
+                     Instr("LOAD_CONST", 9, lineno=6),
+                     Instr("STORE_NAME", 'z')])
+
+        blocks = ControlFlowGraph.from_bytecode(code)
+        blocks.legalize()
+        self.assertBlocksEqual(blocks,
+                               [Instr("LOAD_CONST", 7, lineno=3),
+                                Instr("STORE_NAME", 'x', lineno=3),
+                                Instr("LOAD_CONST", 8, lineno=4),
+                                Instr("STORE_NAME", 'y', lineno=4),
+                                Instr("LOAD_CONST", 9, lineno=5),
+                                Instr("STORE_NAME", 'z', lineno=5)])
 
     def test_to_bytecode(self):
         # if test:

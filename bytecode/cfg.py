@@ -35,6 +35,44 @@ class BasicBlock(_bytecode._InstrList):
 
             yield instr
 
+    def __getitem__(self, index):
+        value = super().__getitem__(index)
+        if isinstance(index, slice):
+            value = type(self)(value)
+            value.next_block = self.next_block
+
+        return value
+
+    def copy(self):
+        new = type(self)(super().copy())
+        new.next_block = self.next_block
+        return new
+
+    def legalize(self, first_lineno):
+        """Check that all the element of the list are valid and remove SetLineno.
+
+        """
+        lineno_pos = []
+        set_lineno = None
+        current_lineno = first_lineno
+
+        for pos, instr in enumerate(self):
+            if isinstance(instr, SetLineno):
+                set_lineno = current_lineno = instr.lineno
+                lineno_pos.append(pos)
+                continue
+            if set_lineno is not None:
+                instr.lineno = set_lineno
+            elif instr.lineno is None:
+                instr.lineno = current_lineno
+            else:
+                current_lineno = instr.lineno
+
+        for i in reversed(lineno_pos):
+            del self[i]
+
+        return current_lineno
+
     def get_jump(self):
         if not self:
             return None
@@ -97,6 +135,14 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         self.argnames = []
 
         self.add_block()
+
+    def legalize(self):
+        """Legalize all blocks.
+
+        """
+        current_lineno = self.first_lineno
+        for block in self._blocks:
+            current_lineno = block.legalize(current_lineno)
 
     def get_block_index(self, block):
         try:

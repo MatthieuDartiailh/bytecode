@@ -132,7 +132,7 @@ class ConcreteInstr(Instr):
         return cls(name, arg, lineno=lineno)
 
 
-class ConcreteBytecode(_bytecode.BaseBytecode, list):
+class ConcreteBytecode(_bytecode._BaseBytecodeList):
 
     def __init__(self, instructions=(), *, consts=(), names=(), varnames=()):
         super().__init__()
@@ -155,6 +155,13 @@ class ConcreteBytecode(_bytecode.BaseBytecode, list):
                              "ConcreteInstr and SetLineno objects, "
                              "but %s was found"
                              % type(instr).__name__)
+
+    def _copy_attr_from(self, bytecode):
+        super()._copy_attr_from(bytecode)
+        if isinstance(bytecode, ConcreteBytecode):
+            self.consts = bytecode.consts
+            self.names = bytecode.names
+            self.varnames = bytecode.varnames
 
     def __repr__(self):
         return '<ConcreteBytecode instr#=%s>' % len(self)
