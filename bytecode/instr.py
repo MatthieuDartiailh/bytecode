@@ -4,6 +4,7 @@ import math
 import opcode as _opcode
 import sys
 import types
+from marshal import dumps as _dumps
 
 import bytecode as _bytecode
 
@@ -27,56 +28,12 @@ UNSET = object()
 
 
 def const_key(obj):
-    # Python implmentation of the C function _PyCode_ConstantKey()
-    # of Python 3.6
-
-    obj_type = type(obj)
-    # Note: check obj_type == test_type rather than isinstance(obj, test_type)
-    # to not merge instance of subtypes
-
-    if (obj is None
-        or obj is Ellipsis
-            or obj_type in {int, bool, bytes, str, types.CodeType}):
-        return (obj_type, obj)
-
-    if obj_type == float:
-        # all we need is to make the tuple different in either the 0.0
-        # or -0.0 case from all others, just to avoid the "coercion".
-        if obj == 0.0 and math.copysign(1.0, obj) < 0:
-            return (obj_type, obj, None)
-        else:
-            return (obj_type, obj)
-
-    if obj_type == complex:
-        # For the complex case we must make complex(x, 0.)
-        # different from complex(x, -0.) and complex(0., y)
-        # different from complex(-0., y), for any x and y.
-        # All four complex zeros must be distinguished.
-        real_negzero = (obj.real == 0.0 and math.copysign(1.0, obj.real) < 0.0)
-        imag_negzero = (obj.imag == 0.0 and math.copysign(1.0, obj.imag) < 0.0)
-
-        # use True, False and None singleton as tags for the real and imag
-        # sign, to make tuples different
-        if real_negzero and imag_negzero:
-            return (obj_type, obj, True)
-        elif imag_negzero:
-            return (obj_type, obj, False)
-        elif real_negzero:
-            return (obj_type, obj, None)
-        else:
-            return (obj_type, obj)
-
-    if type(obj) == tuple:
-        key = tuple(const_key(item) for item in obj)
-        return (obj_type, obj, key)
-
-    if type(obj) == frozenset:
-        key = frozenset(const_key(item) for item in obj)
-        return (obj_type, obj, key)
-
-    # For other types, we use the object identifier as an unique identifier
-    # to ensure that they are seen as unequal.
-    return (obj_type, id(obj))
+    try:
+        return _dumps(obj)
+    except ValueError:
+        # For other types, we use the object identifier as an unique identifier
+        # to ensure that they are seen as unequal.
+        return (type(obj), id(obj))
 
 
 def _check_lineno(lineno):
