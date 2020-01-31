@@ -11,6 +11,10 @@ New features:
 - :class:`Bytecode`, :class:`ConcreteBytecode`, :class:`BasicBlock` and 
   :class:`ControlFlowGraph` have a new :meth:`legalize` method validating 
   their content and removing SetLineno. PR #52
+- Modify the implementation of :code:`const_key` to avoid manual
+  synchronizations with :code:`_PyCode_ConstantKey` in CPython codebase and
+  allow the use of arbitrary Python objects as constants of nested code
+  objects. #54
 
 API changes:
 
