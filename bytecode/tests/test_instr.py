@@ -249,8 +249,8 @@ class InstrTests(TestCase):
 
         for each in f_code:
             if (isinstance(each, Instr)
-                and each.name == 'LOAD_CONST'
-                and isinstance(each.arg, CodeType)):
+               and each.name == 'LOAD_CONST'
+               and isinstance(each.arg, CodeType)):
                 instr_load_code = each
                 break
 
