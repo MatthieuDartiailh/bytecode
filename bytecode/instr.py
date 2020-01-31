@@ -1,9 +1,7 @@
 import enum
 import dis
-import math
 import opcode as _opcode
 import sys
-import types
 from marshal import dumps as _dumps
 
 import bytecode as _bytecode
