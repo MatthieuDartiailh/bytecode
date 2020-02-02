@@ -1,15 +1,15 @@
 ChangeLog
 =========
 
-unreleased: Version 0.10.0
--------------------------
+2020-02-02: Version 0.10.0
+--------------------------
 
 New features:
 
-- Slices and copy of :class:`Bytecode`, :class:`ConcreteBytecode` and 
+- Slices and copy of :class:`Bytecode`, :class:`ConcreteBytecode` and
   :class:`BasicBlock` are now  of the same type as the original container. PR #52
-- :class:`Bytecode`, :class:`ConcreteBytecode`, :class:`BasicBlock` and 
-  :class:`ControlFlowGraph` have a new :meth:`legalize` method validating 
+- :class:`Bytecode`, :class:`ConcreteBytecode`, :class:`BasicBlock` and
+  :class:`ControlFlowGraph` have a new :meth:`legalize` method validating
   their content and removing SetLineno. PR #52
 - Modify the implementation of :code:`const_key` to avoid manual
   synchronizations with :code:`_PyCode_ConstantKey` in CPython codebase and

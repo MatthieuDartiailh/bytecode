@@ -1,4 +1,4 @@
-__version__ = '0.10.0.dev'
+__version__ = '0.10.0'
 
 __all__ = ['Label', 'Instr', 'SetLineno', 'Bytecode',
            'ConcreteInstr', 'ConcreteBytecode',
