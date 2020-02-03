@@ -432,6 +432,43 @@ class ConcreteBytecodeTests(TestCase):
                          ConcreteInstr("STORE_NAME", 2)])
         self.assertEqual(concrete, concrete.copy())
 
+    def test_offset_index(self):
+        concrete = ConcreteBytecode()
+        concrete[:] = [
+            ConcreteInstr('LOAD_FAST', 0),
+            ConcreteInstr('LOAD_FAST', 1),
+            SetLineno(2),
+            ConcreteInstr('BINARY_ADD'),
+            ConcreteInstr('RETURN_VALUE')
+        ]
+        # simple cases
+        self.assertEqual(concrete.index_at_code_offset(0), 0)
+        self.assertEqual(concrete.instr_at_code_offset(0), concrete[0])
+        self.assertEqual(concrete.index_at_code_offset(3), 1)
+        self.assertEqual(concrete.instr_at_code_offset(3), concrete[1])
+        self.assertEqual(concrete.index_at_code_offset(7), 4)
+        self.assertEqual(concrete.instr_at_code_offset(7), concrete[4])
+
+        # these indices are deliberately different
+        # the index returns the lower bound, the SetLineno
+        # the instruction returns the actual instruction
+        self.assertEqual(concrete.index_at_code_offset(6), 2)
+        self.assertEqual(concrete.instr_at_code_offset(6), concrete[3])
+
+        # asking for the index at the end is OK, but not the instruction
+        self.assertEqual(concrete.index_at_code_offset(8), 5)
+        self.assertRaisesRegex(IndexError, 'out of range', concrete.instr_at_code_offset, 8)
+
+        # other disallowed things
+        self.assertRaisesRegex(IndexError, 'within', concrete.instr_at_code_offset, 1)
+        self.assertRaisesRegex(IndexError, 'within', concrete.instr_at_code_offset, 1)
+        self.assertRaisesRegex(IndexError, 'within', concrete.index_at_code_offset, 5)
+        self.assertRaisesRegex(IndexError, 'within', concrete.instr_at_code_offset, 5)
+        self.assertRaisesRegex(IndexError, 'out of range', concrete.index_at_code_offset, -1)
+        self.assertRaisesRegex(IndexError, 'out of range', concrete.instr_at_code_offset, -1)
+        self.assertRaisesRegex(IndexError, 'out of range', concrete.index_at_code_offset, 9)
+        self.assertRaisesRegex(IndexError, 'out of range', concrete.instr_at_code_offset, 9)
+
 
 class ConcreteFromCodeTests(TestCase):
 
