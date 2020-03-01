@@ -133,3 +133,7 @@ class FlagsTests(unittest.TestCase):
             code.flags = CompilerFlags(CompilerFlags.ITERABLE_COROUTINE)
             with self.assertRaises(ValueError):
                 code.update_flags(is_async=is_async)
+
+
+if __name__ == "__main__":
+    unittest.main()  # pragma: no cover
