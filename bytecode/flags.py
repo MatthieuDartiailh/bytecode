@@ -96,7 +96,7 @@ def infer_flags(bytecode, is_async=None):
             if sure_generator:
                 flags |= CompilerFlags.ASYNC_GENERATOR
             else:
-                flags |=  CompilerFlags.COROUTINE
+                flags |= CompilerFlags.COROUTINE
         elif bytecode.flags & CompilerFlags.ITERABLE_COROUTINE:
             if sure_async:
                 msg = ("The ITERABLE_COROUTINE flag is set but bytecode that"
@@ -104,10 +104,10 @@ def infer_flags(bytecode, is_async=None):
                        "detected. Please unset that flag before performing "
                        "inference.")
                 raise ValueError(msg)
-            flags |=  CompilerFlags.ITERABLE_COROUTINE
+            flags |= CompilerFlags.ITERABLE_COROUTINE
         elif bytecode.flags & CompilerFlags.ASYNC_GENERATOR:
             if not sure_generator:
-                flags |=  CompilerFlags.COROUTINE
+                flags |= CompilerFlags.COROUTINE
             else:
                 flags |= CompilerFlags.ASYNC_GENERATOR
 

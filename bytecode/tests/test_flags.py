@@ -69,8 +69,7 @@ class FlagsTests(unittest.TestCase):
         # Force coroutine
         code = ConcreteBytecode()
         code.update_flags(is_async=True)
-        self.assertTrue(bool(code.flags &
-                             CompilerFlags.COROUTINE))
+        self.assertTrue(bool(code.flags & CompilerFlags.COROUTINE))
 
         # Infer coroutine or async generator
         for i, expected in (("YIELD_VALUE", CompilerFlags.ASYNC_GENERATOR),
@@ -88,8 +87,7 @@ class FlagsTests(unittest.TestCase):
         code.append(ConcreteInstr('YIELD_VALUE'))
         code.flags = CompilerFlags(CompilerFlags.COROUTINE)
         code.update_flags(is_async=False)
-        self.assertTrue(bool(code.flags &
-                             CompilerFlags.GENERATOR))
+        self.assertTrue(bool(code.flags & CompilerFlags.GENERATOR))
 
         # Abort on coroutine
         code = ConcreteBytecode()
@@ -135,4 +133,3 @@ class FlagsTests(unittest.TestCase):
             code.flags = CompilerFlags(CompilerFlags.ITERABLE_COROUTINE)
             with self.assertRaises(ValueError):
                 code.update_flags(is_async=is_async)
-
