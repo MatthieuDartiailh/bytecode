@@ -4,6 +4,15 @@ ChangeLog
 unreleased: Version 0.11.0
 --------------------------
 
+New features:
+
+- The :func:`infer_flags` can now be used to forcibly mark a function as
+  asynchronous or not.
+
+Bugfixes:
+
+- Fix a design flaw in the flag inference mechanism that could very easily
+  lead to invalid flags configuration PR #56
 
 2020-02-02: Version 0.10.0
 --------------------------

@@ -404,7 +404,7 @@ Bytecode
       This computation requires to build the control flow graph associated with
       the code.
 
-    .. method:: update_flags(is_async: bool = False)
+    .. method:: update_flags(is_async: bool = None)
 
       Update the object flags by calling :py:func:infer_flags on itself.
 
@@ -480,7 +480,7 @@ ConcreteBytecode
       This computation requires to build the control flow graph associated with
       the code.
 
-   .. method:: update_flags(is_async: bool = False)
+   .. method:: update_flags(is_async: bool = None)
 
       Update the object flags by calling :py:func:infer_flags on itself.
 
@@ -596,7 +596,7 @@ ControlFlowGraph
       Compute the stack size required by a bytecode object. Will raise an
       exception if the bytecode is invalid.
 
-   .. method:: update_flags(is_async: bool = False)
+   .. method:: update_flags(is_async: bool = None)
 
       Update the object flags by calling :py:func:infer_flags on itself.
 
@@ -701,7 +701,7 @@ Compiler Flags
         has been imported from \_\_future\_\_
 
 
-.. function:: infer_flags(bytecode, async: bool = False) -> CompilerFlags
+.. function:: infer_flags(bytecode, async: bool = None) -> CompilerFlags
 
     Infer the correct values for the compiler flags for a given bytecode based
     on the instructions. The flags that can be inferred are :
@@ -712,6 +712,6 @@ Compiler Flags
     - COROUTINE
     - ASYNC_GENERATOR
 
-    The async optional keyword allow to force a detected generator to be turned
-    into an async generator. A code will be marked as a COROUTINE only if it
-    contains an async related instruction.
+    Force the code to be marked as asynchronous if True, prevent it from
+    being marked as asynchronous if False and simply infer the best
+    solution based on the opcode and the existing flag if None.
