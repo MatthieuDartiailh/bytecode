@@ -45,12 +45,14 @@ class FlagsTests(unittest.TestCase):
         # Infer generator
         code = ConcreteBytecode()
         code.append(ConcreteInstr('YIELD_VALUE'))
-        self.assertTrue(bool(infer_flags(code) & CompilerFlags.GENERATOR))
+        code.update_flags()
+        self.assertTrue(bool(code.flags & CompilerFlags.GENERATOR))
 
         # Infer coroutine
         code = ConcreteBytecode()
         code.append(ConcreteInstr('GET_AWAITABLE'))
-        self.assertTrue(bool(infer_flags(code) & CompilerFlags.COROUTINE))
+        code.update_flags()
+        self.assertTrue(bool(code.flags & CompilerFlags.COROUTINE))
 
         # Infer coroutine or async generator
         for i, expected in (("YIELD_VALUE", CompilerFlags.ASYNC_GENERATOR),
@@ -58,15 +60,16 @@ class FlagsTests(unittest.TestCase):
             code = ConcreteBytecode()
             code.append(ConcreteInstr('GET_AWAITABLE'))
             code.append(ConcreteInstr(i))
-            print(i, expected, infer_flags(code))
-            self.assertTrue(bool(infer_flags(code) & expected))
+            code.update_flags()
+            self.assertTrue(bool(code.flags & expected))
 
     def test_async_gen_no_flag_is_async_True(self):
         # Test inference when we request an async function
 
         # Force coroutine
         code = ConcreteBytecode()
-        self.assertTrue(bool(infer_flags(code, True) &
+        code.update_flags(is_async=True)
+        self.assertTrue(bool(code.flags &
                              CompilerFlags.COROUTINE))
 
         # Infer coroutine or async generator
@@ -74,8 +77,8 @@ class FlagsTests(unittest.TestCase):
                             ("YIELD_FROM", CompilerFlags.COROUTINE)):
             code = ConcreteBytecode()
             code.append(ConcreteInstr(i))
-            print(i, expected)
-            self.assertTrue(bool(infer_flags(code, True) & expected))
+            code.update_flags(is_async=True)
+            self.assertTrue(bool(code.flags & expected))
 
     def test_async_gen_no_flag_is_async_False(self):
         # Test inference when we request a non-async function
@@ -84,7 +87,8 @@ class FlagsTests(unittest.TestCase):
         code = ConcreteBytecode()
         code.append(ConcreteInstr('YIELD_VALUE'))
         code.flags = CompilerFlags(CompilerFlags.COROUTINE)
-        self.assertTrue(bool(infer_flags(code, False) &
+        code.update_flags(is_async=False)
+        self.assertTrue(bool(code.flags &
                              CompilerFlags.GENERATOR))
 
         # Abort on coroutine
@@ -92,9 +96,8 @@ class FlagsTests(unittest.TestCase):
         code.append(ConcreteInstr('GET_AWAITABLE'))
         code.flags = CompilerFlags(CompilerFlags.COROUTINE)
         with self.assertRaises(ValueError):
-            infer_flags(code, False)
+            code.update_flags(is_async=False)
 
-    # TODO
     def test_async_gen_flags(self):
         # Test inference in the presence of pre-existing flags
 
@@ -110,7 +113,8 @@ class FlagsTests(unittest.TestCase):
                                 (CompilerFlags.ITERABLE_COROUTINE,
                                  CompilerFlags.ITERABLE_COROUTINE)):
                 code.flags = CompilerFlags(f)
-                self.assertTrue(bool(infer_flags(code, is_async) & expected))
+                code.update_flags(is_async=is_async)
+                self.assertTrue(bool(code.flags & expected))
 
             # Infer coroutine
             code = ConcreteBytecode()
@@ -122,12 +126,13 @@ class FlagsTests(unittest.TestCase):
                                 (CompilerFlags.ITERABLE_COROUTINE,
                                  CompilerFlags.ITERABLE_COROUTINE)):
                 code.flags = CompilerFlags(f)
-                self.assertTrue(bool(infer_flags(code, is_async) & expected))
+                code.update_flags(is_async=is_async)
+                self.assertTrue(bool(code.flags & expected))
 
             # Crash on ITERABLE_COROUTINE with async bytecode
             code = ConcreteBytecode()
             code.append(ConcreteInstr('GET_AWAITABLE'))
             code.flags = CompilerFlags(CompilerFlags.ITERABLE_COROUTINE)
             with self.assertRaises(ValueError):
-                infer_flags(code, is_async)
+                code.update_flags(is_async=is_async)
 

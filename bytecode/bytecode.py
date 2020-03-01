@@ -75,7 +75,7 @@ class BaseBytecode:
             value = _bytecode.CompilerFlags(value)
         self._flags = value
 
-    def update_flags(self, *, is_async=False):
+    def update_flags(self, *, is_async=None):
         self.flags = infer_flags(self, is_async)
 
 
