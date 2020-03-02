@@ -439,7 +439,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
             code.split_block(1, 1)
 
         with self.assertRaises(ValueError) as e:
-            code.split_block(code[0], 2)
+            code.split_block(code[0], -2)
         self.assertIn("positive", e.exception.args[0])
 
     def test_split_block_end(self):
