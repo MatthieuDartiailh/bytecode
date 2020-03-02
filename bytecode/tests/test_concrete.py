@@ -165,7 +165,7 @@ class ConcreteBytecodeTests(TestCase):
     def test_repr(self):
         r = repr(ConcreteBytecode())
         self.assertIn("ConcreteBytecode", r)
-        self.assertIn("0", ConcreteBytecode)
+        self.assertIn("0", r)
 
     def test_eq(self):
         code = ConcreteBytecode()

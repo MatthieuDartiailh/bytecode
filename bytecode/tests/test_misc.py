@@ -261,8 +261,10 @@ L.  6  32: LOAD_CONST 3
         self.check_dump_bytecode(code, expected, lineno=True)
 
     def test_type_validation(self):
+        class T:
+            first_lineno = 1
         with self.assertRaises(TypeError):
-            bytecode.dump_bytecode(1)
+            bytecode.dump_bytecode(T())
 
 
 class MiscTests(unittest.TestCase):
