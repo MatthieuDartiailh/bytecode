@@ -260,6 +260,12 @@ L.  6  32: LOAD_CONST 3
 """.lstrip("\n")
         self.check_dump_bytecode(code, expected, lineno=True)
 
+    def test_type_validation(self):
+        class T:
+            first_lineno = 1
+        with self.assertRaises(TypeError):
+            bytecode.dump_bytecode(T())
+
 
 class MiscTests(unittest.TestCase):
 
@@ -269,4 +275,4 @@ class MiscTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main()  # pragma: no cover

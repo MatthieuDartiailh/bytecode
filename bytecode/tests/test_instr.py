@@ -1,8 +1,50 @@
 #!/usr/bin/env python3
 import opcode
 import unittest
-from bytecode import UNSET, Label, Instr, CellVar, FreeVar, BasicBlock
+from bytecode import (UNSET, Label, Instr, CellVar, FreeVar, BasicBlock,
+                      SetLineno, Compare)
 from bytecode.tests import TestCase
+
+
+class SetLinenoTests(TestCase):
+
+    def test_lineno(self):
+        lineno = SetLineno(1)
+        self.assertEqual(lineno.lineno, 1)
+
+    def test_equality(self):
+        lineno = SetLineno(1)
+        self.assertNotEqual(lineno, 1)
+        self.assertEqual(lineno, SetLineno(1))
+        self.assertNotEqual(lineno, SetLineno(2))
+
+
+class VariableTests(TestCase):
+
+    def test_str(self):
+        for cls in (CellVar, FreeVar):
+            var = cls("a")
+            self.assertEqual(str(var), "a")
+
+    def test_repr(self):
+        for cls in (CellVar, FreeVar):
+            var = cls("_a_x_a_")
+            r = repr(var)
+            self.assertIn("_a_x_a_", r)
+            self.assertIn(cls.__name__, r)
+
+    def test_eq(self):
+        f1 = FreeVar("a")
+        f2 = FreeVar("b")
+        c1 = CellVar("a")
+        c2 = CellVar("b")
+
+        for v1, v2, eq in ((f1, f1, True), (f1, f2, False), (f1, c1, False),
+                           (c1, c1, True), (c1, c2, False)):
+            if eq:
+                self.assertEqual(v1, v2)
+            else:
+                self.assertNotEqual(v1, v2)
 
 
 class InstrTests(TestCase):
@@ -19,6 +61,22 @@ class InstrTests(TestCase):
             Instr(1)
         with self.assertRaises(ValueError):
             Instr("xxx")
+
+    def test_repr(self):
+
+        # No arg
+        r = repr(Instr("NOP", lineno=10))
+        self.assertIn("NOP", r)
+        self.assertIn("10", r)
+        self.assertIn("lineno", r)
+
+        # Arg
+        r = repr(Instr("LOAD_FAST", "_x_", lineno=10))
+        self.assertIn("LOAD_FAST", r)
+        self.assertIn("lineno", r)
+        self.assertIn("10", r)
+        self.assertIn("arg", r)
+        self.assertIn("_x_", r)
 
     def test_invalid_arg(self):
         label = Label()
@@ -50,6 +108,10 @@ class InstrTests(TestCase):
         Instr("LOAD_CONST", 1.0)
         Instr("LOAD_CONST", object())
 
+        # hascompare
+        self.assertRaises(TypeError, Instr, "COMPARE_OP", 1)
+        Instr("COMPARE_OP", Compare.EQ)
+
         # HAVE_ARGUMENT
         self.assertRaises(ValueError, Instr, "CALL_FUNCTION", -1)
         self.assertRaises(TypeError, Instr, "CALL_FUNCTION", 3.0)
@@ -63,6 +125,12 @@ class InstrTests(TestCase):
         # not HAVE_ARGUMENT
         self.assertRaises(ValueError, Instr, "NOP", 0)
         Instr("NOP")
+
+    def test_require_arg(self):
+        i = Instr("CALL_FUNCTION", 3)
+        self.assertTrue(i.require_arg())
+        i = Instr("NOP")
+        self.assertFalse(i.require_arg())
 
     def test_attr(self):
         instr = Instr("LOAD_CONST", 3, lineno=5)
@@ -107,6 +175,7 @@ class InstrTests(TestCase):
     def test_compare(self):
         instr = Instr("LOAD_CONST", 3, lineno=7)
         self.assertEqual(instr, Instr("LOAD_CONST", 3, lineno=7))
+        self.assertNotEqual(instr, 1)
 
         # different lineno
         self.assertNotEqual(instr, Instr("LOAD_CONST", 3))
@@ -265,4 +334,4 @@ class InstrTests(TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main()  # pragma: no cover

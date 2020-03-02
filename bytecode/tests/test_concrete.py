@@ -5,7 +5,7 @@ import types
 import unittest
 import textwrap
 from bytecode import (UNSET, Label, Instr, SetLineno, Bytecode,
-                      CellVar, FreeVar,
+                      CellVar, FreeVar, CompilerFlags,
                       ConcreteInstr, ConcreteBytecode)
 from bytecode.tests import get_code, TestCase, WORDCODE
 
@@ -161,6 +161,39 @@ class ConcreteInstrTests(TestCase):
 
 
 class ConcreteBytecodeTests(TestCase):
+
+    def test_repr(self):
+        r = repr(ConcreteBytecode())
+        self.assertIn("ConcreteBytecode", r)
+        self.assertIn("0", r)
+
+    def test_eq(self):
+        code = ConcreteBytecode()
+        self.assertFalse(code == 1)
+
+        for name, val in (("names", ["a"]), ("varnames", ["a"]),
+                          ("consts", [1]),
+                          ("argcount", 1), ("kwonlyargcount", 2),
+                          ("flags", CompilerFlags(CompilerFlags.GENERATOR)),
+                          ("first_lineno", 10), ("filename", "xxxx.py"),
+                          ("name", "__x"), ("docstring", "x-x-x"),
+                          ("cellvars", [CellVar("x")]),
+                          ("freevars", [FreeVar("x")])):
+            c = ConcreteBytecode()
+            setattr(c, name, val)
+            # For obscure reasons using assertNotEqual here fail
+            self.assertFalse(code == c)
+
+        if sys.version_info > (3, 8):
+            c = ConcreteBytecode()
+            c.posonlyargcount = 10
+            self.assertFalse(code == c)
+
+        c = ConcreteBytecode()
+        c.consts = [1]
+        code.consts = [1]
+        c.append(ConcreteInstr("LOAD_CONST", 0))
+        self.assertFalse(code == c)
 
     def test_attr(self):
         code_obj = get_code("x = 5")

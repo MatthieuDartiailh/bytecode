@@ -176,6 +176,11 @@ class BytecodeBlocksTests(TestCase):
                                 Instr("LOAD_CONST", 9, lineno=5),
                                 Instr("STORE_NAME", 'z', lineno=5)])
 
+    def test_repr(self):
+        r = repr(ControlFlowGraph())
+        self.assertIn("ControlFlowGraph", r)
+        self.assertIn("1", r)
+
     def test_to_bytecode(self):
         # if test:
         #     x = 2
@@ -379,12 +384,31 @@ class BytecodeBlocksFunctionalTests(TestCase):
         code2 = disassemble(source)
         self.assertEqual(code1, code2)
 
+        # Type mismatch
+        self.assertFalse(code1 == 1)
+
+        # argnames mismatch
+        cfg = ControlFlowGraph()
+        cfg.argnames = 10
+        self.assertFalse(code1 == cfg)
+
+        # instr mismatch
+        cfg = ControlFlowGraph()
+        cfg.argnames = code1.argnames
+        self.assertFalse(code1 == cfg)
+
     def check_getitem(self, code):
         # check internal Code block indexes (index by index, index by label)
         for block_index, block in enumerate(code):
             self.assertIs(code[block_index], block)
             self.assertIs(code[block], block)
             self.assertEqual(code.get_block_index(block), block_index)
+
+    def test_delitem(self):
+        cfg = ControlFlowGraph()
+        b = cfg.add_block()
+        del cfg[b]
+        self.assertEqual(len(cfg.get_instructions()), 0)
 
     def sample_code(self):
         code = disassemble('x = 1', remove_last_return_none=True)
@@ -412,6 +436,13 @@ class BytecodeBlocksFunctionalTests(TestCase):
                                [Instr('STORE_NAME', 'x', lineno=1)],
                                [Instr('NOP', lineno=1)])
         self.check_getitem(code)
+
+        with self.assertRaises(TypeError):
+            code.split_block(1, 1)
+
+        with self.assertRaises(ValueError) as e:
+            code.split_block(code[0], -2)
+        self.assertIn("positive", e.exception.args[0])
 
     def test_split_block_end(self):
         code = self.sample_code()
@@ -540,7 +571,9 @@ class CFGStacksizeComputationTests(TestCase):
         self.assertEqual(code.co_stacksize, cfg.compute_stacksize())
 
     def test_empty_code(self):
-        self.assertEqual(ControlFlowGraph().compute_stacksize(), 0)
+        cfg = ControlFlowGraph()
+        del cfg[0]
+        self.assertEqual(cfg.compute_stacksize(), 0)
 
     def test_handling_of_set_lineno(self):
         code = Bytecode()

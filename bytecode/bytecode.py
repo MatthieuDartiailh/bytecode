@@ -46,8 +46,6 @@ class BaseBytecode:
                 return False
         if self.kwonlyargcount != other.kwonlyargcount:
             return False
-        if self.compute_stacksize() != other.compute_stacksize():
-            return False
         if self.flags != other.flags:
             return False
         if self.first_lineno != other.first_lineno:
@@ -62,6 +60,8 @@ class BaseBytecode:
             return False
         if self.freevars != other.freevars:
             return False
+        if self.compute_stacksize() != other.compute_stacksize():
+            return False
 
         return True
 
@@ -75,7 +75,7 @@ class BaseBytecode:
             value = _bytecode.CompilerFlags(value)
         self._flags = value
 
-    def update_flags(self, *, is_async=False):
+    def update_flags(self, *, is_async=None):
         self.flags = infer_flags(self, is_async)
 
 
