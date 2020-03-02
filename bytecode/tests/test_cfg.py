@@ -176,6 +176,9 @@ class BytecodeBlocksTests(TestCase):
                                 Instr("LOAD_CONST", 9, lineno=5),
                                 Instr("STORE_NAME", 'z', lineno=5)])
 
+    def test_repr(self):
+        pass # XXX
+
     def test_to_bytecode(self):
         # if test:
         #     x = 2
@@ -379,12 +382,17 @@ class BytecodeBlocksFunctionalTests(TestCase):
         code2 = disassemble(source)
         self.assertEqual(code1, code2)
 
+        # XXX expand
+
     def check_getitem(self, code):
         # check internal Code block indexes (index by index, index by label)
         for block_index, block in enumerate(code):
             self.assertIs(code[block_index], block)
             self.assertIs(code[block], block)
             self.assertEqual(code.get_block_index(block), block_index)
+
+    def test_delitem(self):
+        pass  # XXX
 
     def sample_code(self):
         code = disassemble('x = 1', remove_last_return_none=True)
@@ -412,6 +420,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
                                [Instr('STORE_NAME', 'x', lineno=1)],
                                [Instr('NOP', lineno=1)])
         self.check_getitem(code)
+
+        # XXX expand
 
     def test_split_block_end(self):
         code = self.sample_code()

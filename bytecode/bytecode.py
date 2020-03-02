@@ -46,8 +46,6 @@ class BaseBytecode:
                 return False
         if self.kwonlyargcount != other.kwonlyargcount:
             return False
-        if self.compute_stacksize() != other.compute_stacksize():
-            return False
         if self.flags != other.flags:
             return False
         if self.first_lineno != other.first_lineno:
@@ -61,6 +59,8 @@ class BaseBytecode:
         if self.cellvars != other.cellvars:
             return False
         if self.freevars != other.freevars:
+            return False
+        if self.compute_stacksize() != other.compute_stacksize():
             return False
 
         return True
@@ -129,7 +129,7 @@ class _BaseBytecodeList(BaseBytecode, list):
             yield instr
 
     def _check_instr(self, instr):
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
 
 class _InstrList(list):

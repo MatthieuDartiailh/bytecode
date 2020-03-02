@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import textwrap
 import unittest
-from bytecode import Label, Instr, FreeVar, Bytecode, SetLineno, ConcreteInstr
+from bytecode import (Label, Instr, FreeVar, CellVar, Bytecode, SetLineno,
+                      ConcreteInstr)
 from bytecode.tests import TestCase, get_code
 
 
