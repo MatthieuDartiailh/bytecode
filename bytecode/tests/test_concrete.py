@@ -174,7 +174,6 @@ class ConcreteBytecodeTests(TestCase):
                           ("name", "__x"), ("docstring", "x-x-x"),
                           ("cellvars", [CellVar("x")]),
                           ("freevars", [FreeVar("x")])):
-                          # names, varnames, consts
             c = ConcreteBytecode()
             setattr(c, name, val)
             # For obscure reasons using assertNotEqual here fail

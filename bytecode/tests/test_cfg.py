@@ -177,7 +177,9 @@ class BytecodeBlocksTests(TestCase):
                                 Instr("STORE_NAME", 'z', lineno=5)])
 
     def test_repr(self):
-        pass # XXX
+        r = repr(ControlFlowGraph())
+        self.assertIn("ControlFlowGraph", r)
+        self.assertIn("0", r)
 
     def test_to_bytecode(self):
         # if test:
@@ -382,7 +384,16 @@ class BytecodeBlocksFunctionalTests(TestCase):
         code2 = disassemble(source)
         self.assertEqual(code1, code2)
 
-        # XXX expand
+        # Type mismatch
+        self.assertNotEqual(code1, 1)
+
+        # argnames mismatch
+        self.assertNotEqual(code1, ControlFlowGraph())
+
+        # instr mismatch
+        cfg = ControlFlowGraph()
+        cfg.argnames = code1.argnames
+        self.assertNotEqual(code1, cfg)
 
     def check_getitem(self, code):
         # check internal Code block indexes (index by index, index by label)
@@ -392,7 +403,10 @@ class BytecodeBlocksFunctionalTests(TestCase):
             self.assertEqual(code.get_block_index(block), block_index)
 
     def test_delitem(self):
-        pass  # XXX
+        cfg = ControlFlowGraph()
+        b = cfg.add_block()
+        del cfg[b]
+        self.assertEqual(len(cfg.get_instructions()), 0)
 
     def sample_code(self):
         code = disassemble('x = 1', remove_last_return_none=True)
@@ -421,7 +435,12 @@ class BytecodeBlocksFunctionalTests(TestCase):
                                [Instr('NOP', lineno=1)])
         self.check_getitem(code)
 
-        # XXX expand
+        with self.assertRaises(TypeError):
+            code.split_block(1, 1)
+
+        with self.assertRaises(ValueError) as e:
+            code.split_block(code[0], 2)
+        self.assertIn("positive", e.exception.args[0])
 
     def test_split_block_end(self):
         code = self.sample_code()
