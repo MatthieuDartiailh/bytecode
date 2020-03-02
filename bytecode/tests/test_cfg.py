@@ -385,15 +385,17 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(code1, code2)
 
         # Type mismatch
-        self.assertNotEqual(code1, 1)
+        self.assertFalse(code1 == 1)
 
         # argnames mismatch
-        self.assertNotEqual(code1, ControlFlowGraph())
+        cfg = ControlFlowGraph()
+        cfg.argnames = 10
+        self.assertFalse(code1 == cfg)
 
         # instr mismatch
         cfg = ControlFlowGraph()
         cfg.argnames = code1.argnames
-        self.assertNotEqual(code1, cfg)
+        self.assertFalse(code1 == cfg)
 
     def check_getitem(self, code):
         # check internal Code block indexes (index by index, index by label)
@@ -569,7 +571,9 @@ class CFGStacksizeComputationTests(TestCase):
         self.assertEqual(code.co_stacksize, cfg.compute_stacksize())
 
     def test_empty_code(self):
-        self.assertEqual(ControlFlowGraph().compute_stacksize(), 0)
+        cfg = ControlFlowGraph()
+        del cfg[0]
+        self.assertEqual(cfg.compute_stacksize(), 0)
 
     def test_handling_of_set_lineno(self):
         code = Bytecode()

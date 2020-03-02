@@ -162,9 +162,14 @@ class ConcreteInstrTests(TestCase):
 
 class ConcreteBytecodeTests(TestCase):
 
+    def test_repr(self):
+        r = repr(ConcreteBytecode())
+        self.assertIn("ConcreteBytecode", r)
+        self.assertIn("0", ConcreteBytecode)
+
     def test_eq(self):
         code = ConcreteBytecode()
-        self.assertNotEqual(code, 1)
+        self.assertFalse(code == 1)
 
         for name, val in (("names", ["a"]), ("varnames", ["a"]),
                           ("consts", [1]),
