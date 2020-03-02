@@ -1,6 +1,7 @@
 [run]
 omit =
     setup.py
+    bytecode/tests/*
 
 [report]
 # Regexes for lines to exclude from consideration
