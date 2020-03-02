@@ -179,7 +179,7 @@ class BytecodeBlocksTests(TestCase):
     def test_repr(self):
         r = repr(ControlFlowGraph())
         self.assertIn("ControlFlowGraph", r)
-        self.assertIn("0", r)
+        self.assertIn("1", r)
 
     def test_to_bytecode(self):
         # if test:
