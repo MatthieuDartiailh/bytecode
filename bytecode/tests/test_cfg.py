@@ -765,6 +765,30 @@ class CFGStacksizeComputationTests(TestCase):
         self.assertEqual(test.__code__.co_stacksize, 1)
         self.assertEqual(test(1), 0)
 
+    def test_huge_code_with_numerous_blocks(self):
+        def base_func(x):
+            pass
+
+        def mk_if_then_else(depth):
+            instructions = []
+            for i in range(depth):
+                label_else = Label()
+                instructions.extend([
+                    Instr("LOAD_FAST", "x"),
+                    Instr("POP_JUMP_IF_FALSE", label_else),
+                    Instr("LOAD_GLOBAL", "f{}".format(i)),
+                    Instr("RETURN_VALUE"),
+                    label_else
+                ])
+            instructions.extend([
+                Instr("LOAD_CONST", None),
+                Instr("RETURN_VALUE"),
+            ])
+            return instructions
+
+        bytecode = Bytecode(mk_if_then_else(5000))
+        bytecode.compute_stacksize()
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover

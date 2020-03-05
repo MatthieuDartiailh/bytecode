@@ -86,15 +86,29 @@ class BasicBlock(_bytecode._InstrList):
         return target_block
 
 
-def _compute_stack_size(block, size, maxsize):
+def _compute_stack_size_impl(block, size, maxsize):
+    """
+    The function for reducing the use of function stacks.
+    The key point is getting rid of nested recursions.
+    HOW-TO:
+        Following the methods of Trampoline
+        (see https://en.wikipedia.org/wiki/Trampoline_(computing)),
+
+        We throw out the arguments of the recursive calls,
+        i.e,  'yield block, size, maxsize' instead of
+        '_compute_stack_size_impl(block, size, maxsize)'.
+
+        By this means, the arguments thrown out will be invoked
+        by '_compute_stack_size'.
+    """
 
     if block.seen or block.startsize >= size:
-        return maxsize
+        yield maxsize
 
     def update_size(delta, size, maxsize):
         size += delta
         if size < 0:
-            msg = 'Failed to compute stacksize, got negative size'
+            msg = "Failed to compute stacksize, got negative size"
             raise RuntimeError(msg)
         maxsize = max(maxsize, size)
         return size, maxsize
@@ -108,22 +122,51 @@ def _compute_stack_size(block, size, maxsize):
 
         if instr.has_jump():
             # first compute the taken-jump path
-            taken_size, maxsize = update_size(instr.stack_effect(jump=True),
-                                              size, maxsize)
-            maxsize = _compute_stack_size(instr.arg, taken_size, maxsize)
+            taken_size, maxsize = update_size(
+                instr.stack_effect(jump=True), size, maxsize
+            )
+            maxsize = yield instr.arg, taken_size, maxsize
 
             if instr.is_uncond_jump():
                 block.seen = False
-                return maxsize
+                yield maxsize
 
         # jump=False: non-taken path of jumps, or any non-jump
-        size, maxsize = update_size(instr.stack_effect(jump=False),
-                                    size, maxsize)
+        size, maxsize = update_size(instr.stack_effect(jump=False), size, maxsize)
     if block.next_block:
-        maxsize = _compute_stack_size(block.next_block, size, maxsize)
+        maxsize = yield block.next_block, size, maxsize
 
     block.seen = 0
-    return maxsize
+    yield maxsize
+
+
+def _compute_stack_size(block, size, maxsize):
+    # 'coro' is a suspended function
+    coro = _compute_stack_size_impl(block, size, maxsize)
+    coroutines = []
+
+    push_coroutine = coroutines.append
+    pop_coroutine = coroutines.pop
+    args = None
+
+    try:
+        while True:
+            args = coro.send(None)
+
+            while isinstance(args, int):
+                # if args is an integer,
+                # it shall be result instead of the arguments
+                coro = pop_coroutine()
+                args = coro.send(args)
+
+            push_coroutine(coro)
+            coro = _compute_stack_size_impl(*args)
+
+    except IndexError:
+        # No scheduling coroutines now, and 'args' is the return
+        # of the first coroutine.
+        assert args is not None
+        return args
 
 
 class ControlFlowGraph(_bytecode.BaseBytecode):
