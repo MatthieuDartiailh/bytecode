@@ -52,4 +52,4 @@ jobs:
           python -m pip install --upgrade pip wheel
           pip install tox tox-gh-actions
       - name: Run tox
-        run: tox
+        run: python -m tox
