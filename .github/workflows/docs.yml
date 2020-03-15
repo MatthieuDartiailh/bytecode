@@ -34,4 +34,4 @@ jobs:
       - name: Build documentation
         run: |
           mkdir docs_output;
-          sphinx-build docs/source docs_output -W -b html;
+          sphinx-build doc docs_output -W -b html;
