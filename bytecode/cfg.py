@@ -331,7 +331,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         block2 = BasicBlock(instructions)
         block.next_block = block2
 
-        for block in self[block_index + 1 :]:
+        for block in self[block_index + 1:]:
             self._block_index[id(block)] += 1
 
         self._blocks.insert(block_index + 1, block2)
