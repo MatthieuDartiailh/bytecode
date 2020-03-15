@@ -1,29 +1,51 @@
-__version__ = '0.12.0.dev'
+__version__ = "0.12.0.dev"
 
-__all__ = ['Label', 'Instr', 'SetLineno', 'Bytecode',
-           'ConcreteInstr', 'ConcreteBytecode',
-           'ControlFlowGraph', 'CompilerFlags', 'Compare']
+__all__ = [
+    "Label",
+    "Instr",
+    "SetLineno",
+    "Bytecode",
+    "ConcreteInstr",
+    "ConcreteBytecode",
+    "ControlFlowGraph",
+    "CompilerFlags",
+    "Compare",
+]
 
 from bytecode.flags import CompilerFlags
-from bytecode.instr import (UNSET, Label, SetLineno, Instr, CellVar, FreeVar,   # noqa
-                            Compare)
-from bytecode.bytecode import BaseBytecode, _BaseBytecodeList, _InstrList, Bytecode   # noqa
-from bytecode.concrete import (ConcreteInstr, ConcreteBytecode,   # noqa
-                               # import needed to use it in bytecode.py
-                               _ConvertBytecodeToConcrete)
-from bytecode.cfg import BasicBlock, ControlFlowGraph   # noqa
+from bytecode.instr import (
+    UNSET,
+    Label,
+    SetLineno,
+    Instr,
+    CellVar,
+    FreeVar,  # noqa
+    Compare,
+)
+from bytecode.bytecode import (
+    BaseBytecode,
+    _BaseBytecodeList,
+    _InstrList,
+    Bytecode,
+)  # noqa
+from bytecode.concrete import (
+    ConcreteInstr,
+    ConcreteBytecode,  # noqa
+    # import needed to use it in bytecode.py
+    _ConvertBytecodeToConcrete,
+)
+from bytecode.cfg import BasicBlock, ControlFlowGraph  # noqa
 
 
 def dump_bytecode(bytecode, *, lineno=False):
-
     def format_line(index, line):
         nonlocal cur_lineno, prev_lineno
         if lineno:
             if cur_lineno != prev_lineno:
-                line = 'L.% 3s % 3s: %s' % (cur_lineno, index, line)
+                line = "L.% 3s % 3s: %s" % (cur_lineno, index, line)
                 prev_lineno = cur_lineno
             else:
-                line = '      % 3s: %s' % (index, line)
+                line = "      % 3s: %s" % (index, line)
         else:
             line = line
         return line
@@ -34,20 +56,20 @@ def dump_bytecode(bytecode, *, lineno=False):
         if arg is not UNSET:
             if isinstance(arg, Label):
                 try:
-                    arg = '<%s>' % labels[arg]
+                    arg = "<%s>" % labels[arg]
                 except KeyError:
-                    arg = '<error: unknown label>'
+                    arg = "<error: unknown label>"
             elif isinstance(arg, BasicBlock):
                 try:
-                    arg = '<%s>' % labels[id(arg)]
+                    arg = "<%s>" % labels[id(arg)]
                 except KeyError:
-                    arg = '<error: unknown block>'
+                    arg = "<error: unknown block>"
             else:
                 arg = repr(arg)
-            text = '%s %s' % (text, arg)
+            text = "%s %s" % (text, arg)
         return text
 
-    indent = ' ' * 4
+    indent = " " * 4
 
     cur_lineno = bytecode.first_lineno
     prev_lineno = None
@@ -60,11 +82,11 @@ def dump_bytecode(bytecode, *, lineno=False):
                 cur_lineno = instr.lineno
             if lineno:
                 fields.append(format_instr(instr))
-                line = ''.join(fields)
+                line = "".join(fields)
                 line = format_line(offset, line)
             else:
                 fields.append("% 3s    %s" % (offset, format_instr(instr)))
-                line = ''.join(fields)
+                line = "".join(fields)
             print(line)
 
             offset += instr.size
@@ -72,7 +94,7 @@ def dump_bytecode(bytecode, *, lineno=False):
         labels = {}
         for index, instr in enumerate(bytecode):
             if isinstance(instr, Label):
-                labels[instr] = 'label_instr%s' % index
+                labels[instr] = "label_instr%s" % index
 
         for index, instr in enumerate(bytecode):
             if isinstance(instr, Label):
@@ -90,10 +112,10 @@ def dump_bytecode(bytecode, *, lineno=False):
     elif isinstance(bytecode, ControlFlowGraph):
         labels = {}
         for block_index, block in enumerate(bytecode, 1):
-            labels[id(block)] = 'block%s' % block_index
+            labels[id(block)] = "block%s" % block_index
 
         for block_index, block in enumerate(bytecode, 1):
-            print('%s:' % labels[id(block)])
+            print("%s:" % labels[id(block)])
             prev_lineno = None
             for index, instr in enumerate(block):
                 if instr.lineno is not None:

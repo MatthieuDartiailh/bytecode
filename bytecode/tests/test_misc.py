@@ -54,7 +54,11 @@ label_instr13:
     LOAD_CONST 3
     RETURN_VALUE
 
-        """[1:].rstrip(" ")
+        """[
+            1:
+        ].rstrip(
+            " "
+        )
         self.check_dump_bytecode(code, expected)
 
         # with line numbers
@@ -78,12 +82,16 @@ label_instr13:
     L.  6  14: LOAD_CONST 3
            15: RETURN_VALUE
 
-        """[1:].rstrip(" ")
+        """[
+            1:
+        ].rstrip(
+            " "
+        )
         self.check_dump_bytecode(code, expected, lineno=True)
 
     def test_bytecode_broken_label(self):
         label = Label()
-        code = Bytecode([Instr('JUMP_ABSOLUTE', label)])
+        code = Bytecode([Instr("JUMP_ABSOLUTE", label)])
 
         expected = "    JUMP_ABSOLUTE <error: unknown label>\n\n"
         self.check_dump_bytecode(code, expected)
@@ -91,13 +99,15 @@ label_instr13:
     def test_blocks_broken_jump(self):
         block = BasicBlock()
         code = ControlFlowGraph()
-        code[0].append(Instr('JUMP_ABSOLUTE', block))
+        code[0].append(Instr("JUMP_ABSOLUTE", block))
 
-        expected = textwrap.dedent("""
+        expected = textwrap.dedent(
+            """
             block1:
                 JUMP_ABSOLUTE <error: unknown block>
 
-        """).lstrip("\n")
+        """
+        ).lstrip("\n")
         self.check_dump_bytecode(code, expected)
 
     def test_bytecode_blocks(self):
@@ -113,7 +123,8 @@ label_instr13:
         code = ControlFlowGraph.from_bytecode(code)
 
         # without line numbers
-        expected = textwrap.dedent("""
+        expected = textwrap.dedent(
+            """
             block1:
                 LOAD_FAST 'test'
                 LOAD_CONST 1
@@ -140,11 +151,13 @@ label_instr13:
                 LOAD_CONST 3
                 RETURN_VALUE
 
-        """).lstrip()
+        """
+        ).lstrip()
         self.check_dump_bytecode(code, expected)
 
         # with line numbers
-        expected = textwrap.dedent("""
+        expected = textwrap.dedent(
+            """
             block1:
                 L.  2   0: LOAD_FAST 'test'
                         1: LOAD_CONST 1
@@ -171,7 +184,8 @@ label_instr13:
                 L.  6   0: LOAD_CONST 3
                         1: RETURN_VALUE
 
-        """).lstrip()
+        """
+        ).lstrip()
         self.check_dump_bytecode(code, expected, lineno=True)
 
     def test_concrete_bytecode(self):
@@ -203,7 +217,9 @@ label_instr13:
  22    RETURN_VALUE
  24    LOAD_CONST 3
  26    RETURN_VALUE
-""".lstrip("\n")
+""".lstrip(
+                "\n"
+            )
         else:
             expected = """
   0    LOAD_FAST 0
@@ -220,7 +236,9 @@ label_instr13:
  31    RETURN_VALUE
  32    LOAD_CONST 3
  35    RETURN_VALUE
-""".lstrip("\n")
+""".lstrip(
+                "\n"
+            )
         self.check_dump_bytecode(code, expected)
 
         # with line numbers
@@ -240,7 +258,9 @@ L.  5  20: LOAD_CONST 2
        22: RETURN_VALUE
 L.  6  24: LOAD_CONST 3
        26: RETURN_VALUE
-""".lstrip("\n")
+""".lstrip(
+                "\n"
+            )
         else:
             expected = """
 L.  2   0: LOAD_FAST 0
@@ -257,20 +277,23 @@ L.  5  28: LOAD_CONST 2
        31: RETURN_VALUE
 L.  6  32: LOAD_CONST 3
        35: RETURN_VALUE
-""".lstrip("\n")
+""".lstrip(
+                "\n"
+            )
         self.check_dump_bytecode(code, expected, lineno=True)
 
     def test_type_validation(self):
         class T:
             first_lineno = 1
+
         with self.assertRaises(TypeError):
             bytecode.dump_bytecode(T())
 
 
 class MiscTests(unittest.TestCase):
-
     def test_version(self):
         import setup
+
         self.assertEqual(bytecode.__version__, setup.VERSION)
 
 

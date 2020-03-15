@@ -5,7 +5,6 @@ from bytecode.instr import Label, SetLineno, Instr
 
 
 class BasicBlock(_bytecode._InstrList):
-
     def __init__(self, instructions=None):
         # a BasicBlock object, or None
         self.next_block = None
@@ -19,19 +18,23 @@ class BasicBlock(_bytecode._InstrList):
             index += 1
 
             if not isinstance(instr, (SetLineno, Instr, ConcreteInstr)):
-                raise ValueError("BasicBlock must only contain SetLineno, "
-                                 "Instr and ConcreteInstr objects, "
-                                 "but %s was found"
-                                 % instr.__class__.__name__)
+                raise ValueError(
+                    "BasicBlock must only contain SetLineno, "
+                    "Instr and ConcreteInstr objects, "
+                    "but %s was found" % instr.__class__.__name__
+                )
 
             if isinstance(instr, Instr) and instr.has_jump():
                 if index < len(self):
-                    raise ValueError("Only the last instruction of a basic "
-                                     "block can be a jump")
+                    raise ValueError(
+                        "Only the last instruction of a basic " "block can be a jump"
+                    )
 
                 if not isinstance(instr.arg, BasicBlock):
-                    raise ValueError("Jump target must a BasicBlock, got %s",
-                                     type(instr.arg).__name__)
+                    raise ValueError(
+                        "Jump target must a BasicBlock, got %s",
+                        type(instr.arg).__name__,
+                    )
 
             yield instr
 
@@ -78,7 +81,7 @@ class BasicBlock(_bytecode._InstrList):
             return None
 
         last_instr = self[-1]
-        if not(isinstance(last_instr, Instr) and last_instr.has_jump()):
+        if not (isinstance(last_instr, Instr) and last_instr.has_jump()):
             return None
 
         target_block = last_instr.arg
@@ -94,7 +97,7 @@ def _compute_stack_size(block, size, maxsize):
     def update_size(delta, size, maxsize):
         size += delta
         if size < 0:
-            msg = 'Failed to compute stacksize, got negative size'
+            msg = "Failed to compute stacksize, got negative size"
             raise RuntimeError(msg)
         maxsize = max(maxsize, size)
         return size, maxsize
@@ -108,8 +111,9 @@ def _compute_stack_size(block, size, maxsize):
 
         if instr.has_jump():
             # first compute the taken-jump path
-            taken_size, maxsize = update_size(instr.stack_effect(jump=True),
-                                              size, maxsize)
+            taken_size, maxsize = update_size(
+                instr.stack_effect(jump=True), size, maxsize
+            )
             maxsize = _compute_stack_size(instr.arg, taken_size, maxsize)
 
             if instr.is_uncond_jump():
@@ -117,8 +121,7 @@ def _compute_stack_size(block, size, maxsize):
                 return maxsize
 
         # jump=False: non-taken path of jumps, or any non-jump
-        size, maxsize = update_size(instr.stack_effect(jump=False),
-                                    size, maxsize)
+        size, maxsize = update_size(instr.stack_effect(jump=False), size, maxsize)
     if block.next_block:
         maxsize = _compute_stack_size(block.next_block, size, maxsize)
 
@@ -127,7 +130,6 @@ def _compute_stack_size(block, size, maxsize):
 
 
 class ControlFlowGraph(_bytecode.BaseBytecode):
-
     def __init__(self):
         super().__init__()
         self._blocks = []
@@ -171,7 +173,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         return _compute_stack_size(self[0], 0, 0)
 
     def __repr__(self):
-        return '<ControlFlowGraph block#=%s>' % len(self._blocks)
+        return "<ControlFlowGraph block#=%s>" % len(self._blocks)
 
     def get_instructions(self):
         instructions = []
@@ -255,7 +257,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         block2 = BasicBlock(instructions)
         block.next_block = block2
 
-        for block in self[block_index + 1:]:
+        for block in self[block_index + 1 :]:
             self._block_index[id(block)] += 1
 
         self._blocks.insert(block_index + 1, block2)
