@@ -36,7 +36,11 @@ jobs:
     name: Unit tests
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
+        # This should work with only the `include`s but it currently doesn't because of this bug:
+        # https://github.community/t5/How-to-use-Git-and-GitHub/GitHub-Actions-Matrix-options-dont-work-as-documented/td-p/29558
+        python-version: [3.5, 3.6, 3.7, 3.8]
         include:
         - toxenv: py35
           python-version: 3.5
