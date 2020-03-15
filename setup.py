@@ -25,17 +25,17 @@
 #  - git commit -a -m "post-release"
 #  - git push
 
-VERSION = '0.12.0.dev'
+VERSION = "0.12.0.dev"
 
-DESCRIPTION = 'Python module to generate and modify bytecode'
+DESCRIPTION = "Python module to generate and modify bytecode"
 CLASSIFIERS = [
-    'Development Status :: 4 - Beta',
-    'Intended Audience :: Developers',
-    'License :: OSI Approved :: MIT License',
-    'Natural Language :: English',
-    'Operating System :: OS Independent',
-    'Programming Language :: Python :: 3',
-    'Topic :: Software Development :: Libraries :: Python Modules',
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
 # put most of the code inside main() to be able to import setup.py in
@@ -49,24 +49,24 @@ def main():
     except ImportError:
         from distutils.core import setup
 
-    with open('README.rst') as fp:
+    with open("README.rst") as fp:
         long_description = fp.read().strip()
 
     options = {
-        'name': 'bytecode',
-        'version': VERSION,
-        'license': 'MIT license',
-        'description': DESCRIPTION,
-        'long_description': long_description,
-        'url': 'https://github.com/vstinner/bytecode',
-        'author': 'Victor Stinner',
-        'author_email': 'victor.stinner@gmail.com',
-        'classifiers': CLASSIFIERS,
-        'packages': ['bytecode', 'bytecode.tests'],
-        'install_requires': ['aenum >=2.0;python_version<"3.6"']
+        "name": "bytecode",
+        "version": VERSION,
+        "license": "MIT license",
+        "description": DESCRIPTION,
+        "long_description": long_description,
+        "url": "https://github.com/vstinner/bytecode",
+        "author": "Victor Stinner",
+        "author_email": "victor.stinner@gmail.com",
+        "classifiers": CLASSIFIERS,
+        "packages": ["bytecode", "bytecode.tests"],
+        "install_requires": ['aenum >=2.0;python_version<"3.6"'],
     }
     setup(**options)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
