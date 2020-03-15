@@ -41,15 +41,6 @@ jobs:
         # This should work with only the `include`s but it currently doesn't because of this bug:
         # https://github.community/t5/How-to-use-Git-and-GitHub/GitHub-Actions-Matrix-options-dont-work-as-documented/td-p/29558
         python-version: [3.5, 3.6, 3.7, 3.8]
-        include:
-        - toxenv: py35
-          python-version: 3.5
-        - toxenv: py36
-          python-version: 3.6
-        - toxenv: py37
-          python-version: 3.7
-        - toxenv: py38
-          python-version: 3.8
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
@@ -59,8 +50,6 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel
-          pip install tox
+          pip install tox tox-gh-actions
       - name: Run tox
-        env:
-          TOXENV: ${{ matrix.toxenv }}
-        run: python -m tox
+        run: tox
