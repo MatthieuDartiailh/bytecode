@@ -522,7 +522,7 @@ BasicBlock
    .. method:: legalize(first_lineno: int)
 
       Check the validity of all the instruction and remove the :class:`SetLineno`
-      instances after updating the instructions. :parameter:`first_lineno` specifies
+      instances after updating the instructions.`first_lineno` specifies
       the line number to use for instruction without a set line number encountered
       before the first :class:`SetLineno` instance.
 

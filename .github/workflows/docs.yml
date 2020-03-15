@@ -30,7 +30,7 @@ jobs:
           python setup.py develop
       - name: Install doc building tools
         run: |
-          pip install sphinx sphinx_rtd_theme
+          pip install sphinx
           pip install -r doc/requirements.txt
       - name: Build documentation
         run: |
