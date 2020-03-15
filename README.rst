@@ -14,6 +14,10 @@ bytecode
    :alt: Code coverage of bytecode on codecov.io
    :target: https://codecov.io/github/vstinner/bytecode
 
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+   :alt: Code formatted using Black
+   :target: https://github.com/psf/black
+
 ``bytecode`` is a Python module to generate and modify bytecode.
 
 * `bytecode project homepage at GitHub
@@ -23,7 +27,7 @@ bytecode
 * `Download latest bytecode release at the Python Cheeseshop (PyPI)
   <https://pypi.python.org/pypi/bytecode>`_
 
-Install bytecode: ``python3 -m pip install bytecode``. It requires Python 3.4
+Install bytecode: ``python3 -m pip install bytecode``. It requires Python 3.5
 or newer.
 
 Example executing ``print('Hello World!')``:
