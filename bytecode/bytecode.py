@@ -206,4 +206,3 @@ class Bytecode(_InstrList, _BaseBytecodeList):
     def to_concrete_bytecode(self, compute_jumps_passes=None):
         converter = _bytecode._ConvertBytecodeToConcrete(self)
         return converter.to_concrete_bytecode(compute_jumps_passes=compute_jumps_passes)
-

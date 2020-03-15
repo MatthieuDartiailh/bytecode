@@ -31,7 +31,7 @@ jobs:
       - name: Install doc building tools
         run: |
           pip install sphinx sphinx_rtd_theme
-          pip install doc/requirements.txt
+          pip install -r doc/requirements.txt
       - name: Build documentation
         run: |
           mkdir docs_output;
