@@ -22,7 +22,8 @@ class CodeTests(unittest.TestCase):
         self.assertEqual(code, ref_code)
 
     def test_loop(self):
-        self.check('''
+        self.check(
+            """
             for x in range(1, 10):
                 x += 1
                 if x == 3:
@@ -32,25 +33,35 @@ class CodeTests(unittest.TestCase):
                     break
                 x = 0
             print(x)
-        ''')
+        """
+        )
 
     def test_varargs(self):
-        self.check('''
+        self.check(
+            """
             def func(a, b, *varargs):
                 pass
-        ''', function=True)
+        """,
+            function=True,
+        )
 
     def test_kwargs(self):
-        self.check('''
+        self.check(
+            """
             def func(a, b, **kwargs):
                 pass
-        ''', function=True)
+        """,
+            function=True,
+        )
 
     def test_kwonlyargs(self):
-        self.check('''
+        self.check(
+            """
             def func(*, arg, arg2):
                 pass
-        ''', function=True)
+        """,
+            function=True,
+        )
 
 
 if __name__ == "__main__":

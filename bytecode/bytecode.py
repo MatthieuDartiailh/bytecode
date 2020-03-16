@@ -6,15 +6,14 @@ from bytecode.flags import infer_flags
 
 
 class BaseBytecode:
-
     def __init__(self):
         self.argcount = 0
         if sys.version_info > (3, 8):
             self.posonlyargcount = 0
         self.kwonlyargcount = 0
         self.first_lineno = 1
-        self.name = '<module>'
-        self.filename = '<string>'
+        self.name = "<module>"
+        self.filename = "<string>"
         self.docstring = UNSET
         self.cellvars = []
         # we cannot recreate freevars from instructions because of super()
@@ -83,6 +82,7 @@ class _BaseBytecodeList(BaseBytecode, list):
     """List subclass providing type stable slicing and copying.
 
     """
+
     def __getitem__(self, index):
         value = super().__getitem__(index)
         if isinstance(index, slice):
@@ -133,7 +133,6 @@ class _BaseBytecodeList(BaseBytecode, list):
 
 
 class _InstrList(list):
-
     def _flat(self):
         instructions = []
         labels = {}
@@ -142,13 +141,12 @@ class _InstrList(list):
         offset = 0
         for index, instr in enumerate(self):
             if isinstance(instr, Label):
-                instructions.append('label_instr%s' % index)
+                instructions.append("label_instr%s" % index)
                 labels[instr] = offset
             else:
                 if isinstance(instr, Instr) and isinstance(instr.arg, Label):
                     target_label = instr.arg
-                    instr = _bytecode.ConcreteInstr(instr.name, 0,
-                                                    lineno=instr.lineno)
+                    instr = _bytecode.ConcreteInstr(instr.name, 0, lineno=instr.lineno)
                     jumps.append((target_label, instr))
                 instructions.append(instr)
                 offset += 1
@@ -162,11 +160,10 @@ class _InstrList(list):
         if not isinstance(other, _InstrList):
             other = _InstrList(other)
 
-        return (self._flat() == other._flat())
+        return self._flat() == other._flat()
 
 
 class Bytecode(_InstrList, _BaseBytecodeList):
-
     def __init__(self, instructions=()):
         BaseBytecode.__init__(self)
         self.argnames = []
@@ -181,12 +178,12 @@ class Bytecode(_InstrList, _BaseBytecodeList):
             yield instr
 
     def _check_instr(self, instr):
-        if not isinstance(instr, (Label, SetLineno, Instr,
-                                  _bytecode.ConcreteInstr)):
-            raise ValueError("Bytecode must only contain Label, "
-                             "SetLineno, Instr and ConcreteInstr objects, "
-                             "but %s was found"
-                             % type(instr).__name__)
+        if not isinstance(instr, (Label, SetLineno, Instr, _bytecode.ConcreteInstr)):
+            raise ValueError(
+                "Bytecode must only contain Label, "
+                "SetLineno, Instr and ConcreteInstr objects, "
+                "but %s was found" % type(instr).__name__
+            )
 
     def _copy_attr_from(self, bytecode):
         super()._copy_attr_from(bytecode)
@@ -203,11 +200,9 @@ class Bytecode(_InstrList, _BaseBytecodeList):
         return cfg.compute_stacksize()
 
     def to_code(self, compute_jumps_passes=None, stacksize=None):
-        bc = self.to_concrete_bytecode(
-            compute_jumps_passes=compute_jumps_passes)
+        bc = self.to_concrete_bytecode(compute_jumps_passes=compute_jumps_passes)
         return bc.to_code(stacksize=stacksize)
 
     def to_concrete_bytecode(self, compute_jumps_passes=None):
         converter = _bytecode._ConvertBytecodeToConcrete(self)
-        return converter.to_concrete_bytecode(
-            compute_jumps_passes=compute_jumps_passes)
+        return converter.to_concrete_bytecode(compute_jumps_passes=compute_jumps_passes)

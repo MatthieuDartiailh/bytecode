@@ -42,7 +42,7 @@ def _check_lineno(lineno):
 
 
 class SetLineno:
-    __slots__ = ('_lineno',)
+    __slots__ = ("_lineno",)
 
     def __init__(self, lineno):
         _check_lineno(lineno)
@@ -55,7 +55,7 @@ class SetLineno:
     def __eq__(self, other):
         if not isinstance(other, SetLineno):
             return False
-        return (self._lineno == other._lineno)
+        return self._lineno == other._lineno
 
 
 class Label:
@@ -63,7 +63,7 @@ class Label:
 
 
 class _Variable:
-    __slots__ = ('name',)
+    __slots__ = ("name",)
 
     def __init__(self, name):
         self.name = name
@@ -71,13 +71,13 @@ class _Variable:
     def __eq__(self, other):
         if type(self) != type(other):
             return False
-        return (self.name == other.name)
+        return self.name == other.name
 
     def __str__(self):
         return self.name
 
     def __repr__(self):
-        return '<%s %r>' % (self.__class__.__name__, self.name)
+        return "<%s %r>" % (self.__class__.__name__, self.name)
 
 
 class CellVar(_Variable):
@@ -90,48 +90,49 @@ class FreeVar(_Variable):
 
 def _check_arg_int(name, arg):
     if not isinstance(arg, int):
-        raise TypeError("operation %s argument must be an int, "
-                        "got %s"
-                        % (name, type(arg).__name__))
+        raise TypeError(
+            "operation %s argument must be an int, "
+            "got %s" % (name, type(arg).__name__)
+        )
 
-    if not(0 <= arg <= 2147483647):
-        raise ValueError("operation %s argument must be in "
-                         "the range 0..2,147,483,647"
-                         % name)
+    if not (0 <= arg <= 2147483647):
+        raise ValueError(
+            "operation %s argument must be in " "the range 0..2,147,483,647" % name
+        )
 
 
 if sys.version_info < (3, 8):
     _stack_effects = {
         # NOTE: the entries are all 2-tuples.  Entry[0/False] is non-taken jumps.
         # Entry[1/True] is for taken jumps.
-
         # opcodes not in dis.stack_effect
-        _opcode.opmap['EXTENDED_ARG']: (0, 0),
-        _opcode.opmap['NOP']: (0, 0),
-
+        _opcode.opmap["EXTENDED_ARG"]: (0, 0),
+        _opcode.opmap["NOP"]: (0, 0),
         # Jump taken/not-taken are different:
-        _opcode.opmap['JUMP_IF_TRUE_OR_POP']: (-1, 0),
-        _opcode.opmap['JUMP_IF_FALSE_OR_POP']: (-1, 0),
-        _opcode.opmap['FOR_ITER']: (1, -1),
-        _opcode.opmap['SETUP_WITH']: (1, 6),
-        _opcode.opmap['SETUP_ASYNC_WITH']: (0, 5),
-        _opcode.opmap['SETUP_EXCEPT']: (0, 6),   # as of 3.7, below for <=3.6
-        _opcode.opmap['SETUP_FINALLY']: (0, 6),  # as of 3.7, below for <=3.6
+        _opcode.opmap["JUMP_IF_TRUE_OR_POP"]: (-1, 0),
+        _opcode.opmap["JUMP_IF_FALSE_OR_POP"]: (-1, 0),
+        _opcode.opmap["FOR_ITER"]: (1, -1),
+        _opcode.opmap["SETUP_WITH"]: (1, 6),
+        _opcode.opmap["SETUP_ASYNC_WITH"]: (0, 5),
+        _opcode.opmap["SETUP_EXCEPT"]: (0, 6),  # as of 3.7, below for <=3.6
+        _opcode.opmap["SETUP_FINALLY"]: (0, 6),  # as of 3.7, below for <=3.6
     }
 
     # More stack effect values that are unique to the version of Python.
     if sys.version_info < (3, 7):
-        _stack_effects.update({
-            _opcode.opmap['SETUP_WITH']: (7, 7),
-            _opcode.opmap['SETUP_EXCEPT']: (6, 9),
-            _opcode.opmap['SETUP_FINALLY']: (6, 9),
-        })
+        _stack_effects.update(
+            {
+                _opcode.opmap["SETUP_WITH"]: (7, 7),
+                _opcode.opmap["SETUP_EXCEPT"]: (6, 9),
+                _opcode.opmap["SETUP_FINALLY"]: (6, 9),
+            }
+        )
 
 
 class Instr:
     """Abstract instruction."""
 
-    __slots__ = ('_name', '_opcode', '_arg', '_lineno')
+    __slots__ = ("_name", "_opcode", "_arg", "_lineno")
 
     def __init__(self, name, arg=UNSET, *, lineno=None):
         self._set(name, arg, lineno)
@@ -146,36 +147,41 @@ class Instr:
 
         if self._has_jump(opcode):
             if not isinstance(arg, (Label, _bytecode.BasicBlock)):
-                raise TypeError("operation %s argument type must be "
-                                "Label or BasicBlock, got %s"
-                                % (name, type(arg).__name__))
+                raise TypeError(
+                    "operation %s argument type must be "
+                    "Label or BasicBlock, got %s" % (name, type(arg).__name__)
+                )
 
         elif opcode in _opcode.hasfree:
             if not isinstance(arg, (CellVar, FreeVar)):
-                raise TypeError("operation %s argument must be CellVar "
-                                "or FreeVar, got %s"
-                                % (name, type(arg).__name__))
+                raise TypeError(
+                    "operation %s argument must be CellVar "
+                    "or FreeVar, got %s" % (name, type(arg).__name__)
+                )
 
-        elif (opcode in _opcode.haslocal
-              or opcode in _opcode.hasname):
+        elif opcode in _opcode.haslocal or opcode in _opcode.hasname:
             if not isinstance(arg, str):
-                raise TypeError("operation %s argument must be a str, "
-                                "got %s"
-                                % (name, type(arg).__name__))
+                raise TypeError(
+                    "operation %s argument must be a str, "
+                    "got %s" % (name, type(arg).__name__)
+                )
 
         elif opcode in _opcode.hasconst:
             if isinstance(arg, Label):
-                raise ValueError("label argument cannot be used "
-                                 "in %s operation" % name)
+                raise ValueError(
+                    "label argument cannot be used " "in %s operation" % name
+                )
             if isinstance(arg, _bytecode.BasicBlock):
-                raise ValueError("block argument cannot be used "
-                                 "in %s operation" % name)
+                raise ValueError(
+                    "block argument cannot be used " "in %s operation" % name
+                )
 
         elif opcode in _opcode.hascompare:
             if not isinstance(arg, Compare):
-                raise TypeError("operation %s argument type must be "
-                                "Compare, got %s"
-                                % (name, type(arg).__name__))
+                raise TypeError(
+                    "operation %s argument type must be "
+                    "Compare, got %s" % (name, type(arg).__name__)
+                )
 
         elif opcode >= _opcode.HAVE_ARGUMENT:
             _check_arg_int(name, arg)
@@ -209,7 +215,7 @@ class Instr:
 
     def require_arg(self):
         """Does the instruction require an argument?"""
-        return (self._opcode >= _opcode.HAVE_ARGUMENT)
+        return self._opcode >= _opcode.HAVE_ARGUMENT
 
     @property
     def name(self):
@@ -229,7 +235,7 @@ class Instr:
             raise TypeError("operator code must be an int")
         if 0 <= op <= 255:
             name = _opcode.opname[op]
-            valid = (name != '<%r>' % op)
+            valid = name != "<%r>" % op
         else:
             valid = False
         if not valid:
@@ -276,11 +282,9 @@ class Instr:
 
     def __repr__(self):
         if self._arg is not UNSET:
-            return ('<%s arg=%r lineno=%s>'
-                    % (self._name, self._arg, self._lineno))
+            return "<%s arg=%r lineno=%s>" % (self._name, self._arg, self._lineno)
         else:
-            return ('<%s lineno=%s>'
-                    % (self._name, self._lineno))
+            return "<%s lineno=%s>" % (self._name, self._lineno)
 
     def _cmp_key(self, labels=None):
         arg = self._arg
@@ -297,8 +301,7 @@ class Instr:
 
     @staticmethod
     def _has_jump(opcode):
-        return (opcode in _opcode.hasjrel
-                or opcode in _opcode.hasjabs)
+        return opcode in _opcode.hasjrel or opcode in _opcode.hasjabs
 
     def has_jump(self):
         return self._has_jump(self._opcode)
@@ -306,15 +309,19 @@ class Instr:
     def is_cond_jump(self):
         """Is a conditional jump?"""
         # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
-        return ('JUMP_IF_' in self._name)
+        return "JUMP_IF_" in self._name
 
     def is_uncond_jump(self):
         """Is an unconditional jump?"""
-        return self.name in {'JUMP_FORWARD', 'JUMP_ABSOLUTE'}
+        return self.name in {"JUMP_FORWARD", "JUMP_ABSOLUTE"}
 
     def is_final(self):
-        if self._name in {'RETURN_VALUE', 'RAISE_VARARGS',
-                          'BREAK_LOOP', 'CONTINUE_LOOP'}:
+        if self._name in {
+            "RETURN_VALUE",
+            "RAISE_VARARGS",
+            "BREAK_LOOP",
+            "CONTINUE_LOOP",
+        }:
             return True
         if self.is_uncond_jump():
             return True
