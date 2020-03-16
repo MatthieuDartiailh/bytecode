@@ -5,7 +5,6 @@ from bytecode.instr import Label, SetLineno, Instr
 
 
 class BasicBlock(_bytecode._InstrList):
-
     def __init__(self, instructions=None):
         # a BasicBlock object, or None
         self.next_block = None
@@ -19,19 +18,23 @@ class BasicBlock(_bytecode._InstrList):
             index += 1
 
             if not isinstance(instr, (SetLineno, Instr, ConcreteInstr)):
-                raise ValueError("BasicBlock must only contain SetLineno, "
-                                 "Instr and ConcreteInstr objects, "
-                                 "but %s was found"
-                                 % instr.__class__.__name__)
+                raise ValueError(
+                    "BasicBlock must only contain SetLineno, "
+                    "Instr and ConcreteInstr objects, "
+                    "but %s was found" % instr.__class__.__name__
+                )
 
             if isinstance(instr, Instr) and instr.has_jump():
                 if index < len(self):
-                    raise ValueError("Only the last instruction of a basic "
-                                     "block can be a jump")
+                    raise ValueError(
+                        "Only the last instruction of a basic " "block can be a jump"
+                    )
 
                 if not isinstance(instr.arg, BasicBlock):
-                    raise ValueError("Jump target must a BasicBlock, got %s",
-                                     type(instr.arg).__name__)
+                    raise ValueError(
+                        "Jump target must a BasicBlock, got %s",
+                        type(instr.arg).__name__,
+                    )
 
             yield instr
 
@@ -78,7 +81,7 @@ class BasicBlock(_bytecode._InstrList):
             return None
 
         last_instr = self[-1]
-        if not(isinstance(last_instr, Instr) and last_instr.has_jump()):
+        if not (isinstance(last_instr, Instr) and last_instr.has_jump()):
             return None
 
         target_block = last_instr.arg
@@ -87,47 +90,83 @@ class BasicBlock(_bytecode._InstrList):
 
 
 def _compute_stack_size(block, size, maxsize):
+    """ Generator used to reduce the use of function stacks.
 
+    This allows to avoid nested recursion and allow to treat more cases.
+
+    HOW-TO:
+        Following the methods of Trampoline
+        (see https://en.wikipedia.org/wiki/Trampoline_(computing)),
+
+        We yield either:
+
+        - the arguments that would be used in the recursive calls, i.e,
+          'yield block, size, maxsize' instead of making a recursive call
+          '_compute_stack_size(block, size, maxsize)', if we encounter an
+          instruction jumping to another block or if the block is linked to
+          another one (ie `next_block` is set)
+        - the required stack from the stack if we went through all the instructions
+          or encountered an unconditional jump.
+
+        In the first case, the calling function is then responsible for creating a
+        new generator with those arguments, iterating over it till exhaustion to
+        determine the stacksize required by the block and resuming this function
+        with the determined stacksize.
+
+    """
+    # If the block is currently being visited (seen = True) or if it was visited
+    # previously by using a larger starting size than the one in use, return the
+    # maxsize.
     if block.seen or block.startsize >= size:
-        return maxsize
+        yield maxsize
 
     def update_size(delta, size, maxsize):
         size += delta
         if size < 0:
-            msg = 'Failed to compute stacksize, got negative size'
+            msg = "Failed to compute stacksize, got negative size"
             raise RuntimeError(msg)
         maxsize = max(maxsize, size)
         return size, maxsize
 
+    # Prevent recursive visit of block if two blocks are nested (jump from one
+    # to the other).
     block.seen = True
     block.startsize = size
 
     for instr in block:
+
+        # Ignore SetLineno
         if isinstance(instr, SetLineno):
             continue
 
+        # For instructions with a jump first compute the stacksize required when the
+        # jump is taken.
         if instr.has_jump():
-            # first compute the taken-jump path
-            taken_size, maxsize = update_size(instr.stack_effect(jump=True),
-                                              size, maxsize)
-            maxsize = _compute_stack_size(instr.arg, taken_size, maxsize)
+            taken_size, maxsize = update_size(
+                instr.stack_effect(jump=True), size, maxsize
+            )
+            # Yield the parameters required to compute the stacksize required
+            # by the block to which the jumnp points to and resume when we now
+            # the maxsize.
+            maxsize = yield instr.arg, taken_size, maxsize
 
+            # For unconditional jumps abort early since the other instruction will
+            # never be seen.
             if instr.is_uncond_jump():
                 block.seen = False
-                return maxsize
+                yield maxsize
 
         # jump=False: non-taken path of jumps, or any non-jump
-        size, maxsize = update_size(instr.stack_effect(jump=False),
-                                    size, maxsize)
-    if block.next_block:
-        maxsize = _compute_stack_size(block.next_block, size, maxsize)
+        size, maxsize = update_size(instr.stack_effect(jump=False), size, maxsize)
 
-    block.seen = 0
-    return maxsize
+    if block.next_block:
+        maxsize = yield block.next_block, size, maxsize
+
+    block.seen = False
+    yield maxsize
 
 
 class ControlFlowGraph(_bytecode.BaseBytecode):
-
     def __init__(self):
         super().__init__()
         self._blocks = []
@@ -161,17 +200,54 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         return block
 
     def compute_stacksize(self):
+        """Compute the stack size by iterating through the blocks
+
+        The implementation make use of a generator function to avoid issue with
+        deeply nested recursions.
+
+        """
+        # In the absence of any block return 0
         if not self:
             return 0
 
+        # Ensure that previous calculation do not impact this one.
         for block in self:
             block.seen = False
             block.startsize = -32768  # INT_MIN
 
-        return _compute_stack_size(self[0], 0, 0)
+        # Create a generator/coroutine responsible of dealing with the first block
+        coro = _compute_stack_size(self[0], 0, 0)
+
+        # Create a list of generator that have not yet been exhausted
+        coroutines = []
+
+        push_coroutine = coroutines.append
+        pop_coroutine = coroutines.pop
+        args = None
+
+        try:
+            while True:
+                args = coro.send(None)
+
+                # Consume the stored generators as long as they return a simple
+                # interger that is to be used to resume the last stored generator.
+                while isinstance(args, int):
+                    coro = pop_coroutine()
+                    args = coro.send(args)
+
+                # Otherwise we enter a new block and we store the generator under
+                # use and create a new one to process the new block
+                push_coroutine(coro)
+                coro = _compute_stack_size(*args)
+
+        except IndexError:
+            # The exception occurs when all the generators have been exhausted
+            # in which case teh last yielded value is the stacksize.
+            assert args is not None
+            return args
 
     def __repr__(self):
-        return '<ControlFlowGraph block#=%s>' % len(self._blocks)
+        return "<ControlFlowGraph block#=%s>" % len(self._blocks)
 
     def get_instructions(self):
         instructions = []

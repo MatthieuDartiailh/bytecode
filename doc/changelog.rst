@@ -4,6 +4,11 @@ ChangeLog
 unreleased: Version 0.12.0
 --------------------------
 
+Bugfixes:
+
+- Fix recursion limitations when compiling bytecode with numerous basic
+  blocks. #57
+
 
 2020-03-02: Version 0.11.0
 --------------------------
