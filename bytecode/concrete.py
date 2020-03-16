@@ -7,11 +7,19 @@ import types
 
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
-from bytecode.instr import (UNSET, Instr, Label, SetLineno,
-                            FreeVar, CellVar, Compare,
-                            const_key, _check_arg_int)
+from bytecode.instr import (
+    UNSET,
+    Instr,
+    Label,
+    SetLineno,
+    FreeVar,
+    CellVar,
+    Compare,
+    const_key,
+    _check_arg_int,
+)
 
-_WORDCODE = (sys.version_info >= (3, 6))
+_WORDCODE = sys.version_info >= (3, 6)
 
 
 def _set_docstring(code, consts):
@@ -30,7 +38,7 @@ class ConcreteInstr(Instr):
     It has a read-only size attribute.
     """
 
-    __slots__ = ('_size', '_extended_args')
+    __slots__ = ("_size", "_extended_args")
 
     def __init__(self, name, arg=UNSET, *, lineno=None, extended_args=None):
         # Allow to remember a potentially meaningless EXTENDED_ARG emitted by
@@ -54,7 +62,7 @@ class ConcreteInstr(Instr):
         if _WORDCODE:
             size = 2
             if arg is not UNSET:
-                while arg > 0xff:
+                while arg > 0xFF:
                     size += 2
                     arg >>= 8
             if self._extended_args is not None:
@@ -63,7 +71,7 @@ class ConcreteInstr(Instr):
             size = 1
             if arg is not UNSET:
                 size += 2
-                if arg > 0xffff:
+                if arg > 0xFFFF:
                     size += 3
                 if self._extended_args is not None:
                     size = 1 + 3 * self._extended_args
@@ -84,37 +92,40 @@ class ConcreteInstr(Instr):
         return None
 
     if _WORDCODE:
+
         def assemble(self):
             if self._arg is UNSET:
                 return bytes((self._opcode, 0))
 
             arg = self._arg
-            b = [self._opcode, arg & 0xff]
-            while arg > 0xff:
+            b = [self._opcode, arg & 0xFF]
+            while arg > 0xFF:
                 arg >>= 8
-                b[:0] = [_opcode.EXTENDED_ARG, arg & 0xff]
+                b[:0] = [_opcode.EXTENDED_ARG, arg & 0xFF]
 
             if self._extended_args:
                 while len(b) < self._size:
                     b[:0] = [_opcode.EXTENDED_ARG, 0x00]
 
             return bytes(b)
+
     else:
+
         def assemble(self):
             if self._arg is UNSET:
-                return struct.pack('<B', self._opcode)
+                return struct.pack("<B", self._opcode)
 
             arg = self._arg
-            if arg > 0xffff:
-                b = struct.pack('<BHBH',
-                                _opcode.EXTENDED_ARG, arg >> 16,
-                                self._opcode, arg & 0xffff)
+            if arg > 0xFFFF:
+                b = struct.pack(
+                    "<BHBH", _opcode.EXTENDED_ARG, arg >> 16, self._opcode, arg & 0xFFFF
+                )
             else:
-                b = struct.pack('<BH', self._opcode, arg)
+                b = struct.pack("<BH", self._opcode, arg)
 
             if self._extended_args:
                 while len(b) < self._size:
-                    b = struct.pack('<BH', _opcode.EXTENDED_ARG, 0) + b
+                    b = struct.pack("<BH", _opcode.EXTENDED_ARG, 0) + b
 
             return b
 
@@ -133,7 +144,6 @@ class ConcreteInstr(Instr):
 
 
 class ConcreteBytecode(_bytecode._BaseBytecodeList):
-
     def __init__(self, instructions=(), *, consts=(), names=(), varnames=()):
         super().__init__()
         self.consts = list(consts)
@@ -151,10 +161,11 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
 
     def _check_instr(self, instr):
         if not isinstance(instr, (ConcreteInstr, SetLineno)):
-            raise ValueError("ConcreteBytecode must only contain "
-                             "ConcreteInstr and SetLineno objects, "
-                             "but %s was found"
-                             % type(instr).__name__)
+            raise ValueError(
+                "ConcreteBytecode must only contain "
+                "ConcreteInstr and SetLineno objects, "
+                "but %s was found" % type(instr).__name__
+            )
 
     def _copy_attr_from(self, bytecode):
         super()._copy_attr_from(bytecode)
@@ -164,7 +175,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             self.varnames = bytecode.varnames
 
     def __repr__(self):
-        return '<ConcreteBytecode instr#=%s>' % len(self)
+        return "<ConcreteBytecode instr#=%s>" % len(self)
 
     def __eq__(self, other):
         if type(self) != type(other):
@@ -212,12 +223,11 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             while index < len(instructions):
                 instr = instructions[index]
 
-                if instr.name == 'EXTENDED_ARG':
+                if instr.name == "EXTENDED_ARG":
                     nb_extended_args += 1
                     if extended_arg is not None:
                         if not _WORDCODE:
-                            raise ValueError("EXTENDED_ARG followed "
-                                             "by EXTENDED_ARG")
+                            raise ValueError("EXTENDED_ARG followed " "by EXTENDED_ARG")
                         extended_arg = (extended_arg << 8) + instr.arg
                     else:
                         extended_arg = instr.arg
@@ -232,8 +242,12 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
                         arg = (extended_arg << 16) + instr.arg
                     extended_arg = None
 
-                    instr = ConcreteInstr(instr.name, arg, lineno=instr.lineno,
-                                          extended_args=nb_extended_args)
+                    instr = ConcreteInstr(
+                        instr.name,
+                        arg,
+                        lineno=instr.lineno,
+                        extended_args=nb_extended_args,
+                    )
                     instructions[index] = instr
                     nb_extended_args = 0
 
@@ -280,7 +294,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             code_str.append(instr.assemble())
             linenos.append((offset, lineno))
             offset += instr.size
-        code_str = b''.join(code_str)
+        code_str = b"".join(code_str)
         return (code_str, linenos)
 
     @staticmethod
@@ -294,31 +308,32 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
                 continue
             # FIXME: be kind, force monotonic line numbers? add an option?
             if dlineno < 0 and sys.version_info < (3, 6):
-                raise ValueError("negative line number delta is not supported "
-                                 "on Python < 3.6")
+                raise ValueError(
+                    "negative line number delta is not supported " "on Python < 3.6"
+                )
             old_lineno = lineno
 
             doff = offset - old_offset
             old_offset = offset
 
             while doff > 255:
-                lnotab.append(b'\xff\x00')
+                lnotab.append(b"\xff\x00")
                 doff -= 255
 
             while dlineno < -127:
-                lnotab.append(struct.pack('Bb', 0, -127))
+                lnotab.append(struct.pack("Bb", 0, -127))
                 dlineno -= -127
 
             while dlineno > 126:
-                lnotab.append(struct.pack('Bb', 0, 126))
+                lnotab.append(struct.pack("Bb", 0, 126))
                 dlineno -= 126
 
             assert 0 <= doff <= 255
             assert -127 <= dlineno <= 126
 
-            lnotab.append(struct.pack('Bb', doff, dlineno))
+            lnotab.append(struct.pack("Bb", doff, dlineno))
 
-        return b''.join(lnotab)
+        return b"".join(lnotab)
 
     def compute_stacksize(self):
         bytecode = self.to_bytecode()
@@ -333,38 +348,42 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             stacksize = self.compute_stacksize()
 
         if sys.version_info < (3, 8):
-            return types.CodeType(self.argcount,
-                                  self.kwonlyargcount,
-                                  nlocals,
-                                  stacksize,
-                                  int(self.flags),
-                                  code_str,
-                                  tuple(self.consts),
-                                  tuple(self.names),
-                                  tuple(self.varnames),
-                                  self.filename,
-                                  self.name,
-                                  self.first_lineno,
-                                  lnotab,
-                                  tuple(self.freevars),
-                                  tuple(self.cellvars))
+            return types.CodeType(
+                self.argcount,
+                self.kwonlyargcount,
+                nlocals,
+                stacksize,
+                int(self.flags),
+                code_str,
+                tuple(self.consts),
+                tuple(self.names),
+                tuple(self.varnames),
+                self.filename,
+                self.name,
+                self.first_lineno,
+                lnotab,
+                tuple(self.freevars),
+                tuple(self.cellvars),
+            )
         else:
-            return types.CodeType(self.argcount,
-                                  self.posonlyargcount,
-                                  self.kwonlyargcount,
-                                  nlocals,
-                                  stacksize,
-                                  int(self.flags),
-                                  code_str,
-                                  tuple(self.consts),
-                                  tuple(self.names),
-                                  tuple(self.varnames),
-                                  self.filename,
-                                  self.name,
-                                  self.first_lineno,
-                                  lnotab,
-                                  tuple(self.freevars),
-                                  tuple(self.cellvars))
+            return types.CodeType(
+                self.argcount,
+                self.posonlyargcount,
+                self.kwonlyargcount,
+                nlocals,
+                stacksize,
+                int(self.flags),
+                code_str,
+                tuple(self.consts),
+                tuple(self.names),
+                tuple(self.varnames),
+                self.filename,
+                self.name,
+                self.first_lineno,
+                lnotab,
+                tuple(self.freevars),
+                tuple(self.cellvars),
+            )
 
     def to_bytecode(self):
         # find jump targets
@@ -551,7 +570,7 @@ class _ConvertBytecodeToConcrete:
 
             if instr.opcode in _opcode.hasjrel:
                 instr_offset = offsets[index]
-                target_offset -= (instr_offset + instr.size)
+                target_offset -= instr_offset + instr.size
 
             old_size = instr.size
             # FIXME: better error report if target_offset is negative
@@ -577,15 +596,15 @@ class _ConvertBytecodeToConcrete:
             if not modified:
                 break
         else:
-            raise RuntimeError("compute_jumps() failed to converge after"
-                               " %d passes"
-                               % (pas + 1))
+            raise RuntimeError(
+                "compute_jumps() failed to converge after" " %d passes" % (pas + 1)
+            )
 
         concrete = ConcreteBytecode(
             self.instructions,
             consts=self.consts_list.copy(),
             names=self.names,
-            varnames=self.varnames
+            varnames=self.varnames,
         )
         concrete._copy_attr_from(self.bytecode)
         return concrete

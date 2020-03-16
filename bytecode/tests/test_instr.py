@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 import opcode
 import unittest
-from bytecode import (UNSET, Label, Instr, CellVar, FreeVar, BasicBlock,
-                      SetLineno, Compare)
+from bytecode import (
+    UNSET,
+    Label,
+    Instr,
+    CellVar,
+    FreeVar,
+    BasicBlock,
+    SetLineno,
+    Compare,
+)
 from bytecode.tests import TestCase
 
 
 class SetLinenoTests(TestCase):
-
     def test_lineno(self):
         lineno = SetLineno(1)
         self.assertEqual(lineno.lineno, 1)
@@ -20,7 +27,6 @@ class SetLinenoTests(TestCase):
 
 
 class VariableTests(TestCase):
-
     def test_str(self):
         for cls in (CellVar, FreeVar):
             var = cls("a")
@@ -39,8 +45,13 @@ class VariableTests(TestCase):
         c1 = CellVar("a")
         c2 = CellVar("b")
 
-        for v1, v2, eq in ((f1, f1, True), (f1, f2, False), (f1, c1, False),
-                           (c1, c1, True), (c1, c2, False)):
+        for v1, v2, eq in (
+            (f1, f1, True),
+            (f1, f2, False),
+            (f1, c1, False),
+            (c1, c1, True),
+            (c1, c2, False),
+        ):
             if eq:
                 self.assertEqual(v1, v2)
             else:
@@ -48,7 +59,6 @@ class VariableTests(TestCase):
 
 
 class InstrTests(TestCase):
-
     def test_constructor(self):
         # invalid line number
         with self.assertRaises(TypeError):
@@ -102,7 +112,7 @@ class InstrTests(TestCase):
         Instr("LOAD_NAME", "x")
 
         # hasconst
-        self.assertRaises(ValueError, Instr, "LOAD_CONST")   # UNSET
+        self.assertRaises(ValueError, Instr, "LOAD_CONST")  # UNSET
         self.assertRaises(ValueError, Instr, "LOAD_CONST", label)
         self.assertRaises(ValueError, Instr, "LOAD_CONST", block)
         Instr("LOAD_CONST", 1.0)
@@ -134,38 +144,38 @@ class InstrTests(TestCase):
 
     def test_attr(self):
         instr = Instr("LOAD_CONST", 3, lineno=5)
-        self.assertEqual(instr.name, 'LOAD_CONST')
+        self.assertEqual(instr.name, "LOAD_CONST")
         self.assertEqual(instr.opcode, 100)
         self.assertEqual(instr.arg, 3)
         self.assertEqual(instr.lineno, 5)
 
         # invalid values/types
-        self.assertRaises(ValueError, setattr, instr, 'lineno', 0)
-        self.assertRaises(TypeError, setattr, instr, 'lineno', 1.0)
-        self.assertRaises(TypeError, setattr, instr, 'name', 5)
-        self.assertRaises(TypeError, setattr, instr, 'opcode', 1.0)
-        self.assertRaises(ValueError, setattr, instr, 'opcode', -1)
-        self.assertRaises(ValueError, setattr, instr, 'opcode', 255)
+        self.assertRaises(ValueError, setattr, instr, "lineno", 0)
+        self.assertRaises(TypeError, setattr, instr, "lineno", 1.0)
+        self.assertRaises(TypeError, setattr, instr, "name", 5)
+        self.assertRaises(TypeError, setattr, instr, "opcode", 1.0)
+        self.assertRaises(ValueError, setattr, instr, "opcode", -1)
+        self.assertRaises(ValueError, setattr, instr, "opcode", 255)
 
         # arg can take any attribute but cannot be deleted
         instr.arg = -8
         instr.arg = object()
-        self.assertRaises(AttributeError, delattr, instr, 'arg')
+        self.assertRaises(AttributeError, delattr, instr, "arg")
 
         # no argument
         instr = Instr("ROT_TWO")
         self.assertIs(instr.arg, UNSET)
 
     def test_modify_op(self):
-        instr = Instr("LOAD_NAME", 'x')
-        load_fast = opcode.opmap['LOAD_FAST']
+        instr = Instr("LOAD_NAME", "x")
+        load_fast = opcode.opmap["LOAD_FAST"]
         instr.opcode = load_fast
-        self.assertEqual(instr.name, 'LOAD_FAST')
+        self.assertEqual(instr.name, "LOAD_FAST")
         self.assertEqual(instr.opcode, load_fast)
 
     def test_extended_arg(self):
-        instr = Instr("LOAD_CONST", 0x1234abcd)
-        self.assertEqual(instr.arg, 0x1234abcd)
+        instr = Instr("LOAD_CONST", 0x1234ABCD)
+        self.assertEqual(instr.arg, 0x1234ABCD)
 
     def test_slots(self):
         instr = Instr("NOP")
@@ -181,7 +191,7 @@ class InstrTests(TestCase):
         self.assertNotEqual(instr, Instr("LOAD_CONST", 3))
         self.assertNotEqual(instr, Instr("LOAD_CONST", 3, lineno=6))
         # different op
-        self.assertNotEqual(instr, Instr("LOAD_FAST", 'x', lineno=7))
+        self.assertNotEqual(instr, Instr("LOAD_FAST", "x", lineno=7))
         # different arg
         self.assertNotEqual(instr, Instr("LOAD_CONST", 4, lineno=7))
 
@@ -190,7 +200,7 @@ class InstrTests(TestCase):
         jump = Instr("JUMP_ABSOLUTE", label)
         self.assertTrue(jump.has_jump())
 
-        instr = Instr("LOAD_FAST", 'x')
+        instr = Instr("LOAD_FAST", "x")
         self.assertFalse(instr.has_jump())
 
     def test_is_cond_jump(self):
@@ -198,7 +208,7 @@ class InstrTests(TestCase):
         jump = Instr("POP_JUMP_IF_TRUE", label)
         self.assertTrue(jump.is_cond_jump())
 
-        instr = Instr("LOAD_FAST", 'x')
+        instr = Instr("LOAD_FAST", "x")
         self.assertFalse(instr.is_cond_jump())
 
     def test_is_uncond_jump(self):
@@ -211,8 +221,7 @@ class InstrTests(TestCase):
 
     def test_const_key_not_equal(self):
         def check(value):
-            self.assertEqual(Instr('LOAD_CONST', value),
-                             Instr('LOAD_CONST', value))
+            self.assertEqual(Instr("LOAD_CONST", value), Instr("LOAD_CONST", value))
 
         def func():
             pass
@@ -220,8 +229,8 @@ class InstrTests(TestCase):
         check(None)
         check(0)
         check(0.0)
-        check(b'bytes')
-        check('text')
+        check(b"bytes")
+        check("text")
         check(Ellipsis)
         check((1, 2, 3))
         check(frozenset({1, 2, 3}))
@@ -233,32 +242,37 @@ class InstrTests(TestCase):
         pos_zero = +0.0
 
         # int and float: 0 == 0.0
-        self.assertNotEqual(Instr('LOAD_CONST', 0),
-                            Instr('LOAD_CONST', 0.0))
+        self.assertNotEqual(Instr("LOAD_CONST", 0), Instr("LOAD_CONST", 0.0))
 
         # float: -0.0 == +0.0
-        self.assertNotEqual(Instr('LOAD_CONST', neg_zero),
-                            Instr('LOAD_CONST', pos_zero))
+        self.assertNotEqual(
+            Instr("LOAD_CONST", neg_zero), Instr("LOAD_CONST", pos_zero)
+        )
 
         # complex
-        self.assertNotEqual(Instr('LOAD_CONST', complex(neg_zero, 1.0)),
-                            Instr('LOAD_CONST', complex(pos_zero, 1.0)))
-        self.assertNotEqual(Instr('LOAD_CONST', complex(1.0, neg_zero)),
-                            Instr('LOAD_CONST', complex(1.0, pos_zero)))
+        self.assertNotEqual(
+            Instr("LOAD_CONST", complex(neg_zero, 1.0)),
+            Instr("LOAD_CONST", complex(pos_zero, 1.0)),
+        )
+        self.assertNotEqual(
+            Instr("LOAD_CONST", complex(1.0, neg_zero)),
+            Instr("LOAD_CONST", complex(1.0, pos_zero)),
+        )
 
         # tuple
-        self.assertNotEqual(Instr('LOAD_CONST', (0,)),
-                            Instr('LOAD_CONST', (0.0,)))
+        self.assertNotEqual(Instr("LOAD_CONST", (0,)), Instr("LOAD_CONST", (0.0,)))
         nested_tuple1 = (0,)
         nested_tuple1 = (nested_tuple1,)
         nested_tuple2 = (0.0,)
         nested_tuple2 = (nested_tuple2,)
-        self.assertNotEqual(Instr('LOAD_CONST', nested_tuple1),
-                            Instr('LOAD_CONST', nested_tuple2))
+        self.assertNotEqual(
+            Instr("LOAD_CONST", nested_tuple1), Instr("LOAD_CONST", nested_tuple2)
+        )
 
         # frozenset
-        self.assertNotEqual(Instr('LOAD_CONST', frozenset({0})),
-                            Instr('LOAD_CONST', frozenset({0.0})))
+        self.assertNotEqual(
+            Instr("LOAD_CONST", frozenset({0})), Instr("LOAD_CONST", frozenset({0.0}))
+        )
 
     def test_stack_effects(self):
         # Verify all opcodes are handled and that "jump=None" really returns
@@ -300,8 +314,8 @@ class InstrTests(TestCase):
         # (As a result we can calculate stack_effect for
         #  any LOAD_CONST instructions, even for large integers)
 
-        for arg in 2**31, 2**32, 2**63, 2**64, -1:
-            self.assertEqual(Instr('LOAD_CONST', arg).stack_effect(), 1)
+        for arg in 2 ** 31, 2 ** 32, 2 ** 63, 2 ** 64, -1:
+            self.assertEqual(Instr("LOAD_CONST", arg).stack_effect(), 1)
 
     def test_code_object_containing_mutable_data(self):
         from bytecode import Bytecode, Instr
@@ -310,6 +324,7 @@ class InstrTests(TestCase):
         def f():
             def g():
                 return "value"
+
             return g
 
         f_code = Bytecode.from_code(f.__code__)
@@ -317,9 +332,11 @@ class InstrTests(TestCase):
         mutable_datum = [4, 2]
 
         for each in f_code:
-            if (isinstance(each, Instr)
-               and each.name == 'LOAD_CONST'
-               and isinstance(each.arg, CodeType)):
+            if (
+                isinstance(each, Instr)
+                and each.name == "LOAD_CONST"
+                and isinstance(each.arg, CodeType)
+            ):
                 instr_load_code = each
                 break
 

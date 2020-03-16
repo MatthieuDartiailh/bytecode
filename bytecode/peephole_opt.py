@@ -7,10 +7,7 @@ import operator
 import sys
 from bytecode import Instr, Bytecode, ControlFlowGraph, BasicBlock, Compare
 
-JUMPS_ON_TRUE = frozenset((
-    'POP_JUMP_IF_TRUE',
-    'JUMP_IF_TRUE_OR_POP',
-))
+JUMPS_ON_TRUE = frozenset(("POP_JUMP_IF_TRUE", "JUMP_IF_TRUE_OR_POP",))
 
 NOT_COMPARE = {
     Compare.IN: Compare.NOT_IN,
@@ -24,6 +21,7 @@ MAX_SIZE = 20
 
 class ExitUnchanged(Exception):
     """Exception used to skip the peephole optimizer"""
+
     pass
 
 
@@ -66,7 +64,7 @@ class PeepholeOptimizer:
             size = len(value)
         except TypeError:
             return True
-        return (size <= MAX_SIZE)
+        return size <= MAX_SIZE
 
     def replace_load_const(self, nconst, instr, result):
         # FIXME: remove temporary computed constants?
@@ -74,9 +72,9 @@ class PeepholeOptimizer:
 
         self.in_consts = True
 
-        load_const = Instr('LOAD_CONST', result, lineno=instr.lineno)
+        load_const = Instr("LOAD_CONST", result, lineno=instr.lineno)
         start = self.index - nconst - 1
-        self.block[start:self.index] = (load_const,)
+        self.block[start : self.index] = (load_const,)
         self.index -= nconst
 
         if nconst:
@@ -123,12 +121,12 @@ class PeepholeOptimizer:
     def eval_UNARY_NOT(self, instr):
         # Note: UNARY_NOT <const> is not optimized
 
-        next_instr = self.get_next_instr('POP_JUMP_IF_FALSE')
+        next_instr = self.get_next_instr("POP_JUMP_IF_FALSE")
         if next_instr is None:
             return None
 
         # Replace UNARY_NOT+POP_JUMP_IF_FALSE with POP_JUMP_IF_TRUE
-        instr.set('POP_JUMP_IF_TRUE', next_instr.arg)
+        instr.set("POP_JUMP_IF_TRUE", next_instr.arg)
         del self.block[self.index]
 
     def binop(self, op, instr):
@@ -188,48 +186,47 @@ class PeepholeOptimizer:
         return self.binop(operator.getitem, instr)
 
     def replace_container_of_consts(self, instr, container_type):
-        items = self.const_stack[-instr.arg:]
+        items = self.const_stack[-instr.arg :]
         value = container_type(items)
         self.replace_load_const(instr.arg, instr, value)
 
     def build_tuple_unpack_seq(self, instr):
-        next_instr = self.get_next_instr('UNPACK_SEQUENCE')
+        next_instr = self.get_next_instr("UNPACK_SEQUENCE")
         if next_instr is None or next_instr.arg != instr.arg:
             return
 
         if instr.arg < 1:
             return
 
-        if (self.const_stack
-                and instr.arg <= len(self.const_stack)):
+        if self.const_stack and instr.arg <= len(self.const_stack):
             nconst = instr.arg
             start = self.index - 1
 
             # Rewrite LOAD_CONST instructions in the reverse order
-            load_consts = self.block[start - nconst:start]
-            self.block[start - nconst:start] = reversed(load_consts)
+            load_consts = self.block[start - nconst : start]
+            self.block[start - nconst : start] = reversed(load_consts)
 
             # Remove BUILD_TUPLE+UNPACK_SEQUENCE
-            self.block[start:start + 2] = ()
+            self.block[start : start + 2] = ()
             self.index -= 2
             self.const_stack.clear()
             return
 
         if instr.arg == 1:
             # Replace BUILD_TUPLE 1 + UNPACK_SEQUENCE 1 with NOP
-            del self.block[self.index - 1:self.index + 1]
+            del self.block[self.index - 1 : self.index + 1]
         elif instr.arg == 2:
             # Replace BUILD_TUPLE 2 + UNPACK_SEQUENCE 2 with ROT_TWO
-            rot2 = Instr('ROT_TWO', lineno=instr.lineno)
-            self.block[self.index - 1:self.index + 1] = (rot2,)
+            rot2 = Instr("ROT_TWO", lineno=instr.lineno)
+            self.block[self.index - 1 : self.index + 1] = (rot2,)
             self.index -= 1
             self.const_stack.clear()
         elif instr.arg == 3:
             # Replace BUILD_TUPLE 3 + UNPACK_SEQUENCE 3
             # with ROT_THREE + ROT_TWO
-            rot3 = Instr('ROT_THREE', lineno=instr.lineno)
-            rot2 = Instr('ROT_TWO', lineno=instr.lineno)
-            self.block[self.index - 1:self.index + 1] = (rot3, rot2)
+            rot3 = Instr("ROT_THREE", lineno=instr.lineno)
+            rot2 = Instr("ROT_TWO", lineno=instr.lineno)
+            self.block[self.index - 1 : self.index + 1] = (rot3, rot2)
             self.index -= 1
             self.const_stack.clear()
 
@@ -237,9 +234,8 @@ class PeepholeOptimizer:
         if instr.arg > len(self.const_stack):
             return
 
-        next_instr = self.get_next_instr('COMPARE_OP')
-        if (next_instr is None
-                or next_instr.arg not in (Compare.IN, Compare.NOT_IN)):
+        next_instr = self.get_next_instr("COMPARE_OP")
+        if next_instr is None or next_instr.arg not in (Compare.IN, Compare.NOT_IN):
             return
 
         self.replace_container_of_consts(instr, container_type)
@@ -277,7 +273,7 @@ class PeepholeOptimizer:
         except KeyError:
             return
 
-        if self.get_next_instr('UNARY_NOT') is None:
+        if self.get_next_instr("UNARY_NOT") is None:
             return
 
         # not (a is b) -->  a is not b
@@ -285,7 +281,7 @@ class PeepholeOptimizer:
         # not (a is not b) -->  a is b
         # not (a not in b) -->  a in b
         instr.arg = new_arg
-        self.block[self.index - 1:self.index + 1] = (instr,)
+        self.block[self.index - 1 : self.index + 1] = (instr,)
 
     def jump_if_or_pop(self, instr):
         # Simplify conditional jump to conditional jump where the
@@ -329,9 +325,9 @@ class PeepholeOptimizer:
             # taken (so change the first jump to pop its argument when it's
             # taken).
             if instr.name in JUMPS_ON_TRUE:
-                name = 'POP_JUMP_IF_TRUE'
+                name = "POP_JUMP_IF_TRUE"
             else:
-                name = 'POP_JUMP_IF_FALSE'
+                name = "POP_JUMP_IF_FALSE"
 
             new_label = self.code.split_block(target_block, 1)
 
@@ -361,8 +357,7 @@ class PeepholeOptimizer:
         except IndexError:
             return
 
-        if (instr.is_uncond_jump()
-                and target_instr.name == 'RETURN_VALUE'):
+        if instr.is_uncond_jump() and target_instr.name == "RETURN_VALUE":
             # Replace JUMP_ABSOLUTE => RETURN_VALUE with RETURN_VALUE
             self.block[self.index - 1] = target_instr
 
@@ -372,8 +367,8 @@ class PeepholeOptimizer:
             jump_target2 = target_instr.arg
 
             name = instr.name
-            if instr.name == 'JUMP_FORWARD':
-                name = 'JUMP_ABSOLUTE'
+            if instr.name == "JUMP_FORWARD":
+                name = "JUMP_ABSOLUTE"
             else:
                 # FIXME: reimplement this check
                 # if jump_target2 < 0:
@@ -389,8 +384,7 @@ class PeepholeOptimizer:
             self.block[self.index - 1] = instr
 
     def optimize_jump(self, instr):
-        if (instr.is_uncond_jump()
-                and self.index == len(self.block)):
+        if instr.is_uncond_jump() and self.index == len(self.block):
             # JUMP_ABSOLUTE at the end of a block which points to the
             # following block: remove the jump, link the current block
             # to the following block
@@ -421,7 +415,7 @@ class PeepholeOptimizer:
                 self.const_stack.clear()
             self.in_consts = False
 
-            meth_name = 'eval_%s' % instr.name
+            meth_name = "eval_%s" % instr.name
             meth = getattr(self, meth_name, None)
             if meth is not None:
                 meth(instr)
@@ -441,8 +435,7 @@ class PeepholeOptimizer:
             if block.next_block is not None:
                 used_blocks.add(id(block.next_block))
             for instr in block:
-                if (isinstance(instr, Instr)
-                        and isinstance(instr.arg, BasicBlock)):
+                if isinstance(instr, Instr) and isinstance(instr.arg, BasicBlock):
                     used_blocks.add(id(instr.arg))
 
         block_index = 0
@@ -485,7 +478,9 @@ class CodeTransformer:
 
     def code_transformer(self, code, context):
         if sys.flags.verbose:
-            print("Optimize %s:%s: %s"
-                  % (code.co_filename, code.co_firstlineno, code.co_name))
+            print(
+                "Optimize %s:%s: %s"
+                % (code.co_filename, code.co_firstlineno, code.co_name)
+            )
         optimizer = PeepholeOptimizer()
         return optimizer.optimize(code)

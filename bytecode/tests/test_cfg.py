@@ -3,31 +3,41 @@ import io
 import sys
 import unittest
 import contextlib
-from bytecode import (Label, Compare, SetLineno, Instr,
-                      Bytecode, BasicBlock, ControlFlowGraph)
+from bytecode import (
+    Label,
+    Compare,
+    SetLineno,
+    Instr,
+    Bytecode,
+    BasicBlock,
+    ControlFlowGraph,
+)
 from bytecode.tests import disassemble as _disassemble, TestCase, WORDCODE
 
 
-def disassemble(source, *, filename="<string>", function=False,
-                remove_last_return_none=False):
+def disassemble(
+    source, *, filename="<string>", function=False, remove_last_return_none=False
+):
     code = _disassemble(source, filename=filename, function=function)
     blocks = ControlFlowGraph.from_bytecode(code)
     if remove_last_return_none:
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter
         block = blocks[-1]
-        test = (block[-2].name == "LOAD_CONST"
-                and block[-2].arg is None
-                and block[-1].name == "RETURN_VALUE")
+        test = (
+            block[-2].name == "LOAD_CONST"
+            and block[-2].arg is None
+            and block[-1].name == "RETURN_VALUE"
+        )
         if not test:
-            raise ValueError("unable to find implicit RETURN_VALUE <None>: %s"
-                             % block[-2:])
+            raise ValueError(
+                "unable to find implicit RETURN_VALUE <None>: %s" % block[-2:]
+            )
         del block[-2:]
     return blocks
 
 
 class BlockTests(unittest.TestCase):
-
     def test_iter_invalid_types(self):
         # Labels are not allowed in basic blocks
         block = BasicBlock()
@@ -40,8 +50,7 @@ class BlockTests(unittest.TestCase):
         # Only one jump allowed and only at the end
         block = BasicBlock()
         block2 = BasicBlock()
-        block.extend([Instr('JUMP_ABSOLUTE', block2),
-                      Instr('NOP')])
+        block.extend([Instr("JUMP_ABSOLUTE", block2), Instr("NOP")])
         with self.assertRaises(ValueError):
             list(block)
         with self.assertRaises(ValueError):
@@ -50,7 +59,7 @@ class BlockTests(unittest.TestCase):
         # jump target must be a BasicBlock
         block = BasicBlock()
         label = Label()
-        block.extend([Instr('JUMP_ABSOLUTE', label)])
+        block.extend([Instr("JUMP_ABSOLUTE", label)])
         with self.assertRaises(ValueError):
             list(block)
         with self.assertRaises(ValueError):
@@ -111,20 +120,17 @@ class BytecodeBlocksTests(TestCase):
 
     def test_add_del_block(self):
         code = ControlFlowGraph()
-        code[0].append(Instr('LOAD_CONST', 0))
+        code[0].append(Instr("LOAD_CONST", 0))
 
         block = code.add_block()
         self.assertEqual(len(code), 2)
         self.assertIs(block, code[1])
 
-        code[1].append(Instr('LOAD_CONST', 2))
-        self.assertBlocksEqual(code,
-                               [Instr('LOAD_CONST', 0)],
-                               [Instr('LOAD_CONST', 2)])
+        code[1].append(Instr("LOAD_CONST", 2))
+        self.assertBlocksEqual(code, [Instr("LOAD_CONST", 0)], [Instr("LOAD_CONST", 2)])
 
         del code[0]
-        self.assertBlocksEqual(code,
-                               [Instr('LOAD_CONST', 2)])
+        self.assertBlocksEqual(code, [Instr("LOAD_CONST", 2)])
 
         del code[0]
         self.assertEqual(len(code), 0)
@@ -135,46 +141,62 @@ class BytecodeBlocksTests(TestCase):
         # z = 9
         code = Bytecode()
         code.first_lineno = 3
-        code.extend([Instr("LOAD_CONST", 7),
-                     Instr("STORE_NAME", 'x'),
-                     SetLineno(4),
-                     Instr("LOAD_CONST", 8),
-                     Instr("STORE_NAME", 'y'),
-                     SetLineno(5),
-                     Instr("LOAD_CONST", 9),
-                     Instr("STORE_NAME", 'z')])
+        code.extend(
+            [
+                Instr("LOAD_CONST", 7),
+                Instr("STORE_NAME", "x"),
+                SetLineno(4),
+                Instr("LOAD_CONST", 8),
+                Instr("STORE_NAME", "y"),
+                SetLineno(5),
+                Instr("LOAD_CONST", 9),
+                Instr("STORE_NAME", "z"),
+            ]
+        )
 
         blocks = ControlFlowGraph.from_bytecode(code)
-        self.assertBlocksEqual(blocks,
-                               [Instr("LOAD_CONST", 7),
-                                Instr("STORE_NAME", 'x'),
-                                SetLineno(4),
-                                Instr("LOAD_CONST", 8),
-                                Instr("STORE_NAME", 'y'),
-                                SetLineno(5),
-                                Instr("LOAD_CONST", 9),
-                                Instr("STORE_NAME", 'z')])
+        self.assertBlocksEqual(
+            blocks,
+            [
+                Instr("LOAD_CONST", 7),
+                Instr("STORE_NAME", "x"),
+                SetLineno(4),
+                Instr("LOAD_CONST", 8),
+                Instr("STORE_NAME", "y"),
+                SetLineno(5),
+                Instr("LOAD_CONST", 9),
+                Instr("STORE_NAME", "z"),
+            ],
+        )
 
     def test_legalize(self):
         code = Bytecode()
         code.first_lineno = 3
-        code.extend([Instr("LOAD_CONST", 7),
-                     Instr("STORE_NAME", 'x'),
-                     Instr("LOAD_CONST", 8, lineno=4),
-                     Instr("STORE_NAME", 'y'),
-                     SetLineno(5),
-                     Instr("LOAD_CONST", 9, lineno=6),
-                     Instr("STORE_NAME", 'z')])
+        code.extend(
+            [
+                Instr("LOAD_CONST", 7),
+                Instr("STORE_NAME", "x"),
+                Instr("LOAD_CONST", 8, lineno=4),
+                Instr("STORE_NAME", "y"),
+                SetLineno(5),
+                Instr("LOAD_CONST", 9, lineno=6),
+                Instr("STORE_NAME", "z"),
+            ]
+        )
 
         blocks = ControlFlowGraph.from_bytecode(code)
         blocks.legalize()
-        self.assertBlocksEqual(blocks,
-                               [Instr("LOAD_CONST", 7, lineno=3),
-                                Instr("STORE_NAME", 'x', lineno=3),
-                                Instr("LOAD_CONST", 8, lineno=4),
-                                Instr("STORE_NAME", 'y', lineno=4),
-                                Instr("LOAD_CONST", 9, lineno=5),
-                                Instr("STORE_NAME", 'z', lineno=5)])
+        self.assertBlocksEqual(
+            blocks,
+            [
+                Instr("LOAD_CONST", 7, lineno=3),
+                Instr("STORE_NAME", "x", lineno=3),
+                Instr("LOAD_CONST", 8, lineno=4),
+                Instr("STORE_NAME", "y", lineno=4),
+                Instr("LOAD_CONST", 9, lineno=5),
+                Instr("STORE_NAME", "z", lineno=5),
+            ],
+        )
 
     def test_repr(self):
         r = repr(ControlFlowGraph())
@@ -188,80 +210,111 @@ class BytecodeBlocksTests(TestCase):
         blocks = ControlFlowGraph()
         blocks.add_block()
         blocks.add_block()
-        blocks[0].extend([Instr('LOAD_NAME', 'test', lineno=1),
-                          Instr('POP_JUMP_IF_FALSE', blocks[2], lineno=1)])
+        blocks[0].extend(
+            [
+                Instr("LOAD_NAME", "test", lineno=1),
+                Instr("POP_JUMP_IF_FALSE", blocks[2], lineno=1),
+            ]
+        )
 
-        blocks[1].extend([Instr('LOAD_CONST', 5, lineno=2),
-                          Instr('STORE_NAME', 'x', lineno=2),
-                          Instr('JUMP_FORWARD', blocks[2], lineno=2)])
+        blocks[1].extend(
+            [
+                Instr("LOAD_CONST", 5, lineno=2),
+                Instr("STORE_NAME", "x", lineno=2),
+                Instr("JUMP_FORWARD", blocks[2], lineno=2),
+            ]
+        )
 
-        blocks[2].extend([Instr('LOAD_CONST', 7, lineno=3),
-                          Instr('STORE_NAME', 'x', lineno=3),
-                          Instr('LOAD_CONST', None, lineno=3),
-                          Instr('RETURN_VALUE', lineno=3)])
+        blocks[2].extend(
+            [
+                Instr("LOAD_CONST", 7, lineno=3),
+                Instr("STORE_NAME", "x", lineno=3),
+                Instr("LOAD_CONST", None, lineno=3),
+                Instr("RETURN_VALUE", lineno=3),
+            ]
+        )
 
         bytecode = blocks.to_bytecode()
         label = Label()
-        self.assertEqual(bytecode,
-                         [Instr('LOAD_NAME', 'test', lineno=1),
-                          Instr('POP_JUMP_IF_FALSE', label, lineno=1),
-                          Instr('LOAD_CONST', 5, lineno=2),
-                          Instr('STORE_NAME', 'x', lineno=2),
-                          Instr('JUMP_FORWARD', label, lineno=2),
-                          label,
-                          Instr('LOAD_CONST', 7, lineno=3),
-                          Instr('STORE_NAME', 'x', lineno=3),
-                          Instr('LOAD_CONST', None, lineno=3),
-                          Instr('RETURN_VALUE', lineno=3)])
+        self.assertEqual(
+            bytecode,
+            [
+                Instr("LOAD_NAME", "test", lineno=1),
+                Instr("POP_JUMP_IF_FALSE", label, lineno=1),
+                Instr("LOAD_CONST", 5, lineno=2),
+                Instr("STORE_NAME", "x", lineno=2),
+                Instr("JUMP_FORWARD", label, lineno=2),
+                label,
+                Instr("LOAD_CONST", 7, lineno=3),
+                Instr("STORE_NAME", "x", lineno=3),
+                Instr("LOAD_CONST", None, lineno=3),
+                Instr("RETURN_VALUE", lineno=3),
+            ],
+        )
         # FIXME: test other attributes
 
     def test_label_at_the_end(self):
         label = Label()
-        code = Bytecode([Instr('LOAD_NAME', 'x'),
-                         Instr('UNARY_NOT'),
-                         Instr('POP_JUMP_IF_FALSE', label),
-                         Instr('LOAD_CONST', 9),
-                         Instr('STORE_NAME', 'y'),
-                         label])
+        code = Bytecode(
+            [
+                Instr("LOAD_NAME", "x"),
+                Instr("UNARY_NOT"),
+                Instr("POP_JUMP_IF_FALSE", label),
+                Instr("LOAD_CONST", 9),
+                Instr("STORE_NAME", "y"),
+                label,
+            ]
+        )
 
         cfg = ControlFlowGraph.from_bytecode(code)
-        self.assertBlocksEqual(cfg,
-                               [Instr('LOAD_NAME', 'x'),
-                                Instr('UNARY_NOT'),
-                                Instr('POP_JUMP_IF_FALSE', cfg[2])],
-                               [Instr('LOAD_CONST', 9),
-                                Instr('STORE_NAME', 'y')],
-                               [])
+        self.assertBlocksEqual(
+            cfg,
+            [
+                Instr("LOAD_NAME", "x"),
+                Instr("UNARY_NOT"),
+                Instr("POP_JUMP_IF_FALSE", cfg[2]),
+            ],
+            [Instr("LOAD_CONST", 9), Instr("STORE_NAME", "y")],
+            [],
+        )
 
     def test_from_bytecode(self):
         bytecode = Bytecode()
         label = Label()
-        bytecode.extend([Instr('LOAD_NAME', 'test', lineno=1),
-                         Instr('POP_JUMP_IF_FALSE', label, lineno=1),
-                         Instr('LOAD_CONST', 5, lineno=2),
-                         Instr('STORE_NAME', 'x', lineno=2),
-                         Instr('JUMP_FORWARD', label, lineno=2),
-                         # dead code!
-                         Instr('LOAD_CONST', 7, lineno=4),
-                         Instr('STORE_NAME', 'x', lineno=4),
-                         Label(),  # unused label
-                         label,
-                         Label(),  # unused label
-                         Instr('LOAD_CONST', None, lineno=4),
-                         Instr('RETURN_VALUE', lineno=4)])
+        bytecode.extend(
+            [
+                Instr("LOAD_NAME", "test", lineno=1),
+                Instr("POP_JUMP_IF_FALSE", label, lineno=1),
+                Instr("LOAD_CONST", 5, lineno=2),
+                Instr("STORE_NAME", "x", lineno=2),
+                Instr("JUMP_FORWARD", label, lineno=2),
+                # dead code!
+                Instr("LOAD_CONST", 7, lineno=4),
+                Instr("STORE_NAME", "x", lineno=4),
+                Label(),  # unused label
+                label,
+                Label(),  # unused label
+                Instr("LOAD_CONST", None, lineno=4),
+                Instr("RETURN_VALUE", lineno=4),
+            ]
+        )
 
         blocks = ControlFlowGraph.from_bytecode(bytecode)
         label2 = blocks[3]
-        self.assertBlocksEqual(blocks,
-                               [Instr('LOAD_NAME', 'test', lineno=1),
-                                Instr('POP_JUMP_IF_FALSE', label2, lineno=1)],
-                               [Instr('LOAD_CONST', 5, lineno=2),
-                                Instr('STORE_NAME', 'x', lineno=2),
-                                Instr('JUMP_FORWARD', label2, lineno=2)],
-                               [Instr('LOAD_CONST', 7, lineno=4),
-                                Instr('STORE_NAME', 'x', lineno=4)],
-                               [Instr('LOAD_CONST', None, lineno=4),
-                                Instr('RETURN_VALUE', lineno=4)])
+        self.assertBlocksEqual(
+            blocks,
+            [
+                Instr("LOAD_NAME", "test", lineno=1),
+                Instr("POP_JUMP_IF_FALSE", label2, lineno=1),
+            ],
+            [
+                Instr("LOAD_CONST", 5, lineno=2),
+                Instr("STORE_NAME", "x", lineno=2),
+                Instr("JUMP_FORWARD", label2, lineno=2),
+            ],
+            [Instr("LOAD_CONST", 7, lineno=4), Instr("STORE_NAME", "x", lineno=4)],
+            [Instr("LOAD_CONST", None, lineno=4), Instr("RETURN_VALUE", lineno=4)],
+        )
         # FIXME: test other attributes
 
     def test_from_bytecode_loop(self):
@@ -276,110 +329,97 @@ class BytecodeBlocksTests(TestCase):
             label_loop_end = Label()
 
             code = Bytecode()
-            code.extend((Instr('SETUP_LOOP', label_loop_end, lineno=1),
-                         Instr('LOAD_CONST', (1, 2, 3), lineno=1),
-                         Instr('GET_ITER', lineno=1),
-
-                         label_loop_start,
-                         Instr('FOR_ITER', label_loop_exit, lineno=1),
-                         Instr('STORE_NAME', 'x', lineno=1),
-                         Instr('LOAD_NAME', 'x', lineno=2),
-                         Instr('LOAD_CONST', 2, lineno=2),
-                         Instr('COMPARE_OP', Compare.EQ, lineno=2),
-                         Instr('POP_JUMP_IF_FALSE', label_loop_start, lineno=2),
-                         Instr('BREAK_LOOP', lineno=3),
-                         Instr('JUMP_ABSOLUTE', label_loop_start, lineno=4),
-
-                         Instr('JUMP_ABSOLUTE', label_loop_start, lineno=4),
-
-                         label_loop_exit,
-                         Instr('POP_BLOCK', lineno=4),
-
-                         label_loop_end,
-                         Instr('LOAD_CONST', None, lineno=4),
-                         Instr('RETURN_VALUE', lineno=4),
-                         ))
+            code.extend(
+                (
+                    Instr("SETUP_LOOP", label_loop_end, lineno=1),
+                    Instr("LOAD_CONST", (1, 2, 3), lineno=1),
+                    Instr("GET_ITER", lineno=1),
+                    label_loop_start,
+                    Instr("FOR_ITER", label_loop_exit, lineno=1),
+                    Instr("STORE_NAME", "x", lineno=1),
+                    Instr("LOAD_NAME", "x", lineno=2),
+                    Instr("LOAD_CONST", 2, lineno=2),
+                    Instr("COMPARE_OP", Compare.EQ, lineno=2),
+                    Instr("POP_JUMP_IF_FALSE", label_loop_start, lineno=2),
+                    Instr("BREAK_LOOP", lineno=3),
+                    Instr("JUMP_ABSOLUTE", label_loop_start, lineno=4),
+                    Instr("JUMP_ABSOLUTE", label_loop_start, lineno=4),
+                    label_loop_exit,
+                    Instr("POP_BLOCK", lineno=4),
+                    label_loop_end,
+                    Instr("LOAD_CONST", None, lineno=4),
+                    Instr("RETURN_VALUE", lineno=4),
+                )
+            )
             blocks = ControlFlowGraph.from_bytecode(code)
 
-            expected = [[Instr('SETUP_LOOP', blocks[8], lineno=1)],
-
-                        [Instr('LOAD_CONST', (1, 2, 3), lineno=1),
-                         Instr('GET_ITER', lineno=1)],
-
-                        [Instr('FOR_ITER', blocks[7], lineno=1)],
-
-                        [Instr('STORE_NAME', 'x', lineno=1),
-                         Instr('LOAD_NAME', 'x', lineno=2),
-                         Instr('LOAD_CONST', 2, lineno=2),
-                         Instr('COMPARE_OP', Compare.EQ, lineno=2),
-                         Instr('POP_JUMP_IF_FALSE', blocks[2], lineno=2)],
-
-                        [Instr('BREAK_LOOP', lineno=3)],
-
-                        [Instr('JUMP_ABSOLUTE', blocks[2], lineno=4)],
-
-                        [Instr('JUMP_ABSOLUTE', blocks[2], lineno=4)],
-
-                        [Instr('POP_BLOCK', lineno=4)],
-
-                        [Instr('LOAD_CONST', None, lineno=4),
-                         Instr('RETURN_VALUE', lineno=4)]]
+            expected = [
+                [Instr("SETUP_LOOP", blocks[8], lineno=1)],
+                [Instr("LOAD_CONST", (1, 2, 3), lineno=1), Instr("GET_ITER", lineno=1)],
+                [Instr("FOR_ITER", blocks[7], lineno=1)],
+                [
+                    Instr("STORE_NAME", "x", lineno=1),
+                    Instr("LOAD_NAME", "x", lineno=2),
+                    Instr("LOAD_CONST", 2, lineno=2),
+                    Instr("COMPARE_OP", Compare.EQ, lineno=2),
+                    Instr("POP_JUMP_IF_FALSE", blocks[2], lineno=2),
+                ],
+                [Instr("BREAK_LOOP", lineno=3)],
+                [Instr("JUMP_ABSOLUTE", blocks[2], lineno=4)],
+                [Instr("JUMP_ABSOLUTE", blocks[2], lineno=4)],
+                [Instr("POP_BLOCK", lineno=4)],
+                [Instr("LOAD_CONST", None, lineno=4), Instr("RETURN_VALUE", lineno=4)],
+            ]
             self.assertBlocksEqual(blocks, *expected)
         else:
             label_loop_start = Label()
             label_loop_exit = Label()
 
             code = Bytecode()
-            code.extend((Instr('LOAD_CONST', (1, 2, 3), lineno=1),
-                         Instr('GET_ITER', lineno=1),
-
-                         label_loop_start,
-                         Instr('FOR_ITER', label_loop_exit, lineno=1),
-                         Instr('STORE_NAME', 'x', lineno=1),
-                         Instr('LOAD_NAME', 'x', lineno=2),
-                         Instr('LOAD_CONST', 2, lineno=2),
-                         Instr('COMPARE_OP', Compare.EQ, lineno=2),
-                         Instr('POP_JUMP_IF_FALSE', label_loop_start, lineno=2),
-                         Instr('JUMP_ABSOLUTE', label_loop_exit, lineno=3),
-
-                         Instr('JUMP_ABSOLUTE', label_loop_start, lineno=4),
-
-                         Instr('JUMP_ABSOLUTE', label_loop_start, lineno=4),
-
-                         label_loop_exit,
-                         Instr('LOAD_CONST', None, lineno=4),
-                         Instr('RETURN_VALUE', lineno=4),
-                         ))
+            code.extend(
+                (
+                    Instr("LOAD_CONST", (1, 2, 3), lineno=1),
+                    Instr("GET_ITER", lineno=1),
+                    label_loop_start,
+                    Instr("FOR_ITER", label_loop_exit, lineno=1),
+                    Instr("STORE_NAME", "x", lineno=1),
+                    Instr("LOAD_NAME", "x", lineno=2),
+                    Instr("LOAD_CONST", 2, lineno=2),
+                    Instr("COMPARE_OP", Compare.EQ, lineno=2),
+                    Instr("POP_JUMP_IF_FALSE", label_loop_start, lineno=2),
+                    Instr("JUMP_ABSOLUTE", label_loop_exit, lineno=3),
+                    Instr("JUMP_ABSOLUTE", label_loop_start, lineno=4),
+                    Instr("JUMP_ABSOLUTE", label_loop_start, lineno=4),
+                    label_loop_exit,
+                    Instr("LOAD_CONST", None, lineno=4),
+                    Instr("RETURN_VALUE", lineno=4),
+                )
+            )
             blocks = ControlFlowGraph.from_bytecode(code)
 
-            expected = [[Instr('LOAD_CONST', (1, 2, 3), lineno=1),
-                         Instr('GET_ITER', lineno=1)],
-
-                        [Instr('FOR_ITER', blocks[6], lineno=1)],
-
-                        [Instr('STORE_NAME', 'x', lineno=1),
-                         Instr('LOAD_NAME', 'x', lineno=2),
-                         Instr('LOAD_CONST', 2, lineno=2),
-                         Instr('COMPARE_OP', Compare.EQ, lineno=2),
-                         Instr('POP_JUMP_IF_FALSE', blocks[1], lineno=2)],
-
-                        [Instr('JUMP_ABSOLUTE', blocks[6], lineno=3)],
-
-                        [Instr('JUMP_ABSOLUTE', blocks[1], lineno=4)],
-
-                        [Instr('JUMP_ABSOLUTE', blocks[1], lineno=4)],
-
-                        [Instr('LOAD_CONST', None, lineno=4),
-                         Instr('RETURN_VALUE', lineno=4)]]
+            expected = [
+                [Instr("LOAD_CONST", (1, 2, 3), lineno=1), Instr("GET_ITER", lineno=1)],
+                [Instr("FOR_ITER", blocks[6], lineno=1)],
+                [
+                    Instr("STORE_NAME", "x", lineno=1),
+                    Instr("LOAD_NAME", "x", lineno=2),
+                    Instr("LOAD_CONST", 2, lineno=2),
+                    Instr("COMPARE_OP", Compare.EQ, lineno=2),
+                    Instr("POP_JUMP_IF_FALSE", blocks[1], lineno=2),
+                ],
+                [Instr("JUMP_ABSOLUTE", blocks[6], lineno=3)],
+                [Instr("JUMP_ABSOLUTE", blocks[1], lineno=4)],
+                [Instr("JUMP_ABSOLUTE", blocks[1], lineno=4)],
+                [Instr("LOAD_CONST", None, lineno=4), Instr("RETURN_VALUE", lineno=4)],
+            ]
             self.assertBlocksEqual(blocks, *expected)
 
 
 class BytecodeBlocksFunctionalTests(TestCase):
-
     def test_eq(self):
         # compare codes with multiple blocks and labels,
         # Code.__eq__() renumbers labels to get equal labels
-        source = 'x = 1 if test else 2'
+        source = "x = 1 if test else 2"
         code1 = disassemble(source)
         code2 = disassemble(source)
         self.assertEqual(code1, code2)
@@ -411,30 +451,33 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(len(cfg.get_instructions()), 0)
 
     def sample_code(self):
-        code = disassemble('x = 1', remove_last_return_none=True)
-        self.assertBlocksEqual(code,
-                               [Instr('LOAD_CONST', 1, lineno=1),
-                                Instr('STORE_NAME', 'x', lineno=1)])
+        code = disassemble("x = 1", remove_last_return_none=True)
+        self.assertBlocksEqual(
+            code, [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)]
+        )
         return code
 
     def test_split_block(self):
         code = self.sample_code()
-        code[0].append(Instr('NOP', lineno=1))
+        code[0].append(Instr("NOP", lineno=1))
 
         label = code.split_block(code[0], 2)
         self.assertIs(label, code[1])
-        self.assertBlocksEqual(code,
-                               [Instr('LOAD_CONST', 1, lineno=1),
-                                Instr('STORE_NAME', 'x', lineno=1)],
-                               [Instr('NOP', lineno=1)])
+        self.assertBlocksEqual(
+            code,
+            [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)],
+            [Instr("NOP", lineno=1)],
+        )
         self.check_getitem(code)
 
         label2 = code.split_block(code[0], 1)
         self.assertIs(label2, code[1])
-        self.assertBlocksEqual(code,
-                               [Instr('LOAD_CONST', 1, lineno=1)],
-                               [Instr('STORE_NAME', 'x', lineno=1)],
-                               [Instr('NOP', lineno=1)])
+        self.assertBlocksEqual(
+            code,
+            [Instr("LOAD_CONST", 1, lineno=1)],
+            [Instr("STORE_NAME", "x", lineno=1)],
+            [Instr("NOP", lineno=1)],
+        )
         self.check_getitem(code)
 
         with self.assertRaises(TypeError):
@@ -450,20 +493,22 @@ class BytecodeBlocksFunctionalTests(TestCase):
         # split at the end of the last block requires to add a new empty block
         label = code.split_block(code[0], 2)
         self.assertIs(label, code[1])
-        self.assertBlocksEqual(code,
-                               [Instr('LOAD_CONST', 1, lineno=1),
-                                Instr('STORE_NAME', 'x', lineno=1)],
-                               [])
+        self.assertBlocksEqual(
+            code,
+            [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)],
+            [],
+        )
         self.check_getitem(code)
 
         # split at the end of a block which is not the end doesn't require to
         # add a new block
         label = code.split_block(code[0], 2)
         self.assertIs(label, code[1])
-        self.assertBlocksEqual(code,
-                               [Instr('LOAD_CONST', 1, lineno=1),
-                                Instr('STORE_NAME', 'x', lineno=1)],
-                               [])
+        self.assertBlocksEqual(
+            code,
+            [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)],
+            [],
+        )
 
     def test_split_block_dont_split(self):
         code = self.sample_code()
@@ -471,9 +516,9 @@ class BytecodeBlocksFunctionalTests(TestCase):
         # FIXME: is it really useful to support that?
         block = code.split_block(code[0], 0)
         self.assertIs(block, code[0])
-        self.assertBlocksEqual(code,
-                               [Instr('LOAD_CONST', 1, lineno=1),
-                                Instr('STORE_NAME', 'x', lineno=1)])
+        self.assertBlocksEqual(
+            code, [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)]
+        )
 
     def test_split_block_error(self):
         code = self.sample_code()
@@ -490,41 +535,47 @@ class BytecodeBlocksFunctionalTests(TestCase):
         if sys.version_info > (3, 8):
             bytecode.posonlyargcount = 0
         bytecode.kwonlyargcount = 2
-        bytecode.name = 'func'
-        bytecode.filename = 'hello.py'
+        bytecode.name = "func"
+        bytecode.filename = "hello.py"
         bytecode.flags = 0x43
-        bytecode.argnames = ('arg', 'arg2', 'arg3', 'kwonly', 'kwonly2')
+        bytecode.argnames = ("arg", "arg2", "arg3", "kwonly", "kwonly2")
         bytecode.docstring = None
         block0 = bytecode[0]
         block1 = bytecode.add_block()
         block2 = bytecode.add_block()
-        block0.extend([Instr('LOAD_FAST', 'x', lineno=4),
-                       Instr('POP_JUMP_IF_FALSE', block2, lineno=4)])
-        block1.extend([Instr('LOAD_FAST', 'arg', lineno=5),
-                       Instr('STORE_FAST', 'x', lineno=5)])
-        block2.extend([Instr('LOAD_CONST', 3, lineno=6),
-                       Instr('STORE_FAST', 'x', lineno=6),
-                       Instr('LOAD_FAST', 'x', lineno=7),
-                       Instr('RETURN_VALUE', lineno=7)])
+        block0.extend(
+            [
+                Instr("LOAD_FAST", "x", lineno=4),
+                Instr("POP_JUMP_IF_FALSE", block2, lineno=4),
+            ]
+        )
+        block1.extend(
+            [Instr("LOAD_FAST", "arg", lineno=5), Instr("STORE_FAST", "x", lineno=5)]
+        )
+        block2.extend(
+            [
+                Instr("LOAD_CONST", 3, lineno=6),
+                Instr("STORE_FAST", "x", lineno=6),
+                Instr("LOAD_FAST", "x", lineno=7),
+                Instr("RETURN_VALUE", lineno=7),
+            ]
+        )
 
         if WORDCODE:
-            expected = (b'|\x05'
-                        b'r\x08'
-                        b'|\x00'
-                        b'}\x05'
-                        b'd\x01'
-                        b'}\x05'
-                        b'|\x05'
-                        b'S\x00')
+            expected = (
+                b"|\x05" b"r\x08" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
+            )
         else:
-            expected = (b'|\x05\x00'
-                        b'r\x0c\x00'
-                        b'|\x00\x00'
-                        b'}\x05\x00'
-                        b'd\x01\x00'
-                        b'}\x05\x00'
-                        b'|\x05\x00'
-                        b'S')
+            expected = (
+                b"|\x05\x00"
+                b"r\x0c\x00"
+                b"|\x00\x00"
+                b"}\x05\x00"
+                b"d\x01\x00"
+                b"}\x05\x00"
+                b"|\x05\x00"
+                b"S"
+            )
 
         code = bytecode.to_code()
         self.assertEqual(code.co_consts, (None, 3))
@@ -538,10 +589,11 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(code.co_flags, 0x43)
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_names, ())
-        self.assertEqual(code.co_varnames, ('arg', 'arg2',
-                                            'arg3', 'kwonly', 'kwonly2', 'x'))
-        self.assertEqual(code.co_filename, 'hello.py')
-        self.assertEqual(code.co_name, 'func')
+        self.assertEqual(
+            code.co_varnames, ("arg", "arg2", "arg3", "kwonly", "kwonly2", "x")
+        )
+        self.assertEqual(code.co_filename, "hello.py")
+        self.assertEqual(code.co_name, "func")
         self.assertEqual(code.co_firstlineno, 3)
 
         # verify stacksize argument is honored
@@ -563,7 +615,6 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
 
 class CFGStacksizeComputationTests(TestCase):
-
     def check_stack_size(self, func):
         code = func.__code__
         bytecode = Bytecode.from_code(code)
@@ -578,29 +629,37 @@ class CFGStacksizeComputationTests(TestCase):
     def test_handling_of_set_lineno(self):
         code = Bytecode()
         code.first_lineno = 3
-        code.extend([Instr("LOAD_CONST", 7),
-                     Instr("STORE_NAME", 'x'),
-                     SetLineno(4),
-                     Instr("LOAD_CONST", 8),
-                     Instr("STORE_NAME", 'y'),
-                     SetLineno(5),
-                     Instr("LOAD_CONST", 9),
-                     Instr("STORE_NAME", 'z')])
+        code.extend(
+            [
+                Instr("LOAD_CONST", 7),
+                Instr("STORE_NAME", "x"),
+                SetLineno(4),
+                Instr("LOAD_CONST", 8),
+                Instr("STORE_NAME", "y"),
+                SetLineno(5),
+                Instr("LOAD_CONST", 9),
+                Instr("STORE_NAME", "z"),
+            ]
+        )
         self.assertEqual(code.compute_stacksize(), 1)
 
     def test_handling_of_extended_arg(self):
         code = Bytecode()
         code.first_lineno = 3
-        code.extend([Instr("LOAD_CONST", 7),
-                     Instr("STORE_NAME", 'x'),
-                     Instr("EXTENDED_ARG", 1),
-                     Instr("LOAD_CONST", 8),
-                     Instr("STORE_NAME", 'y')])
+        code.extend(
+            [
+                Instr("LOAD_CONST", 7),
+                Instr("STORE_NAME", "x"),
+                Instr("EXTENDED_ARG", 1),
+                Instr("LOAD_CONST", 8),
+                Instr("STORE_NAME", "y"),
+            ]
+        )
         self.assertEqual(code.compute_stacksize(), 1)
 
     def test_invalid_stacksize(self):
         code = Bytecode()
-        code.extend([Instr("STORE_NAME", 'x')])
+        code.extend([Instr("STORE_NAME", "x")])
         with self.assertRaises(RuntimeError):
             code.compute_stacksize()
 
@@ -677,7 +736,7 @@ class CFGStacksizeComputationTests(TestCase):
             except Exception:
                 return 2
             finally:
-                print('Interrupt')
+                print("Interrupt")
 
         self.check_stack_size(test)
 
@@ -690,7 +749,7 @@ class CFGStacksizeComputationTests(TestCase):
             else:
                 return arg1
             finally:
-                print('Interrupt')
+                print("Interrupt")
 
         self.check_stack_size(test)
 
@@ -707,9 +766,9 @@ class CFGStacksizeComputationTests(TestCase):
                 except Exception:
                     return 2
                 finally:
-                    print('unexpected')
+                    print("unexpected")
             finally:
-                print('attempted to get {}'.format(k))
+                print("attempted to get {}".format(k))
 
         self.check_stack_size(test)
 
@@ -719,17 +778,17 @@ class CFGStacksizeComputationTests(TestCase):
                 v = args[1]
             except IndexError:
                 try:
-                    w = kwargs['value']
+                    w = kwargs["value"]
                 except KeyError:
                     return -1
                 else:
                     return w
                 finally:
-                    print('second finally')
+                    print("second finally")
             else:
                 return v
             finally:
-                print('first finally')
+                print("first finally")
 
         # A direct comparison of the stack depth fails because CPython
         # generate dead code that is used in stack computation.
@@ -738,17 +797,15 @@ class CFGStacksizeComputationTests(TestCase):
         self.assertLessEqual(test.__code__.co_stacksize, cpython_stacksize)
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             self.assertEqual(test(1, 4), 4)
-            self.assertEqual(stdout.getvalue(), 'first finally\n')
+            self.assertEqual(stdout.getvalue(), "first finally\n")
 
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             self.assertEqual(test([], value=3), 3)
-            self.assertEqual(stdout.getvalue(),
-                             'second finally\nfirst finally\n')
+            self.assertEqual(stdout.getvalue(), "second finally\nfirst finally\n")
 
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             self.assertEqual(test([], name=None), -1)
-            self.assertEqual(stdout.getvalue(),
-                             'second finally\nfirst finally\n')
+            self.assertEqual(stdout.getvalue(), "second finally\nfirst finally\n")
 
     def test_stack_size_with_dead_code(self):
         # Simply demonstrate more directly the previously mentioned issue.
@@ -773,17 +830,16 @@ class CFGStacksizeComputationTests(TestCase):
             instructions = []
             for i in range(depth):
                 label_else = Label()
-                instructions.extend([
-                    Instr("LOAD_FAST", "x"),
-                    Instr("POP_JUMP_IF_FALSE", label_else),
-                    Instr("LOAD_GLOBAL", "f{}".format(i)),
-                    Instr("RETURN_VALUE"),
-                    label_else
-                ])
-            instructions.extend([
-                Instr("LOAD_CONST", None),
-                Instr("RETURN_VALUE"),
-            ])
+                instructions.extend(
+                    [
+                        Instr("LOAD_FAST", "x"),
+                        Instr("POP_JUMP_IF_FALSE", label_else),
+                        Instr("LOAD_GLOBAL", "f{}".format(i)),
+                        Instr("RETURN_VALUE"),
+                        label_else,
+                    ]
+                )
+            instructions.extend([Instr("LOAD_CONST", None), Instr("RETURN_VALUE")])
             return instructions
 
         bytecode = Bytecode(mk_if_then_else(5000))
