@@ -1007,8 +1007,8 @@ class BytecodeToConcreteTests(TestCase):
         # working backwards 4 bytes per label means just one instruction per
         # label.
         offset = end_of_jumps + N
-        for l in range(0, len(labels)):
-            code.insert(offset, labels[l])
+        for index in range(0, len(labels)):
+            code.insert(offset, labels[index])
             if offset <= end_of_jumps:
                 offset -= 1
             else:
