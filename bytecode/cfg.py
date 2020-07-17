@@ -1,5 +1,6 @@
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
+import opcode as _opcode
 from bytecode.concrete import ConcreteInstr
 from bytecode.instr import Label, SetLineno, Instr
 
@@ -133,11 +134,34 @@ def _compute_stack_size(block, size, maxsize):
     block.seen = True
     block.startsize = size
 
+    extended_args = []
+    extended_arg_seq = False
+
     for instr in block:
 
         # Ignore SetLineno
         if isinstance(instr, SetLineno):
             continue
+
+        # Handle extended arguments
+        orig_arg = instr.arg
+        if instr.opcode == _opcode.EXTENDED_ARG:
+            # Collect the extended arguments before the instruction uses it
+            extended_arg_seq = True
+            extended_args.append(instr.arg)
+        elif extended_arg_seq:
+            # Combine the extended argument (how dis module represents it)
+            num_extended_args = len(extended_args)
+            if num_extended_args > 3:
+                msg = "Opcode can be prefixed with at most three EXTENDED_ARGs"
+                raise RuntimeError(msg)
+
+            if not instr.has_jump():
+                # Jumps use basic block as argument
+                for i in range(num_extended_args):
+                    instr.arg += extended_args[i] << (8 * (num_extended_args - i))
+            extended_arg_seq = False
+            extended_args.clear()
 
         # For instructions with a jump first compute the stacksize required when the
         # jump is taken.
@@ -158,6 +182,8 @@ def _compute_stack_size(block, size, maxsize):
 
         # jump=False: non-taken path of jumps, or any non-jump
         size, maxsize = update_size(instr.stack_effect(jump=False), size, maxsize)
+
+        instr.arg = orig_arg
 
     if block.next_block:
         maxsize = yield block.next_block, size, maxsize
