@@ -1125,7 +1125,7 @@ class CFGStacksizeComputationTests(TestCase):
         self.assertEqual(test.__code__.co_stacksize, 1)
         self.assertEqual(test(), 259)
 
-    if sys.version_info > (3, 5):
+    if sys.version_info >= (3, 6):
         @unittest.expectedFailure
         def test_fail_extended_arg_jump(self):
             def test():
