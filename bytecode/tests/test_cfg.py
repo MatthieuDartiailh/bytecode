@@ -1125,90 +1125,91 @@ class CFGStacksizeComputationTests(TestCase):
         self.assertEqual(test.__code__.co_stacksize, 1)
         self.assertEqual(test(), 259)
 
-    @unittest.expectedFailure
-    def test_fail_extended_arg_jump(self):
-        def test():
-            var = None
-            for _ in range(0, 1):
-                var = 0
-                var = 1
-                var = 2
-                var = 3
-                var = 4
-                var = 5
-                var = 6
-                var = 7
-                var = 8
-                var = 9
-                var = 10
-                var = 11
-                var = 12
-                var = 13
-                var = 14
-                var = 15
-                var = 16
-                var = 17
-                var = 18
-                var = 19
-                var = 20
-                var = 21
-                var = 22
-                var = 23
-                var = 24
-                var = 25
-                var = 26
-                var = 27
-                var = 28
-                var = 29
-                var = 30
-                var = 31
-                var = 32
-                var = 33
-                var = 34
-                var = 35
-                var = 36
-                var = 37
-                var = 38
-                var = 39
-                var = 40
-                var = 41
-                var = 42
-                var = 43
-                var = 44
-                var = 45
-                var = 46
-                var = 47
-                var = 48
-                var = 49
-                var = 50
-                var = 51
-                var = 52
-                var = 53
-                var = 54
-                var = 55
-                var = 56
-                var = 57
-                var = 58
-                var = 59
-                var = 60
-                var = 61
-                var = 62
-                var = 63
-                var = 64
-                var = 65
-                var = 66
-                var = 67
-                var = 68
-                var = 69
-                var = 70
-            return var
+    if sys.version_info > (3, 5):
+        @unittest.expectedFailure
+        def test_fail_extended_arg_jump(self):
+            def test():
+                var = None
+                for _ in range(0, 1):
+                    var = 0
+                    var = 1
+                    var = 2
+                    var = 3
+                    var = 4
+                    var = 5
+                    var = 6
+                    var = 7
+                    var = 8
+                    var = 9
+                    var = 10
+                    var = 11
+                    var = 12
+                    var = 13
+                    var = 14
+                    var = 15
+                    var = 16
+                    var = 17
+                    var = 18
+                    var = 19
+                    var = 20
+                    var = 21
+                    var = 22
+                    var = 23
+                    var = 24
+                    var = 25
+                    var = 26
+                    var = 27
+                    var = 28
+                    var = 29
+                    var = 30
+                    var = 31
+                    var = 32
+                    var = 33
+                    var = 34
+                    var = 35
+                    var = 36
+                    var = 37
+                    var = 38
+                    var = 39
+                    var = 40
+                    var = 41
+                    var = 42
+                    var = 43
+                    var = 44
+                    var = 45
+                    var = 46
+                    var = 47
+                    var = 48
+                    var = 49
+                    var = 50
+                    var = 51
+                    var = 52
+                    var = 53
+                    var = 54
+                    var = 55
+                    var = 56
+                    var = 57
+                    var = 58
+                    var = 59
+                    var = 60
+                    var = 61
+                    var = 62
+                    var = 63
+                    var = 64
+                    var = 65
+                    var = 66
+                    var = 67
+                    var = 68
+                    var = 69
+                    var = 70
+                return var
 
-        # Generate the bytecode with extended arguments
-        bytecode = ConcreteBytecode.from_code(test.__code__, extended_arg=True)
-        # This is where computation fails
-        # It seems like it is caused by the split of blocks and a wrong start size
-        # for one block.
-        bytecode.to_code()
+            # Generate the bytecode with extended arguments
+            bytecode = ConcreteBytecode.from_code(test.__code__, extended_arg=True)
+            # This is where computation fails
+            # It seems like it is caused by the split of blocks and a wrong start size
+            # for one block.
+            bytecode.to_code()
 
 
 if __name__ == "__main__":
