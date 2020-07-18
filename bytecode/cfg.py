@@ -156,8 +156,10 @@ def _compute_stack_size(block, size, maxsize):
                 msg = "Opcode can be prefixed with at most three EXTENDED_ARGs"
                 raise RuntimeError(msg)
 
-            if not instr.has_jump():
-                # Jumps use basic block as argument
+            if instr.opcode == _opcode.opmap.get("UNPACK_EX"):
+                # Argument is currently only modified for UNPACK_EX instructions.
+                # For jump instructions/memory access instructions this is not
+                # required, since they use a basic block/name as argument.
                 for i in range(num_extended_args):
                     instr.arg += extended_args[i] << (8 * (num_extended_args - i))
             extended_arg_seq = False
