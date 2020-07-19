@@ -210,6 +210,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             instructions.append(instr)
             offset += instr.size
 
+        bytecode = ConcreteBytecode()
+
         # replace jump targets with blocks
         # HINT : in some cases Python generate useless EXTENDED_ARG opcode
         # with a value of zero. Such opcodes do not increases the size of the
@@ -217,46 +219,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         # consequence, they need to be tracked manually as otherwise the
         # offsets in jump targets can end up being wrong.
         if not extended_arg:
-            nb_extended_args = 0
-            extended_arg = None
-            index = 0
-            while index < len(instructions):
-                instr = instructions[index]
+            # The list is modified in place
+            bytecode._remove_extended_args(instructions)
 
-                if instr.name == "EXTENDED_ARG":
-                    nb_extended_args += 1
-                    if extended_arg is not None:
-                        if not _WORDCODE:
-                            raise ValueError("EXTENDED_ARG followed " "by EXTENDED_ARG")
-                        extended_arg = (extended_arg << 8) + instr.arg
-                    else:
-                        extended_arg = instr.arg
-
-                    del instructions[index]
-                    continue
-
-                if extended_arg is not None:
-                    if _WORDCODE:
-                        arg = (extended_arg << 8) + instr.arg
-                    else:
-                        arg = (extended_arg << 16) + instr.arg
-                    extended_arg = None
-
-                    instr = ConcreteInstr(
-                        instr.name,
-                        arg,
-                        lineno=instr.lineno,
-                        extended_args=nb_extended_args,
-                    )
-                    instructions[index] = instr
-                    nb_extended_args = 0
-
-                index += 1
-
-            if extended_arg is not None:
-                raise ValueError("EXTENDED_ARG at the end of the code")
-
-        bytecode = ConcreteBytecode()
         bytecode.name = code.co_name
         bytecode.filename = code.co_filename
         bytecode.flags = code.co_flags
@@ -275,9 +240,10 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         bytecode[:] = instructions
         return bytecode
 
-    def _normalize_lineno(self):
-        lineno = self.first_lineno
-        for instr in self:
+    @staticmethod
+    def _normalize_lineno(instructions, first_lineno):
+        lineno = first_lineno
+        for instr in instructions:
             # if instr.lineno is not set, it's inherited from the previous
             # instruction, or from self.first_lineno
             if instr.lineno is not None:
@@ -290,7 +256,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         offset = 0
         code_str = []
         linenos = []
-        for lineno, instr in self._normalize_lineno():
+        for lineno, instr in self._normalize_lineno(self, self.first_lineno):
             code_str.append(instr.assemble())
             linenos.append((offset, lineno))
             offset += instr.size
@@ -334,6 +300,58 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             lnotab.append(struct.pack("Bb", doff, dlineno))
 
         return b"".join(lnotab)
+
+    @staticmethod
+    def _remove_extended_args(instructions):
+        # replace jump targets with blocks
+        # HINT : in some cases Python generate useless EXTENDED_ARG opcode
+        # with a value of zero. Such opcodes do not increases the size of the
+        # following opcode the way a normal EXTENDED_ARG does. As a
+        # consequence, they need to be tracked manually as otherwise the
+        # offsets in jump targets can end up being wrong.
+        nb_extended_args = 0
+        extended_arg = None
+        index = 0
+        while index < len(instructions):
+            instr = instructions[index]
+
+            # Skip SetLineno meta instruction
+            if isinstance(instr, SetLineno):
+                index += 1
+                continue
+
+            if instr.name == "EXTENDED_ARG":
+                nb_extended_args += 1
+                if extended_arg is not None:
+                    if not _WORDCODE:
+                        raise ValueError("EXTENDED_ARG followed " "by EXTENDED_ARG")
+                    extended_arg = (extended_arg << 8) + instr.arg
+                else:
+                    extended_arg = instr.arg
+
+                del instructions[index]
+                continue
+
+            if extended_arg is not None:
+                if _WORDCODE:
+                    arg = (extended_arg << 8) + instr.arg
+                else:
+                    arg = (extended_arg << 16) + instr.arg
+                extended_arg = None
+
+                instr = ConcreteInstr(
+                    instr.name,
+                    arg,
+                    lineno=instr.lineno,
+                    extended_args=nb_extended_args,
+                )
+                instructions[index] = instr
+                nb_extended_args = 0
+
+            index += 1
+
+        if extended_arg is not None:
+            raise ValueError("EXTENDED_ARG at the end of the code")
 
     def compute_stacksize(self):
         bytecode = self.to_bytecode()
@@ -386,10 +404,15 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             )
 
     def to_bytecode(self):
+
+        # Copy instruction and remove extended args if any (in-place)
+        c_instructions = self[:]
+        self._remove_extended_args(c_instructions)
+
         # find jump targets
         jump_targets = set()
         offset = 0
-        for instr in self:
+        for instr in c_instructions:
             if isinstance(instr, SetLineno):
                 continue
             target = instr.get_jump_target(offset)
@@ -404,7 +427,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         offset = 0
         ncells = len(self.cellvars)
 
-        for lineno, instr in self._normalize_lineno():
+        for lineno, instr in self._normalize_lineno(c_instructions, self.first_lineno):
             if offset in jump_targets:
                 label = Label()
                 labels[offset] = label
