@@ -138,6 +138,12 @@ class Instr:
         self._set(name, arg, lineno)
 
     def _check_arg(self, name, opcode, arg):
+        if name == "EXTENDED_ARG":
+            raise ValueError(
+                "only concrete instruction can contain EXTENDED_ARG, "
+                "highlevel instruction can represent arbitrary argument without it"
+            )
+
         if opcode >= _opcode.HAVE_ARGUMENT:
             if arg is UNSET:
                 raise ValueError("operation %s requires an argument" % name)
@@ -200,7 +206,6 @@ class Instr:
 
         self._check_arg(name, opcode, arg)
 
-        opcode = _opcode.opmap[name]
         self._name = name
         self._opcode = opcode
         self._arg = arg

@@ -92,6 +92,9 @@ class InstrTests(TestCase):
         label = Label()
         block = BasicBlock()
 
+        # EXTENDED_ARG
+        self.assertRaises(ValueError, Instr, "EXTENDED_ARG", 0)
+
         # has_jump()
         self.assertRaises(TypeError, Instr, "JUMP_ABSOLUTE", 1)
         self.assertRaises(TypeError, Instr, "JUMP_ABSOLUTE", 1.0)
