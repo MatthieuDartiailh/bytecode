@@ -648,7 +648,9 @@ class ConcreteFromCodeTests(TestCase):
             q, r, *s, t = p
             return q, r, s, t
 
-        test.__code__ = ConcreteBytecode.from_code(test.__code__, extended_arg=True).to_code()
+        test.__code__ = ConcreteBytecode.from_code(
+            test.__code__, extended_arg=True
+        ).to_code()
         self.assertEqual(test.__code__.co_stacksize, 6)
         self.assertEqual(test(), (1, 2, [3, 4, 5], 6))
 
@@ -917,7 +919,9 @@ class ConcreteFromCodeTests(TestCase):
 
             return var
 
-        test.__code__ = ConcreteBytecode.from_code(test.__code__, extended_arg=True).to_code()
+        test.__code__ = ConcreteBytecode.from_code(
+            test.__code__, extended_arg=True
+        ).to_code()
         self.assertEqual(test.__code__.co_stacksize, 1)
         self.assertEqual(test(), 259)
 
