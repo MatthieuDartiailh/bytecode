@@ -17,10 +17,9 @@ class BasicBlock(_bytecode._InstrList):
             instr = self[index]
             index += 1
 
-            if not isinstance(instr, (SetLineno, Instr, ConcreteInstr)):
+            if not isinstance(instr, (SetLineno, Instr)):
                 raise ValueError(
-                    "BasicBlock must only contain SetLineno, "
-                    "Instr and ConcreteInstr objects, "
+                    "BasicBlock must only contain SetLineno and Instr objects, "
                     "but %s was found" % instr.__class__.__name__
                 )
 
@@ -386,7 +385,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 continue
 
             # don't copy SetLineno objects
-            if isinstance(instr, (Instr, ConcreteInstr)):
+            if isinstance(instr, Instr):
                 instr = instr.copy()
                 if isinstance(instr.arg, Label):
                     jumps.append(instr)
@@ -419,7 +418,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
             for instr in block:
                 # don't copy SetLineno objects
-                if isinstance(instr, (Instr, ConcreteInstr)):
+                if isinstance(instr, Instr):
                     instr = instr.copy()
                     if isinstance(instr.arg, BasicBlock):
                         jumps.append(instr)
