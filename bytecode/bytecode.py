@@ -178,10 +178,10 @@ class Bytecode(_InstrList, _BaseBytecodeList):
             yield instr
 
     def _check_instr(self, instr):
-        if not isinstance(instr, (Label, SetLineno, Instr, _bytecode.ConcreteInstr)):
+        if not isinstance(instr, (Label, SetLineno, Instr)):
             raise ValueError(
                 "Bytecode must only contain Label, "
-                "SetLineno, Instr and ConcreteInstr objects, "
+                "SetLineno, and Instr objects, "
                 "but %s was found" % type(instr).__name__
             )
 
