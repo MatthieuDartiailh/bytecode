@@ -6,9 +6,9 @@ bytecode
    :alt: Latest release on the Python Cheeseshop (PyPI)
    :target: https://pypi.python.org/pypi/bytecode
 
-.. image:: https://img.shields.io/travis/vstinner/bytecode/master.svg
+.. image:: https://travis-ci.com/vstinner/bytecode.svg?branch=master
    :alt: Build status of bytecode on Travis CI
-   :target: https://travis-ci.org/vstinner/bytecode
+   :target: https://travis-ci.com/github/vstinner/bytecode
 
 .. image:: https://img.shields.io/codecov/c/github/vstinner/bytecode/master.svg
    :alt: Code coverage of bytecode on codecov.io

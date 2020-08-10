@@ -9,7 +9,7 @@
 #  - git commit -a
 #  - git push
 #  - check Travis CI status:
-#    https://travis-ci.org/vstinner/bytecode
+#    https://travis-ci.com/github/vstinner/bytecode
 #
 # Release a new version:
 #
