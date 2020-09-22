@@ -1390,9 +1390,7 @@ class BytecodeToConcreteTests(TestCase):
         code.to_code(compute_jumps_passes=(len(labels) + 1))
 
     def test_general_constants(self):
-        """Test if general object could be linked as constants.
-
-        """
+        """Test if general object could be linked as constants."""
 
         class CustomObject:
             pass

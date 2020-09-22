@@ -79,9 +79,7 @@ class BaseBytecode:
 
 
 class _BaseBytecodeList(BaseBytecode, list):
-    """List subclass providing type stable slicing and copying.
-
-    """
+    """List subclass providing type stable slicing and copying."""
 
     def __getitem__(self, index):
         value = super().__getitem__(index)
@@ -97,9 +95,7 @@ class _BaseBytecodeList(BaseBytecode, list):
         return new
 
     def legalize(self):
-        """Check that all the element of the list are valid and remove SetLineno.
-
-        """
+        """Check that all the element of the list are valid and remove SetLineno."""
         lineno_pos = []
         set_lineno = None
         current_lineno = self.first_lineno

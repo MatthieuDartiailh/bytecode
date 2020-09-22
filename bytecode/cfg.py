@@ -51,9 +51,7 @@ class BasicBlock(_bytecode._InstrList):
         return new
 
     def legalize(self, first_lineno):
-        """Check that all the element of the list are valid and remove SetLineno.
-
-        """
+        """Check that all the element of the list are valid and remove SetLineno."""
         lineno_pos = []
         set_lineno = None
         current_lineno = first_lineno
@@ -89,7 +87,7 @@ class BasicBlock(_bytecode._InstrList):
 
 
 def _compute_stack_size(block, size, maxsize):
-    """ Generator used to reduce the use of function stacks.
+    """Generator used to reduce the use of function stacks.
 
     This allows to avoid nested recursion and allow to treat more cases.
 
@@ -175,9 +173,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         self.add_block()
 
     def legalize(self):
-        """Legalize all blocks.
-
-        """
+        """Legalize all blocks."""
         current_lineno = self.first_lineno
         for block in self._blocks:
             current_lineno = block.legalize(current_lineno)
