@@ -138,8 +138,8 @@ def _compute_stack_size(block, size, maxsize):
         # For instructions with a jump first compute the stacksize required when the
         # jump is taken.
         if instr.has_jump():
-            taken_size, maxsize = update_size(*instr.stack_effect(jump=True),
-                                              size, maxsize)
+            taken_size, maxsize = update_size(
+                *instr.pre_and_post_stack_effect(jump=True), size, maxsize)
             # Yield the parameters required to compute the stacksize required
             # by the block to which the jumnp points to and resume when we now
             # the maxsize.
