@@ -42,7 +42,7 @@ def _check_lineno(lineno):
 
 
 class SetLineno:
-    __slots__ = ("_lineno", )
+    __slots__ = ("_lineno",)
 
     def __init__(self, lineno):
         _check_lineno(lineno)
@@ -63,7 +63,7 @@ class Label:
 
 
 class _Variable:
-    __slots__ = ("name", )
+    __slots__ = ("name",)
 
     def __init__(self, name):
         self.name = name
@@ -90,12 +90,15 @@ class FreeVar(_Variable):
 
 def _check_arg_int(name, arg):
     if not isinstance(arg, int):
-        raise TypeError("operation %s argument must be an int, "
-                        "got %s" % (name, type(arg).__name__))
+        raise TypeError(
+            "operation %s argument must be an int, "
+            "got %s" % (name, type(arg).__name__)
+        )
 
     if not (0 <= arg <= 2147483647):
-        raise ValueError("operation %s argument must be in "
-                         "the range 0..2,147,483,647" % name)
+        raise ValueError(
+            "operation %s argument must be in " "the range 0..2,147,483,647" % name
+        )
 
 
 if sys.version_info < (3, 8):
@@ -117,11 +120,13 @@ if sys.version_info < (3, 8):
 
     # More stack effect values that are unique to the version of Python.
     if sys.version_info < (3, 7):
-        _stack_effects.update({
-            _opcode.opmap["SETUP_WITH"]: (7, 7),
-            _opcode.opmap["SETUP_EXCEPT"]: (6, 9),
-            _opcode.opmap["SETUP_FINALLY"]: (6, 9),
-        })
+        _stack_effects.update(
+            {
+                _opcode.opmap["SETUP_WITH"]: (7, 7),
+                _opcode.opmap["SETUP_EXCEPT"]: (6, 9),
+                _opcode.opmap["SETUP_FINALLY"]: (6, 9),
+            }
+        )
 
 
 class Instr:
@@ -148,33 +153,41 @@ class Instr:
 
         if self._has_jump(opcode):
             if not isinstance(arg, (Label, _bytecode.BasicBlock)):
-                raise TypeError("operation %s argument type must be "
-                                "Label or BasicBlock, got %s" %
-                                (name, type(arg).__name__))
+                raise TypeError(
+                    "operation %s argument type must be "
+                    "Label or BasicBlock, got %s" % (name, type(arg).__name__)
+                )
 
         elif opcode in _opcode.hasfree:
             if not isinstance(arg, (CellVar, FreeVar)):
-                raise TypeError("operation %s argument must be CellVar "
-                                "or FreeVar, got %s" %
-                                (name, type(arg).__name__))
+                raise TypeError(
+                    "operation %s argument must be CellVar "
+                    "or FreeVar, got %s" % (name, type(arg).__name__)
+                )
 
         elif opcode in _opcode.haslocal or opcode in _opcode.hasname:
             if not isinstance(arg, str):
-                raise TypeError("operation %s argument must be a str, "
-                                "got %s" % (name, type(arg).__name__))
+                raise TypeError(
+                    "operation %s argument must be a str, "
+                    "got %s" % (name, type(arg).__name__)
+                )
 
         elif opcode in _opcode.hasconst:
             if isinstance(arg, Label):
-                raise ValueError("label argument cannot be used "
-                                 "in %s operation" % name)
+                raise ValueError(
+                    "label argument cannot be used " "in %s operation" % name
+                )
             if isinstance(arg, _bytecode.BasicBlock):
-                raise ValueError("block argument cannot be used "
-                                 "in %s operation" % name)
+                raise ValueError(
+                    "block argument cannot be used " "in %s operation" % name
+                )
 
         elif opcode in _opcode.hascompare:
             if not isinstance(arg, Compare):
-                raise TypeError("operation %s argument type must be "
-                                "Compare, got %s" % (name, type(arg).__name__))
+                raise TypeError(
+                    "operation %s argument type must be "
+                    "Compare, got %s" % (name, type(arg).__name__)
+                )
 
         elif opcode >= _opcode.HAVE_ARGUMENT:
             _check_arg_int(name, arg)
@@ -254,8 +267,7 @@ class Instr:
     def stack_effect(self, jump=None):
         if self._opcode < _opcode.HAVE_ARGUMENT:
             arg = None
-        elif not isinstance(self._arg,
-                            int) or self._opcode in _opcode.hasconst:
+        elif not isinstance(self._arg, int) or self._opcode in _opcode.hasconst:
             # Argument is either a non-integer or an integer constant,
             # not oparg.
             arg = 0
@@ -274,10 +286,14 @@ class Instr:
         def _pushes_back(opname):
             if opname in ["CALL_FINALLY"]:
                 return False
-            return opname.startswith("UNARY_") or opname.startswith(
-                "GET_") or opname.startswith("BINARY_") or opname.startswith(
-                    "INPLACE_") or opname.startswith(
-                        "BUILD_") or opname.startswith("CALL_")
+            return (
+                opname.startswith("UNARY_")
+                or opname.startswith("GET_")
+                or opname.startswith("BINARY_")
+                or opname.startswith("INPLACE_")
+                or opname.startswith("BUILD_")
+                or opname.startswith("CALL_")
+            )
 
         _effect = self.stack_effect(jump=jump)
         # To compute pre size and post size to avoid segfault cause by not enough stack element
@@ -294,8 +310,7 @@ class Instr:
 
     def __repr__(self):
         if self._arg is not UNSET:
-            return "<%s arg=%r lineno=%s>" % (self._name, self._arg,
-                                              self._lineno)
+            return "<%s arg=%r lineno=%s>" % (self._name, self._arg, self._lineno)
         else:
             return "<%s lineno=%s>" % (self._name, self._lineno)
 
@@ -330,10 +345,10 @@ class Instr:
 
     def is_final(self):
         if self._name in {
-                "RETURN_VALUE",
-                "RAISE_VARARGS",
-                "BREAK_LOOP",
-                "CONTINUE_LOOP",
+            "RETURN_VALUE",
+            "RAISE_VARARGS",
+            "BREAK_LOOP",
+            "CONTINUE_LOOP",
         }:
             return True
         if self.is_uncond_jump():

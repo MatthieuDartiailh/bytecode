@@ -20,12 +20,14 @@ class BasicBlock(_bytecode._InstrList):
             if not isinstance(instr, (SetLineno, Instr)):
                 raise ValueError(
                     "BasicBlock must only contain SetLineno and Instr objects, "
-                    "but %s was found" % instr.__class__.__name__)
+                    "but %s was found" % instr.__class__.__name__
+                )
 
             if isinstance(instr, Instr) and instr.has_jump():
                 if index < len(self):
-                    raise ValueError("Only the last instruction of a basic "
-                                     "block can be a jump")
+                    raise ValueError(
+                        "Only the last instruction of a basic " "block can be a jump"
+                    )
 
                 if not isinstance(instr.arg, BasicBlock):
                     raise ValueError(
@@ -139,7 +141,8 @@ def _compute_stack_size(block, size, maxsize):
         # jump is taken.
         if instr.has_jump():
             taken_size, maxsize = update_size(
-                *instr.pre_and_post_stack_effect(jump=True), size, maxsize)
+                *instr.pre_and_post_stack_effect(jump=True), size, maxsize
+            )
             # Yield the parameters required to compute the stacksize required
             # by the block to which the jumnp points to and resume when we now
             # the maxsize.
@@ -153,7 +156,8 @@ def _compute_stack_size(block, size, maxsize):
 
         # jump=False: non-taken path of jumps, or any non-jump
         size, maxsize = update_size(
-            *instr.pre_and_post_stack_effect(jump=False), size, maxsize)
+            *instr.pre_and_post_stack_effect(jump=False), size, maxsize
+        )
 
     if block.next_block:
         maxsize = yield block.next_block, size, maxsize
@@ -325,7 +329,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         block2 = BasicBlock(instructions)
         block.next_block = block2
 
-        for block in self[block_index + 1:]:
+        for block in self[block_index + 1 :]:
             self._block_index[id(block)] += 1
 
         self._blocks.insert(block_index + 1, block2)

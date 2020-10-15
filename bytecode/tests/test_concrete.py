@@ -1310,7 +1310,8 @@ class BytecodeToConcreteTests(TestCase):
         code = Bytecode()
         label1 = Label()
         label2 = Label()
-        nop = "UNARY_POSITIVE"  # don't use NOP, dis.stack_effect will raise
+        nop = "NOP"  # don't use NOP, dis.stack_effect will raise
+        # Why? Changing to NOP seems to have no harm
         code.append(Instr("JUMP_ABSOLUTE", label1))
         code.append(Instr("JUMP_ABSOLUTE", label2))
         for x in range(4, 254, 2):

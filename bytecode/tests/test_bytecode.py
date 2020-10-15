@@ -28,16 +28,18 @@ class BytecodeTests(TestCase):
     def test_legalize(self):
         code = Bytecode()
         code.first_lineno = 3
-        code.extend([
-            Instr("LOAD_CONST", 7),
-            Instr("STORE_NAME", "x"),
-            Instr("LOAD_CONST", 8, lineno=4),
-            Instr("STORE_NAME", "y"),
-            Label(),
-            SetLineno(5),
-            Instr("LOAD_CONST", 9, lineno=6),
-            Instr("STORE_NAME", "z"),
-        ])
+        code.extend(
+            [
+                Instr("LOAD_CONST", 7),
+                Instr("STORE_NAME", "x"),
+                Instr("LOAD_CONST", 8, lineno=4),
+                Instr("STORE_NAME", "y"),
+                Label(),
+                SetLineno(5),
+                Instr("LOAD_CONST", 9, lineno=6),
+                Instr("STORE_NAME", "z"),
+            ]
+        )
 
         code.legalize()
         self.assertListEqual(
@@ -56,71 +58,77 @@ class BytecodeTests(TestCase):
     def test_slice(self):
         code = Bytecode()
         code.first_lineno = 3
-        code.extend([
-            Instr("LOAD_CONST", 7),
-            Instr("STORE_NAME", "x"),
-            SetLineno(4),
-            Instr("LOAD_CONST", 8),
-            Instr("STORE_NAME", "y"),
-            SetLineno(5),
-            Instr("LOAD_CONST", 9),
-            Instr("STORE_NAME", "z"),
-        ])
+        code.extend(
+            [
+                Instr("LOAD_CONST", 7),
+                Instr("STORE_NAME", "x"),
+                SetLineno(4),
+                Instr("LOAD_CONST", 8),
+                Instr("STORE_NAME", "y"),
+                SetLineno(5),
+                Instr("LOAD_CONST", 9),
+                Instr("STORE_NAME", "z"),
+            ]
+        )
         sliced_code = code[:]
         self.assertEqual(code, sliced_code)
         for name in (
-                "argcount",
-                "posonlyargcount",
-                "kwonlyargcount",
-                "first_lineno",
-                "name",
-                "filename",
-                "docstring",
-                "cellvars",
-                "freevars",
-                "argnames",
+            "argcount",
+            "posonlyargcount",
+            "kwonlyargcount",
+            "first_lineno",
+            "name",
+            "filename",
+            "docstring",
+            "cellvars",
+            "freevars",
+            "argnames",
         ):
-            self.assertEqual(getattr(code, name, None),
-                             getattr(sliced_code, name, None))
+            self.assertEqual(
+                getattr(code, name, None), getattr(sliced_code, name, None)
+            )
 
     def test_copy(self):
         code = Bytecode()
         code.first_lineno = 3
-        code.extend([
-            Instr("LOAD_CONST", 7),
-            Instr("STORE_NAME", "x"),
-            SetLineno(4),
-            Instr("LOAD_CONST", 8),
-            Instr("STORE_NAME", "y"),
-            SetLineno(5),
-            Instr("LOAD_CONST", 9),
-            Instr("STORE_NAME", "z"),
-        ])
+        code.extend(
+            [
+                Instr("LOAD_CONST", 7),
+                Instr("STORE_NAME", "x"),
+                SetLineno(4),
+                Instr("LOAD_CONST", 8),
+                Instr("STORE_NAME", "y"),
+                SetLineno(5),
+                Instr("LOAD_CONST", 9),
+                Instr("STORE_NAME", "z"),
+            ]
+        )
 
         copy_code = code.copy()
         self.assertEqual(code, copy_code)
         for name in (
-                "argcount",
-                "posonlyargcount",
-                "kwonlyargcount",
-                "first_lineno",
-                "name",
-                "filename",
-                "docstring",
-                "cellvars",
-                "freevars",
-                "argnames",
+            "argcount",
+            "posonlyargcount",
+            "kwonlyargcount",
+            "first_lineno",
+            "name",
+            "filename",
+            "docstring",
+            "cellvars",
+            "freevars",
+            "argnames",
         ):
-            self.assertEqual(getattr(code, name, None),
-                             getattr(copy_code, name, None))
+            self.assertEqual(getattr(code, name, None), getattr(copy_code, name, None))
 
     def test_from_code(self):
-        code = get_code("""
+        code = get_code(
+            """
             if test:
                 x = 1
             else:
                 x = 2
-        """)
+        """
+        )
         bytecode = Bytecode.from_code(code)
         label_else = Label()
         label_exit = Label()
@@ -144,7 +152,8 @@ class BytecodeTests(TestCase):
     def test_from_code_freevars(self):
         ns = {}
         exec(
-            textwrap.dedent("""
+            textwrap.dedent(
+                """
             def create_func():
                 x = 1
                 def func():
@@ -152,7 +161,8 @@ class BytecodeTests(TestCase):
                 return func
 
             func = create_func()
-        """),
+        """
+            ),
             ns,
             ns,
         )
@@ -195,16 +205,18 @@ class BytecodeTests(TestCase):
         # z = 9
         code = Bytecode()
         code.first_lineno = 3
-        code.extend([
-            Instr("LOAD_CONST", 7),
-            Instr("STORE_NAME", "x"),
-            SetLineno(4),
-            Instr("LOAD_CONST", 8),
-            Instr("STORE_NAME", "y"),
-            SetLineno(5),
-            Instr("LOAD_CONST", 9),
-            Instr("STORE_NAME", "z"),
-        ])
+        code.extend(
+            [
+                Instr("LOAD_CONST", 7),
+                Instr("STORE_NAME", "x"),
+                SetLineno(4),
+                Instr("LOAD_CONST", 8),
+                Instr("STORE_NAME", "y"),
+                SetLineno(5),
+                Instr("LOAD_CONST", 9),
+                Instr("STORE_NAME", "z"),
+            ]
+        )
 
         concrete = code.to_concrete_bytecode()
         self.assertEqual(concrete.consts, [7, 8, 9])
@@ -224,14 +236,16 @@ class BytecodeTests(TestCase):
     def test_to_code(self):
         code = Bytecode()
         code.first_lineno = 50
-        code.extend([
-            Instr("LOAD_NAME", "print"),
-            Instr("LOAD_CONST", "%s"),
-            Instr("LOAD_GLOBAL", "a"),
-            Instr("BINARY_MODULO"),
-            Instr("CALL_FUNCTION", 1),
-            Instr("RETURN_VALUE"),
-        ])
+        code.extend(
+            [
+                Instr("LOAD_NAME", "print"),
+                Instr("LOAD_CONST", "%s"),
+                Instr("LOAD_GLOBAL", "a"),
+                Instr("BINARY_MODULO"),
+                Instr("CALL_FUNCTION", 1),
+                Instr("RETURN_VALUE"),
+            ]
+        )
         co = code.to_code()
         # hopefully this is obvious from inspection? :-)
         self.assertEqual(co.co_stacksize, 3)
