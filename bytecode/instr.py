@@ -272,6 +272,8 @@ class Instr:
 
     def pre_and_post_stack_effect(self, jump=None):
         def _pushes_back(opname):
+            if opname in ["CALL_FINALLY"]:
+                return False
             return opname.startswith("UNARY_") or opname.startswith(
                 "GET_") or opname.startswith("BINARY_") or opname.startswith(
                     "INPLACE_") or opname.startswith(
