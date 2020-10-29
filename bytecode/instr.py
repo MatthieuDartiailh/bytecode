@@ -307,8 +307,7 @@ class Instr:
 
         _effect = self.stack_effect(jump=jump)
         # To compute pre size and post size to avoid segfault cause by not enough stack element
-        _opname = _opcode.opname[self._opcode]
-        if _opname.startswith("DUP_TOP"):
+        if _opcode.opname[self._opcode].startswith("DUP_TOP"):
             return _effect * -1, _effect * 2
         if self.pushes_back():
             return _effect - 1, 1
