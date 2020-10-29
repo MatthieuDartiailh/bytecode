@@ -281,6 +281,27 @@ class BytecodeTests(TestCase):
         with self.assertRaises(RuntimeError):
             code.compute_stacksize()
 
+    def test_empty_dup(self):
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("DUP_TOP")])
+        with self.assertRaises(RuntimeError):
+            code.compute_stacksize()
+
+    def test_not_enough_dup(self):
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("LOAD_CONST", 1), Instr("DUP_TOP_TWO")])
+        with self.assertRaises(RuntimeError):
+            code.compute_stacksize()
+
+    def test_not_enough_rot(self):
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("LOAD_CONST", 1), Instr("ROT_TWO")])
+        with self.assertRaises(RuntimeError):
+            code.compute_stacksize()
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover
