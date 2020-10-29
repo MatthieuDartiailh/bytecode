@@ -282,24 +282,35 @@ class Instr:
         else:
             return dis.stack_effect(self._opcode, arg, jump=jump)
 
+    def pushes_back(self):
+        opname = _opcode.opname[self._opcode]
+        if opname in ["CALL_FINALLY"]:
+            return False
+        return (
+            opname.startswith("UNARY_")
+            or opname.startswith("GET_")
+            or opname.startswith("BINARY_")
+            or opname.startswith("INPLACE_")
+            or opname.startswith("BUILD_")
+            or opname.startswith("CALL_")
+        ) or opname in [
+            "LIST_TO_TUPLE",
+            "LIST_EXTEND",
+            "SET_UPDATE",
+            "DICT_UPDATE",
+            "DICT_MERGE",
+            "IS_OP",
+            "CONTAINS_OP",
+        ]
+
     def pre_and_post_stack_effect(self, jump=None):
-        def _pushes_back(opname):
-            if opname in ["CALL_FINALLY"]:
-                return False
-            return (
-                opname.startswith("UNARY_")
-                or opname.startswith("GET_")
-                or opname.startswith("BINARY_")
-                or opname.startswith("INPLACE_")
-                or opname.startswith("BUILD_")
-                or opname.startswith("CALL_")
-            )
 
         _effect = self.stack_effect(jump=jump)
         # To compute pre size and post size to avoid segfault cause by not enough stack element
-        if _opcode.opname[self._opcode].startswith("DUP_TOP"):
+        _opname = _opcode.opname[self._opcode]
+        if _opname.startswith("DUP_TOP"):
             return _effect * -1, _effect * 2
-        if _pushes_back(_opcode.opname[self._opcode]):
+        if self.pushes_back():
             return _effect - 1, 1
         return _effect, 0
 
