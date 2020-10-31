@@ -34,7 +34,7 @@ def const_key(obj):
         return (type(obj), id(obj))
 
 
-def pushes_back(opname):
+def _pushes_back(opname):
     if opname in ["CALL_FINALLY"]:
         return False
     return (
@@ -310,7 +310,7 @@ class Instr:
         _opname = _opcode.opname[self._opcode]
         if _opname.startswith("DUP_TOP"):
             return _effect * -1, _effect * 2
-        if pushes_back(_opname):
+        if _pushes_back(_opname):
             return _effect - 1, 1
         return {"ROT_TWO": (-2, 2), "ROT_THREE": (-3, 3), "ROT_FOUR": (-4, 4)}.get(
             _opname, (_effect, 0)
