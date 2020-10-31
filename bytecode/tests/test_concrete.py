@@ -648,10 +648,11 @@ class ConcreteFromCodeTests(TestCase):
             q, r, *s, t = p
             return q, r, s, t
 
+        cpython_stacksize = test.__code__.co_stacksize
         test.__code__ = ConcreteBytecode.from_code(
             test.__code__, extended_arg=True
         ).to_code()
-        self.assertEqual(test.__code__.co_stacksize, 6)
+        self.assertEqual(test.__code__.co_stacksize, cpython_stacksize)
         self.assertEqual(test(), (1, 2, [3, 4, 5], 6))
 
     def test_expected_arg_with_many_consts(self):
