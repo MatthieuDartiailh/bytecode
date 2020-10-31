@@ -15,3 +15,5 @@ bytecode.egg-info/
 .coverage
 .pytest_cache
 .cache
+
+.venv
