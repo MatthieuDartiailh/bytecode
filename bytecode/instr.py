@@ -36,6 +36,8 @@ def const_key(obj):
 
 def _pushes_back(opname):
     if opname in ["CALL_FINALLY"]:
+        # CALL_FINALLY pushes the address of the "finally" block instead of a
+        # value, hence we don't treat it as pushing back op
         return False
     return (
         opname.startswith("UNARY_")
@@ -44,7 +46,7 @@ def _pushes_back(opname):
         or opname.startswith("INPLACE_")
         or opname.startswith("BUILD_")
         or opname.startswith("CALL_")
-    ) or opname in [
+    ) or opname in (
         "LIST_TO_TUPLE",
         "LIST_EXTEND",
         "SET_UPDATE",
@@ -52,7 +54,15 @@ def _pushes_back(opname):
         "DICT_MERGE",
         "IS_OP",
         "CONTAINS_OP",
-    ]
+        "FORMAT_VALUE",
+        "MAKE_FUNCTION",
+        "IMPORT_NAME",
+        # technically, these three do not push back, but leave the container
+        # object on TOS
+        "SET_ADD",
+        "LIST_APPEND",
+        "MAP_ADD",
+    )
 
 
 def _check_lineno(lineno):
@@ -311,7 +321,15 @@ class Instr:
         if _opname.startswith("DUP_TOP"):
             return _effect * -1, _effect * 2
         if _pushes_back(_opname):
+            # if the op pushes value back to the stack, then the stack effect given by dis.stack_effect
+            # actually equals pre + post effect, therefore we need -1 from the stack effect as a pre
+            # condition
             return _effect - 1, 1
+        if _opname.startswith("UNPACK_"):
+            # Instr(UNPACK_* , n) pops 1 and pushes n
+            # _effect = n - 1
+            # hence we return -1, _effect + 1
+            return -1, _effect + 1
         return {"ROT_TWO": (-2, 2), "ROT_THREE": (-3, 3), "ROT_FOUR": (-4, 4)}.get(
             _opname, (_effect, 0)
         )
