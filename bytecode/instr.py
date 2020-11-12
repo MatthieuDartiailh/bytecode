@@ -334,6 +334,9 @@ class Instr:
             # _effect = n - 1
             # hence we return -1, _effect + 1
             return -1, _effect + 1
+        if _opname == "FOR_ITER" and not jump:
+            # Since FOR_ITER needs TOS to be an iterator, which basically means a prerequisite of 1 on the stack
+            return -1, 2
         return {"ROT_TWO": (-2, 2), "ROT_THREE": (-3, 3), "ROT_FOUR": (-4, 4)}.get(
             _opname, (_effect, 0)
         )
