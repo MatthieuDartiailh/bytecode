@@ -62,6 +62,7 @@ def _pushes_back(opname):
         "SET_ADD",
         "LIST_APPEND",
         "MAP_ADD",
+        "LOAD_ATTR",
     )
 
 
@@ -314,8 +315,8 @@ class Instr:
             return dis.stack_effect(self._opcode, arg, jump=jump)
 
     def pre_and_post_stack_effect(self, jump=None):
-
         _effect = self.stack_effect(jump=jump)
+
         # To compute pre size and post size to avoid segfault cause by not enough stack element
         _opname = _opcode.opname[self._opcode]
         if _opname.startswith("DUP_TOP"):

@@ -86,7 +86,7 @@ class BasicBlock(_bytecode._InstrList):
         return target_block
 
 
-def _compute_stack_size(block, size, maxsize):
+def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
     """Generator used to reduce the use of function stacks.
 
     This allows to avoid nested recursion and allow to treat more cases.
@@ -140,9 +140,14 @@ def _compute_stack_size(block, size, maxsize):
         # For instructions with a jump first compute the stacksize required when the
         # jump is taken.
         if instr.has_jump():
-            taken_size, maxsize = update_size(
-                *instr.pre_and_post_stack_effect(jump=True), size, maxsize
-            )
+            if check_pre_and_post:
+                taken_size, maxsize = update_size(
+                    *instr.pre_and_post_stack_effect(jump=True), size, maxsize
+                )
+            else:
+                taken_size, maxsize = update_size(
+                    0, instr.stack_effect(jump=True), size, maxsize
+                )
             # Yield the parameters required to compute the stacksize required
             # by the block to which the jumnp points to and resume when we now
             # the maxsize.
@@ -155,9 +160,14 @@ def _compute_stack_size(block, size, maxsize):
                 yield maxsize
 
         # jump=False: non-taken path of jumps, or any non-jump
-        size, maxsize = update_size(
-            *instr.pre_and_post_stack_effect(jump=False), size, maxsize
-        )
+        if check_pre_and_post:
+            size, maxsize = update_size(
+                *instr.pre_and_post_stack_effect(jump=False), size, maxsize
+            )
+        else:
+            size, maxsize = update_size(
+                0, instr.stack_effect(jump=False), size, maxsize
+            )
 
     if block.next_block:
         maxsize = yield block.next_block, size, maxsize
@@ -197,7 +207,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         self._add_block(block)
         return block
 
-    def compute_stacksize(self):
+    def compute_stacksize(self, *, check_pre_and_post=True):
         """Compute the stack size by iterating through the blocks
 
         The implementation make use of a generator function to avoid issue with
@@ -214,7 +224,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             block.startsize = -32768  # INT_MIN
 
         # Create a generator/coroutine responsible of dealing with the first block
-        coro = _compute_stack_size(self[0], 0, 0)
+        coro = _compute_stack_size(self[0], 0, 0, check_pre_and_post=check_pre_and_post)
 
         # Create a list of generator that have not yet been exhausted
         coroutines = []
@@ -236,7 +246,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 # Otherwise we enter a new block and we store the generator under
                 # use and create a new one to process the new block
                 push_coroutine(coro)
-                coro = _compute_stack_size(*args)
+                coro = _compute_stack_size(*args, check_pre_and_post=check_pre_and_post)
 
         except IndexError:
             # The exception occurs when all the generators have been exhausted
