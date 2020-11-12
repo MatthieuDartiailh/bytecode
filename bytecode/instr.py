@@ -314,11 +314,8 @@ class Instr:
         else:
             return dis.stack_effect(self._opcode, arg, jump=jump)
 
-    def pre_and_post_stack_effect(self, jump=None, check_pre_and_post=True):
+    def pre_and_post_stack_effect(self, jump=None):
         _effect = self.stack_effect(jump=jump)
-
-        if not check_pre_and_post:
-            return _effect, 0
 
         # To compute pre size and post size to avoid segfault cause by not enough stack element
         _opname = _opcode.opname[self._opcode]

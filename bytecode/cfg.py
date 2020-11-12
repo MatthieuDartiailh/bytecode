@@ -139,11 +139,10 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
 
         # For instructions with a jump first compute the stacksize required when the
         # jump is taken.
+        effect = instr.pre_and_post_stack_effect(jump=instr.has_jump()) if check_pre_and_post else (instr.stack_effect(), 0)
         if instr.has_jump():
             taken_size, maxsize = update_size(
-                *instr.pre_and_post_stack_effect(
-                    jump=True, check_pre_and_post=check_pre_and_post
-                ),
+                *effect,
                 size,
                 maxsize
             )
@@ -160,9 +159,7 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
 
         # jump=False: non-taken path of jumps, or any non-jump
         size, maxsize = update_size(
-            *instr.pre_and_post_stack_effect(
-                jump=False, check_pre_and_post=check_pre_and_post
-            ),
+            *effect,
             size,
             maxsize
         )
