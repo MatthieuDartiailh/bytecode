@@ -146,7 +146,7 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
                 )
             else:
                 taken_size, maxsize = update_size(
-                    0, instr.stack_effect(jump=True), size, maxsize
+                    instr.stack_effect(jump=True), 0, size, maxsize
                 )
             # Yield the parameters required to compute the stacksize required
             # by the block to which the jumnp points to and resume when we now
@@ -166,7 +166,7 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
             )
         else:
             size, maxsize = update_size(
-                0, instr.stack_effect(jump=False), size, maxsize
+                instr.stack_effect(jump=False), 0, size, maxsize
             )
 
     if block.next_block:
