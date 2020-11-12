@@ -260,6 +260,13 @@ class BytecodeTests(TestCase):
         with self.assertRaises(RuntimeError):
             code.compute_stacksize()
 
+    def test_negative_size_unary_with_disable_check_of_pre_and_post(self):
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("UNARY_NOT")])
+        co = code.to_code(check_pre_and_post=False)
+        self.assertEqual(co.co_stacksize, 0)
+
     def test_negative_size_binary(self):
         code = Bytecode()
         code.first_lineno = 1
