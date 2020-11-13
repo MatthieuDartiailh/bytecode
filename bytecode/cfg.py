@@ -139,13 +139,13 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
 
         # For instructions with a jump first compute the stacksize required when the
         # jump is taken.
-        effect = instr.pre_and_post_stack_effect(jump=instr.has_jump()) if check_pre_and_post else (instr.stack_effect(), 0)
+        effect = (
+            instr.pre_and_post_stack_effect(jump=instr.has_jump())
+            if check_pre_and_post
+            else (instr.stack_effect(), 0)
+        )
         if instr.has_jump():
-            taken_size, maxsize = update_size(
-                *effect,
-                size,
-                maxsize
-            )
+            taken_size, maxsize = update_size(*effect, size, maxsize)
             # Yield the parameters required to compute the stacksize required
             # by the block to which the jumnp points to and resume when we now
             # the maxsize.
@@ -158,11 +158,7 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
                 yield maxsize
 
         # jump=False: non-taken path of jumps, or any non-jump
-        size, maxsize = update_size(
-            *effect,
-            size,
-            maxsize
-        )
+        size, maxsize = update_size(*effect, size, maxsize)
 
     if block.next_block:
         maxsize = yield block.next_block, size, maxsize
