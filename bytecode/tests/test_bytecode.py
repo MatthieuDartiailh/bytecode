@@ -360,7 +360,7 @@ class BytecodeTests(TestCase):
             "BUILD_LIST",
             "BUILD_SET",
         )
-        if sys.version_info >= 3.6:
+        if sys.version_info >= (3, 6):
             opnames = (*opnames, "BUILD_STRING")
 
         for opname in opnames:
