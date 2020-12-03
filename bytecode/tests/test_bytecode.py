@@ -359,8 +359,10 @@ class BytecodeTests(TestCase):
             "BUILD_TUPLE",
             "BUILD_LIST",
             "BUILD_SET",
-            "BUILD_STRING",
         )
+        if sys.version_info >= 3.6:
+            opnames = (*opnames, "BUILD_STRING")
+
         for opname in opnames:
             with self.subTest():
                 code = Bytecode()
