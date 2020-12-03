@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import textwrap
 import unittest
 from bytecode import Label, Instr, FreeVar, Bytecode, SetLineno, ConcreteInstr
@@ -398,11 +399,9 @@ class BytecodeTests(TestCase):
             code.compute_stacksize()
 
     def test_not_enough_rot(self):
-        opnames = (
-            "ROT_TWO",
-            "ROT_THREE",
-            "ROT_FOUR",
-        )
+        opnames = ["ROT_TWO", "ROT_THREE"]
+        if sys.version_info > (3, 7):
+            opnames.append("ROT_FOUR")
         for opname in opnames:
             with self.subTest():
                 code = Bytecode()
@@ -412,11 +411,9 @@ class BytecodeTests(TestCase):
                     code.compute_stacksize()
 
     def test_not_enough_rot_with_disable_check_of_pre_and_post(self):
-        opnames = (
-            "ROT_TWO",
-            "ROT_THREE",
-            "ROT_FOUR",
-        )
+        opnames = ["ROT_TWO", "ROT_THREE"]
+        if sys.version_info > (3, 7):
+            opnames.append("ROT_FOUR")
         for opname in opnames:
             with self.subTest():
                 code = Bytecode()
@@ -424,6 +421,26 @@ class BytecodeTests(TestCase):
                 code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
                 co = code.to_code(check_pre_and_post=False)
                 self.assertEqual(co.co_stacksize, 1)
+
+    def test_for_iter_stack_effect_computation(self):
+        with self.subTest():
+            code = Bytecode()
+            code.first_lineno = 1
+            lab1 = Label()
+            lab2 = Label()
+            code.extend(
+                [
+                    lab1,
+                    Instr("FOR_ITER", lab2),
+                    Instr("STORE_FAST", "i"),
+                    Instr("JUMP_ABSOLUTE", lab1),
+                    lab2,
+                ]
+            )
+            with self.assertRaises(RuntimeError):
+                # Use compute_stacksize since teh code is so broken that convertion
+                # to from concrete is actually broken
+                code.compute_stacksize(check_pre_and_post=False)
 
 
 if __name__ == "__main__":
