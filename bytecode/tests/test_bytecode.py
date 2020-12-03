@@ -413,7 +413,7 @@ class BytecodeTests(TestCase):
 
     def test_not_enough_rot(self):
         opnames = ["ROT_TWO", "ROT_THREE"]
-        if sys.version_info > (3, 7):
+        if sys.version_info >= (3, 8):
             opnames.append("ROT_FOUR")
         for opname in opnames:
             with self.subTest():
@@ -425,7 +425,7 @@ class BytecodeTests(TestCase):
 
     def test_not_enough_rot_with_disable_check_of_pre_and_post(self):
         opnames = ["ROT_TWO", "ROT_THREE"]
-        if sys.version_info > (3, 7):
+        if sys.version_info >= (3, 8):
             opnames.append("ROT_FOUR")
         for opname in opnames:
             with self.subTest():
