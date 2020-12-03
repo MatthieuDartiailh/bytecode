@@ -341,6 +341,16 @@ class BytecodeTests(TestCase):
         with self.assertRaises(RuntimeError):
             code.compute_stacksize()
 
+    def test_negative_size_unpack(self):
+        opnames  = ("UNPACK_SEQUENCE", "UNPACK_EX",)
+        for opname in opnames:
+            with self.subTest():
+                code = Bytecode()
+                code.first_lineno = 1
+                code.extend([Instr(opname, 1)])
+                with self.assertRaises(RuntimeError):
+                    code.compute_stacksize()
+
     def test_negative_size_build(self):
         opnames = (
             "BUILD_TUPLE",
