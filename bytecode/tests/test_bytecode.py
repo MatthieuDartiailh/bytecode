@@ -342,7 +342,10 @@ class BytecodeTests(TestCase):
             code.compute_stacksize()
 
     def test_negative_size_unpack(self):
-        opnames  = ("UNPACK_SEQUENCE", "UNPACK_EX",)
+        opnames = (
+            "UNPACK_SEQUENCE",
+            "UNPACK_EX",
+        )
         for opname in opnames:
             with self.subTest():
                 code = Bytecode()
@@ -448,7 +451,7 @@ class BytecodeTests(TestCase):
                 ]
             )
             with self.assertRaises(RuntimeError):
-                # Use compute_stacksize since teh code is so broken that convertion
+                # Use compute_stacksize since the code is so broken that conversion
                 # to from concrete is actually broken
                 code.compute_stacksize(check_pre_and_post=False)
 
