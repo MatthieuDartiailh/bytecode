@@ -40,7 +40,7 @@ Instruction classes
 ===================
 
 Instr
----------
+-----
 
 .. class:: Instr(name: str, arg=UNSET, \*, lineno: int=None)
 
@@ -166,6 +166,21 @@ Instr
       .. versionchanged:: 0.8
          ``stack_method`` was changed from a property to a method in order to
          add the keyword argument *jump*.
+
+    .. method:: pre_and_post_stack_effect(jump: Optional[bool] = None) -> Tuple[int, int]
+
+      Effect of the instruction on the stack before and after its execution.
+
+      The impact on the stack before the instruction reflects how many values
+      from the stacks are used/popped. The impact on the stack after the
+      instruction execution reflects how many values are pushed back on the
+      stack. Those are deduced from :func:`dis.stack_effect` and manual
+      analysis.
+
+      The *jump* argument has the same meaning as in
+      :py:meth:`Instr.stack_effect`.
+
+      .. versionadded:: 0.12
 
 
 ConcreteInstr
@@ -386,7 +401,7 @@ Bytecode
       3.6.5 unittests on OS X 11.13 results in 264996 compiled methods, only
       one of which requires 5 passes, and none requiring more.
 
-   .. method:: to_code(compute_jumps_passes: int = None, stacksize: int = None) -> types.CodeType
+   .. method:: to_code(compute_jumps_passes: int = None, stacksize: int = None, *, check_pre_and_post: bool = True) -> types.CodeType
 
       Convert to a Python code object.
 
@@ -396,13 +411,17 @@ Bytecode
 
       *stacksize*: see :meth:`ConcreteBytecode.to_code`
 
-   .. method:: compute_stacksize() -> int
+      *check_pre_and_post*: see :meth:`ConcreteBytecode.to_code`
+
+   .. method:: compute_stacksize(*, check_pre_and_post: bool = True) -> int
 
       Compute the stacksize needed to execute the code. Will raise an
       exception if the bytecode is invalid.
 
       This computation requires to build the control flow graph associated with
       the code.
+
+      *check_pre_and_post* Allows caller to disable checking for stack underflow
 
     .. method:: update_flags(is_async: bool = None)
 
@@ -456,7 +475,7 @@ ConcreteBytecode
       instances after updating the instructions.
 
 
-   .. method:: to_code(stacksize: int = None) -> types.CodeType
+   .. method:: to_code(stacksize: int = None, *, check_pre_and_post: bool = True) -> types.CodeType
 
       Convert to a Python code object.
 
@@ -468,17 +487,21 @@ ConcreteBytecode
       ControlFlowGraph.compute_stacksize().  It's cheaper to pass a value if
       the value is known.
 
+      *check_pre_and_post* Allows caller to disable checking for stack underflow
+
    .. method:: to_bytecode() -> Bytecode
 
       Convert to abstract bytecode with abstract instructions.
 
-   .. method:: compute_stacksize() -> int
+   .. method:: compute_stacksize(*, check_pre_and_post: bool = True) -> int
 
       Compute the stacksize needed to execute the code. Will raise an
       exception if the bytecode is invalid.
 
       This computation requires to build the control flow graph associated with
       the code.
+
+      *check_pre_and_post* Allows caller to disable checking for stack underflow
 
    .. method:: update_flags(is_async: bool = None)
 
@@ -591,19 +614,23 @@ ControlFlowGraph
 
       Convert to a bytecode object using labels.
 
-   .. method:: compute_stacksize() -> int
+   .. method:: compute_stacksize(*, check_pre_and_post: bool = True) -> int
 
       Compute the stack size required by a bytecode object. Will raise an
       exception if the bytecode is invalid.
+
+      *check_pre_and_post* Allows caller to disable checking for stack underflow
 
    .. method:: update_flags(is_async: bool = None)
 
       Update the object flags by calling :py:func:infer_flags on itself.
 
-   .. method:: to_code(stacksize: int = None)
+   .. method:: to_code(stacksize: int = None, *, check_pre_and_post: bool = True)
 
       Convert to a Python code object.  Refer to descriptions of
       :meth:`Bytecode.to_code` and :meth:`ConcreteBytecode.to_code`.
+
+      *check_pre_and_post* Allows caller to disable checking for stack underflow
 
 Cell and Free Variables
 =======================
