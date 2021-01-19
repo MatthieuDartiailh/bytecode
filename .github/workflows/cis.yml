@@ -40,6 +40,8 @@ jobs:
     strategy:
       matrix:
         include:
+          - python-version: 3.5
+            toxenv: py35
           - python-version: 3.6
             toxenv: py36
           - python-version: 3.7
@@ -49,7 +51,7 @@ jobs:
           - python-version: 3.9
             toxenv: py39
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v1
         with:
