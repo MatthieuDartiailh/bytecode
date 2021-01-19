@@ -353,17 +353,17 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         if extended_arg is not None:
             raise ValueError("EXTENDED_ARG at the end of the code")
 
-    def compute_stacksize(self):
+    def compute_stacksize(self, *, check_pre_and_post=True):
         bytecode = self.to_bytecode()
         cfg = _bytecode.ControlFlowGraph.from_bytecode(bytecode)
-        return cfg.compute_stacksize()
+        return cfg.compute_stacksize(check_pre_and_post=check_pre_and_post)
 
-    def to_code(self, stacksize=None):
+    def to_code(self, stacksize=None, *, check_pre_and_post=True):
         code_str, linenos = self._assemble_code()
         lnotab = self._assemble_lnotab(self.first_lineno, linenos)
         nlocals = len(self.varnames)
         if stacksize is None:
-            stacksize = self.compute_stacksize()
+            stacksize = self.compute_stacksize(check_pre_and_post=check_pre_and_post)
 
         if sys.version_info < (3, 8):
             return types.CodeType(
