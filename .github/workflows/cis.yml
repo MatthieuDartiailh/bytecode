@@ -1,7 +1,7 @@
 name: Continuous Integration
 on:
   schedule:
-    - cron: '0 0 * * 3'
+    - cron: "0 0 * * 3"
   push:
     branches:
       - master
@@ -63,3 +63,8 @@ jobs:
           TOXENV: ${{ matrix.toxenv }}
         run: |
           tox
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          name: codecov-umbrella
+          fail_ci_if_error: true
