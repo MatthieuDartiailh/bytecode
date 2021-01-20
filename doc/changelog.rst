@@ -12,7 +12,8 @@ New features:
 Bugfixes:
 
 - Fix recursion limitations when compiling bytecode with numerous basic
-  blocks. #57
+  blocks. PR #57
+- Fix handling of line offsets. Issue #67, PR #71
 
 API changes:
 
