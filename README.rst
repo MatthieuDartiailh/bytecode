@@ -6,13 +6,17 @@ bytecode
    :alt: Latest release on the Python Cheeseshop (PyPI)
    :target: https://pypi.python.org/pypi/bytecode
 
-.. image:: https://travis-ci.com/vstinner/bytecode.svg?branch=master
-   :alt: Build status of bytecode on Travis CI
-   :target: https://travis-ci.com/github/vstinner/bytecode
+.. image:: https://github.com/MatthieuDartiailh/bytecode/workflows/Continuous%20Integration/badge.svg
+    :target: https://github.com/MatthieuDartiailh/bytecode/actions
+    :alt: Continuous integration
 
-.. image:: https://img.shields.io/codecov/c/github/vstinner/bytecode/master.svg
+.. image:: https://github.com/MatthieuDartiailh/bytecode/workflows/Documentation%20building/badge.svg
+    :target: https://github.com/MatthieuDartiailh/bytecode/actions
+    :alt: Documentation building
+
+.. image:: https://img.shields.io/codecov/c/github/MatthieuDartiailh/bytecode/master.svg
    :alt: Code coverage of bytecode on codecov.io
-   :target: https://codecov.io/github/vstinner/bytecode
+   :target: https://codecov.io/github/MatthieuDartiailh/bytecode
 
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
    :alt: Code formatted using Black
@@ -21,7 +25,7 @@ bytecode
 ``bytecode`` is a Python module to generate and modify bytecode.
 
 * `bytecode project homepage at GitHub
-  <https://github.com/vstinner/bytecode>`_ (code, bugs)
+  <https://github.com/MatthieuDartiailh/bytecode>`_ (code, bugs)
 * `bytecode documentation
   <https://bytecode.readthedocs.io/>`_
 * `Download latest bytecode release at the Python Cheeseshop (PyPI)

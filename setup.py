@@ -8,8 +8,8 @@
 #  - set release date in the changelog
 #  - git commit -a
 #  - git push
-#  - check Travis CI status:
-#    https://travis-ci.com/github/vstinner/bytecode
+#  - check GHA CI status:
+#    https://github.com/MatthieuDartiailh/bytecode/actions
 #
 # Release a new version:
 #
@@ -58,7 +58,7 @@ def main():
         "license": "MIT license",
         "description": DESCRIPTION,
         "long_description": long_description,
-        "url": "https://github.com/vstinner/bytecode",
+        "url": "https://github.com/MatthieuDartiailh/bytecode",
         "author": "Victor Stinner",
         "author_email": "victor.stinner@gmail.com",
         "classifiers": CLASSIFIERS,

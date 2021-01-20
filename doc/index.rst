@@ -5,7 +5,7 @@ bytecode
 ``bytecode`` is a Python module to generate and modify bytecode.
 
 * `bytecode project homepage at GitHub
-  <https://github.com/vstinner/bytecode>`_ (code, bugs)
+  <https://github.com/MatthieuDartiailh/bytecode>`_ (code, bugs)
 * `bytecode documentation
   <https://bytecode.readthedocs.io/>`_ (this documentation)
 * `Download latest bytecode release at the Python Cheeseshop (PyPI)
