@@ -286,16 +286,16 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
                 lnotab.append(b"\xff\x00")
                 doff -= 255
 
-            while dlineno < -127:
-                lnotab.append(struct.pack("Bb", 0, -127))
-                dlineno -= -127
+            while dlineno < -128:
+                lnotab.append(struct.pack("Bb", 0, -128))
+                dlineno -= -128
 
-            while dlineno > 126:
-                lnotab.append(struct.pack("Bb", 0, 126))
-                dlineno -= 126
+            while dlineno > 127:
+                lnotab.append(struct.pack("Bb", 0, 127))
+                dlineno -= 127
 
             assert 0 <= doff <= 255
-            assert -127 <= dlineno <= 126
+            assert -128 <= dlineno <= 127
 
             lnotab.append(struct.pack("Bb", doff, dlineno))
 

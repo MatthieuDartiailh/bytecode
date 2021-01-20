@@ -305,6 +305,41 @@ class ConcreteBytecodeTests(TestCase):
                 "negative line number delta is not supported " "on Python < 3.6",
             )
 
+    def test_extended_lnotab(self):
+        # x = 7
+        # y = 8
+        concrete = ConcreteBytecode(
+            [
+                ConcreteInstr("LOAD_CONST", 0),
+                SetLineno(1 + 128),
+                ConcreteInstr("STORE_NAME", 0),
+                # line number goes backward!
+                SetLineno(1 + 129),
+                ConcreteInstr("LOAD_CONST", 1),
+                SetLineno(1),
+                ConcreteInstr("STORE_NAME", 1),
+            ]
+        )
+        concrete.consts = [7, 8]
+        concrete.names = ["x", "y"]
+        concrete.first_lineno = 1
+
+        if sys.version_info >= (3, 6):
+            code = concrete.to_code()
+            expected = b"d\x00Z\x00d\x01Z\x01"
+            self.assertEqual(code.co_code, expected)
+            self.assertEqual(code.co_firstlineno, 1)
+            self.assertEqual(
+                code.co_lnotab, b"\x00\x7f\x02\x01\x02\x01\x00\x80\x02\xff"
+            )
+        else:
+            with self.assertRaises(ValueError) as cm:
+                code = concrete.to_code()
+            self.assertEqual(
+                str(cm.exception),
+                "negative line number delta is not supported " "on Python < 3.6",
+            )
+
     def test_to_bytecode_consts(self):
         # x = -0.0
         # x = +0.0
