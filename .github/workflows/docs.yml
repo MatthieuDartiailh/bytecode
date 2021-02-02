@@ -1,13 +1,13 @@
 name: Documentation building
 on:
   schedule:
-    - cron: '0 0 * * 3'
+    - cron: "0 0 * * 3"
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
     paths:
       - .github/workflows/docs.yml
       - bytecode/*
