@@ -25,7 +25,7 @@
 #  - git commit -a -m "post-release"
 #  - git push
 
-VERSION = "0.12.0.dev"
+VERSION = "0.12.0"
 
 DESCRIPTION = "Python module to generate and modify bytecode"
 CLASSIFIERS = [
@@ -61,6 +61,8 @@ def main():
         "url": "https://github.com/MatthieuDartiailh/bytecode",
         "author": "Victor Stinner",
         "author_email": "victor.stinner@gmail.com",
+        "maintainer": "Matthieu C. Dartiailh",
+        "maintainer_email": "m.dartiailh@gmail.com",
         "classifiers": CLASSIFIERS,
         "packages": ["bytecode", "bytecode.tests"],
         "install_requires": ['aenum >=2.0;python_version<"3.6"'],

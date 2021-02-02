@@ -1,7 +1,7 @@
 ChangeLog
 =========
 
-unreleased: Version 0.12.0
+02/02/2021: Version 0.12.0
 --------------------------
 
 New features:
