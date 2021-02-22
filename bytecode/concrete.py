@@ -302,6 +302,41 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         return b"".join(lnotab)
 
     @staticmethod
+    def _assemble_linestable(first_lineno, linenos):
+        linetable = []
+        old_offset = 0
+        old_lineno = first_lineno
+        for offset, lineno in linenos:
+            dlineno = lineno - old_lineno
+            if dlineno == 0:
+                continue
+            old_lineno = lineno
+
+            doff = offset - old_offset
+            old_offset = offset
+
+            while doff > 254:
+                lnotab.append(b"\xfe\x00")
+                doff -= 254
+
+            while dlineno < -127:
+                lnotab.append(struct.pack("Bb", 0, -127))
+                dlineno -= -127
+
+            while dlineno > 127:
+                lnotab.append(struct.pack("Bb", 0, 127))
+                dlineno -= 127
+
+            assert 0 <= doff <= 254
+            assert -127 <= dlineno <= 127
+
+            lnotab.append(struct.pack("Bb", doff, dlineno))
+
+        lnotab.append(struct.pack("Bb", 255, 0))
+
+        return b"".join(lnotab)
+
+    @staticmethod
     def _remove_extended_args(instructions):
         # replace jump targets with blocks
         # HINT : in some cases Python generate useless EXTENDED_ARG opcode
@@ -360,7 +395,11 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
 
     def to_code(self, stacksize=None, *, check_pre_and_post=True):
         code_str, linenos = self._assemble_code()
-        lnotab = self._assemble_lnotab(self.first_lineno, linenos)
+        lnotab = (
+            self._assemble_lnotab(self.first_lineno, linenos)
+            if sys.version_info >= (3, 10)
+            else self._assemble_linestable(self.first_lineno, linenos)
+        )
         nlocals = len(self.varnames)
         if stacksize is None:
             stacksize = self.compute_stacksize(check_pre_and_post=check_pre_and_post)
