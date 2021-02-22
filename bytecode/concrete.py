@@ -396,9 +396,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
     def to_code(self, stacksize=None, *, check_pre_and_post=True):
         code_str, linenos = self._assemble_code()
         lnotab = (
-            self._assemble_lnotab(self.first_lineno, linenos)
+            self._assemble_linestable(self.first_lineno, linenos)
             if sys.version_info >= (3, 10)
-            else self._assemble_linestable(self.first_lineno, linenos)
+            else self._assemble_lnotab(self.first_lineno, linenos)
         )
         nlocals = len(self.varnames)
         if stacksize is None:
