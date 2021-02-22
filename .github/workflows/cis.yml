@@ -49,7 +49,7 @@ jobs:
           - python-version: "3.9"
             toxenv: py39
           - python-version: "3.10.0-alpha.5"
-            toxenv: py39
+            toxenv: py310
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
