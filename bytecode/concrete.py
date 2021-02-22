@@ -316,25 +316,25 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             old_offset = offset
 
             while doff > 254:
-                lnotab.append(b"\xfe\x00")
+                linetable.append(b"\xfe\x00")
                 doff -= 254
 
             while dlineno < -127:
-                lnotab.append(struct.pack("Bb", 0, -127))
+                linetable.append(struct.pack("Bb", 0, -127))
                 dlineno -= -127
 
             while dlineno > 127:
-                lnotab.append(struct.pack("Bb", 0, 127))
+                linetable.append(struct.pack("Bb", 0, 127))
                 dlineno -= 127
 
             assert 0 <= doff <= 254
             assert -127 <= dlineno <= 127
 
-            lnotab.append(struct.pack("Bb", doff, dlineno))
+            linetable.append(struct.pack("Bb", doff, dlineno))
 
-        lnotab.append(struct.pack("Bb", 255, 0))
+        linetable.append(struct.pack("Bb", 255, 0))
 
-        return b"".join(lnotab)
+        return b"".join(linetable)
 
     @staticmethod
     def _remove_extended_args(instructions):
