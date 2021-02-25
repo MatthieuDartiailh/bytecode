@@ -624,20 +624,38 @@ class ConcreteFromCodeTests(TestCase):
 
         # without EXTENDED_ARG
         concrete = ConcreteBytecode.from_code(code_obj)
-        func_code = concrete.consts[1]
-        self.assertEqual(concrete.names, ["int", "foo"])
-        self.assertEqual(concrete.consts, [("x", "y"), func_code, "foo", None])
-        if WORDCODE:
-            expected = [
-                ConcreteInstr("LOAD_NAME", 0, lineno=1),
-                ConcreteInstr("LOAD_NAME", 0, lineno=1),
+        # With future annotation the int annotation is stringified and
+        # stored as constant this the default behavior under Python 3.10
+        if concrete.flags & CompilerFlags.FUTURE_ANNOTATIONS:
+            func_code = concrete.consts[2]
+            names = ["foo"]
+            consts = ["int", ("x", "y"), func_code, "foo", None]
+            const_offset = 1
+            first_instrs = [
                 ConcreteInstr("LOAD_CONST", 0, lineno=1),
+                ConcreteInstr("LOAD_CONST", 0, lineno=1),
+            ]
+        else:
+            func_code = concrete.consts[1]
+            names = ["int", "foo"]
+            consts = [("x", "y"), func_code, "foo", None]
+            const_offset = 0
+            first_instrs = [
+                ConcreteInstr("LOAD_NAME", 0, lineno=1),
+                ConcreteInstr("LOAD_NAME", 0, lineno=1),
+            ]
+
+        self.assertEqual(concrete.names, names)
+        self.assertEqual(concrete.consts, consts)
+        if WORDCODE:
+            expected = first_instrs + [
+                ConcreteInstr("LOAD_CONST", 0 + const_offset, lineno=1),
                 ConcreteInstr("BUILD_CONST_KEY_MAP", 2, lineno=1),
-                ConcreteInstr("LOAD_CONST", 1, lineno=1),
-                ConcreteInstr("LOAD_CONST", 2, lineno=1),
+                ConcreteInstr("LOAD_CONST", 1 + const_offset, lineno=1),
+                ConcreteInstr("LOAD_CONST", 2 + const_offset, lineno=1),
                 ConcreteInstr("MAKE_FUNCTION", 4, lineno=1),
-                ConcreteInstr("STORE_NAME", 1, lineno=1),
-                ConcreteInstr("LOAD_CONST", 3, lineno=1),
+                ConcreteInstr("STORE_NAME", 1 - const_offset, lineno=1),
+                ConcreteInstr("LOAD_CONST", 3 + const_offset, lineno=1),
                 ConcreteInstr("RETURN_VALUE", lineno=1),
             ]
         else:
@@ -656,9 +674,20 @@ class ConcreteFromCodeTests(TestCase):
 
         # with EXTENDED_ARG
         concrete = ConcreteBytecode.from_code(code_obj, extended_arg=True)
-        func_code = concrete.consts[1]
-        self.assertEqual(concrete.names, ["int", "foo"])
-        self.assertEqual(concrete.consts, [("x", "y"), func_code, "foo", None])
+        # With future annotation the int annotation is stringified and
+        # stored as constant this the default behavior under Python 3.10
+        if concrete.flags & CompilerFlags.FUTURE_ANNOTATIONS:
+            func_code = concrete.consts[2]
+            names = ["foo"]
+            consts = ["int", ("x", "y"), func_code, "foo", None]
+        else:
+            func_code = concrete.consts[1]
+            names = ["int", "foo"]
+            consts = [("x", "y"), func_code, "foo", None]
+
+        self.assertEqual(concrete.names, names)
+        self.assertEqual(concrete.consts, consts)
+
         if not WORDCODE:
             expected = [
                 ConcreteInstr("LOAD_NAME", 0, lineno=1),
