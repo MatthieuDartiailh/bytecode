@@ -1,4 +1,5 @@
 # alias to keep the 'bytecode' variable free
+import sys
 import bytecode as _bytecode
 
 try:
@@ -33,7 +34,13 @@ class CompilerFlags(IntFlag):
     ASYNC_GENERATOR = 0x00200  # noqa
 
     # __future__ flags
-    FUTURE_GENERATOR_STOP = 0x80000  # noqa
+    # future flags changed in Python 3.9
+    if sys.version_info < (3, 9):
+        FUTURE_GENERATOR_STOP = 0x80000  # noqa
+    else:
+        FUTURE_GENERATOR_STOP = 0x800000  # noqa
+        FUTURE_ANNOTATIONS = 0x1000000
+
 
 
 def infer_flags(bytecode, is_async=None):
