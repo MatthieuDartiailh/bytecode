@@ -18,7 +18,6 @@ from bytecode import (
     ConcreteBytecode,
 )
 from bytecode.tests import get_code, TestCase, WORDCODE
-from bytecode.tests.util_annotation import get_code as get_code_future
 
 
 class ConcreteInstrTests(TestCase):
@@ -618,7 +617,9 @@ class ConcreteFromCodeTests(TestCase):
 
     def test_extended_arg_make_function(self):
         if (3, 9) <= sys.version_info < (3, 10):
-            code_obj = get_code_future(
+            from bytecode.tests.util_annotation import get_code
+
+            code_obj = get_code(
                 """
             def foo(x: int, y: int):
                 pass

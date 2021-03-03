@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import textwrap
+import types
 
 
 def get_code(source, *, filename="<string>", function=False):
