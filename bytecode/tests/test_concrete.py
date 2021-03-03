@@ -20,6 +20,7 @@ from bytecode import (
 from bytecode.tests import get_code, TestCase, WORDCODE
 from bytecode.tests.util_annotation import get_code as get_code_future
 
+
 class ConcreteInstrTests(TestCase):
     def test_constructor(self):
         with self.assertRaises(ValueError):
@@ -643,7 +644,10 @@ class ConcreteFromCodeTests(TestCase):
             first_instrs = [
                 ConcreteInstr("LOAD_CONST", 6, lineno=1),
             ]
-        elif concrete.flags & CompilerFlags.FUTURE_ANNOTATIONS:
+        elif (
+            sys.version_info >= (3, 7)
+            and concrete.flags & CompilerFlags.FUTURE_ANNOTATIONS
+        ):
             func_code = concrete.consts[2]
             names = ["foo"]
             consts = ["int", ("x", "y"), func_code, "foo", None]
