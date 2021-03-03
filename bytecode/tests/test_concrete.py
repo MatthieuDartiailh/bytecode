@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import opcode
 import sys
+import textwrap
 import types
 import unittest
-import textwrap
+
 from bytecode import (
     UNSET,
     Label,
@@ -17,7 +18,7 @@ from bytecode import (
     ConcreteBytecode,
 )
 from bytecode.tests import get_code, TestCase, WORDCODE
-
+from bytecode.tests.util_annotation import get_code as get_code_future
 
 class ConcreteInstrTests(TestCase):
     def test_constructor(self):
@@ -615,18 +616,34 @@ class ConcreteFromCodeTests(TestCase):
         self.assertListEqual(list(bytecode), expected)
 
     def test_extended_arg_make_function(self):
-        code_obj = get_code(
-            """
+        if (3, 9) <= sys.version_info < (3, 10):
+            code_obj = get_code_future(
+                """
             def foo(x: int, y: int):
                 pass
         """
-        )
+            )
+        else:
+            code_obj = get_code(
+                """
+                def foo(x: int, y: int):
+                    pass
+            """
+            )
 
         # without EXTENDED_ARG
         concrete = ConcreteBytecode.from_code(code_obj)
         # With future annotation the int annotation is stringified and
         # stored as constant this the default behavior under Python 3.10
-        if concrete.flags & CompilerFlags.FUTURE_ANNOTATIONS:
+        if sys.version_info >= (3, 10):
+            func_code = concrete.consts[3]
+            names = ["foo"]
+            consts = ["x", "int", "y", func_code, "foo", None, ("x", "int", "y", "int")]
+            const_offset = 2
+            first_instrs = [
+                ConcreteInstr("LOAD_CONST", 6, lineno=1),
+            ]
+        elif concrete.flags & CompilerFlags.FUTURE_ANNOTATIONS:
             func_code = concrete.consts[2]
             names = ["foo"]
             consts = ["int", ("x", "y"), func_code, "foo", None]
@@ -634,6 +651,8 @@ class ConcreteFromCodeTests(TestCase):
             first_instrs = [
                 ConcreteInstr("LOAD_CONST", 0, lineno=1),
                 ConcreteInstr("LOAD_CONST", 0, lineno=1),
+                ConcreteInstr("LOAD_CONST", 0 + const_offset, lineno=1),
+                ConcreteInstr("BUILD_CONST_KEY_MAP", 2, lineno=1),
             ]
         else:
             func_code = concrete.consts[1]
@@ -643,18 +662,18 @@ class ConcreteFromCodeTests(TestCase):
             first_instrs = [
                 ConcreteInstr("LOAD_NAME", 0, lineno=1),
                 ConcreteInstr("LOAD_NAME", 0, lineno=1),
+                ConcreteInstr("LOAD_CONST", 0 + const_offset, lineno=1),
+                ConcreteInstr("BUILD_CONST_KEY_MAP", 2, lineno=1),
             ]
 
         self.assertEqual(concrete.names, names)
         self.assertEqual(concrete.consts, consts)
         if WORDCODE:
             expected = first_instrs + [
-                ConcreteInstr("LOAD_CONST", 0 + const_offset, lineno=1),
-                ConcreteInstr("BUILD_CONST_KEY_MAP", 2, lineno=1),
                 ConcreteInstr("LOAD_CONST", 1 + const_offset, lineno=1),
                 ConcreteInstr("LOAD_CONST", 2 + const_offset, lineno=1),
                 ConcreteInstr("MAKE_FUNCTION", 4, lineno=1),
-                ConcreteInstr("STORE_NAME", 1 - const_offset, lineno=1),
+                ConcreteInstr("STORE_NAME", 1 - bool(const_offset), lineno=1),
                 ConcreteInstr("LOAD_CONST", 3 + const_offset, lineno=1),
                 ConcreteInstr("RETURN_VALUE", lineno=1),
             ]
@@ -676,7 +695,11 @@ class ConcreteFromCodeTests(TestCase):
         concrete = ConcreteBytecode.from_code(code_obj, extended_arg=True)
         # With future annotation the int annotation is stringified and
         # stored as constant this the default behavior under Python 3.10
-        if concrete.flags & CompilerFlags.FUTURE_ANNOTATIONS:
+        if sys.version_info >= (3, 10):
+            func_code = concrete.consts[3]
+            names = ["foo"]
+            consts = ["x", "int", "y", func_code, "foo", None, ("x", "int", "y", "int")]
+        elif concrete.flags & CompilerFlags.FUTURE_ANNOTATIONS:
             func_code = concrete.consts[2]
             names = ["foo"]
             consts = ["int", ("x", "y"), func_code, "foo", None]
