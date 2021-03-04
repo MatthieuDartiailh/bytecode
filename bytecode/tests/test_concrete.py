@@ -617,20 +617,20 @@ class ConcreteFromCodeTests(TestCase):
 
     def test_extended_arg_make_function(self):
         if (3, 9) <= sys.version_info < (3, 10):
-            from bytecode.tests.util_annotation import get_code
+            from bytecode.tests.util_annotation import get_code as get_code_future
 
-            code_obj = get_code(
+            code_obj = get_code_future(
                 """
-            def foo(x: int, y: int):
-                pass
-        """
+                def foo(x: int, y: int):
+                    pass
+                """
             )
         else:
             code_obj = get_code(
                 """
                 def foo(x: int, y: int):
                     pass
-            """
+                """
             )
 
         # without EXTENDED_ARG
