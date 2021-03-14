@@ -237,43 +237,41 @@ class ConcreteBytecodeTests(TestCase):
             ConcreteBytecode([Label()])
 
     def test_to_code_lnotab(self):
-        # x = 7
-        # y = 8
-        # z = 9
+
+        # We use an actual function for the simple case to 
+        # ensure we get lnotab right
+        def f():
+            #
+            #
+            x = 7
+            y = 8
+            z = 9
+
+        fl = f.__code__.co_firstlineno
         concrete = ConcreteBytecode()
-        concrete.consts = [7, 8, 9]
-        concrete.names = ["x", "y", "z"]
-        concrete.first_lineno = 3
+        concrete.consts = [None, 7, 8, 9]
+        concrete.varnames = ["x", "y", "z"]
+        concrete.first_lineno = fl
         concrete.extend(
             [
-                ConcreteInstr("LOAD_CONST", 0),
-                ConcreteInstr("STORE_NAME", 0),
-                SetLineno(4),
+                SetLineno(fl + 3),
                 ConcreteInstr("LOAD_CONST", 1),
-                ConcreteInstr("STORE_NAME", 1),
-                SetLineno(5),
+                ConcreteInstr("STORE_FAST", 0),
+                SetLineno(fl + 4),
                 ConcreteInstr("LOAD_CONST", 2),
-                ConcreteInstr("STORE_NAME", 2),
+                ConcreteInstr("STORE_FAST", 1),
+                SetLineno(fl + 5),
+                ConcreteInstr("LOAD_CONST", 3),
+                ConcreteInstr("STORE_FAST", 2),
+                ConcreteInstr("LOAD_CONST", 0),
+                ConcreteInstr("RETURN_VALUE"),
             ]
         )
 
         code = concrete.to_code()
-        if WORDCODE:
-            expected = b"d\x00Z\x00d\x01Z\x01d\x02Z\x02"
-        else:
-            expected = (
-                b"d\x00\x00"
-                b"Z\x00\x00"
-                b"d\x01\x00"
-                b"Z\x01\x00"
-                b"d\x02\x00"
-                b"Z\x02\x00"
-            )
-        self.assertEqual(code.co_code, expected)
-        self.assertEqual(code.co_firstlineno, 3)
+        self.assertEqual(code.co_code, f.__code__.co_code)
         self.assertEqual(
-            code.co_lnotab, b"\x04\x01\x04\x01" if WORDCODE else b"\x06\x01\x06\x01"
-        )
+            code.co_lnotab, f.__code__.co_lnotab)
 
     def test_negative_lnotab(self):
         # x = 7
@@ -308,6 +306,7 @@ class ConcreteBytecodeTests(TestCase):
 
     def test_extended_lnotab(self):
         # x = 7
+        # 200 blank lines
         # y = 8
         concrete = ConcreteBytecode(
             [
@@ -331,7 +330,7 @@ class ConcreteBytecodeTests(TestCase):
             self.assertEqual(code.co_code, expected)
             self.assertEqual(code.co_firstlineno, 1)
             self.assertEqual(
-                code.co_lnotab, b"\x00\x7f\x02\x01\x02\x01\x00\x80\x02\xff"
+                code.co_lnotab, b"\x02\x7f\x00\x01\x02\x01\x02\x80\x00\xff"
             )
         else:
             with self.assertRaises(ValueError) as cm:
@@ -340,6 +339,34 @@ class ConcreteBytecodeTests(TestCase):
                 str(cm.exception),
                 "negative line number delta is not supported " "on Python < 3.6",
             )
+
+    def test_extended_lnotab2(self):
+        # x = 7
+        # 200 blank lines
+        # y = 8
+        base_code = compile("x = 7" + "\n" * 200 + "y = 8", "", "exec")
+        concrete = ConcreteBytecode(
+            [
+                ConcreteInstr("LOAD_CONST", 0),
+                ConcreteInstr("STORE_NAME", 0),
+                SetLineno(201),
+                ConcreteInstr("LOAD_CONST", 1),
+                ConcreteInstr("STORE_NAME", 1),
+                ConcreteInstr("LOAD_CONST", 2),
+                ConcreteInstr("RETURN_VALUE"),
+            ]
+        )
+        concrete.consts = [None, 7, 8]
+        concrete.names = ["x", "y"]
+        concrete.first_lineno = 1
+
+        code = concrete.to_code()
+        expected = b"d\x00Z\x00d\x01Z\x01"
+        self.assertEqual(code.co_code, base_code.co_code)
+        self.assertEqual(code.co_firstlineno, base_code.co_firstlineno)
+        self.assertEqual(
+            code.co_lnotab, base_code.co_lnotab
+        )
 
     def test_to_bytecode_consts(self):
         # x = -0.0

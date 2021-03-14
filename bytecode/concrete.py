@@ -258,8 +258,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         linenos = []
         for lineno, instr in self._normalize_lineno(self, self.first_lineno):
             code_str.append(instr.assemble())
-            linenos.append((offset, lineno))
-            offset += instr.size
+            i_size = instr.size
+            linenos.append((offset, i_size, lineno))
+            offset += i_size
         code_str = b"".join(code_str)
         return (code_str, linenos)
 
@@ -268,7 +269,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         lnotab = []
         old_offset = 0
         old_lineno = first_lineno
-        for offset, lineno in linenos:
+        for offset, _, lineno in linenos:
             dlineno = lineno - old_lineno
             if dlineno == 0:
                 continue
@@ -287,11 +288,13 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
                 doff -= 255
 
             while dlineno < -128:
-                lnotab.append(struct.pack("Bb", 0, -128))
+                lnotab.append(struct.pack("Bb", doff, -128))
+                doff = 0
                 dlineno -= -128
 
             while dlineno > 127:
-                lnotab.append(struct.pack("Bb", 0, 127))
+                lnotab.append(struct.pack("Bb", doff, 127))
+                doff = 0
                 dlineno -= 127
 
             assert 0 <= doff <= 255
@@ -302,11 +305,35 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         return b"".join(lnotab)
 
     @staticmethod
-    def _assemble_linestable(first_lineno, linenos):
+    def _pack_linetable(doff, dlineno):
+        linetable = []
+        while doff > 254:
+            linetable.append(b"\xfe\x00")
+            doff -= 254
+
+        while dlineno < -127:
+            linetable.append(struct.pack("Bb", 0, -127))
+            dlineno -= -127
+
+        while dlineno > 127:
+            linetable.append(struct.pack("Bb", 0, 127))
+            dlineno -= 127
+
+        assert 0 <= doff <= 254
+        assert -127 <= dlineno <= 127
+
+        linetable.append(struct.pack("Bb", doff, dlineno))
+        return linetable
+
+    def _assemble_linestable(self, first_lineno, linenos):
+        if not linenos:
+            return b""
+
         linetable = []
         old_offset = 0
-        old_lineno = first_lineno
-        for offset, lineno in linenos:
+        offset, i_size, old_lineno = linenos[0]
+        old_dlineno = old_lineno - first_lineno
+        for offset, i_size ,lineno in linenos[1:]:
             dlineno = lineno - old_lineno
             if dlineno == 0:
                 continue
@@ -315,24 +342,14 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             doff = offset - old_offset
             old_offset = offset
 
-            while doff > 254:
-                linetable.append(b"\xfe\x00")
-                doff -= 254
+            linetable.extend(self._pack_linetable(doff, old_dlineno))
+            old_dlineno = dlineno
 
-            while dlineno < -127:
-                linetable.append(struct.pack("Bb", 0, -127))
-                dlineno -= -127
+        # Pack the line of the last instruction.
+        doff = offset + i_size - old_offset
+        linetable.extend(self._pack_linetable(doff, old_dlineno))
 
-            while dlineno > 127:
-                linetable.append(struct.pack("Bb", 0, 127))
-                dlineno -= 127
-
-            assert 0 <= doff <= 254
-            assert -127 <= dlineno <= 127
-
-            linetable.append(struct.pack("Bb", doff, dlineno))
-
-        linetable.append(struct.pack("Bb", 255, 0))
+        linetable.append(struct.pack("Bb", 255, -128))
 
         return b"".join(linetable)
 
