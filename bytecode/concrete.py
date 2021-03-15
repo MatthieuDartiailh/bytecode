@@ -333,7 +333,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         old_offset = 0
         offset, i_size, old_lineno = linenos[0]
         old_dlineno = old_lineno - first_lineno
-        for offset, i_size ,lineno in linenos[1:]:
+        for offset, i_size, lineno in linenos[1:]:
             dlineno = lineno - old_lineno
             if dlineno == 0:
                 continue

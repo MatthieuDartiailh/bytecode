@@ -238,7 +238,7 @@ class ConcreteBytecodeTests(TestCase):
 
     def test_to_code_lnotab(self):
 
-        # We use an actual function for the simple case to 
+        # We use an actual function for the simple case to
         # ensure we get lnotab right
         def f():
             #
@@ -270,8 +270,7 @@ class ConcreteBytecodeTests(TestCase):
 
         code = concrete.to_code()
         self.assertEqual(code.co_code, f.__code__.co_code)
-        self.assertEqual(
-            code.co_lnotab, f.__code__.co_lnotab)
+        self.assertEqual(code.co_lnotab, f.__code__.co_lnotab)
 
     def test_negative_lnotab(self):
         # x = 7
@@ -364,9 +363,7 @@ class ConcreteBytecodeTests(TestCase):
         expected = b"d\x00Z\x00d\x01Z\x01"
         self.assertEqual(code.co_code, base_code.co_code)
         self.assertEqual(code.co_firstlineno, base_code.co_firstlineno)
-        self.assertEqual(
-            code.co_lnotab, base_code.co_lnotab
-        )
+        self.assertEqual(code.co_lnotab, base_code.co_lnotab)
 
     def test_to_bytecode_consts(self):
         # x = -0.0
