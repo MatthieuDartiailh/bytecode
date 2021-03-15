@@ -380,6 +380,7 @@ class Instr:
         if self._name in {
             "RETURN_VALUE",
             "RAISE_VARARGS",
+            "RERAISE",
             "BREAK_LOOP",
             "CONTINUE_LOOP",
         }:
