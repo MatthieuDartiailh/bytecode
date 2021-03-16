@@ -69,7 +69,6 @@ def main():
         "maintainer_email": "m.dartiailh@gmail.com",
         "classifiers": CLASSIFIERS,
         "packages": ["bytecode", "bytecode.tests"],
-        "install_requires": ['aenum >=2.0;python_version<"3.6"'],
         "python_requires": ">=3.6",
     }
     setup(**options)
