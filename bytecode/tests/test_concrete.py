@@ -344,7 +344,7 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(code.co_firstlineno, base_code.co_firstlineno)
         self.assertEqual(code.co_lnotab, base_code.co_lnotab)
         if sys.version_info >= (3, 10):
-            self.assertEqual(code.co_linetable, base_code.__code__.co_linetable)
+            self.assertEqual(code.co_linetable, base_code.co_linetable)
 
     def test_to_bytecode_consts(self):
         # x = -0.0
