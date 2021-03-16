@@ -243,9 +243,9 @@ class ConcreteBytecodeTests(TestCase):
         def f():
             #
             #
-            x = 7
-            y = 8
-            z = 9
+            x = 7  # noqa
+            y = 8  # noqa
+            z = 9  # noqa
 
         fl = f.__code__.co_firstlineno
         concrete = ConcreteBytecode()
@@ -360,7 +360,6 @@ class ConcreteBytecodeTests(TestCase):
         concrete.first_lineno = 1
 
         code = concrete.to_code()
-        expected = b"d\x00Z\x00d\x01Z\x01"
         self.assertEqual(code.co_code, base_code.co_code)
         self.assertEqual(code.co_firstlineno, base_code.co_firstlineno)
         self.assertEqual(code.co_lnotab, base_code.co_lnotab)
