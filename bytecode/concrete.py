@@ -19,8 +19,6 @@ from bytecode.instr import (
     _check_arg_int,
 )
 
-_WORDCODE = sys.version_info >= (3, 6)
-
 
 def _set_docstring(code, consts):
     if not consts:
@@ -59,22 +57,13 @@ class ConcreteInstr(Instr):
 
     def _set(self, name, arg, lineno):
         super()._set(name, arg, lineno)
-        if _WORDCODE:
-            size = 2
-            if arg is not UNSET:
-                while arg > 0xFF:
-                    size += 2
-                    arg >>= 8
-            if self._extended_args is not None:
-                size = 2 + 2 * self._extended_args
-        else:
-            size = 1
-            if arg is not UNSET:
+        size = 2
+        if arg is not UNSET:
+            while arg > 0xFF:
                 size += 2
-                if arg > 0xFFFF:
-                    size += 3
-                if self._extended_args is not None:
-                    size = 1 + 3 * self._extended_args
+                arg >>= 8
+        if self._extended_args is not None:
+            size = 2 + 2 * self._extended_args
         self._size = size
 
     @property
@@ -91,52 +80,27 @@ class ConcreteInstr(Instr):
             return self._arg
         return None
 
-    if _WORDCODE:
+    def assemble(self):
+        if self._arg is UNSET:
+            return bytes((self._opcode, 0))
 
-        def assemble(self):
-            if self._arg is UNSET:
-                return bytes((self._opcode, 0))
+        arg = self._arg
+        b = [self._opcode, arg & 0xFF]
+        while arg > 0xFF:
+            arg >>= 8
+            b[:0] = [_opcode.EXTENDED_ARG, arg & 0xFF]
 
-            arg = self._arg
-            b = [self._opcode, arg & 0xFF]
-            while arg > 0xFF:
-                arg >>= 8
-                b[:0] = [_opcode.EXTENDED_ARG, arg & 0xFF]
+        if self._extended_args:
+            while len(b) < self._size:
+                b[:0] = [_opcode.EXTENDED_ARG, 0x00]
 
-            if self._extended_args:
-                while len(b) < self._size:
-                    b[:0] = [_opcode.EXTENDED_ARG, 0x00]
-
-            return bytes(b)
-
-    else:
-
-        def assemble(self):
-            if self._arg is UNSET:
-                return struct.pack("<B", self._opcode)
-
-            arg = self._arg
-            if arg > 0xFFFF:
-                b = struct.pack(
-                    "<BHBH", _opcode.EXTENDED_ARG, arg >> 16, self._opcode, arg & 0xFFFF
-                )
-            else:
-                b = struct.pack("<BH", self._opcode, arg)
-
-            if self._extended_args:
-                while len(b) < self._size:
-                    b = struct.pack("<BH", _opcode.EXTENDED_ARG, 0) + b
-
-            return b
+        return bytes(b)
 
     @classmethod
     def disassemble(cls, lineno, code, offset):
         op = code[offset]
         if op >= _opcode.HAVE_ARGUMENT:
-            if _WORDCODE:
-                arg = code[offset + 1]
-            else:
-                arg = code[offset + 1] + code[offset + 2] * 256
+            arg = code[offset + 1]
         else:
             arg = UNSET
         name = _opcode.opname[op]
@@ -375,8 +339,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             if instr.name == "EXTENDED_ARG":
                 nb_extended_args += 1
                 if extended_arg is not None:
-                    if not _WORDCODE:
-                        raise ValueError("EXTENDED_ARG followed " "by EXTENDED_ARG")
                     extended_arg = (extended_arg << 8) + instr.arg
                 else:
                     extended_arg = instr.arg
@@ -385,10 +347,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
                 continue
 
             if extended_arg is not None:
-                if _WORDCODE:
-                    arg = (extended_arg << 8) + instr.arg
-                else:
-                    arg = (extended_arg << 16) + instr.arg
+                arg = (extended_arg << 8) + instr.arg
                 extended_arg = None
 
                 instr = ConcreteInstr(

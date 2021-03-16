@@ -12,7 +12,7 @@ from bytecode import (
     BasicBlock,
     ControlFlowGraph,
 )
-from bytecode.tests import disassemble as _disassemble, TestCase, WORDCODE
+from bytecode.tests import disassemble as _disassemble, TestCase
 
 
 def disassemble(
@@ -561,21 +561,9 @@ class BytecodeBlocksFunctionalTests(TestCase):
             ]
         )
 
-        if WORDCODE:
-            expected = (
-                b"|\x05" b"r\x08" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
-            )
-        else:
-            expected = (
-                b"|\x05\x00"
-                b"r\x0c\x00"
-                b"|\x00\x00"
-                b"}\x05\x00"
-                b"d\x01\x00"
-                b"}\x05\x00"
-                b"|\x05\x00"
-                b"S"
-            )
+        expected = (
+            b"|\x05" b"r\x08" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
+        )
 
         code = bytecode.to_code()
         self.assertEqual(code.co_consts, (None, 3))
