@@ -1,6 +1,22 @@
 ChangeLog
 =========
 
+unreleased: Version 0.13.0
+--------------------------
+
+New features:
+
+- Add support for Python 3.10 new encoding of line number. This support is
+  minimal in the sense that we still systematically assign a line number
+  while the new format allow bytecode with absolutely no line number. PR #72
+
+
+Bugfixes:
+
+- Fix handling of RERAISE (introduced in 3.9) when creating a ControlFlowGraph, 
+  previously it was not considered final. PR #72
+
+
 02/02/2021: Version 0.12.0
 --------------------------
 

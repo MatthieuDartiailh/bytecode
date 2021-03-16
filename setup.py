@@ -25,7 +25,7 @@
 #  - git commit -a -m "post-release"
 #  - git push
 
-VERSION = "0.12.0"
+VERSION = "0.13.0.dev"
 
 DESCRIPTION = "Python module to generate and modify bytecode"
 CLASSIFIERS = [
@@ -35,6 +35,10 @@ CLASSIFIERS = [
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
@@ -65,7 +69,7 @@ def main():
         "maintainer_email": "m.dartiailh@gmail.com",
         "classifiers": CLASSIFIERS,
         "packages": ["bytecode", "bytecode.tests"],
-        "install_requires": ['aenum >=2.0;python_version<"3.6"'],
+        "python_requires": ">=3.6",
     }
     setup(**options)
 

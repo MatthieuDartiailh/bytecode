@@ -19,8 +19,6 @@ from bytecode.instr import (
     _check_arg_int,
 )
 
-_WORDCODE = sys.version_info >= (3, 6)
-
 
 def _set_docstring(code, consts):
     if not consts:
@@ -59,22 +57,13 @@ class ConcreteInstr(Instr):
 
     def _set(self, name, arg, lineno):
         super()._set(name, arg, lineno)
-        if _WORDCODE:
-            size = 2
-            if arg is not UNSET:
-                while arg > 0xFF:
-                    size += 2
-                    arg >>= 8
-            if self._extended_args is not None:
-                size = 2 + 2 * self._extended_args
-        else:
-            size = 1
-            if arg is not UNSET:
+        size = 2
+        if arg is not UNSET:
+            while arg > 0xFF:
                 size += 2
-                if arg > 0xFFFF:
-                    size += 3
-                if self._extended_args is not None:
-                    size = 1 + 3 * self._extended_args
+                arg >>= 8
+        if self._extended_args is not None:
+            size = 2 + 2 * self._extended_args
         self._size = size
 
     @property
@@ -91,52 +80,27 @@ class ConcreteInstr(Instr):
             return self._arg
         return None
 
-    if _WORDCODE:
+    def assemble(self):
+        if self._arg is UNSET:
+            return bytes((self._opcode, 0))
 
-        def assemble(self):
-            if self._arg is UNSET:
-                return bytes((self._opcode, 0))
+        arg = self._arg
+        b = [self._opcode, arg & 0xFF]
+        while arg > 0xFF:
+            arg >>= 8
+            b[:0] = [_opcode.EXTENDED_ARG, arg & 0xFF]
 
-            arg = self._arg
-            b = [self._opcode, arg & 0xFF]
-            while arg > 0xFF:
-                arg >>= 8
-                b[:0] = [_opcode.EXTENDED_ARG, arg & 0xFF]
+        if self._extended_args:
+            while len(b) < self._size:
+                b[:0] = [_opcode.EXTENDED_ARG, 0x00]
 
-            if self._extended_args:
-                while len(b) < self._size:
-                    b[:0] = [_opcode.EXTENDED_ARG, 0x00]
-
-            return bytes(b)
-
-    else:
-
-        def assemble(self):
-            if self._arg is UNSET:
-                return struct.pack("<B", self._opcode)
-
-            arg = self._arg
-            if arg > 0xFFFF:
-                b = struct.pack(
-                    "<BHBH", _opcode.EXTENDED_ARG, arg >> 16, self._opcode, arg & 0xFFFF
-                )
-            else:
-                b = struct.pack("<BH", self._opcode, arg)
-
-            if self._extended_args:
-                while len(b) < self._size:
-                    b = struct.pack("<BH", _opcode.EXTENDED_ARG, 0) + b
-
-            return b
+        return bytes(b)
 
     @classmethod
     def disassemble(cls, lineno, code, offset):
         op = code[offset]
         if op >= _opcode.HAVE_ARGUMENT:
-            if _WORDCODE:
-                arg = code[offset + 1]
-            else:
-                arg = code[offset + 1] + code[offset + 2] * 256
+            arg = code[offset + 1]
         else:
             arg = UNSET
         name = _opcode.opname[op]
@@ -258,8 +222,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         linenos = []
         for lineno, instr in self._normalize_lineno(self, self.first_lineno):
             code_str.append(instr.assemble())
-            linenos.append((offset, lineno))
-            offset += instr.size
+            i_size = instr.size
+            linenos.append((offset, i_size, lineno))
+            offset += i_size
         code_str = b"".join(code_str)
         return (code_str, linenos)
 
@@ -268,7 +233,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         lnotab = []
         old_offset = 0
         old_lineno = first_lineno
-        for offset, lineno in linenos:
+        for offset, _, lineno in linenos:
             dlineno = lineno - old_lineno
             if dlineno == 0:
                 continue
@@ -287,11 +252,13 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
                 doff -= 255
 
             while dlineno < -128:
-                lnotab.append(struct.pack("Bb", 0, -128))
+                lnotab.append(struct.pack("Bb", doff, -128))
+                doff = 0
                 dlineno -= -128
 
             while dlineno > 127:
-                lnotab.append(struct.pack("Bb", 0, 127))
+                lnotab.append(struct.pack("Bb", doff, 127))
+                doff = 0
                 dlineno -= 127
 
             assert 0 <= doff <= 255
@@ -300,6 +267,55 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             lnotab.append(struct.pack("Bb", doff, dlineno))
 
         return b"".join(lnotab)
+
+    @staticmethod
+    def _pack_linetable(doff, dlineno):
+        linetable = []
+        while doff > 254:
+            linetable.append(b"\xfe\x00")
+            doff -= 254
+
+        while dlineno < -127:
+            linetable.append(struct.pack("Bb", 0, -127))
+            dlineno -= -127
+
+        while dlineno > 127:
+            linetable.append(struct.pack("Bb", 0, 127))
+            dlineno -= 127
+
+        assert 0 <= doff <= 254
+        assert -127 <= dlineno <= 127
+
+        linetable.append(struct.pack("Bb", doff, dlineno))
+        return linetable
+
+    def _assemble_linestable(self, first_lineno, linenos):
+        if not linenos:
+            return b""
+
+        linetable = []
+        old_offset = 0
+        offset, i_size, old_lineno = linenos[0]
+        old_dlineno = old_lineno - first_lineno
+        for offset, i_size, lineno in linenos[1:]:
+            dlineno = lineno - old_lineno
+            if dlineno == 0:
+                continue
+            old_lineno = lineno
+
+            doff = offset - old_offset
+            old_offset = offset
+
+            linetable.extend(self._pack_linetable(doff, old_dlineno))
+            old_dlineno = dlineno
+
+        # Pack the line of the last instruction.
+        doff = offset + i_size - old_offset
+        linetable.extend(self._pack_linetable(doff, old_dlineno))
+
+        linetable.append(struct.pack("Bb", 255, -128))
+
+        return b"".join(linetable)
 
     @staticmethod
     def _remove_extended_args(instructions):
@@ -323,8 +339,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             if instr.name == "EXTENDED_ARG":
                 nb_extended_args += 1
                 if extended_arg is not None:
-                    if not _WORDCODE:
-                        raise ValueError("EXTENDED_ARG followed " "by EXTENDED_ARG")
                     extended_arg = (extended_arg << 8) + instr.arg
                 else:
                     extended_arg = instr.arg
@@ -333,10 +347,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
                 continue
 
             if extended_arg is not None:
-                if _WORDCODE:
-                    arg = (extended_arg << 8) + instr.arg
-                else:
-                    arg = (extended_arg << 16) + instr.arg
+                arg = (extended_arg << 8) + instr.arg
                 extended_arg = None
 
                 instr = ConcreteInstr(
@@ -360,7 +371,11 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
 
     def to_code(self, stacksize=None, *, check_pre_and_post=True):
         code_str, linenos = self._assemble_code()
-        lnotab = self._assemble_lnotab(self.first_lineno, linenos)
+        lnotab = (
+            self._assemble_linestable(self.first_lineno, linenos)
+            if sys.version_info >= (3, 10)
+            else self._assemble_lnotab(self.first_lineno, linenos)
+        )
         nlocals = len(self.varnames)
         if stacksize is None:
             stacksize = self.compute_stacksize(check_pre_and_post=check_pre_and_post)
