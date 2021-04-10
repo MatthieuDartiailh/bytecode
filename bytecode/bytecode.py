@@ -1,11 +1,13 @@
 # alias to keep the 'bytecode' variable free
 import sys
-import bytecode as _bytecode
-from bytecode.instr import UNSET, Label, SetLineno, Instr
-from bytecode.flags import infer_flags
+
+from .flags import infer_flags
+from .instr import UNSET, Instr, Label, SetLineno
+
+_bytecode = sys.modules["bytecode"]
 
 
-class BaseBytecode:
+class BaseBytecode(object):
     def __init__(self):
         self.argcount = 0
         if sys.version_info > (3, 8):
@@ -74,7 +76,7 @@ class BaseBytecode:
             value = _bytecode.CompilerFlags(value)
         self._flags = value
 
-    def update_flags(self, *, is_async=None):
+    def update_flags(self, is_async=None):
         self.flags = infer_flags(self, is_async)
 
 
@@ -82,20 +84,23 @@ class _BaseBytecodeList(BaseBytecode, list):
     """List subclass providing type stable slicing and copying."""
 
     def __getitem__(self, index):
-        value = super().__getitem__(index)
+        value = super(_BaseBytecodeList, self).__getitem__(index)
         if isinstance(index, slice):
             value = type(self)(value)
             value._copy_attr_from(self)
 
         return value
 
+    def __getslice__(self, i, j):
+        return self.__getitem__(slice(i, j))
+
     def copy(self):
-        new = type(self)(super().copy())
+        new = type(self)(self[:])
         new._copy_attr_from(self)
         return new
 
     def legalize(self):
-        """Check that all the element of the list are valid and remove SetLineno."""
+        """Check that all the elements in the list are valid and remove SetLineno."""
         lineno_pos = []
         set_lineno = None
         current_lineno = self.first_lineno
@@ -119,7 +124,7 @@ class _BaseBytecodeList(BaseBytecode, list):
             del self[i]
 
     def __iter__(self):
-        instructions = super().__iter__()
+        instructions = super(_BaseBytecodeList, self).__iter__()
         for instr in instructions:
             self._check_instr(instr)
             yield instr
@@ -168,7 +173,7 @@ class Bytecode(_InstrList, _BaseBytecodeList):
         self.extend(instructions)
 
     def __iter__(self):
-        instructions = super().__iter__()
+        instructions = super(Bytecode, self).__iter__()
         for instr in instructions:
             self._check_instr(instr)
             yield instr
@@ -182,7 +187,7 @@ class Bytecode(_InstrList, _BaseBytecodeList):
             )
 
     def _copy_attr_from(self, bytecode):
-        super()._copy_attr_from(bytecode)
+        super(Bytecode, self)._copy_attr_from(bytecode)
         if isinstance(bytecode, Bytecode):
             self.argnames = bytecode.argnames
 
@@ -191,12 +196,12 @@ class Bytecode(_InstrList, _BaseBytecodeList):
         concrete = _bytecode.ConcreteBytecode.from_code(code)
         return concrete.to_bytecode()
 
-    def compute_stacksize(self, *, check_pre_and_post=True):
+    def compute_stacksize(self, check_pre_and_post=True):
         cfg = _bytecode.ControlFlowGraph.from_bytecode(self)
         return cfg.compute_stacksize(check_pre_and_post=check_pre_and_post)
 
     def to_code(
-        self, compute_jumps_passes=None, stacksize=None, *, check_pre_and_post=True
+        self, compute_jumps_passes=None, stacksize=None, check_pre_and_post=True
     ):
         bc = self.to_concrete_bytecode(compute_jumps_passes=compute_jumps_passes)
         return bc.to_code(stacksize=stacksize, check_pre_and_post=check_pre_and_post)

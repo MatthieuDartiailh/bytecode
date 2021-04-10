@@ -31,6 +31,8 @@ bytecode
 * `Download latest bytecode release at the Python Cheeseshop (PyPI)
   <https://pypi.python.org/pypi/bytecode>`_
 
+> This fork adds support for Python 2.7
+
 Install bytecode: ``python3 -m pip install bytecode``. It requires Python 3.5
 or newer.
 

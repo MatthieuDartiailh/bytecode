@@ -1,9 +1,12 @@
 import sys
 import unittest
-from bytecode import Label, Instr, Compare, Bytecode, ControlFlowGraph
-from bytecode import peephole_opt
+
+import pytest
+
+from bytecode import Bytecode, Compare, ControlFlowGraph, Instr, Label, peephole_opt
 from bytecode.tests import TestCase, dump_bytecode
-from unittest import mock
+
+# from unittest import mock
 
 
 class Tests(TestCase):
@@ -70,7 +73,7 @@ class Tests(TestCase):
         check_bin_op(10, "BINARY_ADD", 20, 30)
         check_bin_op(5, "BINARY_SUBTRACT", 1, 4)
         check_bin_op(5, "BINARY_MULTIPLY", 3, 15)
-        check_bin_op(10, "BINARY_TRUE_DIVIDE", 3, 10 / 3)
+        check_bin_op(10, "BINARY_TRUE_DIVIDE", 3, 10.0 / 3)
         check_bin_op(10, "BINARY_FLOOR_DIVIDE", 3, 3)
         check_bin_op(10, "BINARY_MODULO", 3, 1)
         check_bin_op(2, "BINARY_POWER", 8, 256)
@@ -148,46 +151,49 @@ class Tests(TestCase):
         result = (1,) + zeros
         self.check(code, Instr("LOAD_CONST", result), Instr("STORE_NAME", "x"))
 
-    def test_max_size(self):
-        max_size = 3
-        with mock.patch.object(peephole_opt, "MAX_SIZE", max_size):
-            # optimized binary operation: size <= maximum size
-            #
-            # (9,) * size
-            size = max_size
-            result = (9,) * size
-            code = Bytecode(
-                [
-                    Instr("LOAD_CONST", 9),
-                    Instr("BUILD_TUPLE", 1),
-                    Instr("LOAD_CONST", size),
-                    Instr("BINARY_MULTIPLY"),
-                    Instr("STORE_NAME", "x"),
-                ]
-            )
-            self.check(code, Instr("LOAD_CONST", result), Instr("STORE_NAME", "x"))
+    # def test_max_size(self):
+    #     max_size = 3
+    #     with mock.patch.object(peephole_opt, "MAX_SIZE", max_size):
+    #         # optimized binary operation: size <= maximum size
+    #         #
+    #         # (9,) * size
+    #         size = max_size
+    #         result = (9,) * size
+    #         code = Bytecode(
+    #             [
+    #                 Instr("LOAD_CONST", 9),
+    #                 Instr("BUILD_TUPLE", 1),
+    #                 Instr("LOAD_CONST", size),
+    #                 Instr("BINARY_MULTIPLY"),
+    #                 Instr("STORE_NAME", "x"),
+    #             ]
+    #         )
+    #         self.check(code, Instr("LOAD_CONST", result), Instr("STORE_NAME", "x"))
 
-            # don't optimize  binary operation: size > maximum size
-            #
-            # x = (9,) * size
-            size = max_size + 1
-            code = Bytecode(
-                [
-                    Instr("LOAD_CONST", 9),
-                    Instr("BUILD_TUPLE", 1),
-                    Instr("LOAD_CONST", size),
-                    Instr("BINARY_MULTIPLY"),
-                    Instr("STORE_NAME", "x"),
-                ]
-            )
-            self.check(
-                code,
-                Instr("LOAD_CONST", (9,)),
-                Instr("LOAD_CONST", size),
-                Instr("BINARY_MULTIPLY"),
-                Instr("STORE_NAME", "x"),
-            )
+    #         # don't optimize  binary operation: size > maximum size
+    #         #
+    #         # x = (9,) * size
+    #         size = max_size + 1
+    #         code = Bytecode(
+    #             [
+    #                 Instr("LOAD_CONST", 9),
+    #                 Instr("BUILD_TUPLE", 1),
+    #                 Instr("LOAD_CONST", size),
+    #                 Instr("BINARY_MULTIPLY"),
+    #                 Instr("STORE_NAME", "x"),
+    #             ]
+    #         )
+    #         self.check(
+    #             code,
+    #             Instr("LOAD_CONST", (9,)),
+    #             Instr("LOAD_CONST", size),
+    #             Instr("BINARY_MULTIPLY"),
+    #             Instr("STORE_NAME", "x"),
+    #         )
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 0), reason="deprecation warnings on Python 2"
+    )
     def test_bin_op_dont_optimize(self):
         # 1 / 0
         code = Bytecode(

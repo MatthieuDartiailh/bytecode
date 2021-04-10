@@ -401,7 +401,7 @@ Bytecode
       3.6.5 unittests on OS X 11.13 results in 264996 compiled methods, only
       one of which requires 5 passes, and none requiring more.
 
-   .. method:: to_code(compute_jumps_passes: int = None, stacksize: int = None, *, check_pre_and_post: bool = True) -> types.CodeType
+   .. method:: to_code(compute_jumps_passes: int = None, stacksize: int = None, check_pre_and_post: bool = True) -> types.CodeType
 
       Convert to a Python code object.
 
@@ -475,7 +475,7 @@ ConcreteBytecode
       instances after updating the instructions.
 
 
-   .. method:: to_code(stacksize: int = None, *, check_pre_and_post: bool = True) -> types.CodeType
+   .. method:: to_code(stacksize: int = None, check_pre_and_post: bool = True) -> types.CodeType
 
       Convert to a Python code object.
 
@@ -625,7 +625,7 @@ ControlFlowGraph
 
       Update the object flags by calling :py:func:infer_flags on itself.
 
-   .. method:: to_code(stacksize: int = None, *, check_pre_and_post: bool = True)
+   .. method:: to_code(stacksize: int = None, check_pre_and_post: bool = True)
 
       Convert to a Python code object.  Refer to descriptions of
       :meth:`Bytecode.to_code` and :meth:`ConcreteBytecode.to_code`.

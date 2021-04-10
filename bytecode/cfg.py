@@ -1,7 +1,10 @@
 # alias to keep the 'bytecode' variable free
-import bytecode as _bytecode
-from bytecode.concrete import ConcreteInstr
-from bytecode.instr import Label, SetLineno, Instr
+import sys
+
+from .concrete import ConcreteInstr
+from .instr import Instr, Label, SetLineno
+
+_bytecode = sys.modules["bytecode"]
 
 
 class BasicBlock(_bytecode._InstrList):
@@ -9,7 +12,7 @@ class BasicBlock(_bytecode._InstrList):
         # a BasicBlock object, or None
         self.next_block = None
         if instructions:
-            super().__init__(instructions)
+            super(BasicBlock, self).__init__(instructions)
 
     def __iter__(self):
         index = 0
@@ -38,15 +41,18 @@ class BasicBlock(_bytecode._InstrList):
             yield instr
 
     def __getitem__(self, index):
-        value = super().__getitem__(index)
+        value = super(BasicBlock, self).__getitem__(index)
         if isinstance(index, slice):
             value = type(self)(value)
             value.next_block = self.next_block
 
         return value
 
+    def __getslice__(self, i, j):
+        return self.__getitem__(slice(i, j))
+
     def copy(self):
-        new = type(self)(super().copy())
+        new = type(self)(self[:])
         new.next_block = self.next_block
         return new
 
@@ -86,7 +92,7 @@ class BasicBlock(_bytecode._InstrList):
         return target_block
 
 
-def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
+def _compute_stack_size(block, size, maxsize, check_pre_and_post=True):
     """Generator used to reduce the use of function stacks.
 
     This allows to avoid nested recursion and allow to treat more cases.
@@ -130,13 +136,10 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
     # to the other).
     block.seen = True
     block.startsize = size
-
     for instr in block:
-
         # Ignore SetLineno
         if isinstance(instr, SetLineno):
             continue
-
         # For instructions with a jump first compute the stacksize required when the
         # jump is taken.
         if instr.has_jump():
@@ -145,7 +148,7 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
                 if check_pre_and_post
                 else (instr.stack_effect(jump=True), 0)
             )
-            taken_size, maxsize = update_size(*effect, size, maxsize)
+            taken_size, maxsize = update_size(*effect, size=size, maxsize=maxsize)
             # Yield the parameters required to compute the stacksize required
             # by the block to which the jumnp points to and resume when we now
             # the maxsize.
@@ -163,7 +166,7 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
             if check_pre_and_post
             else (instr.stack_effect(jump=False), 0)
         )
-        size, maxsize = update_size(*effect, size, maxsize)
+        size, maxsize = update_size(*effect, size=size, maxsize=maxsize)
 
     if block.next_block:
         maxsize = yield block.next_block, size, maxsize
@@ -174,7 +177,7 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
 
 class ControlFlowGraph(_bytecode.BaseBytecode):
     def __init__(self):
-        super().__init__()
+        _bytecode.BaseBytecode.__init__(self)
         self._blocks = []
         self._block_index = {}
         self.argnames = []
@@ -203,7 +206,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         self._add_block(block)
         return block
 
-    def compute_stacksize(self, *, check_pre_and_post=True):
+    def compute_stacksize(self, check_pre_and_post=True):
         """Compute the stack size by iterating through the blocks
 
         The implementation make use of a generator function to avoid issue with
@@ -234,7 +237,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 args = coro.send(None)
 
                 # Consume the stored generators as long as they return a simple
-                # interger that is to be used to resume the last stored generator.
+                # integer that is to be used to resume the last stored generator.
                 while isinstance(args, int):
                     coro = pop_coroutine()
                     args = coro.send(args)
@@ -287,7 +290,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             return False
         # FIXME: compare block.next_block
 
-        return super().__eq__(other)
+        return super(ControlFlowGraph, self).__eq__(other)
 
     def __len__(self):
         return len(self._blocks)

@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-import opcode
 import unittest
+
+import opcode
+
 from bytecode import (
     UNSET,
-    Label,
-    Instr,
-    CellVar,
-    FreeVar,
     BasicBlock,
-    SetLineno,
+    CellVar,
     Compare,
+    FreeVar,
+    Instr,
+    Label,
+    SetLineno,
 )
 from bytecode.tests import TestCase
 
@@ -321,8 +323,9 @@ class InstrTests(TestCase):
             self.assertEqual(Instr("LOAD_CONST", arg).stack_effect(), 1)
 
     def test_code_object_containing_mutable_data(self):
-        from bytecode import Bytecode, Instr
         from types import CodeType
+
+        from bytecode import Bytecode, Instr
 
         def f():
             def g():

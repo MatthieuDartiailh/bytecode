@@ -1,17 +1,22 @@
+import contextlib
 import sys
 import textwrap
 import types
-import unittest
 
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
+
+from bytecode import BasicBlock  # noqa
 from bytecode import (
     UNSET,
-    Label,
-    Instr,
-    ConcreteInstr,
-    BasicBlock,  # noqa
     Bytecode,
-    ControlFlowGraph,
     ConcreteBytecode,
+    ConcreteInstr,
+    ControlFlowGraph,
+    Instr,
+    Label,
 )
 
 WORDCODE = sys.version_info >= (3, 6)
@@ -127,7 +132,7 @@ def dump_bytecode(code, lineno=False):
             print()
 
 
-def get_code(source, *, filename="<string>", function=False):
+def get_code(source, filename="<string>", function=False):
     source = textwrap.dedent(source).strip()
     code = compile(source, filename, "exec")
     if function:
@@ -140,7 +145,7 @@ def get_code(source, *, filename="<string>", function=False):
     return code
 
 
-def disassemble(source, *, filename="<string>", function=False):
+def disassemble(source, filename="<string>", function=False):
     code = get_code(source, filename=filename, function=function)
     return Bytecode.from_code(code)
 
@@ -154,3 +159,18 @@ class TestCase(unittest.TestCase):
             self.assertListEqual(
                 list(block1), block2, "Block #%s is different" % block_index
             )
+
+
+try:
+    redirect_stdout = contextlib.redirect_stdout
+except AttributeError:
+
+    @contextlib.contextmanager
+    def redirect_stdout(buffer):
+        new_out = buffer
+        old_out = sys.stdout
+        try:
+            sys.stdout = new_out
+            yield sys.stdout
+        finally:
+            sys.stdout = old_out

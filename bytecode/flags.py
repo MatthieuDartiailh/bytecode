@@ -1,5 +1,8 @@
 # alias to keep the 'bytecode' variable free
-import bytecode as _bytecode
+import sys
+
+_bytecode = sys.modules["bytecode"]
+# import bytecode as _bytecode
 
 try:
     from enum import IntFlag

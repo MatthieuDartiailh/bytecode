@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
+import sys
 import unittest
+
+import pytest
+
 from bytecode import (
+    Bytecode,
     CompilerFlags,
     ConcreteBytecode,
     ConcreteInstr,
-    Bytecode,
     ControlFlowGraph,
 )
 from bytecode.flags import infer_flags
@@ -52,6 +56,7 @@ class FlagsTests(unittest.TestCase):
         self.assertFalse(bool(code.flags & CompilerFlags.OPTIMIZED))
         self.assertFalse(bool(code.flags & CompilerFlags.NOFREE))
 
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python 3")
     def test_async_gen_no_flag_is_async_None(self):
         # Test inference in the absence of any flag set on the bytecode
 
@@ -78,6 +83,7 @@ class FlagsTests(unittest.TestCase):
             code.update_flags()
             self.assertTrue(bool(code.flags & expected))
 
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python 3")
     def test_async_gen_no_flag_is_async_True(self):
         # Test inference when we request an async function
 
@@ -96,6 +102,7 @@ class FlagsTests(unittest.TestCase):
             code.update_flags(is_async=True)
             self.assertTrue(bool(code.flags & expected))
 
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python 3")
     def test_async_gen_no_flag_is_async_False(self):
         # Test inference when we request a non-async function
 
@@ -113,6 +120,7 @@ class FlagsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             code.update_flags(is_async=False)
 
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python 3")
     def test_async_gen_flags(self):
         # Test inference in the presence of pre-existing flags
 

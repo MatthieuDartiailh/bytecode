@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 import contextlib
 import io
+import sys
 import textwrap
 import unittest
 
 import bytecode
-from bytecode import Label, Instr, Bytecode, BasicBlock, ControlFlowGraph
-from bytecode.tests import disassemble, WORDCODE
+from bytecode import BasicBlock, Bytecode, ControlFlowGraph, Instr, Label
+from bytecode.tests import WORDCODE, disassemble
+
+from . import redirect_stdout
 
 
 class DumpCodeTests(unittest.TestCase):
     maxDiff = 80 * 100
 
     def check_dump_bytecode(self, code, expected, lineno=None):
-        with contextlib.redirect_stdout(io.StringIO()) as stderr:
+        Buffer = io.StringIO if sys.version_info >= (3, 0) else io.BytesIO
+        with redirect_stdout(Buffer()) as stderr:
             if lineno is not None:
                 bytecode.dump_bytecode(code, lineno=True)
             else:
@@ -283,7 +287,7 @@ L.  6  32: LOAD_CONST 3
         self.check_dump_bytecode(code, expected, lineno=True)
 
     def test_type_validation(self):
-        class T:
+        class T(object):
             first_lineno = 1
 
         with self.assertRaises(TypeError):

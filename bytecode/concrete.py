@@ -1,23 +1,25 @@
 import dis
 import inspect
-import opcode as _opcode
 import struct
 import sys
 import types
 
-# alias to keep the 'bytecode' variable free
-import bytecode as _bytecode
-from bytecode.instr import (
+import opcode as _opcode
+
+from .instr import (
     UNSET,
+    CellVar,
+    Compare,
+    FreeVar,
     Instr,
     Label,
     SetLineno,
-    FreeVar,
-    CellVar,
-    Compare,
-    const_key,
     _check_arg_int,
+    const_key,
 )
+
+# alias to keep the 'bytecode' variable free
+_bytecode = sys.modules["bytecode"]
 
 _WORDCODE = sys.version_info >= (3, 6)
 
@@ -40,7 +42,7 @@ class ConcreteInstr(Instr):
 
     __slots__ = ("_size", "_extended_args")
 
-    def __init__(self, name, arg=UNSET, *, lineno=None, extended_args=None):
+    def __init__(self, name, arg=UNSET, lineno=None, extended_args=None):
         # Allow to remember a potentially meaningless EXTENDED_ARG emitted by
         # Python to properly compute the size and avoid messing up the jump
         # targets
@@ -58,7 +60,7 @@ class ConcreteInstr(Instr):
                 raise ValueError("operation %s has no argument" % name)
 
     def _set(self, name, arg, lineno):
-        super()._set(name, arg, lineno)
+        Instr._set(self, name, arg, lineno)
         if _WORDCODE:
             size = 2
             if arg is not UNSET:
@@ -131,6 +133,8 @@ class ConcreteInstr(Instr):
 
     @classmethod
     def disassemble(cls, lineno, code, offset):
+        if isinstance(code, str):
+            code = [ord(_) for _ in code]
         op = code[offset]
         if op >= _opcode.HAVE_ARGUMENT:
             if _WORDCODE:
@@ -144,8 +148,8 @@ class ConcreteInstr(Instr):
 
 
 class ConcreteBytecode(_bytecode._BaseBytecodeList):
-    def __init__(self, instructions=(), *, consts=(), names=(), varnames=()):
-        super().__init__()
+    def __init__(self, instructions=(), consts=(), names=(), varnames=()):
+        super(ConcreteBytecode, self).__init__()
         self.consts = list(consts)
         self.names = list(names)
         self.varnames = list(varnames)
@@ -154,7 +158,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         self.extend(instructions)
 
     def __iter__(self):
-        instructions = super().__iter__()
+        instructions = super(ConcreteBytecode, self).__iter__()
         for instr in instructions:
             self._check_instr(instr)
             yield instr
@@ -168,7 +172,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             )
 
     def _copy_attr_from(self, bytecode):
-        super()._copy_attr_from(bytecode)
+        super(ConcreteBytecode, self)._copy_attr_from(bytecode)
         if isinstance(bytecode, ConcreteBytecode):
             self.consts = bytecode.consts
             self.names = bytecode.names
@@ -191,10 +195,10 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         if self.varnames != other.varnames:
             return False
 
-        return super().__eq__(other)
+        return super(ConcreteBytecode, self).__eq__(other)
 
     @staticmethod
-    def from_code(code, *, extended_arg=False):
+    def from_code(code, extended_arg=False):
         line_starts = dict(dis.findlinestarts(code))
 
         # find block starts
@@ -228,7 +232,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         bytecode.argcount = code.co_argcount
         if sys.version_info >= (3, 8):
             bytecode.posonlyargcount = code.co_posonlyargcount
-        bytecode.kwonlyargcount = code.co_kwonlyargcount
+        if sys.version_info >= (3, 0):
+            bytecode.kwonlyargcount = code.co_kwonlyargcount
         bytecode.first_lineno = code.co_firstlineno
         bytecode.names = list(code.co_names)
         bytecode.consts = list(code.co_consts)
@@ -353,19 +358,36 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         if extended_arg is not None:
             raise ValueError("EXTENDED_ARG at the end of the code")
 
-    def compute_stacksize(self, *, check_pre_and_post=True):
+    def compute_stacksize(self, check_pre_and_post=True):
         bytecode = self.to_bytecode()
         cfg = _bytecode.ControlFlowGraph.from_bytecode(bytecode)
         return cfg.compute_stacksize(check_pre_and_post=check_pre_and_post)
 
-    def to_code(self, stacksize=None, *, check_pre_and_post=True):
+    def to_code(self, stacksize=None, check_pre_and_post=True):
         code_str, linenos = self._assemble_code()
         lnotab = self._assemble_lnotab(self.first_lineno, linenos)
         nlocals = len(self.varnames)
         if stacksize is None:
             stacksize = self.compute_stacksize(check_pre_and_post=check_pre_and_post)
 
-        if sys.version_info < (3, 8):
+        if sys.version_info < (3, 0):
+            return types.CodeType(
+                self.argcount,
+                nlocals,
+                stacksize,
+                int(self.flags),
+                code_str,
+                tuple(self.consts),
+                tuple(self.names),
+                tuple(self.varnames),
+                self.filename,
+                self.name,
+                self.first_lineno,
+                lnotab,
+                tuple(self.freevars),
+                tuple(self.cellvars),
+            )
+        elif sys.version_info < (3, 8):
             return types.CodeType(
                 self.argcount,
                 self.kwonlyargcount,
@@ -488,7 +510,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         return bytecode
 
 
-class _ConvertBytecodeToConcrete:
+class _ConvertBytecodeToConcrete(object):
 
     # Default number of passes of compute_jumps() before giving up.  Refer to
     # assemble_jump_offsets() in compile.c for background.
@@ -625,7 +647,7 @@ class _ConvertBytecodeToConcrete:
 
         concrete = ConcreteBytecode(
             self.instructions,
-            consts=self.consts_list.copy(),
+            consts=self.consts_list[:],
             names=self.names,
             varnames=self.varnames,
         )

@@ -34,6 +34,7 @@ CLASSIFIERS = [
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 2.7",
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
@@ -65,7 +66,7 @@ def main():
         "maintainer_email": "m.dartiailh@gmail.com",
         "classifiers": CLASSIFIERS,
         "packages": ["bytecode", "bytecode.tests"],
-        "install_requires": ['aenum >=2.0;python_version<"3.6"'],
+        "install_requires": ['aenum >=2.0;python_version<"3.6"', 'unittest2;python_version<"3.0"'],
     }
     setup(**options)
 

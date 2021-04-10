@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
+import contextlib
 import io
 import sys
 import unittest
-import contextlib
+
+import pytest
+
 from bytecode import (
-    Label,
-    Compare,
-    SetLineno,
-    Instr,
-    Bytecode,
     BasicBlock,
+    Bytecode,
+    Compare,
     ControlFlowGraph,
+    Instr,
+    Label,
+    SetLineno,
 )
-from bytecode.tests import disassemble as _disassemble, TestCase, WORDCODE
+from bytecode.tests import WORDCODE, TestCase
+from bytecode.tests import disassemble as _disassemble
+
+from . import redirect_stdout
 
 
 def disassemble(
-    source, *, filename="<string>", function=False, remove_last_return_none=False
+    source, filename="<string>", function=False, remove_last_return_none=False
 ):
     code = _disassemble(source, filename=filename, function=function)
     blocks = ControlFlowGraph.from_bytecode(code)
@@ -91,6 +97,30 @@ class BytecodeBlocksTests(TestCase):
         self.assertBlocksEqual(code, [])
 
     def test_attr(self):
+        source = """
+            first_line = 1
+
+            def func(arg1, arg2):
+                x = 1
+                y = 2
+                return arg1
+        """
+        code = disassemble(source, filename="hello.py", function=True)
+        self.assertEqual(code.argcount, 2)
+        self.assertEqual(code.filename, "hello.py")
+        self.assertEqual(code.first_lineno, 3)
+        self.assertEqual(code.name, "func")
+        self.assertEqual(code.cellvars, [])
+
+        code.name = "name"
+        code.filename = "filename"
+        code.flags = 123
+        self.assertEqual(code.name, "name")
+        self.assertEqual(code.filename, "filename")
+        self.assertEqual(code.flags, 123)
+
+    @pytest.mark.skipif(sys.version_info <= (3, 0), reason="requires Python 3")
+    def test_attr_star(self):
         source = """
             first_line = 1
 
@@ -582,7 +612,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertEqual(code.co_argcount, 3)
         if sys.version_info > (3, 8):
             self.assertEqual(code.co_posonlyargcount, 0)
-        self.assertEqual(code.co_kwonlyargcount, 2)
+        if sys.version_info >= (3, 0):
+            self.assertEqual(code.co_kwonlyargcount, 2)
         self.assertEqual(code.co_nlocals, 6)
         self.assertEqual(code.co_stacksize, 1)
         # FIXME: don't use hardcoded constants
@@ -653,6 +684,10 @@ class CFGStacksizeComputationTests(TestCase):
         def test(arg1, *args, **kwargs):  # pragma: no cover
             return arg1 and args  # Test JUMP_IF_FALSE_OR_POP
 
+        import dis
+
+        dis.dis(test)
+        print(test.__code__.co_stacksize)
         self.check_stack_size(test)
 
     def test_stack_size_computation_or(self):
@@ -781,15 +816,16 @@ class CFGStacksizeComputationTests(TestCase):
         cpython_stacksize = test.__code__.co_stacksize
         test.__code__ = Bytecode.from_code(test.__code__).to_code()
         self.assertLessEqual(test.__code__.co_stacksize, cpython_stacksize)
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        Buffer = io.BytesIO if sys.version_info < (3, 0) else io.StringIO
+        with redirect_stdout(Buffer()) as stdout:
             self.assertEqual(test(1, 4), 4)
             self.assertEqual(stdout.getvalue(), "first finally\n")
 
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(Buffer()) as stdout:
             self.assertEqual(test([], value=3), 3)
             self.assertEqual(stdout.getvalue(), "second finally\nfirst finally\n")
 
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(Buffer()) as stdout:
             self.assertEqual(test([], name=None), -1)
             self.assertEqual(stdout.getvalue(), "second finally\nfirst finally\n")
 

@@ -1,10 +1,17 @@
-import enum
 import dis
-import opcode as _opcode
 import sys
 from marshal import dumps as _dumps
 
-import bytecode as _bytecode
+import opcode as _opcode
+
+try:
+    import enum
+except ImportError:
+    import aenum as enum
+
+from .compat import stack_effect
+
+_bytecode = sys.modules["bytecode"]
 
 
 @enum.unique
@@ -73,7 +80,7 @@ def _check_lineno(lineno):
         raise ValueError("invalid lineno")
 
 
-class SetLineno:
+class SetLineno(object):
     __slots__ = ("_lineno",)
 
     def __init__(self, lineno):
@@ -90,11 +97,11 @@ class SetLineno:
         return self._lineno == other._lineno
 
 
-class Label:
+class Label(object):
     __slots__ = ()
 
 
-class _Variable:
+class _Variable(object):
     __slots__ = ("name",)
 
     def __init__(self, name):
@@ -133,40 +140,12 @@ def _check_arg_int(name, arg):
         )
 
 
-if sys.version_info < (3, 8):
-    _stack_effects = {
-        # NOTE: the entries are all 2-tuples.  Entry[0/False] is non-taken jumps.
-        # Entry[1/True] is for taken jumps.
-        # opcodes not in dis.stack_effect
-        _opcode.opmap["EXTENDED_ARG"]: (0, 0),
-        _opcode.opmap["NOP"]: (0, 0),
-        # Jump taken/not-taken are different:
-        _opcode.opmap["JUMP_IF_TRUE_OR_POP"]: (-1, 0),
-        _opcode.opmap["JUMP_IF_FALSE_OR_POP"]: (-1, 0),
-        _opcode.opmap["FOR_ITER"]: (1, -1),
-        _opcode.opmap["SETUP_WITH"]: (1, 6),
-        _opcode.opmap["SETUP_ASYNC_WITH"]: (0, 5),
-        _opcode.opmap["SETUP_EXCEPT"]: (0, 6),  # as of 3.7, below for <=3.6
-        _opcode.opmap["SETUP_FINALLY"]: (0, 6),  # as of 3.7, below for <=3.6
-    }
-
-    # More stack effect values that are unique to the version of Python.
-    if sys.version_info < (3, 7):
-        _stack_effects.update(
-            {
-                _opcode.opmap["SETUP_WITH"]: (7, 7),
-                _opcode.opmap["SETUP_EXCEPT"]: (6, 9),
-                _opcode.opmap["SETUP_FINALLY"]: (6, 9),
-            }
-        )
-
-
-class Instr:
+class Instr(object):
     """Abstract instruction."""
 
     __slots__ = ("_name", "_opcode", "_arg", "_lineno")
 
-    def __init__(self, name, arg=UNSET, *, lineno=None):
+    def __init__(self, name, arg=UNSET, lineno=None):
         self._set(name, arg, lineno)
 
     def _check_arg(self, name, opcode, arg):
@@ -230,7 +209,7 @@ class Instr:
         try:
             opcode = _opcode.opmap[name]
         except KeyError:
-            raise ValueError("invalid operation name")
+            raise ValueError("invalid operation name: %s" % name)
 
         # check lineno
         if lineno is not None:
@@ -305,14 +284,7 @@ class Instr:
             arg = 0
         else:
             arg = self._arg
-
-        if sys.version_info < (3, 8):
-            effect = _stack_effects.get(self._opcode, None)
-            if effect is not None:
-                return max(effect) if jump is None else effect[jump]
-            return dis.stack_effect(self._opcode, arg)
-        else:
-            return dis.stack_effect(self._opcode, arg, jump=jump)
+        return stack_effect(self._opcode, arg, jump=jump)
 
     def pre_and_post_stack_effect(self, jump=None):
         _effect = self.stack_effect(jump=jump)

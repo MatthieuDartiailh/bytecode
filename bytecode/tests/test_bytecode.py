@@ -2,7 +2,10 @@
 import sys
 import textwrap
 import unittest
-from bytecode import Label, Instr, FreeVar, Bytecode, SetLineno, ConcreteInstr
+
+import pytest
+
+from bytecode import Bytecode, ConcreteInstr, FreeVar, Instr, Label, SetLineno
 from bytecode.tests import TestCase, get_code
 
 
@@ -41,7 +44,6 @@ class BytecodeTests(TestCase):
                 Instr("STORE_NAME", "z"),
             ]
         )
-
         code.legalize()
         self.assertListEqual(
             code,
@@ -85,8 +87,9 @@ class BytecodeTests(TestCase):
             "freevars",
             "argnames",
         ):
+            Undefined = object()
             self.assertEqual(
-                getattr(code, name, None), getattr(sliced_code, name, None)
+                getattr(code, name, Undefined), getattr(sliced_code, name, Undefined)
             )
 
     def test_copy(self):
@@ -288,7 +291,6 @@ class BytecodeTests(TestCase):
         opnames = (
             "BINARY_POWER",
             "BINARY_MULTIPLY",
-            "BINARY_MATRIX_MULTIPLY",
             "BINARY_FLOOR_DIVIDE",
             "BINARY_TRUE_DIVIDE",
             "BINARY_MODULO",
@@ -301,6 +303,8 @@ class BytecodeTests(TestCase):
             "BINARY_XOR",
             "BINARY_OR",
         )
+        if sys.version_info >= (3, 0):
+            opnames = opnames + ("BINARY_MATRIX_MULTIPLY",)
         for opname in opnames:
             with self.subTest():
                 code = Bytecode()
@@ -313,7 +317,6 @@ class BytecodeTests(TestCase):
         opnames = (
             "BINARY_POWER",
             "BINARY_MULTIPLY",
-            "BINARY_MATRIX_MULTIPLY",
             "BINARY_FLOOR_DIVIDE",
             "BINARY_TRUE_DIVIDE",
             "BINARY_MODULO",
@@ -326,6 +329,8 @@ class BytecodeTests(TestCase):
             "BINARY_XOR",
             "BINARY_OR",
         )
+        if sys.version_info >= (3, 0):
+            opnames = opnames + ("BINARY_MATRIX_MULTIPLY",)
         for opname in opnames:
             with self.subTest():
                 code = Bytecode()
@@ -342,10 +347,10 @@ class BytecodeTests(TestCase):
             code.compute_stacksize()
 
     def test_negative_size_unpack(self):
-        opnames = (
-            "UNPACK_SEQUENCE",
-            "UNPACK_EX",
-        )
+        opnames = ("UNPACK_SEQUENCE",)
+        if sys.version_info >= (3, 0):
+            opnames = opnames + ("UNPACK_EX",)
+
         for opname in opnames:
             with self.subTest():
                 code = Bytecode()
@@ -361,7 +366,7 @@ class BytecodeTests(TestCase):
             "BUILD_SET",
         )
         if sys.version_info >= (3, 6):
-            opnames = (*opnames, "BUILD_STRING")
+            opnames = opnames + ("BUILD_STRING",)
 
         for opname in opnames:
             with self.subTest():
@@ -371,6 +376,10 @@ class BytecodeTests(TestCase):
                 with self.assertRaises(RuntimeError):
                     code.compute_stacksize()
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 0),
+        reason="BIULD_MAP on Python 2 is constant stack effect",
+    )
     def test_negative_size_build_map(self):
         code = Bytecode()
         code.first_lineno = 1
@@ -383,7 +392,7 @@ class BytecodeTests(TestCase):
         code.first_lineno = 1
         code.extend([Instr("LOAD_CONST", 1), Instr("BUILD_MAP", 1)])
         co = code.to_code(check_pre_and_post=False)
-        self.assertEqual(co.co_stacksize, 1)
+        self.assertEqual(co.co_stacksize, 1 if sys.version_info >= (3, 0) else 2)
 
     @unittest.skipIf(sys.version_info < (3, 6), "Inexistent opcode")
     def test_negative_size_build_const_map(self):
@@ -408,6 +417,7 @@ class BytecodeTests(TestCase):
         with self.assertRaises(RuntimeError):
             code.compute_stacksize()
 
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python 3")
     def test_not_enough_dup(self):
         code = Bytecode()
         code.first_lineno = 1

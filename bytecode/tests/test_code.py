@@ -1,6 +1,9 @@
+import sys
 import unittest
 
-from bytecode import ConcreteBytecode, Bytecode, ControlFlowGraph
+import pytest
+
+from bytecode import Bytecode, ConcreteBytecode, ControlFlowGraph
 from bytecode.tests import get_code
 
 
@@ -54,6 +57,7 @@ class CodeTests(unittest.TestCase):
             function=True,
         )
 
+    @pytest.mark.skipif(sys.version_info < (3, 0), reason="requires Python 3")
     def test_kwonlyargs(self):
         self.check(
             """
