@@ -31,8 +31,10 @@ bytecode
 * `Download latest bytecode release at the Python Cheeseshop (PyPI)
   <https://pypi.python.org/pypi/bytecode>`_
 
-Install bytecode: ``python3 -m pip install bytecode``. It requires Python 3.5
-or newer.
+Install bytecode: ``python3 -m pip install bytecode``. It requires Python 3.6
+or newer. The latest release that supports Python 3.5 is 0.12.0. For Python 2.7
+support install, `dead-bytecode <https://github.com/p403n1x87/dead-bytecode>`_
+instead.
 
 Example executing ``print('Hello World!')``:
 
