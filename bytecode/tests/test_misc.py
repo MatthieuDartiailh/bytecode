@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import contextlib
 import io
+import sys
 import textwrap
 import unittest
 
 import bytecode
 from bytecode import Label, Instr, Bytecode, BasicBlock, ControlFlowGraph
+from bytecode.concrete import OFFSET_AS_INSTRUCTION
 from bytecode.tests import disassemble
 
 
@@ -34,10 +36,11 @@ class DumpCodeTests(unittest.TestCase):
         code = disassemble(source, function=True)
 
         # without line numbers
-        expected = """
+        enum_repr = "Compare.EQ" if sys.version_info > (3, 9) else "<Compare.EQ: 2>"
+        expected = f"""
     LOAD_FAST 'test'
     LOAD_CONST 1
-    COMPARE_OP <Compare.EQ: 2>
+    COMPARE_OP {enum_repr}
     POP_JUMP_IF_FALSE <label_instr6>
     LOAD_CONST 1
     RETURN_VALUE
@@ -45,7 +48,7 @@ class DumpCodeTests(unittest.TestCase):
 label_instr6:
     LOAD_FAST 'test'
     LOAD_CONST 2
-    COMPARE_OP <Compare.EQ: 2>
+    COMPARE_OP {enum_repr}
     POP_JUMP_IF_FALSE <label_instr13>
     LOAD_CONST 2
     RETURN_VALUE
@@ -62,10 +65,10 @@ label_instr13:
         self.check_dump_bytecode(code, expected)
 
         # with line numbers
-        expected = """
+        expected = f"""
     L.  2   0: LOAD_FAST 'test'
             1: LOAD_CONST 1
-            2: COMPARE_OP <Compare.EQ: 2>
+            2: COMPARE_OP {enum_repr}
             3: POP_JUMP_IF_FALSE <label_instr6>
     L.  3   4: LOAD_CONST 1
             5: RETURN_VALUE
@@ -73,7 +76,7 @@ label_instr13:
 label_instr6:
     L.  4   7: LOAD_FAST 'test'
             8: LOAD_CONST 2
-            9: COMPARE_OP <Compare.EQ: 2>
+            9: COMPARE_OP {enum_repr}
            10: POP_JUMP_IF_FALSE <label_instr13>
     L.  5  11: LOAD_CONST 2
            12: RETURN_VALUE
@@ -123,12 +126,13 @@ label_instr13:
         code = ControlFlowGraph.from_bytecode(code)
 
         # without line numbers
+        enum_repr = "Compare.EQ" if sys.version_info > (3, 9) else "<Compare.EQ: 2>"
         expected = textwrap.dedent(
-            """
+            f"""
             block1:
                 LOAD_FAST 'test'
                 LOAD_CONST 1
-                COMPARE_OP <Compare.EQ: 2>
+                COMPARE_OP {enum_repr}
                 POP_JUMP_IF_FALSE <block3>
                 -> block2
 
@@ -139,7 +143,7 @@ label_instr13:
             block3:
                 LOAD_FAST 'test'
                 LOAD_CONST 2
-                COMPARE_OP <Compare.EQ: 2>
+                COMPARE_OP {enum_repr}
                 POP_JUMP_IF_FALSE <block5>
                 -> block4
 
@@ -157,11 +161,11 @@ label_instr13:
 
         # with line numbers
         expected = textwrap.dedent(
-            """
+            f"""
             block1:
                 L.  2   0: LOAD_FAST 'test'
                         1: LOAD_CONST 1
-                        2: COMPARE_OP <Compare.EQ: 2>
+                        2: COMPARE_OP {enum_repr}
                         3: POP_JUMP_IF_FALSE <block3>
                 -> block2
 
@@ -172,7 +176,7 @@ label_instr13:
             block3:
                 L.  4   0: LOAD_FAST 'test'
                         1: LOAD_CONST 2
-                        2: COMPARE_OP <Compare.EQ: 2>
+                        2: COMPARE_OP {enum_repr}
                         3: POP_JUMP_IF_FALSE <block5>
                 -> block4
 
@@ -201,17 +205,17 @@ label_instr13:
         code = code.to_concrete_bytecode()
 
         # without line numbers
-        expected = """
+        expected = f"""
   0    LOAD_FAST 0
   2    LOAD_CONST 1
   4    COMPARE_OP 2
-  6    POP_JUMP_IF_FALSE 12
+  6    POP_JUMP_IF_FALSE {6 if OFFSET_AS_INSTRUCTION else 12}
   8    LOAD_CONST 1
  10    RETURN_VALUE
  12    LOAD_FAST 0
  14    LOAD_CONST 2
  16    COMPARE_OP 2
- 18    POP_JUMP_IF_FALSE 24
+ 18    POP_JUMP_IF_FALSE {12 if OFFSET_AS_INSTRUCTION else 24}
  20    LOAD_CONST 2
  22    RETURN_VALUE
  24    LOAD_CONST 3
@@ -222,17 +226,17 @@ label_instr13:
         self.check_dump_bytecode(code, expected)
 
         # with line numbers
-        expected = """
+        expected = f"""
 L.  2   0: LOAD_FAST 0
         2: LOAD_CONST 1
         4: COMPARE_OP 2
-        6: POP_JUMP_IF_FALSE 12
+        6: POP_JUMP_IF_FALSE {6 if OFFSET_AS_INSTRUCTION else 12}
 L.  3   8: LOAD_CONST 1
        10: RETURN_VALUE
 L.  4  12: LOAD_FAST 0
        14: LOAD_CONST 2
        16: COMPARE_OP 2
-       18: POP_JUMP_IF_FALSE 24
+       18: POP_JUMP_IF_FALSE {12 if OFFSET_AS_INSTRUCTION else 24}
 L.  5  20: LOAD_CONST 2
        22: RETURN_VALUE
 L.  6  24: LOAD_CONST 3

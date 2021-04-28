@@ -17,6 +17,7 @@ from bytecode import (
     ConcreteInstr,
     ConcreteBytecode,
 )
+from bytecode.concrete import OFFSET_AS_INSTRUCTION
 from bytecode.tests import get_code, TestCase
 
 
@@ -129,7 +130,7 @@ class ConcreteInstrTests(TestCase):
         instr = ConcreteInstr.disassemble(1, code, 0)
         self.assertEqual(instr, ConcreteInstr("NOP", lineno=1))
 
-        instr = ConcreteInstr.disassemble(2, code, 2)
+        instr = ConcreteInstr.disassemble(2, code, 1 if OFFSET_AS_INSTRUCTION else 2)
         self.assertEqual(instr, ConcreteInstr("LOAD_CONST", 3, lineno=2))
 
         code = b"\x90\x12\x904\x90\xabd\xcd"
@@ -161,7 +162,10 @@ class ConcreteInstrTests(TestCase):
         self.assertEqual(jump_abs.get_jump_target(100), 3)
 
         jump_forward = ConcreteInstr("JUMP_FORWARD", 5)
-        self.assertEqual(jump_forward.get_jump_target(10), 17)
+        self.assertEqual(
+            jump_forward.get_jump_target(10), 
+            16 if OFFSET_AS_INSTRUCTION else 17
+        )
 
 
 class ConcreteBytecodeTests(TestCase):
@@ -591,7 +595,7 @@ class ConcreteFromCodeTests(TestCase):
             code.co_filename,
             code.co_name,
             code.co_firstlineno,
-            code.co_lnotab,
+            code.co_linetable if sys.version_info > (3, 9) else code.co_lnotab,
             code.co_freevars,
             code.co_cellvars,
         )
@@ -1117,10 +1121,14 @@ class BytecodeToConcreteTests(TestCase):
         concrete = bytecode.to_concrete_bytecode()
         expected = [
             ConcreteInstr("LOAD_NAME", 0, lineno=1),
-            ConcreteInstr("POP_JUMP_IF_FALSE", 14, lineno=1),
+            ConcreteInstr(
+                "POP_JUMP_IF_FALSE", 
+                7 if OFFSET_AS_INSTRUCTION else 14,
+                lineno=1
+            ),
             ConcreteInstr("LOAD_CONST", 0, lineno=2),
             ConcreteInstr("STORE_NAME", 1, lineno=2),
-            ConcreteInstr("JUMP_FORWARD", 4, lineno=2),
+            ConcreteInstr("JUMP_FORWARD", 2 if OFFSET_AS_INSTRUCTION else 4, lineno=2),
             ConcreteInstr("LOAD_CONST", 1, lineno=4),
             ConcreteInstr("STORE_NAME", 1, lineno=4),
             ConcreteInstr("LOAD_CONST", 2, lineno=4),
@@ -1256,7 +1264,10 @@ class BytecodeToConcreteTests(TestCase):
         )
 
         code_obj = code.to_code()
-        expected = b"\x90\x01\x90\x00q\x06" + NOP * nb_nop + b"d\x00S\x00"
+        if OFFSET_AS_INSTRUCTION:
+            expected = b"\x90\x80q\x02" + NOP * nb_nop + b"d\x00S\x00"
+        else:
+            expected = b"\x90\x01\x90\x00q\x06" + NOP * nb_nop + b"d\x00S\x00"
         self.assertEqual(code_obj.co_code, expected)
 
     def test_jumps(self):
@@ -1286,10 +1297,14 @@ class BytecodeToConcreteTests(TestCase):
         code = code.to_concrete_bytecode()
         expected = [
             ConcreteInstr("LOAD_NAME", 0, lineno=1),
-            ConcreteInstr("POP_JUMP_IF_FALSE", 10, lineno=1),
+            ConcreteInstr(
+                "POP_JUMP_IF_FALSE", 
+                5 if OFFSET_AS_INSTRUCTION else 10, 
+                lineno=1
+            ),
             ConcreteInstr("LOAD_CONST", 0, lineno=2),
             ConcreteInstr("STORE_NAME", 1, lineno=2),
-            ConcreteInstr("JUMP_FORWARD", 4, lineno=2),
+            ConcreteInstr("JUMP_FORWARD", 2 if OFFSET_AS_INSTRUCTION else 4, lineno=2),
             ConcreteInstr("LOAD_CONST", 1, lineno=4),
             ConcreteInstr("STORE_NAME", 1, lineno=4),
             ConcreteInstr("LOAD_CONST", 2, lineno=4),
@@ -1361,6 +1376,9 @@ class BytecodeToConcreteTests(TestCase):
         #
         # Thus we need to make an additional pass.  This test only verifies
         # case where 2 passes is insufficient but three is enough.
+        # 
+        # On Python > 3.10 we need to double the number since the offset is now 
+        # in term of instructions and not bytes.
 
         # Create code from comment above.
         code = Bytecode()
@@ -1369,11 +1387,17 @@ class BytecodeToConcreteTests(TestCase):
         nop = "NOP"
         code.append(Instr("JUMP_ABSOLUTE", label1))
         code.append(Instr("JUMP_ABSOLUTE", label2))
-        for x in range(4, 254, 2):
+        # Need 254 * 2 + 2 since the arg will change by 1 instruction rather than 2
+        # bytes.
+        for x in range(4, 510 if OFFSET_AS_INSTRUCTION else 254, 2):
             code.append(Instr(nop))
         code.append(label1)
         code.append(Instr(nop))
-        for x in range(256, 300, 2):
+        for x in range(
+            514 if OFFSET_AS_INSTRUCTION else 256, 
+            600 if OFFSET_AS_INSTRUCTION else 300, 
+            2
+        ):
             code.append(Instr(nop))
         code.append(label2)
         code.append(Instr(nop))
@@ -1397,6 +1421,7 @@ class BytecodeToConcreteTests(TestCase):
         instead generate a series of many jumps.  Each pass of compute_jumps()
         extends one more instruction, which in turn causes the one behind it
         to be extended on the next pass.
+
         """
 
         # N: the number of unextended instructions that can be squeezed into a
@@ -1405,6 +1430,10 @@ class BytecodeToConcreteTests(TestCase):
         max_unextended_offset = 1 << 8
         unextended_branch_instr_size = 2
         N = max_unextended_offset // unextended_branch_instr_size
+
+        # When using instruction rather than bytes in the offset multiply by 2
+        if OFFSET_AS_INSTRUCTION:
+            N *= 2
 
         nop = "UNARY_POSITIVE"  # don't use NOP, dis.stack_effect will raise
 
