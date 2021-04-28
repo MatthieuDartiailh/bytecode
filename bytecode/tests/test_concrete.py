@@ -163,8 +163,7 @@ class ConcreteInstrTests(TestCase):
 
         jump_forward = ConcreteInstr("JUMP_FORWARD", 5)
         self.assertEqual(
-            jump_forward.get_jump_target(10), 
-            16 if OFFSET_AS_INSTRUCTION else 17
+            jump_forward.get_jump_target(10), 16 if OFFSET_AS_INSTRUCTION else 17
         )
 
 
@@ -1122,9 +1121,7 @@ class BytecodeToConcreteTests(TestCase):
         expected = [
             ConcreteInstr("LOAD_NAME", 0, lineno=1),
             ConcreteInstr(
-                "POP_JUMP_IF_FALSE", 
-                7 if OFFSET_AS_INSTRUCTION else 14,
-                lineno=1
+                "POP_JUMP_IF_FALSE", 7 if OFFSET_AS_INSTRUCTION else 14, lineno=1
             ),
             ConcreteInstr("LOAD_CONST", 0, lineno=2),
             ConcreteInstr("STORE_NAME", 1, lineno=2),
@@ -1298,9 +1295,7 @@ class BytecodeToConcreteTests(TestCase):
         expected = [
             ConcreteInstr("LOAD_NAME", 0, lineno=1),
             ConcreteInstr(
-                "POP_JUMP_IF_FALSE", 
-                5 if OFFSET_AS_INSTRUCTION else 10, 
-                lineno=1
+                "POP_JUMP_IF_FALSE", 5 if OFFSET_AS_INSTRUCTION else 10, lineno=1
             ),
             ConcreteInstr("LOAD_CONST", 0, lineno=2),
             ConcreteInstr("STORE_NAME", 1, lineno=2),
@@ -1376,8 +1371,8 @@ class BytecodeToConcreteTests(TestCase):
         #
         # Thus we need to make an additional pass.  This test only verifies
         # case where 2 passes is insufficient but three is enough.
-        # 
-        # On Python > 3.10 we need to double the number since the offset is now 
+        #
+        # On Python > 3.10 we need to double the number since the offset is now
         # in term of instructions and not bytes.
 
         # Create code from comment above.
@@ -1394,9 +1389,9 @@ class BytecodeToConcreteTests(TestCase):
         code.append(label1)
         code.append(Instr(nop))
         for x in range(
-            514 if OFFSET_AS_INSTRUCTION else 256, 
-            600 if OFFSET_AS_INSTRUCTION else 300, 
-            2
+            514 if OFFSET_AS_INSTRUCTION else 256,
+            600 if OFFSET_AS_INSTRUCTION else 300,
+            2,
         ):
             code.append(Instr(nop))
         code.append(label2)

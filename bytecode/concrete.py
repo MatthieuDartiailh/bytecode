@@ -82,7 +82,6 @@ class ConcreteInstr(Instr):
     def get_jump_target(self, instr_offset):
         if self._opcode in _opcode.hasjrel:
             s = (self._size // 2) if OFFSET_AS_INSTRUCTION else self._size
-            temp = instr_offset + s + self._arg
             return instr_offset + s + self._arg
         if self._opcode in _opcode.hasjabs:
             return self._arg
@@ -106,7 +105,7 @@ class ConcreteInstr(Instr):
 
     @classmethod
     def disassemble(cls, lineno, code, offset):
-        index = 2*offset if OFFSET_AS_INSTRUCTION else offset
+        index = 2 * offset if OFFSET_AS_INSTRUCTION else offset
         op = code[index]
         if op >= _opcode.HAVE_ARGUMENT:
             arg = code[index + 1]
@@ -620,9 +619,8 @@ class _ConvertBytecodeToConcrete:
 
             if instr.opcode in _opcode.hasjrel:
                 instr_offset = offsets[index]
-                target_offset -= (
-                    instr_offset + 
-                    (instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size)
+                target_offset -= instr_offset + (
+                    instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size
                 )
 
             old_size = instr.size
