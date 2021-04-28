@@ -224,6 +224,12 @@ ConcreteInstr
       The *instr_offset* parameter is the offset of the instruction. It is
       required by relative jumps.
 
+      .. note::
+
+         Starting with Python 3.10, this quantity is expressed in term of
+         instruction offset rather than byte offset, and is hence twice smaller
+         than in 3.9 for identical code.
+
    .. method:: assemble() -> bytes
 
       Assemble the instruction to a bytecode string.
