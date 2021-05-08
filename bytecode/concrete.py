@@ -324,8 +324,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         doff = offset + i_size - old_offset
         linetable.extend(self._pack_linetable(doff, old_dlineno))
 
-        linetable.append(struct.pack("Bb", 255, -128))
-
         return b"".join(linetable)
 
     @staticmethod
