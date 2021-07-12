@@ -36,7 +36,7 @@ class DumpCodeTests(unittest.TestCase):
         code = disassemble(source, function=True)
 
         # without line numbers
-        enum_repr = "Compare.EQ" if sys.version_info >= (3, 10) else "<Compare.EQ: 2>"
+        enum_repr = "<Compare.EQ: 2>"
         expected = f"""
     LOAD_FAST 'test'
     LOAD_CONST 1
@@ -126,7 +126,7 @@ label_instr13:
         code = ControlFlowGraph.from_bytecode(code)
 
         # without line numbers
-        enum_repr = "Compare.EQ" if sys.version_info >= (3, 10) else "<Compare.EQ: 2>"
+        enum_repr = "<Compare.EQ: 2>"
         expected = textwrap.dedent(
             f"""
             block1:
