@@ -1503,6 +1503,14 @@ class BytecodeToConcreteTests(TestCase):
         f.__code__ = code.to_code()
         self.assertEqual(f(), (obj1, obj2, obj3, obj4))
 
+    def test_packing_lines(self):
+        from bytecode.tests.long_lines_example import long_lines
+        import dis
+        line_starts = list(dis.findlinestarts(long_lines.__code__))
+        
+        concrete = ConcreteBytecode.from_code(long_lines.__code__)
+        as_code = concrete.to_code()
+        self.assertEqual(line_starts, list(dis.findlinestarts(as_code)))
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover
