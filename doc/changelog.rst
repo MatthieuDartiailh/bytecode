@@ -15,6 +15,8 @@ Bugfixes:
 
 - Fix handling of RERAISE (introduced in 3.9) when creating a ControlFlowGraph, 
   previously it was not considered final. PR #72
+  
+- Fix line table assembly in Python 3.10. PR #85
 
 
 02/02/2021: Version 0.12.0

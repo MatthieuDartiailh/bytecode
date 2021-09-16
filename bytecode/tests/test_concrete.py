@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-import opcode
 import sys
 import textwrap
 import types
 import unittest
 
+import opcode
 from bytecode import (
     UNSET,
-    Label,
-    Instr,
-    SetLineno,
     Bytecode,
     CellVar,
-    FreeVar,
     CompilerFlags,
-    ConcreteInstr,
     ConcreteBytecode,
+    ConcreteInstr,
+    FreeVar,
+    Instr,
+    Label,
+    SetLineno,
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
-from bytecode.tests import get_code, TestCase
+from bytecode.tests import TestCase, get_code
 
 
 class ConcreteInstrTests(TestCase):
@@ -1502,6 +1502,16 @@ class BytecodeToConcreteTests(TestCase):
 
         f.__code__ = code.to_code()
         self.assertEqual(f(), (obj1, obj2, obj3, obj4))
+
+    def test_packing_lines(self):
+        from bytecode.tests.long_lines_example import long_lines
+        import dis
+
+        line_starts = list(dis.findlinestarts(long_lines.__code__))
+
+        concrete = ConcreteBytecode.from_code(long_lines.__code__)
+        as_code = concrete.to_code()
+        self.assertEqual(line_starts, list(dis.findlinestarts(as_code)))
 
 
 if __name__ == "__main__":
