@@ -1,24 +1,23 @@
 import dis
 import inspect
-import opcode as _opcode
 import struct
 import sys
 import types
 
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
+import opcode as _opcode
 from bytecode.instr import (
     UNSET,
+    CellVar,
+    Compare,
+    FreeVar,
     Instr,
     Label,
     SetLineno,
-    FreeVar,
-    CellVar,
-    Compare,
-    const_key,
     _check_arg_int,
+    const_key,
 )
-
 
 # - jumps use instruction
 # - lineno use bytes (dis.findlinestarts(code))
@@ -292,7 +291,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
 
         # Ensure offsets are less than 255.
         # If an offset is larger, we first mark the line change with an offset of 254
-        # then use as many 254 offset with no line change to reduce the offset to 
+        # then use as many 254 offset with no line change to reduce the offset to
         # less than 254.
         if doff > 254:
 
@@ -316,9 +315,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
 
         linetable = []
         old_offset = 0
-        
+
         iter_in = iter(linenos)
-        
+
         offset, i_size, old_lineno = next(iter_in)
         old_dlineno = old_lineno - first_lineno
         for offset, i_size, lineno in iter_in:
