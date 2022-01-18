@@ -60,7 +60,7 @@ We get 4 blocks:
 
 * block #1 is the start block and ends with ``POP_JUMP_IF_FALSE`` conditional
   jump and is followed by the block #2
-* block #2 ends with ``JUMP_FORWARD`` uncondition jump
+* block #2 ends with ``JUMP_FORWARD`` unconditional jump
 * block #3 does not contain jump and is followed by the block #4
 * block #4 is the final block
 
