@@ -67,7 +67,7 @@ Instr
 
    To replace the operation name and the argument, the :meth:`set` method must
    be used instead of modifying the :attr:`name` attribute and then the
-   :attr:`arg` attribute. Otherwise, an exception is be raised if the previous
+   :attr:`arg` attribute. Otherwise, an exception is raised if the previous
    operation requires an argument and the new operation has no argument (or the
    opposite).
 
@@ -86,7 +86,7 @@ Instr
    .. attribute:: name
 
       Operation name (``str``). Setting the name updates the :attr:`opcode`
-      attibute.
+      attribute.
 
    .. attribute:: opcode
 
@@ -127,7 +127,7 @@ Instr
 
    .. method:: is_cond_jump() -> bool
 
-      Is the operation an conditional jump?
+      Is the operation a conditional jump?
 
       Conditional jumps:
 
@@ -206,7 +206,7 @@ ConcreteInstr
    .. attribute:: size
 
       Read-only size of the instruction in bytes (``int``): between ``1`` byte
-      (no agument) and ``6`` bytes (extended argument).
+      (no argument) and ``6`` bytes (extended argument).
 
    Static method:
 
@@ -740,7 +740,7 @@ Compiler Flags
     on the instructions. The flags that can be inferred are :
 
     - OPTIMIZED
-    - GENRATOR
+    - GENERATOR
     - NOFREE
     - COROUTINE
     - ASYNC_GENERATOR

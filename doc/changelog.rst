@@ -186,7 +186,7 @@ API changes:
 - Add :class:`CellVar` and :class:`FreeVar` classes: instructions having
   a cell or free variable now require a :class:`CellVar` or :class:`FreeVar`
   instance rather than a simple string (``str``). This change is required
-  to handle correctly code with duplicated varible names in cell and free
+  to handle correctly code with duplicated variable names in cell and free
   variables.
 - :class:`ControlFlowGraph`: remove undocumented ``to_concrete_bytecode()``
   and ``to_code()`` methods
