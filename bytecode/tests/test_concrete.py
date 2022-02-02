@@ -1254,7 +1254,7 @@ class BytecodeToConcreteTests(TestCase):
 
         # (invalid) code using jumps > 0xffff to test extended arg
         label = Label()
-        nb_nop = 2 ** 16
+        nb_nop = 2**16
         code = Bytecode(
             [
                 Instr("JUMP_ABSOLUTE", label),

@@ -317,7 +317,7 @@ class InstrTests(TestCase):
         # (As a result we can calculate stack_effect for
         #  any LOAD_CONST instructions, even for large integers)
 
-        for arg in 2 ** 31, 2 ** 32, 2 ** 63, 2 ** 64, -1:
+        for arg in 2**31, 2**32, 2**63, 2**64, -1:
             self.assertEqual(Instr("LOAD_CONST", arg).stack_effect(), 1)
 
     def test_code_object_containing_mutable_data(self):
