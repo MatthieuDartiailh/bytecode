@@ -44,7 +44,7 @@ master_doc = "index"
 
 # General information about the project.
 project = u"bytecode"
-copyright = u"2016-2021, Victor Stinner"
+copyright = u"Contributors to the bytecode project"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
