@@ -2,7 +2,7 @@ import sys
 import unittest
 from bytecode import Label, Instr, Compare, Bytecode, ControlFlowGraph
 from bytecode import peephole_opt
-from bytecode.tests import TestCase, dump_bytecode
+from . import TestCase, dump_bytecode
 from unittest import mock
 
 

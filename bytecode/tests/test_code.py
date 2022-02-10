@@ -1,7 +1,7 @@
 import unittest
 
 from bytecode import ConcreteBytecode, Bytecode, ControlFlowGraph
-from bytecode.tests import get_code
+from . import get_code
 
 
 class CodeTests(unittest.TestCase):
