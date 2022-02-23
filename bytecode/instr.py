@@ -19,7 +19,8 @@ class Compare(enum.IntEnum):
     NOT_IN = 7
     IS = 8
     IS_NOT = 9
-    EXC_MATCH = 10
+    if sys.version_info < (3, 9):
+        EXC_MATCH = 10
 
 
 UNSET = object()
