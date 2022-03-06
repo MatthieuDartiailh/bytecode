@@ -18,7 +18,7 @@ from bytecode import (
     SetLineno,
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
-from bytecode.tests import TestCase, get_code
+from . import TestCase, get_code
 
 
 class ConcreteInstrTests(TestCase):
@@ -619,7 +619,7 @@ class ConcreteFromCodeTests(TestCase):
 
     def test_extended_arg_make_function(self):
         if (3, 9) <= sys.version_info < (3, 10):
-            from bytecode.tests.util_annotation import get_code as get_code_future
+            from .util_annotation import get_code as get_code_future
 
             code_obj = get_code_future(
                 """
@@ -1504,7 +1504,7 @@ class BytecodeToConcreteTests(TestCase):
         self.assertEqual(f(), (obj1, obj2, obj3, obj4))
 
     def test_packing_lines(self):
-        from bytecode.tests.long_lines_example import long_lines
+        from .long_lines_example import long_lines
         import dis
 
         line_starts = list(dis.findlinestarts(long_lines.__code__))

@@ -3,7 +3,7 @@ import sys
 import textwrap
 import unittest
 from bytecode import Label, Instr, FreeVar, Bytecode, SetLineno, ConcreteInstr
-from bytecode.tests import TestCase, get_code
+from . import TestCase, get_code
 
 
 class BytecodeTests(TestCase):

@@ -11,7 +11,7 @@ from bytecode import (
     SetLineno,
     Compare,
 )
-from bytecode.tests import TestCase
+from . import TestCase
 
 
 class SetLinenoTests(TestCase):

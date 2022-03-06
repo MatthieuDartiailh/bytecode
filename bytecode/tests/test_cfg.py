@@ -13,7 +13,7 @@ from bytecode import (
     ControlFlowGraph,
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
-from bytecode.tests import disassemble as _disassemble, TestCase
+from . import disassemble as _disassemble, TestCase
 
 
 def disassemble(

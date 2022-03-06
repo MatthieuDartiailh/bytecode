@@ -8,7 +8,7 @@ import unittest
 import bytecode
 from bytecode import Label, Instr, Bytecode, BasicBlock, ControlFlowGraph
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
-from bytecode.tests import disassemble
+from . import disassemble
 
 
 class DumpCodeTests(unittest.TestCase):
