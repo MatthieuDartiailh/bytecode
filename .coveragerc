@@ -1,7 +1,11 @@
 [run]
 omit =
     setup.py
-    bytecode/tests/*
+
+[paths]
+source =
+   src
+   */site-packages
 
 [report]
 # Regexes for lines to exclude from consideration
