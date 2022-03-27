@@ -61,7 +61,7 @@ def main():
         "maintainer_email": "m.dartiailh@gmail.com",
         "classifiers": CLASSIFIERS,
         "package_dir": {"": "src"},
-        "packages": ["src/bytecode"],
+        "packages": ["bytecode"],
         "python_requires": ">=3.6",
     }
     setup(**options)
