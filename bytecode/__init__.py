@@ -1,5 +1,3 @@
-__version__ = "0.14.0.dev"
-
 __all__ = [
     "Label",
     "Instr",
@@ -10,6 +8,7 @@ __all__ = [
     "ControlFlowGraph",
     "CompilerFlags",
     "Compare",
+    "__version__"
 ]
 
 from bytecode.flags import CompilerFlags
@@ -35,6 +34,7 @@ from bytecode.concrete import (
     _ConvertBytecodeToConcrete,
 )
 from bytecode.cfg import BasicBlock, ControlFlowGraph  # noqa
+from bytecode.version import __version__
 
 
 def dump_bytecode(bytecode, *, lineno=False):
