@@ -1,6 +1,7 @@
 # alias to keep the 'bytecode' variable free
 import sys
 from enum import IntFlag
+
 import bytecode as _bytecode
 
 

@@ -1,12 +1,12 @@
 import dis
 import inspect
+import opcode as _opcode
 import struct
 import sys
 import types
 
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
-import opcode as _opcode
 from bytecode.instr import (
     UNSET,
     CellVar,

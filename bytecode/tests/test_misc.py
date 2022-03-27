@@ -6,8 +6,9 @@ import textwrap
 import unittest
 
 import bytecode
-from bytecode import Label, Instr, Bytecode, BasicBlock, ControlFlowGraph
+from bytecode import BasicBlock, Bytecode, ControlFlowGraph, Instr, Label
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
+
 from . import disassemble
 
 

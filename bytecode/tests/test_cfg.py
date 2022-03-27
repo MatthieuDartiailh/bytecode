@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
+import contextlib
 import io
 import sys
 import unittest
-import contextlib
+
 from bytecode import (
-    Label,
-    Compare,
-    SetLineno,
-    Instr,
-    Bytecode,
     BasicBlock,
+    Bytecode,
+    Compare,
     ControlFlowGraph,
+    Instr,
+    Label,
+    SetLineno,
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
-from . import disassemble as _disassemble, TestCase
+
+from . import TestCase
+from . import disassemble as _disassemble
 
 
 def disassemble(

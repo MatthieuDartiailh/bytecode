@@ -4,7 +4,7 @@ import sys
 import bytecode as _bytecode
 from bytecode.concrete import ConcreteInstr
 from bytecode.flags import CompilerFlags
-from bytecode.instr import Label, SetLineno, Instr
+from bytecode.instr import Instr, Label, SetLineno
 
 
 class BasicBlock(_bytecode._InstrList):

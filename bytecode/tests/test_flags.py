@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 import unittest
+
 from bytecode import (
+    Bytecode,
     CompilerFlags,
     ConcreteBytecode,
     ConcreteInstr,
-    Bytecode,
     ControlFlowGraph,
 )
 from bytecode.flags import infer_flags

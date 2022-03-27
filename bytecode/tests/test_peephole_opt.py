@@ -1,9 +1,10 @@
 import sys
 import unittest
-from bytecode import Label, Instr, Compare, Bytecode, ControlFlowGraph
-from bytecode import peephole_opt
-from . import TestCase, dump_bytecode
 from unittest import mock
+
+from bytecode import Bytecode, Compare, ControlFlowGraph, Instr, Label, peephole_opt
+
+from . import TestCase, dump_bytecode
 
 
 class Tests(TestCase):

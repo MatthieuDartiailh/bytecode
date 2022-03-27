@@ -11,29 +11,21 @@ __all__ = [
     "__version__",
 ]
 
-from bytecode.flags import CompilerFlags
-from bytecode.instr import (
-    UNSET,
-    Label,
-    SetLineno,
-    Instr,
-    CellVar,
-    FreeVar,  # noqa
-    Compare,
-)
-from bytecode.bytecode import (
+from bytecode.bytecode import (  # noqa
     BaseBytecode,
+    Bytecode,
     _BaseBytecodeList,
     _InstrList,
-    Bytecode,
-)  # noqa
-from bytecode.concrete import (
-    ConcreteInstr,
-    ConcreteBytecode,  # noqa
-    # import needed to use it in bytecode.py
-    _ConvertBytecodeToConcrete,
 )
 from bytecode.cfg import BasicBlock, ControlFlowGraph  # noqa
+from bytecode.concrete import ConcreteBytecode  # noqa
+from bytecode.concrete import (  # import needed to use it in bytecode.py
+    ConcreteInstr,
+    _ConvertBytecodeToConcrete,
+)
+from bytecode.flags import CompilerFlags
+from bytecode.instr import FreeVar  # noqa
+from bytecode.instr import UNSET, CellVar, Compare, Instr, Label, SetLineno
 from bytecode.version import __version__
 
 
