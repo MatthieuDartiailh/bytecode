@@ -3,7 +3,6 @@
 # Prepare a release:
 #
 #  - git pull --rebase
-#  - update version in setup.py, bytecode/__init__.py and doc/conf.py
 #  - run tests: tox
 #  - set release date in the changelog
 #  - git commit -a
@@ -25,7 +24,6 @@
 #  - git commit -a -m "post-release"
 #  - git push
 
-VERSION = "0.14.0.dev"
 
 DESCRIPTION = "Python module to generate and modify bytecode"
 CLASSIFIERS = [
@@ -42,23 +40,17 @@ CLASSIFIERS = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
-# put most of the code inside main() to be able to import setup.py in
-# test_bytecode.py, to ensure that VERSION is the same than
-# bytecode.__version__.
-
 
 def main():
-    try:
-        from setuptools import setup
-    except ImportError:
-        from distutils.core import setup
+    from setuptools import setup
 
     with open("README.rst") as fp:
         long_description = fp.read().strip()
 
+    # FIXME when tools.setuptools section in pyproject.toml stabilizes we will
+    # be able to get rid of everything here.
     options = {
         "name": "bytecode",
-        "version": VERSION,
         "license": "MIT license",
         "description": DESCRIPTION,
         "long_description": long_description,

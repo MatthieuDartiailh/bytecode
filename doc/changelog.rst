@@ -4,10 +4,17 @@ ChangeLog
 unreleased: Version 0.13.1
 --------------------------
 
+
+
+
 Bugfixes:
 
 - Removed ``EXC_MATCH`` from the ``Compare`` enumeration starting with Python
   3.9. The new ``JUMP_IF_NOT_EXC_MATCH`` opcode should be used instead.
+
+Maintenance:
+
+- Make the install process PEP517 compliant PR #97
 
 
 04/10/2021: Version 0.13.0
