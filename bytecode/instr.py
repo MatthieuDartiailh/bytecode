@@ -1,5 +1,5 @@
-import enum
 import dis
+import enum
 import opcode as _opcode
 import sys
 from marshal import dumps as _dumps

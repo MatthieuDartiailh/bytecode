@@ -3,15 +3,15 @@ import textwrap
 import types
 import unittest
 
+from bytecode import BasicBlock  # noqa
 from bytecode import (
     UNSET,
-    Label,
-    Instr,
-    ConcreteInstr,
-    BasicBlock,  # noqa
     Bytecode,
-    ControlFlowGraph,
     ConcreteBytecode,
+    ConcreteInstr,
+    ControlFlowGraph,
+    Instr,
+    Label,
 )
 
 

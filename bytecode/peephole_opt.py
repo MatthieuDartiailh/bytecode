@@ -5,7 +5,8 @@ the bytecode module.
 import opcode
 import operator
 import sys
-from bytecode import Instr, Bytecode, ControlFlowGraph, BasicBlock, Compare
+
+from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
 JUMPS_ON_TRUE = frozenset(
     (

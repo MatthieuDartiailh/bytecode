@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
+import opcode
 import sys
 import textwrap
 import types
 import unittest
 
-import opcode
 from bytecode import (
     UNSET,
     Bytecode,
@@ -18,6 +18,7 @@ from bytecode import (
     SetLineno,
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
+
 from . import TestCase, get_code
 
 
@@ -1504,8 +1505,9 @@ class BytecodeToConcreteTests(TestCase):
         self.assertEqual(f(), (obj1, obj2, obj3, obj4))
 
     def test_packing_lines(self):
-        from .long_lines_example import long_lines
         import dis
+
+        from .long_lines_example import long_lines
 
         line_starts = list(dis.findlinestarts(long_lines.__code__))
 

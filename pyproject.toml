@@ -71,9 +71,5 @@ follow_imports = "normal"
 strict_optional = true
 
 [tool.isort]
-multi_line_output = 3
-include_trailing_comma = true
-combine_as_imports = true
-force_grid_wrap = 0
-use_parentheses = true
-line_length = 88
+profile = "black"
+extra_standard_library = ["opcode"]
