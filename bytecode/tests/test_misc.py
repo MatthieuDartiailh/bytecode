@@ -254,12 +254,5 @@ L.  6  24: LOAD_CONST 3
             bytecode.dump_bytecode(T())
 
 
-class MiscTests(unittest.TestCase):
-    def test_version(self):
-        import setup
-
-        self.assertEqual(bytecode.__version__, setup.VERSION)
-
-
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover
