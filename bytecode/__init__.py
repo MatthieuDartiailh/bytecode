@@ -8,7 +8,7 @@ __all__ = [
     "ControlFlowGraph",
     "CompilerFlags",
     "Compare",
-    "__version__"
+    "__version__",
 ]
 
 from bytecode.flags import CompilerFlags
