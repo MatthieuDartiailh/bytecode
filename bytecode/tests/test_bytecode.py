@@ -381,8 +381,7 @@ class BytecodeTests(TestCase):
             "BUILD_LIST",
             "BUILD_SET",
         )
-        if sys.version_info >= (3, 6):
-            opnames = (*opnames, "BUILD_STRING")
+        opnames = (*opnames, "BUILD_STRING")
 
         for opname in opnames:
             with self.subTest():
@@ -406,7 +405,6 @@ class BytecodeTests(TestCase):
         co = code.to_code(check_pre_and_post=False)
         self.assertEqual(co.co_stacksize, 1)
 
-    @unittest.skipIf(sys.version_info < (3, 6), "Inexistent opcode")
     def test_negative_size_build_const_map(self):
         code = Bytecode()
         code.first_lineno = 1
@@ -414,7 +412,6 @@ class BytecodeTests(TestCase):
         with self.assertRaises(RuntimeError):
             code.compute_stacksize()
 
-    @unittest.skipIf(sys.version_info < (3, 6), "Inexistent opcode")
     def test_negative_size_build_const_map_with_disable_check_of_pre_and_post(self):
         code = Bytecode()
         code.first_lineno = 1
@@ -437,9 +434,7 @@ class BytecodeTests(TestCase):
             code.compute_stacksize()
 
     def test_not_enough_rot(self):
-        opnames = ["ROT_TWO", "ROT_THREE"]
-        if sys.version_info >= (3, 8):
-            opnames.append("ROT_FOUR")
+        opnames = ["ROT_TWO", "ROT_THREE", "ROT_FOUR"]
         for opname in opnames:
             with self.subTest():
                 code = Bytecode()
@@ -449,9 +444,7 @@ class BytecodeTests(TestCase):
                     code.compute_stacksize()
 
     def test_not_enough_rot_with_disable_check_of_pre_and_post(self):
-        opnames = ["ROT_TWO", "ROT_THREE"]
-        if sys.version_info >= (3, 8):
-            opnames.append("ROT_FOUR")
+        opnames = ["ROT_TWO", "ROT_THREE", "ROT_FOUR"]
         for opname in opnames:
             with self.subTest():
                 code = Bytecode()

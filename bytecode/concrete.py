@@ -198,8 +198,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         bytecode.filename = code.co_filename
         bytecode.flags = code.co_flags
         bytecode.argcount = code.co_argcount
-        if sys.version_info >= (3, 8):
-            bytecode.posonlyargcount = code.co_posonlyargcount
+        bytecode.posonlyargcount = code.co_posonlyargcount
         bytecode.kwonlyargcount = code.co_kwonlyargcount
         bytecode.first_lineno = code.co_firstlineno
         bytecode.names = list(code.co_names)
@@ -247,11 +246,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
             dlineno = lineno - old_lineno
             if dlineno == 0:
                 continue
-            # FIXME: be kind, force monotonic line numbers? add an option?
-            if dlineno < 0 and sys.version_info < (3, 6):
-                raise ValueError(
-                    "negative line number delta is not supported " "on Python < 3.6"
-                )
             old_lineno = lineno
 
             doff = offset - old_offset
@@ -401,43 +395,24 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         if stacksize is None:
             stacksize = self.compute_stacksize(check_pre_and_post=check_pre_and_post)
 
-        if sys.version_info < (3, 8):
-            return types.CodeType(
-                self.argcount,
-                self.kwonlyargcount,
-                nlocals,
-                stacksize,
-                int(self.flags),
-                code_str,
-                tuple(self.consts),
-                tuple(self.names),
-                tuple(self.varnames),
-                self.filename,
-                self.name,
-                self.first_lineno,
-                lnotab,
-                tuple(self.freevars),
-                tuple(self.cellvars),
-            )
-        else:
-            return types.CodeType(
-                self.argcount,
-                self.posonlyargcount,
-                self.kwonlyargcount,
-                nlocals,
-                stacksize,
-                int(self.flags),
-                code_str,
-                tuple(self.consts),
-                tuple(self.names),
-                tuple(self.varnames),
-                self.filename,
-                self.name,
-                self.first_lineno,
-                lnotab,
-                tuple(self.freevars),
-                tuple(self.cellvars),
-            )
+        return types.CodeType(
+            self.argcount,
+            self.posonlyargcount,
+            self.kwonlyargcount,
+            nlocals,
+            stacksize,
+            int(self.flags),
+            code_str,
+            tuple(self.consts),
+            tuple(self.names),
+            tuple(self.varnames),
+            self.filename,
+            self.name,
+            self.first_lineno,
+            lnotab,
+            tuple(self.freevars),
+            tuple(self.cellvars),
+        )
 
     def to_bytecode(self):
 
@@ -511,8 +486,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList):
         bytecode._copy_attr_from(self)
 
         nargs = bytecode.argcount + bytecode.kwonlyargcount
-        if sys.version_info > (3, 8):
-            nargs += bytecode.posonlyargcount
+        nargs += bytecode.posonlyargcount
         if bytecode.flags & inspect.CO_VARARGS:
             nargs += 1
         if bytecode.flags & inspect.CO_VARKEYWORDS:

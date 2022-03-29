@@ -107,8 +107,7 @@ class BytecodeBlocksTests(TestCase):
         self.assertEqual(code.argcount, 2)
         self.assertEqual(code.filename, "hello.py")
         self.assertEqual(code.first_lineno, 3)
-        if sys.version_info > (3, 8):
-            self.assertEqual(code.posonlyargcount, 0)
+        self.assertEqual(code.posonlyargcount, 0)
         self.assertEqual(code.kwonlyargcount, 1)
         self.assertEqual(code.name, "func")
         self.assertEqual(code.cellvars, [])
@@ -327,96 +326,47 @@ class BytecodeBlocksTests(TestCase):
         #         break
         #     continue
 
-        if sys.version_info < (3, 8):
-            label_loop_start = Label()
-            label_loop_exit = Label()
-            label_loop_end = Label()
+        label_loop_start = Label()
+        label_loop_exit = Label()
 
-            code = Bytecode()
-            code.extend(
-                (
-                    Instr("SETUP_LOOP", label_loop_end, lineno=1),
-                    Instr("LOAD_CONST", (1, 2, 3), lineno=1),
-                    Instr("GET_ITER", lineno=1),
-                    label_loop_start,
-                    Instr("FOR_ITER", label_loop_exit, lineno=1),
-                    Instr("STORE_NAME", "x", lineno=1),
-                    Instr("LOAD_NAME", "x", lineno=2),
-                    Instr("LOAD_CONST", 2, lineno=2),
-                    Instr("COMPARE_OP", Compare.EQ, lineno=2),
-                    Instr("POP_JUMP_IF_FALSE", label_loop_start, lineno=2),
-                    Instr("BREAK_LOOP", lineno=3),
-                    Instr("JUMP_ABSOLUTE", label_loop_start, lineno=4),
-                    Instr("JUMP_ABSOLUTE", label_loop_start, lineno=4),
-                    label_loop_exit,
-                    Instr("POP_BLOCK", lineno=4),
-                    label_loop_end,
-                    Instr("LOAD_CONST", None, lineno=4),
-                    Instr("RETURN_VALUE", lineno=4),
-                )
+        code = Bytecode()
+        code.extend(
+            (
+                Instr("LOAD_CONST", (1, 2, 3), lineno=1),
+                Instr("GET_ITER", lineno=1),
+                label_loop_start,
+                Instr("FOR_ITER", label_loop_exit, lineno=1),
+                Instr("STORE_NAME", "x", lineno=1),
+                Instr("LOAD_NAME", "x", lineno=2),
+                Instr("LOAD_CONST", 2, lineno=2),
+                Instr("COMPARE_OP", Compare.EQ, lineno=2),
+                Instr("POP_JUMP_IF_FALSE", label_loop_start, lineno=2),
+                Instr("JUMP_ABSOLUTE", label_loop_exit, lineno=3),
+                Instr("JUMP_ABSOLUTE", label_loop_start, lineno=4),
+                Instr("JUMP_ABSOLUTE", label_loop_start, lineno=4),
+                label_loop_exit,
+                Instr("LOAD_CONST", None, lineno=4),
+                Instr("RETURN_VALUE", lineno=4),
             )
-            blocks = ControlFlowGraph.from_bytecode(code)
+        )
+        blocks = ControlFlowGraph.from_bytecode(code)
 
-            expected = [
-                [Instr("SETUP_LOOP", blocks[8], lineno=1)],
-                [Instr("LOAD_CONST", (1, 2, 3), lineno=1), Instr("GET_ITER", lineno=1)],
-                [Instr("FOR_ITER", blocks[7], lineno=1)],
-                [
-                    Instr("STORE_NAME", "x", lineno=1),
-                    Instr("LOAD_NAME", "x", lineno=2),
-                    Instr("LOAD_CONST", 2, lineno=2),
-                    Instr("COMPARE_OP", Compare.EQ, lineno=2),
-                    Instr("POP_JUMP_IF_FALSE", blocks[2], lineno=2),
-                ],
-                [Instr("BREAK_LOOP", lineno=3)],
-                [Instr("JUMP_ABSOLUTE", blocks[2], lineno=4)],
-                [Instr("JUMP_ABSOLUTE", blocks[2], lineno=4)],
-                [Instr("POP_BLOCK", lineno=4)],
-                [Instr("LOAD_CONST", None, lineno=4), Instr("RETURN_VALUE", lineno=4)],
-            ]
-            self.assertBlocksEqual(blocks, *expected)
-        else:
-            label_loop_start = Label()
-            label_loop_exit = Label()
-
-            code = Bytecode()
-            code.extend(
-                (
-                    Instr("LOAD_CONST", (1, 2, 3), lineno=1),
-                    Instr("GET_ITER", lineno=1),
-                    label_loop_start,
-                    Instr("FOR_ITER", label_loop_exit, lineno=1),
-                    Instr("STORE_NAME", "x", lineno=1),
-                    Instr("LOAD_NAME", "x", lineno=2),
-                    Instr("LOAD_CONST", 2, lineno=2),
-                    Instr("COMPARE_OP", Compare.EQ, lineno=2),
-                    Instr("POP_JUMP_IF_FALSE", label_loop_start, lineno=2),
-                    Instr("JUMP_ABSOLUTE", label_loop_exit, lineno=3),
-                    Instr("JUMP_ABSOLUTE", label_loop_start, lineno=4),
-                    Instr("JUMP_ABSOLUTE", label_loop_start, lineno=4),
-                    label_loop_exit,
-                    Instr("LOAD_CONST", None, lineno=4),
-                    Instr("RETURN_VALUE", lineno=4),
-                )
-            )
-            blocks = ControlFlowGraph.from_bytecode(code)
-
-            expected = [
-                [Instr("LOAD_CONST", (1, 2, 3), lineno=1), Instr("GET_ITER", lineno=1)],
-                [Instr("FOR_ITER", blocks[6], lineno=1)],
-                [
-                    Instr("STORE_NAME", "x", lineno=1),
-                    Instr("LOAD_NAME", "x", lineno=2),
-                    Instr("LOAD_CONST", 2, lineno=2),
-                    Instr("COMPARE_OP", Compare.EQ, lineno=2),
-                    Instr("POP_JUMP_IF_FALSE", blocks[1], lineno=2),
-                ],
-                [Instr("JUMP_ABSOLUTE", blocks[6], lineno=3)],
-                [Instr("JUMP_ABSOLUTE", blocks[1], lineno=4)],
-                [Instr("JUMP_ABSOLUTE", blocks[1], lineno=4)],
-                [Instr("LOAD_CONST", None, lineno=4), Instr("RETURN_VALUE", lineno=4)],
-            ]
-            self.assertBlocksEqual(blocks, *expected)
+        expected = [
+            [Instr("LOAD_CONST", (1, 2, 3), lineno=1), Instr("GET_ITER", lineno=1)],
+            [Instr("FOR_ITER", blocks[6], lineno=1)],
+            [
+                Instr("STORE_NAME", "x", lineno=1),
+                Instr("LOAD_NAME", "x", lineno=2),
+                Instr("LOAD_CONST", 2, lineno=2),
+                Instr("COMPARE_OP", Compare.EQ, lineno=2),
+                Instr("POP_JUMP_IF_FALSE", blocks[1], lineno=2),
+            ],
+            [Instr("JUMP_ABSOLUTE", blocks[6], lineno=3)],
+            [Instr("JUMP_ABSOLUTE", blocks[1], lineno=4)],
+            [Instr("JUMP_ABSOLUTE", blocks[1], lineno=4)],
+            [Instr("LOAD_CONST", None, lineno=4), Instr("RETURN_VALUE", lineno=4)],
+        ]
+        self.assertBlocksEqual(blocks, *expected)
 
 
 class BytecodeBlocksFunctionalTests(TestCase):
@@ -536,8 +486,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         bytecode = ControlFlowGraph()
         bytecode.first_lineno = 3
         bytecode.argcount = 3
-        if sys.version_info > (3, 8):
-            bytecode.posonlyargcount = 0
+        bytecode.posonlyargcount = 0
         bytecode.kwonlyargcount = 2
         bytecode.name = "func"
         bytecode.filename = "hello.py"
@@ -578,8 +527,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         code = bytecode.to_code()
         self.assertEqual(code.co_consts, (None, 3))
         self.assertEqual(code.co_argcount, 3)
-        if sys.version_info > (3, 8):
-            self.assertEqual(code.co_posonlyargcount, 0)
+        self.assertEqual(code.co_posonlyargcount, 0)
         self.assertEqual(code.co_kwonlyargcount, 2)
         self.assertEqual(code.co_nlocals, 6)
         self.assertEqual(code.co_stacksize, 1)

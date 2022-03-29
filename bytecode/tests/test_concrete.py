@@ -197,10 +197,9 @@ class ConcreteBytecodeTests(TestCase):
             # For obscure reasons using assertNotEqual here fail
             self.assertFalse(code == c)
 
-        if sys.version_info > (3, 8):
-            c = ConcreteBytecode()
-            c.posonlyargcount = 10
-            self.assertFalse(code == c)
+        c = ConcreteBytecode()
+        c.posonlyargcount = 10
+        self.assertFalse(code == c)
 
         c = ConcreteBytecode()
         c.consts = [1]
@@ -579,11 +578,8 @@ class ConcreteFromCodeTests(TestCase):
         co_code = b"\x90\x12\x904\x90\xabd\xcd"
         code = get_code("x=1")
         args = (
-            (code.co_argcount,)
-            if sys.version_info < (3, 8)
-            else (code.co_argcount, code.co_posonlyargcount)
-        )
-        args += (
+            code.co_argcount,
+            code.co_posonlyargcount,
             code.co_kwonlyargcount,
             code.co_nlocals,
             code.co_stacksize,
@@ -999,88 +995,86 @@ class ConcreteFromCodeTests(TestCase):
         self.assertEqual(test.__code__.co_stacksize, 1)
         self.assertEqual(test(), 259)
 
-    if sys.version_info >= (3, 6):
+    def test_fail_extended_arg_jump(self):
+        def test():
+            var = None
+            for _ in range(0, 1):
+                var = 0
+                var = 1
+                var = 2
+                var = 3
+                var = 4
+                var = 5
+                var = 6
+                var = 7
+                var = 8
+                var = 9
+                var = 10
+                var = 11
+                var = 12
+                var = 13
+                var = 14
+                var = 15
+                var = 16
+                var = 17
+                var = 18
+                var = 19
+                var = 20
+                var = 21
+                var = 22
+                var = 23
+                var = 24
+                var = 25
+                var = 26
+                var = 27
+                var = 28
+                var = 29
+                var = 30
+                var = 31
+                var = 32
+                var = 33
+                var = 34
+                var = 35
+                var = 36
+                var = 37
+                var = 38
+                var = 39
+                var = 40
+                var = 41
+                var = 42
+                var = 43
+                var = 44
+                var = 45
+                var = 46
+                var = 47
+                var = 48
+                var = 49
+                var = 50
+                var = 51
+                var = 52
+                var = 53
+                var = 54
+                var = 55
+                var = 56
+                var = 57
+                var = 58
+                var = 59
+                var = 60
+                var = 61
+                var = 62
+                var = 63
+                var = 64
+                var = 65
+                var = 66
+                var = 67
+                var = 68
+                var = 69
+                var = 70
+            return var
 
-        def test_fail_extended_arg_jump(self):
-            def test():
-                var = None
-                for _ in range(0, 1):
-                    var = 0
-                    var = 1
-                    var = 2
-                    var = 3
-                    var = 4
-                    var = 5
-                    var = 6
-                    var = 7
-                    var = 8
-                    var = 9
-                    var = 10
-                    var = 11
-                    var = 12
-                    var = 13
-                    var = 14
-                    var = 15
-                    var = 16
-                    var = 17
-                    var = 18
-                    var = 19
-                    var = 20
-                    var = 21
-                    var = 22
-                    var = 23
-                    var = 24
-                    var = 25
-                    var = 26
-                    var = 27
-                    var = 28
-                    var = 29
-                    var = 30
-                    var = 31
-                    var = 32
-                    var = 33
-                    var = 34
-                    var = 35
-                    var = 36
-                    var = 37
-                    var = 38
-                    var = 39
-                    var = 40
-                    var = 41
-                    var = 42
-                    var = 43
-                    var = 44
-                    var = 45
-                    var = 46
-                    var = 47
-                    var = 48
-                    var = 49
-                    var = 50
-                    var = 51
-                    var = 52
-                    var = 53
-                    var = 54
-                    var = 55
-                    var = 56
-                    var = 57
-                    var = 58
-                    var = 59
-                    var = 60
-                    var = 61
-                    var = 62
-                    var = 63
-                    var = 64
-                    var = 65
-                    var = 66
-                    var = 67
-                    var = 68
-                    var = 69
-                    var = 70
-                return var
-
-            # Generate the bytecode with extended arguments
-            bytecode = ConcreteBytecode.from_code(test.__code__, extended_arg=True)
-            bytecode.to_code()
+        # Generate the bytecode with extended arguments
+        bytecode = ConcreteBytecode.from_code(test.__code__, extended_arg=True)
+        bytecode.to_code()
 
 
 class BytecodeToConcreteTests(TestCase):
