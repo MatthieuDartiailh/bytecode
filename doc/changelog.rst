@@ -4,7 +4,7 @@ ChangeLog
 unreleased: Version 0.13.1
 --------------------------
 
-
+New features:
 
 
 Bugfixes:
@@ -15,6 +15,7 @@ Bugfixes:
 Maintenance:
 
 - Make the install process PEP517 compliant PR #97
+- Drop support for Python 3.6 and 3.7 PR #100
 
 
 04/10/2021: Version 0.13.0

@@ -2,7 +2,7 @@
 name = "bytecode"
 description = "Python module to generate and modify bytecode"
 readme = "README.rst"
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 license = {file = "LICENSE"}
 authors = [
   {name = "Victor Stinner", email = "victor.stinner@gmail.com"}

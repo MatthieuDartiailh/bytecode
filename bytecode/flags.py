@@ -34,8 +34,7 @@ class CompilerFlags(IntFlag):
     # future flags changed in Python 3.9
     if sys.version_info < (3, 9):
         FUTURE_GENERATOR_STOP = 0x80000  # noqa
-        if sys.version_info > (3, 6):
-            FUTURE_ANNOTATIONS = 0x100000
+        FUTURE_ANNOTATIONS = 0x100000
     else:
         FUTURE_GENERATOR_STOP = 0x800000  # noqa
         FUTURE_ANNOTATIONS = 0x1000000
