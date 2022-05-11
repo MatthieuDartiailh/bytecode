@@ -60,7 +60,8 @@ def main():
         "maintainer": "Matthieu C. Dartiailh",
         "maintainer_email": "m.dartiailh@gmail.com",
         "classifiers": CLASSIFIERS,
-        "packages": ["bytecode", "bytecode.tests"],
+        "package_dir": {"": "src"},
+        "packages": ["bytecode"],
         "python_requires": ">=3.6",
     }
     setup(**options)
