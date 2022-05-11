@@ -34,7 +34,7 @@ changelog = "https://github.com/nucleic/atom/blob/main/doc/changelog.rst"
 
 
 [build-system]
-requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=3.4.3"]
+requires = ["setuptools>=61.2", "wheel", "setuptools_scm[toml]>=3.4.3"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
