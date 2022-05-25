@@ -15,12 +15,15 @@ JUMPS_ON_TRUE = frozenset(
     )
 )
 
-NOT_COMPARE = {
-    Compare.IN: Compare.NOT_IN,
-    Compare.NOT_IN: Compare.IN,
-    Compare.IS: Compare.IS_NOT,
-    Compare.IS_NOT: Compare.IS,
-}
+if sys.version_info < (3, 9):
+    NOT_COMPARE = {
+        Compare.IN: Compare.NOT_IN,
+        Compare.NOT_IN: Compare.IN,
+        Compare.IS: Compare.IS_NOT,
+        Compare.IS_NOT: Compare.IS,
+    }
+else:
+    NOT_COMPARE = {}
 
 MAX_SIZE = 20
 
@@ -240,9 +243,14 @@ class PeepholeOptimizer:
         if instr.arg > len(self.const_stack):
             return
 
-        next_instr = self.get_next_instr("COMPARE_OP")
-        if next_instr is None or next_instr.arg not in (Compare.IN, Compare.NOT_IN):
-            return
+        if sys.version_info < (3, 9):
+            next_instr = self.get_next_instr("COMPARE_OP")
+            if next_instr is None or next_instr.arg not in (Compare.IN, Compare.NOT_IN):
+                return
+        else:
+            next_instr = self.get_next_instr("CONTAINS_OP")
+            if next_instr is None:
+                return
 
         self.replace_container_of_consts(instr, container_type)
         return True
