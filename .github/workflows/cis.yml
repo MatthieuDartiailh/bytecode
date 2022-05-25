@@ -10,13 +10,14 @@ on:
       - main
     paths:
       - .github/workflows/cis.yml
-      - "bytecode/**"
+      - "src/**"
+      - pyproject.toml
       - setup.py
       - tox.ini
 
 jobs:
-  formatting:
-    name: Check code formatting
+  lint:
+    name: Lint code
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -28,9 +29,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install tox
-      - name: Formatting
+      - name: Linting
         env:
-          TOXENV: fmt
+          TOXENV: lint
         run: |
           tox
 

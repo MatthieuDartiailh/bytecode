@@ -10,8 +10,9 @@ on:
       - main
     paths:
       - .github/workflows/docs.yml
-      - "bytecode/**"
+      - "src/**"
       - "doc/**"
+      - pyproject.toml
       - setup.py
 
 jobs:
