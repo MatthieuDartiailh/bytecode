@@ -485,9 +485,6 @@ ConcreteBytecode
 
       Convert to a Python code object.
 
-      On Python older than 3.6, raise an exception on negative line number
-      delta.
-
       *stacksize* Allows caller to explicitly specify a stacksize.  If not
       specified a ControlFlowGraph is created internally in order to call
       ControlFlowGraph.compute_stacksize().  It's cheaper to pass a value if
