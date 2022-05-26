@@ -9,7 +9,7 @@ Install bytecode::
 
     python3 -m pip install bytecode
 
-``bytecode`` requires Python 3.4 or newer.
+``bytecode`` requires Python 3.8 or newer.
 
 
 Hello World
@@ -92,41 +92,6 @@ Simple loop
 Bytecode of ``for x in (1, 2, 3): print(x)``:
 
 .. tabs::
-
-    .. group-tab:: Python < 3.8
-
-        .. code:: python
-
-            from bytecode import Label, Instr, Bytecode
-
-            loop_start = Label()
-            loop_done = Label()
-            loop_exit = Label()
-            code = Bytecode(
-                [
-                    Instr('SETUP_LOOP', loop_exit),
-                    Instr('LOAD_CONST', (1, 2, 3)),
-                    Instr('GET_ITER'),
-                    loop_start,
-                        Instr('FOR_ITER', loop_done),
-                        Instr('STORE_NAME', 'x'),
-                        Instr('LOAD_NAME', 'print'),
-                        Instr('LOAD_NAME', 'x'),
-                        Instr('CALL_FUNCTION', 1),
-                        Instr('POP_TOP'),
-                        Instr('JUMP_ABSOLUTE', loop_start),
-                    loop_done,
-                        Instr('POP_BLOCK'),
-                    loop_exit,
-                        Instr('LOAD_CONST', None),
-                        Instr('RETURN_VALUE')
-                ]
-            )
-
-            # the conversion to Python code object resolve jump targets:
-            # replace abstract labels with concrete offsets
-            code = code.to_code()
-            exec(code)
 
     .. group-tab:: Python >= 3.8
 
