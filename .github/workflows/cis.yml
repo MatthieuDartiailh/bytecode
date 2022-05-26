@@ -31,7 +31,7 @@ jobs:
           python -m pip install tox
       - name: Linting
         env:
-          TOXENV: lint
+          TOXENV: fmt
         run: |
           tox
 
