@@ -356,5 +356,27 @@ class InstrTests(TestCase):
         self.assertIs(f()(), mutable_datum)
 
 
+class CompareTests(TestCase):
+    def test_compare_ops(self):
+        from bytecode import Bytecode, Instr
+
+        def f():
+            pass
+
+        params = zip(iter(Compare), (True, True, False, True, False, False))
+        for cmp, expected in params:
+            with self.subTest():
+                f.__code__ = Bytecode(
+                    [
+                        Instr("LOAD_CONST", 24),
+                        Instr("LOAD_CONST", 42),
+                        Instr("COMPARE_OP", cmp),
+                        Instr("RETURN_VALUE"),
+                    ]
+                ).to_code()
+
+                self.assertIs(f(), expected)
+
+
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover

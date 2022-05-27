@@ -15,11 +15,11 @@ class Compare(enum.IntEnum):
     NE = 3
     GT = 4
     GE = 5
-    IN = 6
-    NOT_IN = 7
-    IS = 8
-    IS_NOT = 9
     if sys.version_info < (3, 9):
+        IN = 6
+        NOT_IN = 7
+        IS = 8
+        IS_NOT = 9
         EXC_MATCH = 10
 
 

@@ -257,6 +257,12 @@ class Tests(TestCase):
 
     def test_build_list(self):
         # test = x in [1, 2, 3]
+        compare_instr = (
+            Instr("COMPARE_OP", Compare.IN)
+            if sys.version_info < (3, 9)
+            else Instr("CONTAINS_OP", 0)
+        )
+
         code = Bytecode(
             [
                 Instr("LOAD_NAME", "x"),
@@ -264,7 +270,7 @@ class Tests(TestCase):
                 Instr("LOAD_CONST", 2),
                 Instr("LOAD_CONST", 3),
                 Instr("BUILD_LIST", 3),
-                Instr("COMPARE_OP", Compare.IN),
+                compare_instr,
                 Instr("STORE_NAME", "test"),
             ]
         )
@@ -273,7 +279,7 @@ class Tests(TestCase):
             code,
             Instr("LOAD_NAME", "x"),
             Instr("LOAD_CONST", (1, 2, 3)),
-            Instr("COMPARE_OP", Compare.IN),
+            compare_instr,
             Instr("STORE_NAME", "test"),
         )
 
@@ -381,6 +387,12 @@ class Tests(TestCase):
 
     def test_build_set(self):
         # test = x in {1, 2, 3}
+        compare_instr = (
+            Instr("COMPARE_OP", Compare.IN)
+            if sys.version_info < (3, 9)
+            else Instr("CONTAINS_OP", 0)
+        )
+
         code = Bytecode(
             [
                 Instr("LOAD_NAME", "x"),
@@ -388,7 +400,7 @@ class Tests(TestCase):
                 Instr("LOAD_CONST", 2),
                 Instr("LOAD_CONST", 3),
                 Instr("BUILD_SET", 3),
-                Instr("COMPARE_OP", Compare.IN),
+                compare_instr,
                 Instr("STORE_NAME", "test"),
             ]
         )
@@ -397,10 +409,11 @@ class Tests(TestCase):
             code,
             Instr("LOAD_NAME", "x"),
             Instr("LOAD_CONST", frozenset((1, 2, 3))),
-            Instr("COMPARE_OP", Compare.IN),
+            compare_instr,
             Instr("STORE_NAME", "test"),
         )
 
+    @unittest.skipIf(sys.version_info >= (3, 9), "enums not available in Python>=3.9")
     def test_compare_op_unary_not(self):
         for op, not_op in (
             (Compare.IN, Compare.NOT_IN),  # in => not in
