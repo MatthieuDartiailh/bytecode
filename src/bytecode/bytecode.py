@@ -1,7 +1,7 @@
 # alias to keep the 'bytecode' variable free
-from abc import abstractmethod
 import sys
 import types
+from abc import abstractmethod
 from typing import (
     Any,
     Generic,
@@ -17,7 +17,7 @@ from typing import (
 
 import bytecode as _bytecode
 from bytecode.flags import CompilerFlags, infer_flags
-from bytecode.instr import UNSET, Instr, Label, SetLineno, _UNSET
+from bytecode.instr import UNSET, BaseInstr, Instr, Label, SetLineno
 
 
 class BaseBytecode:
@@ -136,7 +136,7 @@ class _BaseBytecodeList(BaseBytecode, list, Generic[U]):
                 lineno_pos.append(pos)
                 continue
             # Filter out Labels
-            if not isinstance(instr, Instr):
+            if not isinstance(instr, BaseInstr):
                 continue
             if set_lineno is not None:
                 instr.lineno = set_lineno
