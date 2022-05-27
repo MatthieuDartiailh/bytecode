@@ -1,8 +1,10 @@
+from abc import abstractmethod
 import dis
 import enum
 import opcode as _opcode
 import sys
 from marshal import dumps as _dumps
+from typing import Any, Generic, Mapping, Optional, Tuple, TypeGuard, TypeVar, Union
 
 import bytecode as _bytecode
 
@@ -23,10 +25,74 @@ class Compare(enum.IntEnum):
         EXC_MATCH = 10
 
 
-UNSET = object()
+# This make type checking happy but means it won't catch attempt to manipulate an unset
+# statically. We would need guard on object attribute narrowed down through methods
+class _UNSET(int):
+
+    instance = None
+
+    def __new__(cls):
+        if cls.instance is None:
+            cls.instance = super().__new__(cls)
+        return cls.instance
+
+    def __eq__(self, other) -> bool:
+        return self is other
 
 
-def const_key(obj):
+for op in [
+    "__abs__",
+    "__add__",
+    "__and__",
+    "__bool__",
+    "__ceil__",
+    "__divmod__",
+    "__float__",
+    "__floor__",
+    "__floordiv__",
+    "__ge__",
+    "__gt__",
+    "__hash__",
+    "__index__",
+    "__int__",
+    "__invert__",
+    "__le__",
+    "__lshift__",
+    "__lt__",
+    "__mod__",
+    "__mul__",
+    "__ne__",
+    "__neg__",
+    "__or__",
+    "__pos__",
+    "__pow__",
+    "__radd__",
+    "__rand__",
+    "__rdivmod__",
+    "__rfloordiv__",
+    "__rlshift__",
+    "__rmod__",
+    "__rmul__",
+    "__ror__",
+    "__round__",
+    "__rpow__",
+    "__rrshift__",
+    "__rshift__",
+    "__rsub__",
+    "__rtruediv__",
+    "__rxor__",
+    "__sub__",
+    "__truediv__",
+    "__trunc__",
+    "__xor__",
+]:
+    setattr(_UNSET, op, lambda *args: NotImplemented)
+
+
+UNSET = _UNSET()
+
+
+def const_key(obj: Any) -> Union[bytes, Tuple[type, int]]:
     try:
         return _dumps(obj)
     except ValueError:
@@ -35,7 +101,7 @@ def const_key(obj):
         return (type(obj), id(obj))
 
 
-def _pushes_back(opname):
+def _pushes_back(opname: str) -> bool:
     if opname in ["CALL_FINALLY"]:
         # CALL_FINALLY pushes the address of the "finally" block instead of a
         # value, hence we don't treat it as pushing back op
@@ -68,7 +134,7 @@ def _pushes_back(opname):
     )
 
 
-def _check_lineno(lineno):
+def _check_lineno(lineno: int) -> None:
     if not isinstance(lineno, int):
         raise TypeError("lineno must be an int")
     if lineno < 1:
@@ -78,15 +144,15 @@ def _check_lineno(lineno):
 class SetLineno:
     __slots__ = ("_lineno",)
 
-    def __init__(self, lineno):
+    def __init__(self, lineno: int) -> None:
         _check_lineno(lineno)
-        self._lineno = lineno
+        self._lineno: int = lineno
 
     @property
-    def lineno(self):
+    def lineno(self) -> int:
         return self._lineno
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, SetLineno):
             return False
         return self._lineno == other._lineno
@@ -99,18 +165,18 @@ class Label:
 class _Variable:
     __slots__ = ("name",)
 
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, name: str) -> None:
+        self.name: str = name
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if type(self) != type(other):
             return False
         return self.name == other.name
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<%s %r>" % (self.__class__.__name__, self.name)
 
 
@@ -122,7 +188,7 @@ class FreeVar(_Variable):
     __slots__ = ()
 
 
-def _check_arg_int(name, arg):
+def _check_arg_int(arg: Any, name: str) -> TypeGuard[int]:
     if not isinstance(arg, int):
         raise TypeError(
             "operation %s argument must be an int, "
@@ -134,16 +200,216 @@ def _check_arg_int(name, arg):
             "operation %s argument must be in " "the range 0..2,147,483,647" % name
         )
 
+    return True
 
-class Instr:
+
+T = TypeVar("T", bound="BaseInstr")
+A = TypeVar("A", bound=object)
+
+
+class BaseInstr(Generic[A]):
     """Abstract instruction."""
 
     __slots__ = ("_name", "_opcode", "_arg", "_lineno")
 
-    def __init__(self, name, arg=UNSET, *, lineno=None):
+    # Work around an issue with the default value of arg
+    def __init__(
+        self, name: str, arg: A = UNSET, *, lineno: Optional[int] = None  # type: ignore
+    ) -> None:
         self._set(name, arg, lineno)
 
-    def _check_arg(self, name, opcode, arg):
+    # Work around an issue with the default value of arg
+    def set(self, name: str, arg: A = UNSET) -> None:  # type: ignore
+        """Modify the instruction in-place.
+
+        Replace name and arg attributes. Don't modify lineno.
+
+        """
+        self._set(name, arg, self._lineno)
+
+    def require_arg(self) -> bool:
+        """Does the instruction require an argument?"""
+        return self._opcode >= _opcode.HAVE_ARGUMENT
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, name: str) -> None:
+        self._set(name, self._arg, self._lineno)
+
+    @property
+    def opcode(self) -> int:
+        return self._opcode
+
+    @opcode.setter
+    def opcode(self, op: int) -> None:
+        if not isinstance(op, int):
+            raise TypeError("operator code must be an int")
+        if 0 <= op <= 255:
+            name = _opcode.opname[op]
+            valid = name != "<%r>" % op
+        else:
+            valid = False
+        if not valid:
+            raise ValueError("invalid operator code")
+
+        self._set(name, self._arg, self._lineno)
+
+    @property
+    def arg(self) -> A:
+        return self._arg
+
+    @arg.setter
+    def arg(self, arg: A):
+        self._set(self._name, arg, self._lineno)
+
+    @property
+    def lineno(self) -> Optional[int]:
+        return self._lineno
+
+    @lineno.setter
+    def lineno(self, lineno: Optional[int]) -> None:
+        self._set(self._name, self._arg, lineno)
+
+    def stack_effect(self, jump: Optional[bool] = None) -> int:
+        if self._opcode < _opcode.HAVE_ARGUMENT:
+            arg = None
+        elif not isinstance(self._arg, int) or self._opcode in _opcode.hasconst:
+            # Argument is either a non-integer or an integer constant,
+            # not oparg.
+            arg = 0
+        else:
+            arg = self._arg
+
+        return dis.stack_effect(self._opcode, arg, jump=jump)
+
+    def pre_and_post_stack_effect(self, jump: Optional[bool] = None) -> Tuple[int, int]:
+        _effect = self.stack_effect(jump=jump)
+
+        # To compute pre size and post size to avoid segfault cause by not enough
+        # stack element
+        _opname = _opcode.opname[self._opcode]
+        if _opname.startswith("DUP_TOP"):
+            return _effect * -1, _effect * 2
+        if _pushes_back(_opname):
+            # if the op pushes value back to the stack, then the stack effect given
+            # by dis.stack_effect actually equals pre + post effect, therefore we need
+            # -1 from the stack effect as a pre condition
+            return _effect - 1, 1
+        if _opname.startswith("UNPACK_"):
+            # Instr(UNPACK_* , n) pops 1 and pushes n
+            # _effect = n - 1
+            # hence we return -1, _effect + 1
+            return -1, _effect + 1
+        if _opname == "FOR_ITER" and not jump:
+            # Since FOR_ITER needs TOS to be an iterator, which basically means
+            # a prerequisite of 1 on the stack
+            return -1, 2
+        if _opname == "ROT_N":
+            arg = self._arg
+            assert isinstance(arg, int)
+            return (-arg, arg)
+        return {"ROT_TWO": (-2, 2), "ROT_THREE": (-3, 3), "ROT_FOUR": (-4, 4)}.get(
+            _opname, (_effect, 0)
+        )
+
+    def copy(self: T) -> T:
+        return self.__class__(self._name, self._arg, lineno=self._lineno)
+
+    def has_jump(self) -> bool:
+        return self._has_jump(self._opcode)
+
+    def is_cond_jump(self) -> bool:
+        """Is a conditional jump?"""
+        # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
+        return "JUMP_IF_" in self._name
+
+    def is_uncond_jump(self) -> bool:
+        """Is an unconditional jump?"""
+        return self.name in {"JUMP_FORWARD", "JUMP_ABSOLUTE"}
+
+    def is_final(self) -> bool:
+        if self._name in {
+            "RETURN_VALUE",
+            "RAISE_VARARGS",
+            "RERAISE",
+            "BREAK_LOOP",
+            "CONTINUE_LOOP",
+        }:
+            return True
+        if self.is_uncond_jump():
+            return True
+        return False
+
+    def __repr__(self) -> str:
+        if self._arg is not UNSET:
+            return "<%s arg=%r lineno=%s>" % (self._name, self._arg, self._lineno)
+        else:
+            return "<%s lineno=%s>" % (self._name, self._lineno)
+
+    def __eq__(self, other: Any) -> bool:
+        if type(self) != type(other):
+            return False
+        return self._cmp_key() == other._cmp_key()
+
+    # --- Private API
+
+    _name: str
+
+    _lineno: Optional[int]
+
+    _opcode: int
+
+    _arg: A
+
+    def _set(self, name: str, arg: A, lineno: Optional[int]) -> None:
+        if not isinstance(name, str):
+            raise TypeError("operation name must be a str")
+        try:
+            opcode = _opcode.opmap[name]
+        except KeyError:
+            raise ValueError("invalid operation name")
+
+        # check lineno
+        if lineno is not None:
+            _check_lineno(lineno)
+
+        self._check_arg(name, opcode, arg)
+
+        self._name = name
+        self._opcode = opcode
+        self._arg = arg
+        self._lineno = lineno
+
+    @staticmethod
+    def _has_jump(opcode) -> bool:
+        return opcode in _opcode.hasjrel or opcode in _opcode.hasjabs
+
+    @abstractmethod
+    def _check_arg(self, name: str, opcode: int, arg: A) -> None:
+        pass
+
+    @abstractmethod
+    def _cmp_key(self) -> Tuple[Optional[int], str, Any]:
+        pass
+
+
+InstrArg = Union[int, Label, CellVar, FreeVar, "_bytecode.BasicBlock", Compare]
+
+
+class Instr(BaseInstr[InstrArg]):
+
+    __slots__ = ()
+
+    def _cmp_key(self) -> Tuple[Optional[int], str, Any]:
+        arg: Any = self._arg
+        if self._opcode in _opcode.hasconst:
+            arg = const_key(arg)
+        return (self._lineno, self._name, arg)
+
+    def _check_arg(self, name: str, opcode: int, arg: InstrArg) -> None:
         if name == "EXTENDED_ARG":
             raise ValueError(
                 "only concrete instruction can contain EXTENDED_ARG, "
@@ -196,167 +462,4 @@ class Instr:
                 )
 
         elif opcode >= _opcode.HAVE_ARGUMENT:
-            _check_arg_int(name, arg)
-
-    def _set(self, name, arg, lineno):
-        if not isinstance(name, str):
-            raise TypeError("operation name must be a str")
-        try:
-            opcode = _opcode.opmap[name]
-        except KeyError:
-            raise ValueError("invalid operation name")
-
-        # check lineno
-        if lineno is not None:
-            _check_lineno(lineno)
-
-        self._check_arg(name, opcode, arg)
-
-        self._name = name
-        self._opcode = opcode
-        self._arg = arg
-        self._lineno = lineno
-
-    def set(self, name, arg=UNSET):
-        """Modify the instruction in-place.
-
-        Replace name and arg attributes. Don't modify lineno.
-        """
-        self._set(name, arg, self._lineno)
-
-    def require_arg(self):
-        """Does the instruction require an argument?"""
-        return self._opcode >= _opcode.HAVE_ARGUMENT
-
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, name):
-        self._set(name, self._arg, self._lineno)
-
-    @property
-    def opcode(self):
-        return self._opcode
-
-    @opcode.setter
-    def opcode(self, op):
-        if not isinstance(op, int):
-            raise TypeError("operator code must be an int")
-        if 0 <= op <= 255:
-            name = _opcode.opname[op]
-            valid = name != "<%r>" % op
-        else:
-            valid = False
-        if not valid:
-            raise ValueError("invalid operator code")
-
-        self._set(name, self._arg, self._lineno)
-
-    @property
-    def arg(self):
-        return self._arg
-
-    @arg.setter
-    def arg(self, arg):
-        self._set(self._name, arg, self._lineno)
-
-    @property
-    def lineno(self):
-        return self._lineno
-
-    @lineno.setter
-    def lineno(self, lineno):
-        self._set(self._name, self._arg, lineno)
-
-    def stack_effect(self, jump=None):
-        if self._opcode < _opcode.HAVE_ARGUMENT:
-            arg = None
-        elif not isinstance(self._arg, int) or self._opcode in _opcode.hasconst:
-            # Argument is either a non-integer or an integer constant,
-            # not oparg.
-            arg = 0
-        else:
-            arg = self._arg
-
-        return dis.stack_effect(self._opcode, arg, jump=jump)
-
-    def pre_and_post_stack_effect(self, jump=None):
-        _effect = self.stack_effect(jump=jump)
-
-        # To compute pre size and post size to avoid segfault cause by not enough
-        # stack element
-        _opname = _opcode.opname[self._opcode]
-        if _opname.startswith("DUP_TOP"):
-            return _effect * -1, _effect * 2
-        if _pushes_back(_opname):
-            # if the op pushes value back to the stack, then the stack effect given
-            # by dis.stack_effect actually equals pre + post effect, therefore we need
-            # -1 from the stack effect as a pre condition
-            return _effect - 1, 1
-        if _opname.startswith("UNPACK_"):
-            # Instr(UNPACK_* , n) pops 1 and pushes n
-            # _effect = n - 1
-            # hence we return -1, _effect + 1
-            return -1, _effect + 1
-        if _opname == "FOR_ITER" and not jump:
-            # Since FOR_ITER needs TOS to be an iterator, which basically means
-            # a prerequisite of 1 on the stack
-            return -1, 2
-        if _opname == "ROT_N":
-            return (-self._arg, self._arg)
-        return {"ROT_TWO": (-2, 2), "ROT_THREE": (-3, 3), "ROT_FOUR": (-4, 4)}.get(
-            _opname, (_effect, 0)
-        )
-
-    def copy(self):
-        return self.__class__(self._name, self._arg, lineno=self._lineno)
-
-    def __repr__(self):
-        if self._arg is not UNSET:
-            return "<%s arg=%r lineno=%s>" % (self._name, self._arg, self._lineno)
-        else:
-            return "<%s lineno=%s>" % (self._name, self._lineno)
-
-    def _cmp_key(self, labels=None):
-        arg = self._arg
-        if self._opcode in _opcode.hasconst:
-            arg = const_key(arg)
-        elif isinstance(arg, Label) and labels is not None:
-            arg = labels[arg]
-        return (self._lineno, self._name, arg)
-
-    def __eq__(self, other):
-        if type(self) != type(other):
-            return False
-        return self._cmp_key() == other._cmp_key()
-
-    @staticmethod
-    def _has_jump(opcode):
-        return opcode in _opcode.hasjrel or opcode in _opcode.hasjabs
-
-    def has_jump(self):
-        return self._has_jump(self._opcode)
-
-    def is_cond_jump(self):
-        """Is a conditional jump?"""
-        # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
-        return "JUMP_IF_" in self._name
-
-    def is_uncond_jump(self):
-        """Is an unconditional jump?"""
-        return self.name in {"JUMP_FORWARD", "JUMP_ABSOLUTE"}
-
-    def is_final(self):
-        if self._name in {
-            "RETURN_VALUE",
-            "RAISE_VARARGS",
-            "RERAISE",
-            "BREAK_LOOP",
-            "CONTINUE_LOOP",
-        }:
-            return True
-        if self.is_uncond_jump():
-            return True
-        return False
+            _check_arg_int(arg, name)

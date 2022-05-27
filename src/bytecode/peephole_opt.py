@@ -57,7 +57,7 @@ class PeepholeOptimizer:
     a single pass.  Code offset is adjusted accordingly.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # bytecode.ControlFlowGraph instance
         self.code = None
         self.const_stack = None
@@ -68,7 +68,7 @@ class PeepholeOptimizer:
         # whether we are in a LOAD_CONST sequence
         self.in_consts = False
 
-    def check_result(self, value):
+    def check_result(self, value) -> bool:
         try:
             size = len(value)
         except TypeError:

@@ -1,9 +1,23 @@
 # alias to keep the 'bytecode' variable free
+from abc import abstractmethod
 import sys
+import types
+from typing import (
+    Any,
+    Generic,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    SupportsIndex,
+    TypeVar,
+    Union,
+    overload,
+)
 
 import bytecode as _bytecode
-from bytecode.flags import infer_flags
-from bytecode.instr import UNSET, Instr, Label, SetLineno
+from bytecode.flags import CompilerFlags, infer_flags
+from bytecode.instr import UNSET, Instr, Label, SetLineno, _UNSET
 
 
 class BaseBytecode:
@@ -18,10 +32,10 @@ class BaseBytecode:
         self.cellvars = []
         # we cannot recreate freevars from instructions because of super()
         # special-case
-        self.freevars = []
-        self._flags = _bytecode.CompilerFlags(0)
+        self.freevars: List[str] = []
+        self._flags: CompilerFlags = CompilerFlags(0)
 
-    def _copy_attr_from(self, bytecode):
+    def _copy_attr_from(self, bytecode: "BaseBytecode") -> None:
         self.argcount = bytecode.argcount
         self.posonlyargcount = bytecode.posonlyargcount
         self.kwonlyargcount = bytecode.kwonlyargcount
@@ -33,7 +47,7 @@ class BaseBytecode:
         self.cellvars = list(bytecode.cellvars)
         self.freevars = list(bytecode.freevars)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if type(self) != type(other):
             return False
 
@@ -63,21 +77,38 @@ class BaseBytecode:
         return True
 
     @property
-    def flags(self):
+    def flags(self) -> CompilerFlags:
         return self._flags
 
     @flags.setter
-    def flags(self, value):
-        if not isinstance(value, _bytecode.CompilerFlags):
-            value = _bytecode.CompilerFlags(value)
+    def flags(self, value: CompilerFlags) -> None:
+        if not isinstance(value, CompilerFlags):
+            value = CompilerFlags(value)
         self._flags = value
 
-    def update_flags(self, *, is_async=None):
-        self.flags = infer_flags(self, is_async)
+    def update_flags(self, *, is_async: Optional[bool] = None) -> None:
+        # infer_flags reasonably only accept concrete subclasses
+        self.flags = infer_flags(self, is_async)  # type: ignore
+
+    @abstractmethod
+    def compute_stacksize(self, *, check_pre_and_post: bool = True) -> int:
+        raise NotImplementedError
 
 
-class _BaseBytecodeList(BaseBytecode, list):
+T = TypeVar("T", bound="_BaseBytecodeList")
+U = TypeVar("U")
+
+
+class _BaseBytecodeList(BaseBytecode, list, Generic[U]):
     """List subclass providing type stable slicing and copying."""
+
+    @overload
+    def __getitem__(self, index: SupportsIndex) -> U:
+        ...
+
+    @overload
+    def __getitem__(self: T, index: slice) -> T:
+        ...
 
     def __getitem__(self, index):
         value = super().__getitem__(index)
@@ -87,12 +118,13 @@ class _BaseBytecodeList(BaseBytecode, list):
 
         return value
 
-    def copy(self):
-        new = type(self)(super().copy())
+    def copy(self: T) -> T:
+        # This is a list subclass and works
+        new = type(self)(super().copy())  # type: ignore
         new._copy_attr_from(self)
         return new
 
-    def legalize(self):
+    def legalize(self) -> None:
         """Check that all the element of the list are valid and remove SetLineno."""
         lineno_pos = []
         set_lineno = None
@@ -116,7 +148,7 @@ class _BaseBytecodeList(BaseBytecode, list):
         for i in reversed(lineno_pos):
             del self[i]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[U]:
         instructions = super().__iter__()
         for instr in instructions:
             self._check_instr(instr)
@@ -127,7 +159,8 @@ class _BaseBytecodeList(BaseBytecode, list):
 
 
 class _InstrList(list):
-    def _flat(self):
+    # FIXME stricter typing
+    def _flat(self) -> List:
         instructions = []
         labels = {}
         jumps = []
@@ -150,28 +183,30 @@ class _InstrList(list):
 
         return instructions
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, _InstrList):
             other = _InstrList(other)
 
         return self._flat() == other._flat()
 
 
-class Bytecode(_InstrList, _BaseBytecodeList):
-    def __init__(self, instructions=()):
+class Bytecode(_InstrList, _BaseBytecodeList[Union[Instr, Label, SetLineno]]):
+    def __init__(
+        self, instructions: Sequence[Union[Instr, Label, SetLineno]] = ()
+    ) -> None:
         BaseBytecode.__init__(self)
-        self.argnames = []
+        self.argnames: List[str] = []
         for instr in instructions:
             self._check_instr(instr)
         self.extend(instructions)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Union[Instr, Label, SetLineno]]:
         instructions = super().__iter__()
         for instr in instructions:
             self._check_instr(instr)
             yield instr
 
-    def _check_instr(self, instr):
+    def _check_instr(self, instr: Any) -> None:
         if not isinstance(instr, (Label, SetLineno, Instr)):
             raise ValueError(
                 "Bytecode must only contain Label, "
@@ -179,23 +214,27 @@ class Bytecode(_InstrList, _BaseBytecodeList):
                 "but %s was found" % type(instr).__name__
             )
 
-    def _copy_attr_from(self, bytecode):
+    def _copy_attr_from(self, bytecode: BaseBytecode) -> None:
         super()._copy_attr_from(bytecode)
         if isinstance(bytecode, Bytecode):
             self.argnames = bytecode.argnames
 
     @staticmethod
-    def from_code(code):
+    def from_code(code: types.CodeType) -> "Bytecode":
         concrete = _bytecode.ConcreteBytecode.from_code(code)
         return concrete.to_bytecode()
 
-    def compute_stacksize(self, *, check_pre_and_post=True):
+    def compute_stacksize(self, *, check_pre_and_post: bool = True) -> int:
         cfg = _bytecode.ControlFlowGraph.from_bytecode(self)
         return cfg.compute_stacksize(check_pre_and_post=check_pre_and_post)
 
     def to_code(
-        self, compute_jumps_passes=None, stacksize=None, *, check_pre_and_post=True
-    ):
+        self,
+        compute_jumps_passes: Optional[int] = None,
+        stacksize: Optional[int] = None,
+        *,
+        check_pre_and_post: bool = True
+    ) -> types.CodeType:
         # Prevent reconverting the concrete bytecode to bytecode and cfg to do the
         # calculation if we need to do it.
         if stacksize is None:
@@ -203,6 +242,8 @@ class Bytecode(_InstrList, _BaseBytecodeList):
         bc = self.to_concrete_bytecode(compute_jumps_passes=compute_jumps_passes)
         return bc.to_code(stacksize=stacksize)
 
-    def to_concrete_bytecode(self, compute_jumps_passes=None):
+    def to_concrete_bytecode(
+        self, compute_jumps_passes: Optional[int] = None
+    ) -> "_bytecode.ConcreteBytecode":
         converter = _bytecode._ConvertBytecodeToConcrete(self)
         return converter.to_concrete_bytecode(compute_jumps_passes=compute_jumps_passes)

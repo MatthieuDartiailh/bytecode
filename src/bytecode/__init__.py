@@ -11,25 +11,38 @@ __all__ = [
     "__version__",
 ]
 
+from typing import Union
+
+# import needed to use it in bytecode.py
 from bytecode.bytecode import (  # noqa
     BaseBytecode,
     Bytecode,
     _BaseBytecodeList,
     _InstrList,
 )
+
+# import needed to use it in bytecode.py
 from bytecode.cfg import BasicBlock, ControlFlowGraph  # noqa
-from bytecode.concrete import ConcreteBytecode  # noqa
-from bytecode.concrete import (  # import needed to use it in bytecode.py
+
+# import needed to use it in bytecode.py
+from bytecode.concrete import _ConvertBytecodeToConcrete  # noqa
+from bytecode.concrete import (
+    ConcreteBytecode,
     ConcreteInstr,
-    _ConvertBytecodeToConcrete,
 )
 from bytecode.flags import CompilerFlags
-from bytecode.instr import FreeVar  # noqa
-from bytecode.instr import UNSET, CellVar, Compare, Instr, Label, SetLineno
+
+# import needed to use it in bytecode.py
+from bytecode.instr import FreeVar, CellVar  # noqa
+from bytecode.instr import UNSET, Compare, Instr, Label, SetLineno
 from bytecode.version import __version__
 
 
-def dump_bytecode(bytecode, *, lineno=False):
+def dump_bytecode(
+    bytecode: Union[Bytecode, ConcreteBytecode, ControlFlowGraph],
+    *,
+    lineno: bool = False
+):
     def format_line(index, line):
         nonlocal cur_lineno, prev_lineno
         if lineno:
@@ -81,9 +94,11 @@ def dump_bytecode(bytecode, *, lineno=False):
                 line = "".join(fields)
             print(line)
 
-            offset += instr.size
+            if isinstance(instr, ConcreteInstr):
+                offset += instr.size
+
     elif isinstance(bytecode, Bytecode):
-        labels = {}
+        labels: dict[Label, str] = {}
         for index, instr in enumerate(bytecode):
             if isinstance(instr, Label):
                 labels[instr] = "label_instr%s" % index
@@ -101,22 +116,23 @@ def dump_bytecode(bytecode, *, lineno=False):
                 line = indent + format_line(index, line)
             print(line)
         print()
+
     elif isinstance(bytecode, ControlFlowGraph):
-        labels = {}
+        cfg_labels = {}
         for block_index, block in enumerate(bytecode, 1):
-            labels[id(block)] = "block%s" % block_index
+            cfg_labels[id(block)] = "block%s" % block_index
 
         for block_index, block in enumerate(bytecode, 1):
-            print("%s:" % labels[id(block)])
+            print("%s:" % cfg_labels[id(block)])
             prev_lineno = None
             for index, instr in enumerate(block):
                 if instr.lineno is not None:
                     cur_lineno = instr.lineno
-                line = format_instr(instr, labels)
+                line = format_instr(instr, cfg_labels)
                 line = indent + format_line(index, line)
                 print(line)
             if block.next_block is not None:
-                print(indent + "-> %s" % labels[id(block.next_block)])
+                print(indent + "-> %s" % cfg_labels[id(block.next_block)])
             print()
     else:
         raise TypeError("unknown bytecode class")
