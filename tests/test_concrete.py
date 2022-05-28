@@ -1238,8 +1238,11 @@ class BytecodeToConcreteTests(TestCase):
 
         # code using jumps > 0xffff to test extended arg
         nb_nop = 2**16 if OFFSET_AS_INSTRUCTION else 2**15
+        # The length of the jump is independent of the number of instruction
+        # per the above logic.
+        jump = 2**16
         code = ConcreteBytecode(
-            [ConcreteInstr("JUMP_ABSOLUTE", nb_nop)]
+            [ConcreteInstr("JUMP_ABSOLUTE", jump)]
             + [ConcreteInstr("NOP")] * nb_nop
             + [
                 ConcreteInstr("LOAD_CONST", 0),
@@ -1250,10 +1253,7 @@ class BytecodeToConcreteTests(TestCase):
 
         code_obj = code.to_code()
         # We use 2 extended args (0x90) out of the maximum 3 which are allowed
-        if OFFSET_AS_INSTRUCTION:
-            expected = b"\x90\x01\x90\x00q\x00" + NOP * nb_nop + b"d\x00S\x00"
-        else:
-            expected = b"\x90\x01\x90\x00q\x06" + NOP * nb_nop + b"d\x00S\x00"
+        expected = b"\x90\x01\x90\x00q\x00" + NOP * nb_nop + b"d\x00S\x00"
         self.assertEqual(code_obj.co_code, expected)
 
     def test_jumps(self):
