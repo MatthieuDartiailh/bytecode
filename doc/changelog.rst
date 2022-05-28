@@ -6,6 +6,9 @@ unreleased: Version 0.14.0
 
 New features:
 
+- add type annotations and make types stricter PR # 105
+  In particular, ConcreteInstr doe not inherit from Instr anymore and once
+  cannot use ConcreteInstr in Bytecode object. This is saner than before.
 
 Bugfixes:
 
