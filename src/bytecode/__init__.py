@@ -26,15 +26,19 @@ from bytecode.cfg import BasicBlock, ControlFlowGraph  # noqa
 
 # import needed to use it in bytecode.py
 from bytecode.concrete import _ConvertBytecodeToConcrete  # noqa
-from bytecode.concrete import (
-    ConcreteBytecode,
-    ConcreteInstr,
-)
+from bytecode.concrete import ConcreteBytecode, ConcreteInstr
 from bytecode.flags import CompilerFlags
 
 # import needed to use it in bytecode.py
-from bytecode.instr import FreeVar, CellVar  # noqa
-from bytecode.instr import UNSET, Compare, Instr, Label, SetLineno
+from bytecode.instr import (  # noqa
+    UNSET,
+    CellVar,
+    Compare,
+    FreeVar,
+    Instr,
+    Label,
+    SetLineno,
+)
 from bytecode.version import __version__
 
 

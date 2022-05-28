@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+dependencies = ["typing_extensions;python_version<'3.10'"]
 dynamic=["version"]
 
 

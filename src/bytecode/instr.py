@@ -1,10 +1,15 @@
-from abc import abstractmethod
 import dis
 import enum
 import opcode as _opcode
 import sys
+from abc import abstractmethod
 from marshal import dumps as _dumps
-from typing import Any, Generic, Mapping, Optional, Tuple, TypeGuard, TypeVar, Union
+from typing import Any, Generic, Optional, Tuple, TypeVar, Union
+
+try:
+    from typing import TypeGuard
+except ImportError:
+    from typing_extensions import TypeGuard  # type: ignore
 
 import bytecode as _bytecode
 
