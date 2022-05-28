@@ -5,6 +5,7 @@ the bytecode module.
 import opcode
 import operator
 import sys
+from typing import Dict
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
@@ -23,7 +24,7 @@ if sys.version_info < (3, 9):
         Compare.IS_NOT: Compare.IS,
     }
 else:
-    NOT_COMPARE = {}
+    NOT_COMPARE: Dict[int, int] = {}
 
 MAX_SIZE = 20
 

@@ -10,6 +10,7 @@ from typing import (
     Optional,
     Sequence,
     SupportsIndex,
+    Tuple,
     TypeVar,
     Union,
     overload,
@@ -158,14 +159,19 @@ class _BaseBytecodeList(BaseBytecode, list, Generic[U]):
         raise NotImplementedError()
 
 
-class _InstrList(list):
-    # FIXME stricter typing
+V = TypeVar("V")
+
+
+class _InstrList(List[V]):
+    # Providing a stricter typing for this helper whose use is limited to the __eq__
+    # implementation is more effort than it is worth.
     def _flat(self) -> List:
-        instructions = []
+        instructions: List = []
         labels = {}
         jumps = []
 
         offset = 0
+        instr: Any
         for index, instr in enumerate(self):
             if isinstance(instr, Label):
                 instructions.append("label_instr%s" % index)
@@ -190,7 +196,10 @@ class _InstrList(list):
         return self._flat() == other._flat()
 
 
-class Bytecode(_InstrList, _BaseBytecodeList[Union[Instr, Label, SetLineno]]):
+class Bytecode(
+    _InstrList[Union[Instr, Label, SetLineno]],
+    _BaseBytecodeList[Union[Instr, Label, SetLineno]],
+):
     def __init__(
         self, instructions: Sequence[Union[Instr, Label, SetLineno]] = ()
     ) -> None:

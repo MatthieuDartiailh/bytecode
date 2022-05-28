@@ -81,21 +81,21 @@ def dump_bytecode(
 
     if isinstance(bytecode, ConcreteBytecode):
         offset = 0
-        for instr in bytecode:
+        for c_instr in bytecode:
             fields = []
-            if instr.lineno is not None:
-                cur_lineno = instr.lineno
+            if c_instr.lineno is not None:
+                cur_lineno = c_instr.lineno
             if lineno:
-                fields.append(format_instr(instr))
+                fields.append(format_instr(c_instr))
                 line = "".join(fields)
                 line = format_line(offset, line)
             else:
-                fields.append("% 3s    %s" % (offset, format_instr(instr)))
+                fields.append("% 3s    %s" % (offset, format_instr(c_instr)))
                 line = "".join(fields)
             print(line)
 
-            if isinstance(instr, ConcreteInstr):
-                offset += instr.size
+            if isinstance(c_instr, ConcreteInstr):
+                offset += c_instr.size
 
     elif isinstance(bytecode, Bytecode):
         labels: dict[Label, str] = {}

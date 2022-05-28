@@ -27,7 +27,7 @@ T = TypeVar("T", bound="BasicBlock")
 U = TypeVar("U", bound="ControlFlowGraph")
 
 
-class BasicBlock(_bytecode._InstrList):
+class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno]]):
     def __init__(self, instructions: Iterable[Union[Instr, SetLineno]] = None) -> None:
         # a BasicBlock object, or None
         self.next_block: Optional["BasicBlock"] = None
@@ -482,6 +482,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
         for instr in jumping_instrs:
             label = instr.arg
+            assert isinstance(label, Label)
             instr.arg = labels[label]
 
         return bytecode_blocks

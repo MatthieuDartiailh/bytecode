@@ -42,8 +42,7 @@ from bytecode.instr import (
 OFFSET_AS_INSTRUCTION = sys.version_info >= (3, 10)
 
 
-# FIXME proper types
-def _set_docstring(code, consts):
+def _set_docstring(code: _bytecode.BaseBytecode, consts: Sequence) -> None:
     if not consts:
         return
     first_const = consts[0]
