@@ -24,7 +24,7 @@ if sys.version_info < (3, 9):
         Compare.IS_NOT: Compare.IS,
     }
 else:
-    NOT_COMPARE: Dict[int, int] = {}
+    NOT_COMPARE: Dict[Compare, Compare] = {}
 
 MAX_SIZE = 20
 
