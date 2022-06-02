@@ -5,6 +5,7 @@ the bytecode module.
 import opcode
 import operator
 import sys
+from typing import Dict
 
 from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
 
@@ -23,7 +24,7 @@ if sys.version_info < (3, 9):
         Compare.IS_NOT: Compare.IS,
     }
 else:
-    NOT_COMPARE = {}
+    NOT_COMPARE: Dict[Compare, Compare] = {}
 
 MAX_SIZE = 20
 
@@ -57,7 +58,7 @@ class PeepholeOptimizer:
     a single pass.  Code offset is adjusted accordingly.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # bytecode.ControlFlowGraph instance
         self.code = None
         self.const_stack = None
@@ -68,7 +69,7 @@ class PeepholeOptimizer:
         # whether we are in a LOAD_CONST sequence
         self.in_consts = False
 
-    def check_result(self, value):
+    def check_result(self, value) -> bool:
         try:
             size = len(value)
         except TypeError:

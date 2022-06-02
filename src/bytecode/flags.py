@@ -1,7 +1,8 @@
-# alias to keep the 'bytecode' variable free
 import sys
 from enum import IntFlag
+from typing import Optional, Union
 
+# alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 
 
@@ -40,7 +41,12 @@ class CompilerFlags(IntFlag):
         FUTURE_ANNOTATIONS = 0x1000000
 
 
-def infer_flags(bytecode, is_async=None):
+def infer_flags(
+    bytecode: Union[
+        "_bytecode.Bytecode", "_bytecode.ConcreteBytecode", "_bytecode.ControlFlowGraph"
+    ],
+    is_async: Optional[bool] = None,
+):
     """Infer the proper flags for a bytecode based on the instructions.
 
     Because the bytecode does not have enough context to guess if a function
@@ -69,7 +75,7 @@ def infer_flags(bytecode, is_async=None):
         raise ValueError(msg % bytecode)
 
     instructions = (
-        bytecode.get_instructions()
+        bytecode._get_instructions()
         if isinstance(bytecode, _bytecode.ControlFlowGraph)
         else bytecode
     )

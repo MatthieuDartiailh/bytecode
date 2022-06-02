@@ -1,4 +1,20 @@
 import sys
+import types
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    SupportsIndex,
+    Tuple,
+    TypeVar,
+    Union,
+    overload,
+)
 
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
@@ -6,15 +22,18 @@ from bytecode.concrete import ConcreteInstr
 from bytecode.flags import CompilerFlags
 from bytecode.instr import Instr, Label, SetLineno
 
+T = TypeVar("T", bound="BasicBlock")
+U = TypeVar("U", bound="ControlFlowGraph")
 
-class BasicBlock(_bytecode._InstrList):
-    def __init__(self, instructions=None):
+
+class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno]]):
+    def __init__(self, instructions: Iterable[Union[Instr, SetLineno]] = None) -> None:
         # a BasicBlock object, or None
-        self.next_block = None
+        self.next_block: Optional["BasicBlock"] = None
         if instructions:
             super().__init__(instructions)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Union[Instr, SetLineno]]:
         index = 0
         while index < len(self):
             instr = self[index]
@@ -40,6 +59,14 @@ class BasicBlock(_bytecode._InstrList):
 
             yield instr
 
+    @overload
+    def __getitem__(self, index: SupportsIndex) -> Union[Instr, SetLineno]:
+        ...
+
+    @overload
+    def __getitem__(self: T, index: slice) -> T:
+        ...
+
     def __getitem__(self, index):
         value = super().__getitem__(index)
         if isinstance(index, slice):
@@ -48,12 +75,12 @@ class BasicBlock(_bytecode._InstrList):
 
         return value
 
-    def copy(self):
+    def copy(self: T) -> T:
         new = type(self)(super().copy())
         new.next_block = self.next_block
         return new
 
-    def legalize(self, first_lineno):
+    def legalize(self, first_lineno: int) -> int:
         """Check that all the element of the list are valid and remove SetLineno."""
         lineno_pos = []
         set_lineno = None
@@ -76,7 +103,7 @@ class BasicBlock(_bytecode._InstrList):
 
         return current_lineno
 
-    def get_jump(self):
+    def get_jump(self) -> Optional["BasicBlock"]:
         if not self:
             return None
 
@@ -89,7 +116,15 @@ class BasicBlock(_bytecode._InstrList):
         return target_block
 
 
-def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
+def _compute_stack_size(
+    seen_blocks: Set[int],
+    blocks_startsize: Dict[int, int],
+    block: BasicBlock,
+    size: int,
+    maxsize: int,
+    *,
+    check_pre_and_post: bool = True,
+):
     """Generator used to reduce the use of function stacks.
 
     This allows to avoid nested recursion and allow to treat more cases.
@@ -117,7 +152,7 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
     # If the block is currently being visited (seen = True) or if it was visited
     # previously by using a larger starting size than the one in use, return the
     # maxsize.
-    if block.seen or block.startsize >= size:
+    if id(block) in seen_blocks or blocks_startsize[id(block)] >= size:
         yield maxsize
 
     def update_size(pre_delta, post_delta, size, maxsize):
@@ -131,8 +166,12 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
 
     # Prevent recursive visit of block if two blocks are nested (jump from one
     # to the other).
-    block.seen = True
-    block.startsize = size
+    # Blocks are not hashable but in this particular instance we know we won't be
+    # modifying blocks in place so we can safely use their id as hash rather than
+    # making them generally hashable which would be weird since they are list
+    # subclasses
+    seen_blocks.add(id(block))
+    blocks_startsize[id(block)] = size
 
     for instr in block:
 
@@ -152,12 +191,18 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
             # Yield the parameters required to compute the stacksize required
             # by the block to which the jumnp points to and resume when we now
             # the maxsize.
-            maxsize = yield instr.arg, taken_size, maxsize
+            maxsize = (
+                yield seen_blocks,
+                blocks_startsize,
+                instr.arg,
+                taken_size,
+                maxsize,
+            )
 
             # For unconditional jumps abort early since the other instruction will
             # never be seen.
             if instr.is_uncond_jump():
-                block.seen = False
+                seen_blocks.remove(id(block))
                 yield maxsize
 
         # jump=False: non-taken path of jumps, or any non-jump
@@ -169,44 +214,47 @@ def _compute_stack_size(block, size, maxsize, *, check_pre_and_post=True):
         size, maxsize = update_size(*effect, size, maxsize)
 
     if block.next_block:
-        maxsize = yield block.next_block, size, maxsize
+        maxsize = yield seen_blocks, blocks_startsize, block.next_block, size, maxsize
 
-    block.seen = False
+    seen_blocks.remove(id(block))
+
     yield maxsize
 
 
 class ControlFlowGraph(_bytecode.BaseBytecode):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self._blocks = []
-        self._block_index = {}
-        self.argnames = []
+        self._blocks: List[BasicBlock] = []
+        self._block_index: Dict[int, int] = {}
+        self.argnames: List[str] = []
 
         self.add_block()
 
-    def legalize(self):
+    def legalize(self) -> None:
         """Legalize all blocks."""
         current_lineno = self.first_lineno
         for block in self._blocks:
             current_lineno = block.legalize(current_lineno)
 
-    def get_block_index(self, block):
+    def get_block_index(self, block: BasicBlock) -> int:
         try:
             return self._block_index[id(block)]
         except KeyError:
             raise ValueError("the block is not part of this bytecode")
 
-    def _add_block(self, block):
+    def _add_block(self, block: BasicBlock) -> None:
         block_index = len(self._blocks)
         self._blocks.append(block)
         self._block_index[id(block)] = block_index
 
-    def add_block(self, instructions=None):
+    def add_block(
+        self, instructions: Iterable[Union[Instr, SetLineno]] = None
+    ) -> BasicBlock:
         block = BasicBlock(instructions)
         self._add_block(block)
         return block
 
-    def compute_stacksize(self, *, check_pre_and_post=True):
+    def compute_stacksize(self, *, check_pre_and_post: bool = True) -> int:
         """Compute the stack size by iterating through the blocks
 
         The implementation make use of a generator function to avoid issue with
@@ -218,9 +266,8 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             return 0
 
         # Ensure that previous calculation do not impact this one.
-        for block in self:
-            block.seen = False
-            block.startsize = -32768  # INT_MIN
+        seen_blocks: Set[int] = set()
+        blocks_startsize = dict.fromkeys([id(b) for b in self], -32768)
 
         # Starting with Python 3.10, generator and coroutines start with one object
         # on the stack (None, anything is an error).
@@ -234,11 +281,16 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
         # Create a generator/coroutine responsible of dealing with the first block
         coro = _compute_stack_size(
-            self[0], initial_stack_size, 0, check_pre_and_post=check_pre_and_post
+            seen_blocks,
+            blocks_startsize,
+            self[0],
+            initial_stack_size,
+            0,
+            check_pre_and_post=check_pre_and_post,
         )
 
         # Create a list of generator that have not yet been exhausted
-        coroutines = []
+        coroutines: List[Generator[Optional[Tuple], int, None]] = []
 
         push_coroutine = coroutines.append
         pop_coroutine = coroutines.pop
@@ -249,7 +301,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 args = coro.send(None)
 
                 # Consume the stored generators as long as they return a simple
-                # interger that is to be used to resume the last stored generator.
+                # integer that is to be used to resume the last stored generator.
                 while isinstance(args, int):
                     coro = pop_coroutine()
                     args = coro.send(args)
@@ -265,57 +317,72 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             assert args is not None
             return args
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "<ControlFlowGraph block#=%s>" % len(self._blocks)
 
-    def get_instructions(self):
-        instructions = []
-        jumps = []
+    # Helper to obtain a flat list of instr, which does not refer to block at
+    # anymore.
+    def _get_instructions(self) -> List[Union[Instr, ConcreteInstr, SetLineno]]:
+        instructions: List[Union[Instr, ConcreteInstr, SetLineno]] = []
+        jumps: List[Tuple[BasicBlock, ConcreteInstr]] = []
 
         for block in self:
             target_block = block.get_jump()
             if target_block is not None:
                 instr = block[-1]
-                instr = ConcreteInstr(instr.name, 0, lineno=instr.lineno)
-                jumps.append((target_block, instr))
+                assert isinstance(instr, Instr)
+                # We use a conrete instr here to be able to use an interger as argument
+                # rather than a Label. This is fine for comparison purposes which is
+                # our sole goal here.
+                jumps.append(
+                    (target_block, ConcreteInstr(instr.name, 0, lineno=instr.lineno))
+                )
 
                 instructions.extend(block[:-1])
                 instructions.append(instr)
             else:
                 instructions.extend(block)
 
-        for target_block, instr in jumps:
-            instr.arg = self.get_block_index(target_block)
+        for target_block, c_instr in jumps:
+            c_instr.arg = self.get_block_index(target_block)
 
         return instructions
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if type(self) != type(other):
             return False
 
         if self.argnames != other.argnames:
             return False
 
-        instrs1 = self.get_instructions()
-        instrs2 = other.get_instructions()
+        instrs1 = self._get_instructions()
+        instrs2 = other._get_instructions()
         if instrs1 != instrs2:
             return False
         # FIXME: compare block.next_block
 
         return super().__eq__(other)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._blocks)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[BasicBlock]:
         return iter(self._blocks)
+
+    @overload
+    def __getitem__(self, index: Union[int, BasicBlock]) -> BasicBlock:
+        ...
+
+    @overload
+    def __getitem__(self: U, index: slice) -> U:
+        ...
 
     def __getitem__(self, index):
         if isinstance(index, BasicBlock):
             index = self.get_block_index(index)
         return self._blocks[index]
 
-    def __delitem__(self, index):
+    def __delitem__(self, index: Union[int, BasicBlock]) -> None:
         if isinstance(index, BasicBlock):
             index = self.get_block_index(index)
         block = self._blocks[index]
@@ -325,7 +392,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             block = self._blocks[index]
             self._block_index[id(block)] -= 1
 
-    def split_block(self, block, index):
+    def split_block(self, block: BasicBlock, index: int) -> BasicBlock:
         if not isinstance(block, BasicBlock):
             raise TypeError("expected block")
         block_index = self.get_block_index(block)
@@ -359,7 +426,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         return block2
 
     @staticmethod
-    def from_bytecode(bytecode):
+    def from_bytecode(bytecode: _bytecode.Bytecode) -> "ControlFlowGraph":
         # label => instruction index
         label_to_block_index = {}
         jumps = []
@@ -375,28 +442,29 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             target_index = label_to_block_index[target_label]
             block_starts[target_index] = target_label
 
-        bytecode_blocks = _bytecode.ControlFlowGraph()
+        bytecode_blocks = ControlFlowGraph()
         bytecode_blocks._copy_attr_from(bytecode)
         bytecode_blocks.argnames = list(bytecode.argnames)
 
         # copy instructions, convert labels to block labels
         block = bytecode_blocks[0]
         labels = {}
-        jumps = []
+        jumping_instrs = []
         for index, instr in enumerate(bytecode):
             if index in block_starts:
                 old_label = block_starts[index]
                 if index != 0:
                     new_block = bytecode_blocks.add_block()
+                    assert isinstance(block[-1], Instr)
                     if not block[-1].is_final():
                         block.next_block = new_block
                     block = new_block
                 if old_label is not None:
                     labels[old_label] = block
-            elif block and isinstance(block[-1], Instr):
-                if block[-1].is_final():
+            elif block and isinstance(last_instr := block[-1], Instr):
+                if last_instr.is_final():
                     block = bytecode_blocks.add_block()
-                elif block[-1].has_jump():
+                elif last_instr.has_jump():
                     new_block = bytecode_blocks.add_block()
                     block.next_block = new_block
                     block = new_block
@@ -408,16 +476,17 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             if isinstance(instr, Instr):
                 instr = instr.copy()
                 if isinstance(instr.arg, Label):
-                    jumps.append(instr)
+                    jumping_instrs.append(instr)
             block.append(instr)
 
-        for instr in jumps:
+        for instr in jumping_instrs:
             label = instr.arg
+            assert isinstance(label, Label)
             instr.arg = labels[label]
 
         return bytecode_blocks
 
-    def to_bytecode(self):
+    def to_bytecode(self) -> _bytecode.Bytecode:
         """Convert to Bytecode."""
 
         used_blocks = set()
@@ -428,7 +497,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
         labels = {}
         jumps = []
-        instructions = []
+        instructions: List[Union[Instr, Label, SetLineno]] = []
 
         for block in self:
             if id(block) in used_blocks:
@@ -455,7 +524,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
         return bytecode
 
-    def to_code(self, stacksize=None):
+    def to_code(self, stacksize=None) -> types.CodeType:
         """Convert to code."""
         if stacksize is None:
             stacksize = self.compute_stacksize()

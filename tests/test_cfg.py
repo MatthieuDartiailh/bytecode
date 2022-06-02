@@ -402,7 +402,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         cfg = ControlFlowGraph()
         b = cfg.add_block()
         del cfg[b]
-        self.assertEqual(len(cfg.get_instructions()), 0)
+        self.assertEqual(len(cfg._get_instructions()), 0)
 
     def sample_code(self):
         code = disassemble("x = 1", remove_last_return_none=True)

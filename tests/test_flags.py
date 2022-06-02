@@ -9,6 +9,7 @@ from bytecode import (
     ControlFlowGraph,
 )
 from bytecode.flags import infer_flags
+from bytecode.instr import FreeVar, Instr
 
 
 class FlagsTests(unittest.TestCase):
@@ -44,11 +45,11 @@ class FlagsTests(unittest.TestCase):
         flags = infer_flags(code)
         self.assertTrue(bool(flags & CompilerFlags.OPTIMIZED))
         self.assertTrue(bool(flags & CompilerFlags.NOFREE))
-        code.append(ConcreteInstr("STORE_NAME", 1))
+        code.append(Instr("STORE_NAME", "a"))
         flags = infer_flags(code)
         self.assertFalse(bool(flags & CompilerFlags.OPTIMIZED))
         self.assertTrue(bool(flags & CompilerFlags.NOFREE))
-        code.append(ConcreteInstr("STORE_DEREF", 2))
+        code.append(Instr("STORE_DEREF", FreeVar("b")))
         code.update_flags()
         self.assertFalse(bool(code.flags & CompilerFlags.OPTIMIZED))
         self.assertFalse(bool(code.flags & CompilerFlags.NOFREE))

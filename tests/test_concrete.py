@@ -1234,37 +1234,26 @@ class BytecodeToConcreteTests(TestCase):
         )
 
     def test_extended_jump(self):
-        NOP = bytes((opcode.opmap["NOP"],))
+        NOP = bytes((opcode.opmap["NOP"], 0))
 
-        class BigInstr(ConcreteInstr):
-            def __init__(self, size):
-                super().__init__("NOP")
-                self._size = size
-
-            def copy(self):
-                return self
-
-            def assemble(self):
-                return NOP * self._size
-
-        # (invalid) code using jumps > 0xffff to test extended arg
-        label = Label()
-        nb_nop = 2**16
-        code = Bytecode(
-            [
-                Instr("JUMP_ABSOLUTE", label),
-                BigInstr(nb_nop),
-                label,
-                Instr("LOAD_CONST", None),
-                Instr("RETURN_VALUE"),
-            ]
+        # code using jumps > 0xffff to test extended arg
+        nb_nop = 2**16 if OFFSET_AS_INSTRUCTION else 2**15
+        # The length of the jump is independent of the number of instruction
+        # per the above logic.
+        jump = 2**16
+        code = ConcreteBytecode(
+            [ConcreteInstr("JUMP_ABSOLUTE", jump)]
+            + [ConcreteInstr("NOP")] * nb_nop
+            + [
+                ConcreteInstr("LOAD_CONST", 0),
+                ConcreteInstr("RETURN_VALUE"),
+            ],
+            consts=(None,),
         )
 
         code_obj = code.to_code()
-        if OFFSET_AS_INSTRUCTION:
-            expected = b"\x90\x80q\x02" + NOP * nb_nop + b"d\x00S\x00"
-        else:
-            expected = b"\x90\x01\x90\x00q\x06" + NOP * nb_nop + b"d\x00S\x00"
+        # We use 2 extended args (0x90) out of the maximum 3 which are allowed
+        expected = b"\x90\x01\x90\x00q\x00" + NOP * nb_nop + b"d\x00S\x00"
         self.assertEqual(code_obj.co_code, expected)
 
     def test_jumps(self):
