@@ -125,6 +125,7 @@ def _pushes_back(opname: str) -> bool:
         "SET_UPDATE",
         "DICT_UPDATE",
         "DICT_MERGE",
+        "COMPARE_OP",
         "IS_OP",
         "CONTAINS_OP",
         "FORMAT_VALUE",
@@ -296,13 +297,26 @@ class BaseInstr(Generic[A]):
         # To compute pre size and post size to avoid segfault cause by not enough
         # stack element
         _opname = _opcode.opname[self._opcode]
+        # Handles DUP_TOP and DUP_TOP_TWO
         if _opname.startswith("DUP_TOP"):
             return _effect * -1, _effect * 2
         if _pushes_back(_opname):
-            # if the op pushes value back to the stack, then the stack effect given
-            # by dis.stack_effect actually equals pre + post effect, therefore we need
-            # -1 from the stack effect as a pre condition
+            # if the op pushes a value back to the stack, then the stack effect
+            # given by dis.stack_effect actually equals pre + post effect,
+            # therefore we need -1 from the stack effect as a pre condition.
             return _effect - 1, 1
+        if _opname == "COPY_DICT_WITHOUT_KEYS":  # New in 3.10
+            # Replace TOS based on TOS and TOS1
+            return -2, 2
+        if _opname == "WITH_EXCEPT_START":
+            # Call a function at position 7 on the stack and push the return value
+            return -7, 8
+        if _opname == "MATCH_CLASS":
+            return -3, 2
+        if _opname.startswith("MATCH_"):  # New in 3.10
+            # Match opcodes (MATCH_MAPPING, MATCH_SEQUENCE, MATCH_KEYS) use as
+            # many values as pre condition as they will push on the stack
+            return -_effect, 2 * _effect
         if _opname.startswith("UNPACK_"):
             # Instr(UNPACK_* , n) pops 1 and pushes n
             # _effect = n - 1
@@ -311,6 +325,12 @@ class BaseInstr(Generic[A]):
         if _opname == "FOR_ITER" and not jump:
             # Since FOR_ITER needs TOS to be an iterator, which basically means
             # a prerequisite of 1 on the stack
+            return -1, 2
+        if _opname == "IMPORT_FROM":  # New in 3.10
+            # Replace TOS based on TOS and TOS1
+            return -1, 2
+        if _opname == "BEFORE_ASYNC_WITH":
+            # Pop TOS and push TOS.__aexit__ and result of TOS.__aenter__()
             return -1, 2
         if _opname == "ROT_N":
             arg = self._arg

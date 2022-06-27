@@ -284,10 +284,16 @@ class InstrTests(TestCase):
         # the max of the other cases.
         from bytecode.concrete import ConcreteInstr
 
+        def check_pre_post(instr, jump):
+            effect = instr.stack_effect(jump)
+            pre, post = instr.pre_and_post_stack_effect(jump)
+            self.assertEqual(pre + post, effect)
+            return effect
+
         def check(instr):
-            jump = instr.stack_effect(jump=True)
-            no_jump = instr.stack_effect(jump=False)
-            max_effect = instr.stack_effect(jump=None)
+            jump = check_pre_post(instr, jump=True)
+            no_jump = check_pre_post(instr, jump=False)
+            max_effect = check_pre_post(instr, jump=None)
             self.assertEqual(instr.stack_effect(), max_effect)
             self.assertEqual(max_effect, max(jump, no_jump))
 
