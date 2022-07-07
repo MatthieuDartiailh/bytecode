@@ -19,6 +19,9 @@ Bugfixes:
   enumeration starting with Python 3.9. The new ``CONTAINS_OP`` and ``IS_OP``
   opcodes should be used instead.
 
+- Add proper pre and post stack effects to all opcodes (up to Python 3.10)
+  PR #106
+
 Maintenance:
 
 - Make the install process PEP517 compliant PR #97
