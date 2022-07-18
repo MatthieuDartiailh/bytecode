@@ -1498,6 +1498,27 @@ class BytecodeToConcreteTests(TestCase):
         as_code = concrete.to_code()
         self.assertEqual(line_starts, list(dis.findlinestarts(as_code)))
 
+    def test_exception_table_round_trip(self):
+        from . import exception_handling_cases as ehc
+
+        for f in (
+            ehc.try_except,
+            ehc.try_except_else,
+            ehc.try_except_else_finally,
+            ehc.try_except_finally,
+            ehc.with_no_store,
+            ehc.with_store,
+            ehc.try_with,
+            ehc.with_try,
+        ):
+            with self.subTest():
+                concrete = ConcreteBytecode.from_code(f.__code__)
+                as_code = concrete.to_code(stacksize=f.__code__.co_stacksize)
+                if sys.version_info >= (3, 11):
+                    self.assertEqual(
+                        f.__code__.co_exceptiontable, as_code.co_exceptiontable
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover

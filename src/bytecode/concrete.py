@@ -11,6 +11,7 @@ from typing import (
     Iterator,
     List,
     MutableSequence,
+    NamedTuple,
     Optional,
     Sequence,
     Tuple,
@@ -145,12 +146,55 @@ class ConcreteInstr(BaseInstr[int]):
         return cls(name, arg, lineno=lineno)
 
 
+class ExceptionTableEntry(NamedTuple):
+    """Entry for a given line in the exception table.
+
+    All offset are expressed in instructions not in bytes.
+
+    """
+
+    #: Offset in instruction between the beginning of the bytecode and the beginning
+    #: of this entry.
+    start_offset: int
+
+    #: Offset in instruction between the beginning of the bytecode and the end
+    #: of this entry. This offset is inclusive meaning that the instruction it points
+    #: to is included in the try/except handling.
+    stop_offset: int
+
+    #: Offset in instruction to the first instruction of the exception handling block.
+    target: int
+
+    #: Stack depth when enter the block delineated by start and stop offset of the
+    #: exception table entry.
+    stack_depth: int
+
+    #: Should the offset, at which an exception was raised, be pushed on the stack
+    #: before the exception itself (which is pushed as (traceback, value, type)).
+    push_lasti: bool
+
+
 class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLineno]]):
-    def __init__(self, instructions=(), *, consts=(), names=(), varnames=()):
+
+    #: Table describing portion of the bytecode in which exception are caught and
+    #: where there are handled.
+    #: Used only in Python 3.11+
+    exception_table: List[ExceptionTableEntry]
+    
+    def __init__(
+        self,
+        instructions=(),
+        *,
+        consts: tuple = (),
+        names: Tuple[str, ...] = (),
+        varnames=(),
+        exception_table=None
+    ):
         super().__init__()
         self.consts = list(consts)
         self.names = list(names)
         self.varnames = list(varnames)
+        self.exception_table = exception_table or []
         for instr in instructions:
             self._check_instr(instr)
         self.extend(instructions)
@@ -240,6 +284,10 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         bytecode.freevars = list(code.co_freevars)
         bytecode.cellvars = list(code.co_cellvars)
         _set_docstring(bytecode, code.co_consts)
+        if sys.version_info >= (3, 11):
+            bytecode.exception_table = bytecode._parse_exception_table(
+                code.co_exceptiontable
+            )
 
         bytecode[:] = instructions
         return bytecode
@@ -421,6 +469,60 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         if extended_arg is not None:
             raise ValueError("EXTENDED_ARG at the end of the code")
 
+    # Taken and adapted from exception_handling_notes.txt in cpython/Objects
+    @staticmethod
+    def _parse_varint(except_table_iterator: Iterator[int]) -> int:
+        b = next(except_table_iterator)
+        val = b & 63
+        while b & 64:
+            val <<= 6
+            b = next(except_table_iterator)
+            val |= b & 63
+        return val
+
+    def _parse_exception_table(
+        self, exception_table: bytes
+    ) -> List[ExceptionTableEntry]:
+        assert sys.version_info >= (3, 11)
+        table = []
+        iterator = iter(exception_table)
+        try:
+            while True:
+                start = self._parse_varint(iterator)
+                length = self._parse_varint(iterator)
+                end = start + length - 1  # Present as inclusive
+                target = self._parse_varint(iterator)
+                dl = self._parse_varint(iterator)
+                depth = dl >> 1
+                lasti = bool(dl & 1)
+                table.append(ExceptionTableEntry(start, end, target, depth, lasti))
+        except StopIteration:
+            return table
+
+    @staticmethod
+    def _encode_varint(value: int, set_begin_marker: bool = False) -> Iterator[int]:
+        # Encode value as a varint on 7 bits (MSB should come first) and set
+        # the begin marker if requested.
+        temp: List[int] = []
+        while value:
+            temp.append(value & 63 | (64 if temp else 0))
+            value >>= 6
+        if set_begin_marker:
+            temp[-1] |= 128
+        return reversed(temp or [0])
+
+    def _assemble_exception_table(self) -> bytes:
+        table = bytearray()
+        for entry in self.exception_table or []:
+            size = entry.stop_offset - entry.start_offset + 1
+            depth = (entry.stack_depth << 1) + entry.push_lasti
+            table.extend(self._encode_varint(entry.start_offset, True))
+            table.extend(self._encode_varint(size))
+            table.extend(self._encode_varint(entry.target))
+            table.extend(self._encode_varint(depth))
+
+        return bytes(table)
+
     def compute_stacksize(self, *, check_pre_and_post: bool = True) -> int:
         bytecode = self.to_bytecode()
         cfg = _bytecode.ControlFlowGraph.from_bytecode(bytecode)
@@ -439,24 +541,46 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         if stacksize is None:
             stacksize = self.compute_stacksize(check_pre_and_post=check_pre_and_post)
 
-        return types.CodeType(
-            self.argcount,
-            self.posonlyargcount,
-            self.kwonlyargcount,
-            nlocals,
-            stacksize,
-            int(self.flags),
-            code_str,
-            tuple(self.consts),
-            tuple(self.names),
-            tuple(self.varnames),
-            self.filename,
-            self.name,
-            self.first_lineno,
-            lnotab,
-            tuple(self.freevars),
-            tuple(self.cellvars),
-        )
+        if sys.version_info >= (3, 11):
+            return types.CodeType(
+                self.argcount,
+                self.posonlyargcount,
+                self.kwonlyargcount,
+                nlocals,
+                stacksize,
+                int(self.flags),
+                code_str,
+                tuple(self.consts),
+                tuple(self.names),
+                tuple(self.varnames),
+                self.filename,
+                self.name,
+                "",  # XXX qualname
+                self.first_lineno,
+                lnotab,
+                self._assemble_exception_table(),
+                tuple(self.freevars),
+                tuple(self.cellvars),
+            )
+        else:
+            return types.CodeType(
+                self.argcount,
+                self.posonlyargcount,
+                self.kwonlyargcount,
+                nlocals,
+                stacksize,
+                int(self.flags),
+                code_str,
+                tuple(self.consts),
+                tuple(self.names),
+                tuple(self.varnames),
+                self.filename,
+                self.name,
+                self.first_lineno,
+                lnotab,
+                tuple(self.freevars),
+                tuple(self.cellvars),
+            )
 
     def to_bytecode(self) -> _bytecode.Bytecode:
 
