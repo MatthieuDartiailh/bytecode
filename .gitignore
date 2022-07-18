@@ -12,6 +12,7 @@ src/bytecode/version.py
 bytecode.egg-info/
 
 .mypy_cache
+.dmypy.json
 .spyproject
 .idea/
 .vscode/
