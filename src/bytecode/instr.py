@@ -312,7 +312,8 @@ class BaseInstr(Generic[A]):
             # Call a function at position 7 on the stack and push the return value
             return -7, 8
         if _opname == "MATCH_CLASS":
-            return -3, 2
+            # Starting with Python 3.11 MATCH_CLASS does not push a boolean anymore
+            return -3, 1 if sys.version_info >= (3, 11) else 2
         if _opname.startswith("MATCH_"):  # New in 3.10
             # Match opcodes (MATCH_MAPPING, MATCH_SEQUENCE, MATCH_KEYS) use as
             # many values as pre condition as they will push on the stack
@@ -349,11 +350,15 @@ class BaseInstr(Generic[A]):
     def is_cond_jump(self) -> bool:
         """Is a conditional jump?"""
         # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
-        return "JUMP_IF_" in self._name
+        # IN 3.11+ the JUMP and the IF are no necessary adjacent in the name.
+        name = self._name
+        return "JUMP_" in name and "IF_" in name
 
     def is_uncond_jump(self) -> bool:
         """Is an unconditional jump?"""
-        return self.name in {"JUMP_FORWARD", "JUMP_ABSOLUTE"}
+        # JUMP_BACKWARD has been introduced in 3.11+
+        # JUMP_ABSOLUTE was removed in 3.11+
+        return self.name in {"JUMP_FORWARD", "JUMP_ABSOLUTE", "JUMP_BACKWARD"}
 
     def is_final(self) -> bool:
         if self._name in {
@@ -421,7 +426,7 @@ class BaseInstr(Generic[A]):
         pass
 
 
-InstrArg = Union[int, Label, CellVar, FreeVar, "_bytecode.BasicBlock", Compare]
+InstrArg = Union[int, str, Label, CellVar, FreeVar, "_bytecode.BasicBlock", Compare]
 
 
 class Instr(BaseInstr[InstrArg]):
