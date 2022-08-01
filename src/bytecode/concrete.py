@@ -74,7 +74,7 @@ class ConcreteInstr(BaseInstr[int]):
         arg: int = UNSET,
         *,
         lineno: Optional[int] = None,
-        extended_args: Optional[int] = None
+        extended_args: Optional[int] = None,
     ):
         # Allow to remember a potentially meaningless EXTENDED_ARG emitted by
         # Python to properly compute the size and avoid messing up the jump
@@ -188,7 +188,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         consts: tuple = (),
         names: Tuple[str, ...] = (),
         varnames=(),
-        exception_table=None
+        exception_table=None,
     ):
         super().__init__()
         self.consts = list(consts)
@@ -582,7 +582,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 tuple(self.cellvars),
             )
 
-    def to_bytecode(self) -> _bytecode.Bytecode:
+    def to_bytecode(self, prune_caches: bool = True) -> _bytecode.Bytecode:
 
         # Copy instruction and remove extended args if any (in-place)
         c_instructions = self[:]
@@ -616,6 +616,14 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
             jump_target = c_instr.get_jump_target(offset)
             size = c_instr.size
+            offset += (size // 2) if OFFSET_AS_INSTRUCTION else size
+
+            # on Python 3.11+ remove CACHE opcodes if we are requested to do so.
+            # We are careful to first advance the offset and check that the CACHE
+            # is not a jump target. It should never be the case but we double check.
+            if prune_caches and c_instr.name == "CACHE":
+                assert jump_target is None
+                continue
 
             arg: InstrArg
             c_arg = c_instr.arg
@@ -645,7 +653,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 # This is a hack but going around it just for typing would be a pain
                 new_instr = c_instr  # type: ignore
             instructions.append(new_instr)
-            offset += (size // 2) if OFFSET_AS_INSTRUCTION else size
 
             if jump_target is not None:
                 jumps.append((instr_index, jump_target))
@@ -688,6 +695,8 @@ class _ConvertBytecodeToConcrete:
         self.instructions: List[ConcreteInstr] = []
         self.jumps: List[Tuple[int, Label, ConcreteInstr]] = []
         self.labels: Dict[Label, int] = {}
+        self.required_caches = 0
+        self.seen_manual_cache = False
 
         # used to build ConcreteBytecode() object
         self.consts_indices: Dict[Union[bytes, Tuple[type, int]], int] = {}
@@ -718,6 +727,7 @@ class _ConvertBytecodeToConcrete:
         lineno = self.bytecode.first_lineno
 
         for instr in self.bytecode:
+
             if isinstance(instr, Label):
                 self.labels[instr] = len(self.instructions)
                 continue
@@ -726,8 +736,29 @@ class _ConvertBytecodeToConcrete:
                 lineno = instr.lineno
                 continue
 
+            # Enforce proper use of CACHE opcode on Python 3.11+ by checking we get the
+            # number we expect or directly generate the needed ones.
+            if instr.name == "CACHE":
+                if not self.required_caches:
+                    raise RuntimeError("Found a CACHE opcode when none was expected.")
+                self.seen_manual_cache = True
+                self.required_caches -= 1
+
+            elif self.required_caches:
+                if not self.seen_manual_cache:
+                    self.instructions.extend(
+                        [ConcreteInstr("CACHE") for i in range(self.required_caches)]
+                    )
+                    self.required_caches = 0
+                    self.seen_manual_cache = False
+                else:
+                    raise RuntimeError(
+                        "Found some manual opcode but less than expected. "
+                        f"Missing {self.required_caches} CACHE opcodes."
+                    )
+
             if isinstance(instr, ConcreteInstr):
-                instr = instr.copy()
+                c_instr: ConcreteInstr = instr.copy()
             else:
                 assert isinstance(instr, Instr)
 
@@ -764,6 +795,11 @@ class _ConvertBytecodeToConcrete:
                 c_instr = ConcreteInstr(instr.name, arg, lineno=lineno)
                 if is_jump:
                     self.jumps.append((len(self.instructions), label, c_instr))
+
+            # If the instruction expect some cache
+            if sys.version_info >= (3, 11):
+                self.required_caches = dis._inline_cache_entries[c_instr.opcode]
+                self.seen_manual_cache = False
 
             self.instructions.append(c_instr)
 
@@ -818,8 +854,8 @@ class _ConvertBytecodeToConcrete:
 
         concrete = ConcreteBytecode(
             self.instructions,
-            consts=self.consts_list.copy(),
-            names=self.names,
+            consts=tuple(self.consts_list),
+            names=tuple(self.names),
             varnames=self.varnames,
         )
         concrete._copy_attr_from(self.bytecode)

@@ -229,7 +229,7 @@ class Bytecode(
             self.argnames = bytecode.argnames
 
     @staticmethod
-    def from_code(code: types.CodeType) -> "Bytecode":
+    def from_code(code: types.CodeType, prune_caches: bool = True) -> "Bytecode":
         concrete = _bytecode.ConcreteBytecode.from_code(code)
         return concrete.to_bytecode()
 
