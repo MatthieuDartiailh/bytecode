@@ -313,7 +313,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
         except IndexError:
             # The exception occurs when all the generators have been exhausted
-            # in which case teh last yielded value is the stacksize.
+            # in which case the last yielded value is the stacksize.
             assert args is not None
             return args
 
