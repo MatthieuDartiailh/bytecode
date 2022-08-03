@@ -17,7 +17,6 @@ from bytecode.concrete import ConcreteBytecode
 
 from . import TestCase
 
-
 # Starting with Python 3.11 jump opcode have changed quite a bit. We define here
 # opcode useful to test for both Python < 3.11 and Python >= 3.11
 UNCONDITIONAL_JUMP = "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE"
