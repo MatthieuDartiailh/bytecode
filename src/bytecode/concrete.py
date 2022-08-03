@@ -633,7 +633,10 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             elif c_instr.opcode in _opcode.haslocal:
                 arg = self.varnames[c_arg]
             elif c_instr.opcode in _opcode.hasname:
-                arg = self.names[c_arg]
+                if sys.version_info >= (3, 11) and c_instr.name == "LOAD_GLOBAL":
+                    arg = (bool(c_arg & 1), self.names[c_arg >> 1])
+                else:
+                    arg = self.names[c_arg]
             elif c_instr.opcode in _opcode.hasfree:
                 if c_arg < ncells:
                     name = self.cellvars[c_arg]
@@ -778,8 +781,18 @@ class _ConvertBytecodeToConcrete:
                     assert isinstance(arg, str)
                     arg = self.add(self.varnames, arg)
                 elif instr.opcode in _opcode.hasname:
-                    assert isinstance(arg, str)
-                    arg = self.add(self.names, arg)
+                    if sys.version_info >= (3, 11) and instr.name == "LOAD_GLOBAL":
+                        assert (
+                            isinstance(arg, tuple)
+                            and len(arg) == 2
+                            and isinstance(arg[0], bool)
+                            and isinstance(arg[1], str)
+                        )
+                        index = self.add(self.names, arg[1])
+                        arg = int(arg[0]) + (index << 1)
+                    else:
+                        assert isinstance(arg, str)
+                        arg = self.add(self.names, arg)
                 elif instr.opcode in _opcode.hasfree:
                     if isinstance(arg, CellVar):
                         arg = self.bytecode.cellvars.index(arg.name)

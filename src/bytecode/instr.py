@@ -468,7 +468,19 @@ class Instr(BaseInstr[InstrArg]):
                 )
 
         elif opcode in _opcode.haslocal or opcode in _opcode.hasname:
-            if not isinstance(arg, str):
+            if sys.version_info >= (3, 11) and name == "LOAD_GLOBAL":
+                if not (
+                    isinstance(arg, tuple)
+                    and len(arg) == 2
+                    and isinstance(arg[0], bool)
+                    and isinstance(arg[1], str)
+                ):
+                    raise TypeError(
+                        "operation %s argument must be a tuple[bool, str], "
+                        "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
+                    )
+
+            elif not isinstance(arg, str):
                 raise TypeError(
                     "operation %s argument must be a str, "
                     "got %s" % (name, type(arg).__name__)
