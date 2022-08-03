@@ -1512,12 +1512,16 @@ class BytecodeToConcreteTests(TestCase):
             ehc.with_try,
         ):
             with self.subTest():
+                origin = f.__code__
                 concrete = ConcreteBytecode.from_code(f.__code__)
                 as_code = concrete.to_code(stacksize=f.__code__.co_stacksize)
                 if sys.version_info >= (3, 11):
-                    self.assertEqual(
-                        f.__code__.co_exceptiontable, as_code.co_exceptiontable
+                    self.assertSequenceEqual(
+                        origin.co_exceptiontable, as_code.co_exceptiontable
                     )
+                assert as_code == origin
+                f.__code__ = as_code
+                f()
 
 
 if __name__ == "__main__":

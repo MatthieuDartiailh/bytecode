@@ -1,4 +1,5 @@
 # flake8: noqa
+import contextlib
 
 
 def try_except():
@@ -38,25 +39,25 @@ def try_except_else_finally():
 
 
 def with_no_store():
-    with a:
+    with contextlib.nullcontext(1):
         pass
 
 
 def with_store():
-    with a as b:
+    with contextlib.nullcontext(1) as b:
         pass
 
 
 def try_with():
     try:
-        with a:
+        with contextlib.nullcontext(1):
             pass
     except Exception:
         return 0
 
 
 def with_try():
-    with a:
+    with contextlib.nullcontext(1):
         try:
             b = 1
         except Exception:
