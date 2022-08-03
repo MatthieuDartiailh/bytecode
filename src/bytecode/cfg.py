@@ -20,7 +20,7 @@ from typing import (
 import bytecode as _bytecode
 from bytecode.concrete import ConcreteInstr
 from bytecode.flags import CompilerFlags
-from bytecode.instr import Instr, Label, SetLineno
+from bytecode.instr import Instr, Label, SetLineno, TryBegin, TryEnd
 
 T = TypeVar("T", bound="BasicBlock")
 U = TypeVar("U", bound="ControlFlowGraph")
@@ -497,7 +497,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
         labels = {}
         jumps = []
-        instructions: List[Union[Instr, Label, SetLineno]] = []
+        instructions: List[Union[Instr, Label, TryBegin, TryEnd, SetLineno]] = []
 
         for block in self:
             if id(block) in used_blocks:

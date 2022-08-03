@@ -168,6 +168,24 @@ class Label:
     __slots__ = ()
 
 
+class TryBegin:
+    __slots__ = ("target", "push_lasti", "stack_depth")
+
+    def __init__(
+        self, target: Label, push_lasti: bool, stack_depth: int | _UNSET = UNSET
+    ) -> None:
+        self.target: Label = target
+        self.push_lasti: bool = push_lasti
+        self.stack_depth: int | _UNSET = stack_depth
+
+
+class TryEnd:
+    __slots__ = "entry"
+
+    def __init__(self, entry: TryBegin) -> None:
+        self.entry: TryBegin = entry
+
+
 class _Variable:
     __slots__ = ("name",)
 
@@ -426,7 +444,9 @@ class BaseInstr(Generic[A]):
         pass
 
 
-InstrArg = Union[int, str, Label, CellVar, FreeVar, "_bytecode.BasicBlock", Compare]
+InstrArg = Union[
+    int, str, Label, CellVar, FreeVar, "_bytecode.BasicBlock", Compare, Tuple[bool, str]
+]
 
 
 class Instr(BaseInstr[InstrArg]):

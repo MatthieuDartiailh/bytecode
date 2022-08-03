@@ -18,7 +18,7 @@ from typing import (
 
 import bytecode as _bytecode
 from bytecode.flags import CompilerFlags, infer_flags
-from bytecode.instr import UNSET, BaseInstr, Instr, Label, SetLineno
+from bytecode.instr import UNSET, BaseInstr, Instr, Label, SetLineno, TryBegin, TryEnd
 
 
 class BaseBytecode:
@@ -197,11 +197,12 @@ class _InstrList(List[V]):
 
 
 class Bytecode(
-    _InstrList[Union[Instr, Label, SetLineno]],
-    _BaseBytecodeList[Union[Instr, Label, SetLineno]],
+    _InstrList[Union[Instr, Label, TryBegin, TryEnd, SetLineno]],
+    _BaseBytecodeList[Union[Instr, Label, TryBegin, TryEnd, SetLineno]],
 ):
     def __init__(
-        self, instructions: Sequence[Union[Instr, Label, SetLineno]] = ()
+        self,
+        instructions: Sequence[Union[Instr, Label, TryBegin, TryEnd, SetLineno]] = (),
     ) -> None:
         BaseBytecode.__init__(self)
         self.argnames: List[str] = []
@@ -209,14 +210,14 @@ class Bytecode(
             self._check_instr(instr)
         self.extend(instructions)
 
-    def __iter__(self) -> Iterator[Union[Instr, Label, SetLineno]]:
+    def __iter__(self) -> Iterator[Union[Instr, Label, TryBegin, TryEnd, SetLineno]]:
         instructions = super().__iter__()
         for instr in instructions:
             self._check_instr(instr)
             yield instr
 
     def _check_instr(self, instr: Any) -> None:
-        if not isinstance(instr, (Label, SetLineno, Instr)):
+        if not isinstance(instr, (Label, SetLineno, Instr, TryBegin, TryEnd)):
             raise ValueError(
                 "Bytecode must only contain Label, "
                 "SetLineno, and Instr objects, "
@@ -229,9 +230,16 @@ class Bytecode(
             self.argnames = bytecode.argnames
 
     @staticmethod
-    def from_code(code: types.CodeType, prune_caches: bool = True) -> "Bytecode":
+    def from_code(
+        code: types.CodeType,
+        prune_caches: bool = True,
+        conserve_exception_block_stackdepth: bool = False,
+    ) -> "Bytecode":
         concrete = _bytecode.ConcreteBytecode.from_code(code)
-        return concrete.to_bytecode()
+        return concrete.to_bytecode(
+            prune_caches=prune_caches,
+            conserve_exception_block_stackdepth=conserve_exception_block_stackdepth,
+        )
 
     def compute_stacksize(self, *, check_pre_and_post: bool = True) -> int:
         cfg = _bytecode.ControlFlowGraph.from_bytecode(self)
@@ -242,17 +250,27 @@ class Bytecode(
         compute_jumps_passes: Optional[int] = None,
         stacksize: Optional[int] = None,
         *,
-        check_pre_and_post: bool = True
+        check_pre_and_post: bool = True,
+        compute_exception_stack_depths: bool = True,
     ) -> types.CodeType:
         # Prevent reconverting the concrete bytecode to bytecode and cfg to do the
         # calculation if we need to do it.
-        if stacksize is None:
+        if stacksize is None or compute_exception_stack_depths:
+            # XXX convert to CFG and do all the calculations
             stacksize = self.compute_stacksize(check_pre_and_post=check_pre_and_post)
-        bc = self.to_concrete_bytecode(compute_jumps_passes=compute_jumps_passes)
+        bc = self.to_concrete_bytecode(
+            compute_jumps_passes=compute_jumps_passes,
+            compute_exception_stack_depths=compute_exception_stack_depths,
+        )
         return bc.to_code(stacksize=stacksize)
 
     def to_concrete_bytecode(
-        self, compute_jumps_passes: Optional[int] = None
+        self,
+        compute_jumps_passes: Optional[int] = None,
+        compute_exception_stack_depths: bool = True,
     ) -> "_bytecode.ConcreteBytecode":
         converter = _bytecode._ConvertBytecodeToConcrete(self)
-        return converter.to_concrete_bytecode(compute_jumps_passes=compute_jumps_passes)
+        return converter.to_concrete_bytecode(
+            compute_jumps_passes=compute_jumps_passes,
+            compute_exception_stack_depths=compute_exception_stack_depths,
+        )

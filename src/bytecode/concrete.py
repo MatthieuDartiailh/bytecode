@@ -14,6 +14,7 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -33,6 +34,8 @@ from bytecode.instr import (
     InstrArg,
     Label,
     SetLineno,
+    TryBegin,
+    TryEnd,
     _check_arg_int,
     const_key,
 )
@@ -146,7 +149,7 @@ class ConcreteInstr(BaseInstr[int]):
         return cls(name, arg, lineno=lineno)
 
 
-class ExceptionTableEntry(NamedTuple):
+class ExceptionTableEntry:
     """Entry for a given line in the exception table.
 
     All offset are expressed in instructions not in bytes.
@@ -173,14 +176,40 @@ class ExceptionTableEntry(NamedTuple):
     #: before the exception itself (which is pushed as (traceback, value, type)).
     push_lasti: bool
 
+    __slots__ = ("start_offset", "stop_offset", "target", "stack_depth", "push_lasti")
+
+    def __init__(
+        self,
+        start_offset: int,
+        stop_offset: int,
+        target: int,
+        stack_depth: int,
+        push_lasti: bool,
+    ) -> None:
+        self.start_offset = start_offset
+        self.stop_offset = stop_offset
+        self.target = target
+        self.stack_depth = stack_depth
+        self.push_lasti = push_lasti
+
 
 class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLineno]]):
+
+    #: List of "constant" objects for the bytecode
+    consts: List
+
+    # XXX fix
+    #: List of names under which values are stored
+    names: List[str]
+
+    #:
+    varnames: List[str]
 
     #: Table describing portion of the bytecode in which exception are caught and
     #: where there are handled.
     #: Used only in Python 3.11+
     exception_table: List[ExceptionTableEntry]
-    
+
     def __init__(
         self,
         instructions=(),
@@ -188,7 +217,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         consts: tuple = (),
         names: Tuple[str, ...] = (),
         varnames=(),
-        exception_table=None,
+        exception_table: List[ExceptionTableEntry] | None = None,
     ):
         super().__init__()
         self.consts = list(consts)
@@ -261,7 +290,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         bytecode = ConcreteBytecode()
 
-        # replace jump targets with blocks
         # HINT : in some cases Python generate useless EXTENDED_ARG opcode
         # with a value of zero. Such opcodes do not increases the size of the
         # following opcode the way a normal EXTENDED_ARG does. As a
@@ -582,14 +610,19 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 tuple(self.cellvars),
             )
 
-    def to_bytecode(self, prune_caches: bool = True) -> _bytecode.Bytecode:
+    def to_bytecode(
+        self,
+        prune_caches: bool = True,
+        conserve_exception_block_stackdepth: bool = False,
+    ) -> _bytecode.Bytecode:
+        # On 3.11 we generate pseudo-instruction from the exception table
 
         # Copy instruction and remove extended args if any (in-place)
         c_instructions = self[:]
         self._remove_extended_args(c_instructions)
 
-        # find jump targets
-        jump_targets = set()
+        # Find jump targets
+        jump_targets: Set[int] = set()
         offset = 0
         for c_instr in c_instructions:
             if isinstance(c_instr, SetLineno):
@@ -599,10 +632,27 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 jump_targets.add(target)
             offset += (c_instr.size // 2) if OFFSET_AS_INSTRUCTION else c_instr.size
 
-        # create labels
-        jumps = []
-        instructions: List[Union[Instr, Label, SetLineno]] = []
+        # On 3.11+ we need to also look at the exception table for jump targets
+        for ex_entry in self.exception_table:
+            jump_targets.add(ex_entry.target)
+
+        # Create look up dict to find entries based on either exception handling
+        # block exit or entry offsets. Several blocks can end on the same instruction
+        # so we store a list of entry per offset.
+        ex_start: Dict[int, ExceptionTableEntry] = {}
+        ex_end: Dict[int, List[ExceptionTableEntry]] = {}
+        for entry in self.exception_table:
+            # Ensure we do not have more than one entry with identical starting
+            # offsets
+            assert entry.start_offset not in ex_start
+            ex_start[entry.start_offset] = entry
+            ex_end.setdefault(entry.stop_offset, []).append(entry)
+
+        # Create labels and instructions
+        jumps: List[Tuple[int, int]] = []
+        instructions: List[Union[Instr, Label, TryBegin, TryEnd, SetLineno]] = []
         labels = {}
+        tb_instrs: Dict[ExceptionTableEntry, TryBegin] = {}
         offset = 0
         ncells = len(self.cellvars)
 
@@ -614,8 +664,21 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 labels[offset] = label
                 instructions.append(label)
 
+            # Handle TryBegin pseudo instructions
+            if offset in ex_start:
+                entry = ex_start[offset]
+                tb_instr = TryBegin(
+                    Label(),
+                    entry.push_lasti,
+                    entry.stack_depth if conserve_exception_block_stackdepth else UNSET,
+                )
+                # Per entry store the pseudo instruction associated
+                tb_instrs[entry] = tb_instr
+                instructions.append(tb_instr)
+
             jump_target = c_instr.get_jump_target(offset)
             size = c_instr.size
+            current_instr_offset = offset
             offset += (size // 2) if OFFSET_AS_INSTRUCTION else size
 
             # on Python 3.11+ remove CACHE opcodes if we are requested to do so.
@@ -660,13 +723,23 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             if jump_target is not None:
                 jumps.append((instr_index, jump_target))
 
-        # replace jump targets with labels
+            # We now insert the TryEnd entries
+            if current_instr_offset in ex_end:
+                entries = ex_end[current_instr_offset]
+                for entry in reversed(entries):
+                    instructions.append(TryEnd(tb_instrs[entry]))
+
+        # Replace jump targets with labels
         for index, jump_target in jumps:
             instr = instructions[index]
             assert isinstance(instr, ConcreteInstr)
             # FIXME: better error reporting on missing label
             label = labels[jump_target]
             instructions[index] = Instr(instr.name, label, lineno=instr.lineno)
+
+        # Set the label for TryBegin
+        for entry, tb in tb_instrs.items():
+            tb.target = labels[entry.target]
 
         bytecode = _bytecode.Bytecode()
         bytecode._copy_attr_from(self)
@@ -686,8 +759,10 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
 class _ConvertBytecodeToConcrete:
 
-    # Default number of passes of compute_jumps() before giving up.  Refer to
-    # assemble_jump_offsets() in compile.c for background.
+    # XXX document attributes
+
+    #: Default number of passes of compute_jumps() before giving up.  Refer to
+    #: assemble_jump_offsets() in compile.c for background.
     _compute_jumps_passes = 10
 
     def __init__(self, code: _bytecode.Bytecode) -> None:
@@ -698,6 +773,7 @@ class _ConvertBytecodeToConcrete:
         self.instructions: List[ConcreteInstr] = []
         self.jumps: List[Tuple[int, Label, ConcreteInstr]] = []
         self.labels: Dict[Label, int] = {}
+        self.exception_handling_blocks: Dict[TryBegin, ExceptionTableEntry] = {}
         self.required_caches = 0
         self.seen_manual_cache = False
 
@@ -739,9 +815,17 @@ class _ConvertBytecodeToConcrete:
                 lineno = instr.lineno
                 continue
 
+            if isinstance(instr, TryBegin):
+                # We expect the stack depth to have be provided or computed earlier
+                assert instr.stack_depth is not UNSET
+                self.exception_handling_blocks[instr] = ExceptionTableEntry(
+                    len(self.instructions), 0, 0, instr.stack_depth, instr.push_lasti
+                )
+                continue
+
             # Enforce proper use of CACHE opcode on Python 3.11+ by checking we get the
             # number we expect or directly generate the needed ones.
-            if instr.name == "CACHE":
+            if isinstance(instr, Instr) and instr.name == "CACHE":
                 if not self.required_caches:
                     raise RuntimeError("Found a CACHE opcode when none was expected.")
                 self.seen_manual_cache = True
@@ -759,6 +843,15 @@ class _ConvertBytecodeToConcrete:
                         "Found some manual opcode but less than expected. "
                         f"Missing {self.required_caches} CACHE opcodes."
                     )
+
+            # Do not handle TryEnd before we insert possible CACHE opcode
+            if isinstance(instr, TryEnd):
+                entry = self.exception_handling_blocks[instr.entry]
+                # The TryEnd is located after the last opcode in the exception entry
+                # so we move the offset by one. We choose one so that the end does
+                # encompass a possible EXTENDED_ARG
+                entry.stop_offset = len(self.instructions) - 1
+                continue
 
             if isinstance(instr, ConcreteInstr):
                 c_instr: ConcreteInstr = instr.copy()
@@ -843,9 +936,23 @@ class _ConvertBytecodeToConcrete:
             if instr.size != old_size:
                 modified = True
 
+        # Resolve labels for exception handling entries
+        for tb, entry in self.exception_handling_blocks.items():
+            target_index = self.labels[tb.target]
+            target_offset = offsets[target_index]
+            entry.target = target_offset
+
         return modified
 
-    def to_concrete_bytecode(self, compute_jumps_passes=None) -> ConcreteBytecode:
+    def to_concrete_bytecode(
+        self,
+        compute_jumps_passes: int | None = None,
+        compute_exception_stack_depths: bool = True,
+    ) -> ConcreteBytecode:
+        if compute_exception_stack_depths:
+            # XXX convert to CFG and compute the stack depth for TryBegin
+            raise NotImplementedError
+
         if compute_jumps_passes is None:
             compute_jumps_passes = self._compute_jumps_passes
 
@@ -870,6 +977,7 @@ class _ConvertBytecodeToConcrete:
             consts=tuple(self.consts_list),
             names=tuple(self.names),
             varnames=self.varnames,
+            exception_table=list(self.exception_handling_blocks.values()),
         )
         concrete._copy_attr_from(self.bytecode)
         return concrete

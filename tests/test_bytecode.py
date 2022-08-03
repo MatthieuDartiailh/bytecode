@@ -473,6 +473,40 @@ class BytecodeTests(TestCase):
                 # to from concrete is actually broken
                 code.compute_stacksize(check_pre_and_post=False)
 
+    def test_exception_table_round_trip(self):
+        from . import exception_handling_cases as ehc
+
+        for compute_stack_depth in [False]:  # XXX add true when supported
+            for f in (
+                ehc.try_except,
+                ehc.try_except_else,
+                ehc.try_except_else_finally,
+                ehc.try_except_finally,
+                ehc.with_no_store,
+                ehc.with_store,
+                ehc.try_with,
+                ehc.with_try,
+            ):
+                with self.subTest():
+                    print(f.__name__)
+                    origin = f.__code__
+                    bytecode = Bytecode.from_code(
+                        origin,
+                        conserve_exception_block_stackdepth=not compute_stack_depth,
+                    )
+                    as_code = bytecode.to_code(
+                        stacksize=f.__code__.co_stacksize,
+                        compute_exception_stack_depths=compute_stack_depth,
+                    )
+                    if sys.version_info >= (3, 11):
+                        self.assertSequenceEqual(
+                            origin.co_exceptiontable, as_code.co_exceptiontable
+                        )
+                    self.assertSequenceEqual(as_code.co_code, origin.co_code)
+                    f.__code__ = as_code
+                    f()
+                    breakpoint()
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover
