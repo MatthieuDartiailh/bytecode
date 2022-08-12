@@ -11,7 +11,6 @@ from typing import (
     Iterator,
     List,
     MutableSequence,
-    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -26,12 +25,14 @@ import bytecode as _bytecode
 from bytecode.flags import CompilerFlags
 from bytecode.instr import (
     UNSET,
+    _UNSET,
     BaseInstr,
     CellVar,
     Compare,
     FreeVar,
     Instr,
     InstrArg,
+    InstrLocation,
     Label,
     SetLineno,
     TryBegin,
@@ -76,14 +77,15 @@ class ConcreteInstr(BaseInstr[int]):
         name: str,
         arg: int = UNSET,
         *,
-        lineno: Optional[int] = None,
+        lineno: Union[int, None, _UNSET] = UNSET,
+        location: Optional[InstrLocation] = None,
         extended_args: Optional[int] = None,
     ):
         # Allow to remember a potentially meaningless EXTENDED_ARG emitted by
         # Python to properly compute the size and avoid messing up the jump
         # targets
         self._extended_args = extended_args
-        self._set(name, arg, lineno)
+        super().__init__(name, arg, lineno=lineno, location=location)
 
     def _check_arg(self, name: str, opcode: int, arg: int) -> None:
         if opcode >= _opcode.HAVE_ARGUMENT:
@@ -95,8 +97,12 @@ class ConcreteInstr(BaseInstr[int]):
             if arg is not UNSET:
                 raise ValueError("operation %s has no argument" % name)
 
-    def _set(self, name: str, arg: int, lineno: Optional[int]) -> None:
-        super()._set(name, arg, lineno)
+    def _set(
+        self,
+        name: str,
+        arg: int,
+    ) -> None:
+        super()._set(name, arg)
         size = 2
         if arg is not UNSET:
             while arg > 0xFF:
@@ -110,8 +116,8 @@ class ConcreteInstr(BaseInstr[int]):
     def size(self) -> int:
         return self._size
 
-    def _cmp_key(self) -> Tuple[Optional[int], str, int]:
-        return (self._lineno, self._name, self._arg)
+    def _cmp_key(self) -> Tuple[Optional[InstrLocation], str, int]:
+        return (self._location, self._name, self._arg)
 
     def get_jump_target(self, instr_offset: int) -> Optional[int]:
         if self._opcode in _opcode.hasjrel:
@@ -325,16 +331,24 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         instructions: Sequence[Union[ConcreteInstr, SetLineno]], first_lineno: int
     ) -> Iterator[Tuple[int, ConcreteInstr]]:
         lineno = first_lineno
+        # For each instruction compute an "inherited" lineno used:
+        # - on 3.8 and 3.9 for which a lineno is mandatory
+        # - to infer a lineno on 3.10+ if no lineno was provided,
+        #   the InstrLocation keeps the memory of lineno of None and can be
+        #   used to generate more detailed lineno information
         for instr in instructions:
+            i_lineno = instr.lineno
             # if instr.lineno is not set, it's inherited from the previous
             # instruction, or from self.first_lineno
-            if instr.lineno is not None:
-                lineno = instr.lineno
+            if i_lineno is not None and i_lineno is not UNSET:
+                lineno = i_lineno
 
             if isinstance(instr, ConcreteInstr):
                 yield (lineno, instr)
 
-    def _assemble_code(self) -> Tuple[bytes, List[Tuple[int, int, int]]]:
+    def _assemble_code(
+        self,
+    ) -> Tuple[bytes, List[Tuple[int, int, int, Optional[InstrLocation]]]]:
         offset = 0
         code_str = []
         linenos = []
@@ -342,20 +356,26 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             code_str.append(instr.assemble())
             i_size = instr.size
             linenos.append(
-                ((offset * 2) if OFFSET_AS_INSTRUCTION else offset, i_size, lineno)
+                (
+                    (offset * 2) if OFFSET_AS_INSTRUCTION else offset,
+                    i_size,
+                    lineno,
+                    instr.location,
+                )
             )
             offset += (i_size // 2) if OFFSET_AS_INSTRUCTION else i_size
 
         return (b"".join(code_str), linenos)
 
+    # Used on 3.8 and 3.9
     @staticmethod
     def _assemble_lnotab(
-        first_lineno: int, linenos: List[Tuple[int, int, int]]
+        first_lineno: int, linenos: List[Tuple[int, int, int, Optional[InstrLocation]]]
     ) -> bytes:
         lnotab = []
         old_offset = 0
         old_lineno = first_lineno
-        for offset, _, lineno in linenos:
+        for offset, _, lineno, _ in linenos:
             dlineno = lineno - old_lineno
             if dlineno == 0:
                 continue
@@ -417,8 +437,12 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         assert 0 <= doff <= 254
         assert -127 <= dlineno <= 127
 
+    # Used on 3.10
+    # XXX update to support lineno of None from the InstrLocation
     def _assemble_linestable(
-        self, first_lineno: int, linenos: Iterable[Tuple[int, int, int]]
+        self,
+        first_lineno: int,
+        linenos: Iterable[Tuple[int, int, int, Optional[InstrLocation]]],
     ) -> bytes:
         if not linenos:
             return b""
@@ -428,9 +452,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         iter_in = iter(linenos)
 
-        offset, i_size, old_lineno = next(iter_in)
+        offset, i_size, old_lineno, old_location = next(iter_in)
         old_dlineno = old_lineno - first_lineno
-        for offset, i_size, lineno in iter_in:
+        for offset, i_size, lineno, location in iter_in:
             dlineno = lineno - old_lineno
             if dlineno == 0:
                 continue
@@ -858,7 +882,7 @@ class _ConvertBytecodeToConcrete:
             else:
                 assert isinstance(instr, Instr)
 
-                if instr.lineno is not None:
+                if instr.lineno is not UNSET:
                     lineno = instr.lineno
 
                 arg = instr.arg

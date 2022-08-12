@@ -141,7 +141,7 @@ class _BaseBytecodeList(BaseBytecode, list, Generic[U]):
                 continue
             if set_lineno is not None:
                 instr.lineno = set_lineno
-            elif instr.lineno is None:
+            elif instr.lineno is UNSET:
                 instr.lineno = current_lineno
             else:
                 current_lineno = instr.lineno

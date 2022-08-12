@@ -3,6 +3,7 @@ import enum
 import opcode as _opcode
 import sys
 from abc import abstractmethod
+from dataclasses import dataclass
 from marshal import dumps as _dumps
 from typing import Any, Generic, Optional, Tuple, TypeVar, Union
 
@@ -140,18 +141,24 @@ def _pushes_back(opname: str) -> bool:
     )
 
 
-def _check_lineno(lineno: int) -> None:
-    if not isinstance(lineno, int):
-        raise TypeError("lineno must be an int")
-    if lineno < 1:
-        raise ValueError("invalid lineno")
+def _check_location(
+    location: Optional[int], location_name: str, min_value: int
+) -> None:
+    if location is None:
+        return
+    if not isinstance(location, int):
+        raise TypeError(f"{location_name} must be an int, got {type(location)}")
+    if location < min_value:
+        raise ValueError(
+            f"invalid {location_name}, expected >= {min_value}, got {location}"
+        )
 
 
 class SetLineno:
     __slots__ = ("_lineno",)
 
     def __init__(self, lineno: int) -> None:
-        _check_lineno(lineno)
+        _check_location(lineno, "lineno", 1)
         self._lineno: int = lineno
 
     @property
@@ -231,16 +238,78 @@ T = TypeVar("T", bound="BaseInstr")
 A = TypeVar("A", bound=object)
 
 
+@dataclass(frozen=True)
+class InstrLocation:
+    """Location information for an instruction."""
+
+    #: Lineno at which the instruction corresponds
+    lineno: Optional[int]
+
+    #: End lineno at which the instruction corresponds (Python 3.11+ only)
+    end_lineno: Optional[int]
+
+    #: Column offset at which the instruction corresponds (Python 3.11+ only)
+    col_offset: Optional[int]
+
+    #: End column offset at which the instruction corresponds (Python 3.11+ only)
+    end_col_offset: Optional[int]
+
+    __slots__ = ["lineno", "end_lineno", "col_offset", "end_col_offset"]
+
+    def __init__(
+        self,
+        lineno: Optional[int],
+        end_lineno: Optional[int],
+        col_offset: Optional[int],
+        end_col_offset: Optional[int],
+    ) -> None:
+        # Needed because we want the class to be frozen
+        object.__setattr__(self, "lineno", lineno)
+        object.__setattr__(self, "end_lineno", end_lineno)
+        object.__setattr__(self, "col_offset", col_offset)
+        object.__setattr__(self, "end_col_offset", end_col_offset)
+        _check_location(lineno, "lineno", 1)
+        _check_location(end_lineno, "end_lineno", 1)
+        _check_location(col_offset, "col_offset", 0)
+        _check_location(end_col_offset, "end_col_offset", 0)
+        if end_lineno:
+            if lineno is None:
+                raise ValueError("End lineno specified with no lineno.")
+            elif lineno > end_lineno:
+                raise ValueError(
+                    f"End lineno {end_lineno} cannot be smaller than lineno {lineno}."
+                )
+        if end_col_offset:
+            if col_offset is None:
+                raise ValueError("End col offset specified with no col offset.")
+            elif col_offset > end_col_offset:
+                raise ValueError(
+                    f"End col offset {end_col_offset} cannot be smaller than "
+                    "col offset {col_offset}."
+                )
+
+
 class BaseInstr(Generic[A]):
     """Abstract instruction."""
 
-    __slots__ = ("_name", "_opcode", "_arg", "_lineno")
+    __slots__ = ("_name", "_opcode", "_arg", "_location")
 
     # Work around an issue with the default value of arg
     def __init__(
-        self, name: str, arg: A = UNSET, *, lineno: Optional[int] = None  # type: ignore
+        self,
+        name: str,
+        arg: A = UNSET,  # type: ignore
+        *,
+        lineno: Union[int, None, _UNSET] = UNSET,
+        location: Optional[InstrLocation] = None,
     ) -> None:
-        self._set(name, arg, lineno)
+        self._set(name, arg)
+        if location:
+            self._location = location
+        elif lineno is UNSET:
+            self._location = None
+        else:
+            self._location = InstrLocation(lineno, None, None, None)
 
     # Work around an issue with the default value of arg
     def set(self, name: str, arg: A = UNSET) -> None:  # type: ignore
@@ -249,7 +318,7 @@ class BaseInstr(Generic[A]):
         Replace name and arg attributes. Don't modify lineno.
 
         """
-        self._set(name, arg, self._lineno)
+        self._set(name, arg)
 
     def require_arg(self) -> bool:
         """Does the instruction require an argument?"""
@@ -261,7 +330,7 @@ class BaseInstr(Generic[A]):
 
     @name.setter
     def name(self, name: str) -> None:
-        self._set(name, self._arg, self._lineno)
+        self._set(name, self._arg)
 
     @property
     def opcode(self) -> int:
@@ -279,7 +348,7 @@ class BaseInstr(Generic[A]):
         if not valid:
             raise ValueError("invalid operator code")
 
-        self._set(name, self._arg, self._lineno)
+        self._set(name, self._arg)
 
     @property
     def arg(self) -> A:
@@ -287,15 +356,41 @@ class BaseInstr(Generic[A]):
 
     @arg.setter
     def arg(self, arg: A):
-        self._set(self._name, arg, self._lineno)
+        self._set(self._name, arg)
 
     @property
-    def lineno(self) -> Optional[int]:
-        return self._lineno
+    def lineno(self) -> Union[int, _UNSET, None]:
+        return self._location.lineno if self._location is not None else UNSET
 
     @lineno.setter
-    def lineno(self, lineno: Optional[int]) -> None:
-        self._set(self._name, self._arg, lineno)
+    def lineno(self, lineno: Union[int, _UNSET, None]) -> None:
+        loc = self._location
+        if loc and (
+            loc.end_lineno is not None
+            or loc.col_offset is not None
+            or loc.end_col_offset is not None
+        ):
+            raise RuntimeError(
+                "The lineno of an instruction with detailed location information "
+                "cannot be set."
+            )
+
+        if lineno is UNSET:
+            self._location = None
+        else:
+            self._location = InstrLocation(lineno, None, None, None)
+
+    @property
+    def location(self) -> Optional[InstrLocation]:
+        return self._location
+
+    @location.setter
+    def location(self, location: Optional[InstrLocation]) -> None:
+        if location and not isinstance(location, InstrLocation):
+            raise TypeError(
+                "The instr location must be an instance of InstrLocation or None."
+            )
+        self._location = location
 
     def stack_effect(self, jump: Optional[bool] = None) -> int:
         if self._opcode < _opcode.HAVE_ARGUMENT:
@@ -360,7 +455,7 @@ class BaseInstr(Generic[A]):
         )
 
     def copy(self: T) -> T:
-        return self.__class__(self._name, self._arg, lineno=self._lineno)
+        return self.__class__(self._name, self._arg, location=self._location)
 
     def has_jump(self) -> bool:
         return self._has_jump(self._opcode)
@@ -393,9 +488,9 @@ class BaseInstr(Generic[A]):
 
     def __repr__(self) -> str:
         if self._arg is not UNSET:
-            return "<%s arg=%r lineno=%s>" % (self._name, self._arg, self._lineno)
+            return "<%s arg=%r location=%s>" % (self._name, self._arg, self._location)
         else:
-            return "<%s lineno=%s>" % (self._name, self._lineno)
+            return "<%s location=%s>" % (self._name, self._location)
 
     def __eq__(self, other: Any) -> bool:
         if type(self) != type(other):
@@ -406,13 +501,13 @@ class BaseInstr(Generic[A]):
 
     _name: str
 
-    _lineno: Optional[int]
+    _location: Optional[InstrLocation]
 
     _opcode: int
 
     _arg: A
 
-    def _set(self, name: str, arg: A, lineno: Optional[int]) -> None:
+    def _set(self, name: str, arg: A) -> None:
         if not isinstance(name, str):
             raise TypeError("operation name must be a str")
         try:
@@ -420,16 +515,11 @@ class BaseInstr(Generic[A]):
         except KeyError:
             raise ValueError("invalid operation name")
 
-        # check lineno
-        if lineno is not None:
-            _check_lineno(lineno)
-
         self._check_arg(name, opcode, arg)
 
         self._name = name
         self._opcode = opcode
         self._arg = arg
-        self._lineno = lineno
 
     @staticmethod
     def _has_jump(opcode) -> bool:
@@ -440,7 +530,7 @@ class BaseInstr(Generic[A]):
         pass
 
     @abstractmethod
-    def _cmp_key(self) -> Tuple[Optional[int], str, Any]:
+    def _cmp_key(self) -> Tuple[Optional[InstrLocation], str, Any]:
         pass
 
 
@@ -453,11 +543,11 @@ class Instr(BaseInstr[InstrArg]):
 
     __slots__ = ()
 
-    def _cmp_key(self) -> Tuple[Optional[int], str, Any]:
+    def _cmp_key(self) -> Tuple[Optional[InstrLocation], str, Any]:
         arg: Any = self._arg
         if self._opcode in _opcode.hasconst:
             arg = const_key(arg)
-        return (self._lineno, self._name, arg)
+        return (self._location, self._name, arg)
 
     def _check_arg(self, name: str, opcode: int, arg: InstrArg) -> None:
         if name == "EXTENDED_ARG":

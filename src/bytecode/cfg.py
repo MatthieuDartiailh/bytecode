@@ -20,7 +20,7 @@ from typing import (
 import bytecode as _bytecode
 from bytecode.concrete import ConcreteInstr
 from bytecode.flags import CompilerFlags
-from bytecode.instr import Instr, Label, SetLineno, TryBegin, TryEnd
+from bytecode.instr import UNSET, Instr, Label, SetLineno, TryBegin, TryEnd
 
 T = TypeVar("T", bound="BasicBlock")
 U = TypeVar("U", bound="ControlFlowGraph")
@@ -93,7 +93,7 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno]]):
                 continue
             if set_lineno is not None:
                 instr.lineno = set_lineno
-            elif instr.lineno is None:
+            elif instr.lineno is UNSET:
                 instr.lineno = current_lineno
             else:
                 current_lineno = instr.lineno
