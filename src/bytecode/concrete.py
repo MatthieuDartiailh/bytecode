@@ -223,7 +223,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         consts: tuple = (),
         names: Tuple[str, ...] = (),
         varnames=(),
-        exception_table: List[ExceptionTableEntry] | None = None,
+        exception_table: Optional[List[ExceptionTableEntry]] = None,
     ):
         super().__init__()
         self.consts = list(consts)
@@ -970,7 +970,7 @@ class _ConvertBytecodeToConcrete:
 
     def to_concrete_bytecode(
         self,
-        compute_jumps_passes: int | None = None,
+        compute_jumps_passes: Optional[int] = None,
         compute_exception_stack_depths: bool = True,
     ) -> ConcreteBytecode:
         if sys.version_info >= (3, 11) and compute_exception_stack_depths:
