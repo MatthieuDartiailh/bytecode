@@ -179,7 +179,7 @@ class InstrTests(TestCase):
         self.assertRaises(AttributeError, delattr, instr, "arg")
 
         # no argument
-        instr = Instr("GET_LEN")
+        instr = Instr("RETURN_VALUE")
         self.assertIs(instr.arg, UNSET)
 
     def test_modify_op(self):

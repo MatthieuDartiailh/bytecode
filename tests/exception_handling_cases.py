@@ -62,3 +62,15 @@ def with_try():
             b = 1
         except Exception:
             return 0
+
+
+def nested_try():
+    try:
+        a = 1
+        try:
+            b = 2
+        except Exception:
+            pass
+        c = 3
+    except Exception:
+        d = 4
