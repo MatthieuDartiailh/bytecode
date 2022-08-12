@@ -505,7 +505,6 @@ class BytecodeTests(TestCase):
                     self.assertSequenceEqual(as_code.co_code, origin.co_code)
                     f.__code__ = as_code
                     f()
-                    breakpoint()
 
 
 if __name__ == "__main__":

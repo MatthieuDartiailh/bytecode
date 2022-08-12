@@ -973,7 +973,7 @@ class _ConvertBytecodeToConcrete:
         compute_jumps_passes: int | None = None,
         compute_exception_stack_depths: bool = True,
     ) -> ConcreteBytecode:
-        if compute_exception_stack_depths:
+        if sys.version_info >= (3, 11) and compute_exception_stack_depths:
             # XXX convert to CFG and compute the stack depth for TryBegin
             raise NotImplementedError
 

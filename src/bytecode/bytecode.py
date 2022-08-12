@@ -255,7 +255,9 @@ class Bytecode(
     ) -> types.CodeType:
         # Prevent reconverting the concrete bytecode to bytecode and cfg to do the
         # calculation if we need to do it.
-        if stacksize is None or compute_exception_stack_depths:
+        if stacksize is None or (
+            sys.version_info >= (3, 11) and compute_exception_stack_depths
+        ):
             # XXX convert to CFG and do all the calculations
             stacksize = self.compute_stacksize(check_pre_and_post=check_pre_and_post)
         bc = self.to_concrete_bytecode(
