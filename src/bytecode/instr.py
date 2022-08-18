@@ -242,7 +242,8 @@ A = TypeVar("A", bound=object)
 class InstrLocation:
     """Location information for an instruction."""
 
-    #: Lineno at which the instruction corresponds
+    #: Lineno at which the instruction corresponds.
+    #: Optional so that a location of None in an instruction encode an unset value.
     lineno: Optional[int]
 
     #: End lineno at which the instruction corresponds (Python 3.11+ only)
@@ -279,14 +280,36 @@ class InstrLocation:
                 raise ValueError(
                     f"End lineno {end_lineno} cannot be smaller than lineno {lineno}."
                 )
-        if end_col_offset:
-            if col_offset is None:
-                raise ValueError("End col offset specified with no col offset.")
-            elif col_offset > end_col_offset:
+
+        if col_offset is not None or end_col_offset is not None:
+            if lineno is None or end_lineno is None:
                 raise ValueError(
-                    f"End col offset {end_col_offset} cannot be smaller than "
-                    "col offset {col_offset}."
+                    "Column offsets were specified but lineno information are "
+                    f"incomplete. Lineno: {lineno}, end lineno: {end_lineno}."
                 )
+            if end_col_offset is not None:
+                if col_offset is None:
+                    raise ValueError(
+                        "End column offset specified with no column offset."
+                    )
+                elif col_offset > end_col_offset:
+                    raise ValueError(
+                        f"End column offset {end_col_offset} cannot be smaller than "
+                        "column offset: {col_offset}."
+                    )
+            else:
+                raise ValueError(
+                    "No end column offset was specified but a column offset was given."
+                )
+
+    @classmethod
+    def from_positions(cls, position: "dis.Positions") -> "InstrLocation":  # type: ignore
+        return InstrLocation(
+            position.lineno,
+            position.end_lineno,
+            position.col_offset,
+            position.end_col_offset,
+        )
 
 
 class BaseInstr(Generic[A]):

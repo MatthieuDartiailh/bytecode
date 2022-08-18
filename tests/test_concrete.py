@@ -1076,6 +1076,8 @@ class ConcreteFromCodeTests(TestCase):
         bytecode = ConcreteBytecode.from_code(test.__code__, extended_arg=True)
         bytecode.to_code()
 
+    # XXX add tests for linenumbers which are None
+
 
 class BytecodeToConcreteTests(TestCase):
     def test_label(self):
@@ -1519,9 +1521,17 @@ class BytecodeToConcreteTests(TestCase):
                     self.assertSequenceEqual(
                         origin.co_exceptiontable, as_code.co_exceptiontable
                     )
-                assert as_code == origin
+                    # Comparing linetables is too messy because CPython does not
+                    # always optimize the packing of the table
+                    self.assertSequenceEqual(
+                        list(origin.co_positions()), list(as_code.co_positions())
+                    )
+                # assert as_code == origin
                 f.__code__ = as_code
                 f()
+
+    # XXX implement a code comparison function
+    # XXX test more cases for line encoding in particular with extended args
 
 
 if __name__ == "__main__":
