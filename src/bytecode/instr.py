@@ -179,11 +179,17 @@ class TryBegin:
     __slots__ = ("target", "push_lasti", "stack_depth")
 
     def __init__(
-        self, target: Label, push_lasti: bool, stack_depth: Union[int, _UNSET] = UNSET
+        self,
+        target: Union[Label, "_bytecode.BasicBlock"],
+        push_lasti: bool,
+        stack_depth: Union[int, _UNSET] = UNSET,
     ) -> None:
-        self.target: Label = target
+        self.target: Union[Label, "_bytecode.BasicBlock"] = target
         self.push_lasti: bool = push_lasti
         self.stack_depth: Union[int, _UNSET] = stack_depth
+
+    def copy(self) -> "TryBegin":
+        return TryBegin(self.target, self.push_lasti, self.stack_depth)
 
 
 class TryEnd:
@@ -191,6 +197,9 @@ class TryEnd:
 
     def __init__(self, entry: TryBegin) -> None:
         self.entry: TryBegin = entry
+
+    def copy(self) -> "TryEnd":
+        return TryEnd(self.entry)
 
 
 class _Variable:

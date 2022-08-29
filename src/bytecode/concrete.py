@@ -1156,7 +1156,9 @@ class _ConvertBytecodeToConcrete:
 
         # Resolve labels for exception handling entries
         for tb, entry in self.exception_handling_blocks.items():
-            target_index = self.labels[tb.target]
+            lb = tb.target
+            assert isinstance(lb, Label)
+            target_index = self.labels[lb]
             target_offset = offsets[target_index]
             entry.target = target_offset
 
