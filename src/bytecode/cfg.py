@@ -134,7 +134,7 @@ def _compute_stack_size(
     block: BasicBlock,
     size: int,
     maxsize: int,
-    exception_handler: bool | None,
+    exception_handler: Optional[bool],
     *,
     check_pre_and_post: bool = True,
 ):
