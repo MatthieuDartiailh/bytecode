@@ -1052,7 +1052,7 @@ class _ConvertBytecodeToConcrete:
             elif self.required_caches:
                 if not self.seen_manual_cache:
                     self.instructions.extend(
-                        [ConcreteInstr("CACHE") for i in range(self.required_caches)]
+                        [ConcreteInstr("CACHE", 0) for i in range(self.required_caches)]
                     )
                     self.required_caches = 0
                     self.seen_manual_cache = False

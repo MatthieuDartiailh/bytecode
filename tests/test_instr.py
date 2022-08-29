@@ -316,7 +316,8 @@ class InstrTests(TestCase):
             with self.subTest(name):
                 # Use ConcreteInstr instead of Instr because it doesn't care
                 # what kind of argument it is constructed with.
-                if op < opcode.HAVE_ARGUMENT:
+                # The 0 handles the CACHE case
+                if 0 < op < opcode.HAVE_ARGUMENT:
                     check(ConcreteInstr(name))
                 else:
                     for arg in range(256):
