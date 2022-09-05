@@ -477,19 +477,7 @@ class BytecodeTests(TestCase):
         from . import exception_handling_cases as ehc
 
         for compute_stack_depth in [False]:  # XXX add true when supported
-            cases = [
-                ehc.nested_try,
-                ehc.try_except,
-                ehc.try_except_else,
-                ehc.with_no_store,
-                ehc.with_store,
-                ehc.try_with,
-                ehc.with_try,
-            ]
-            # On 3.8 those two cases fail due to a re-ordering of the fast variables
-            if sys.version_info >= (3, 9):
-                cases += [ehc.try_except_else_finally, ehc.try_except_finally]
-            for f in cases:
+            for f in ehc.TEST_CASES:
                 with self.subTest():
                     print(f.__name__)
                     origin = f.__code__

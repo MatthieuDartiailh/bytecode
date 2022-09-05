@@ -1503,16 +1503,8 @@ class BytecodeToConcreteTests(TestCase):
     def test_exception_table_round_trip(self):
         from . import exception_handling_cases as ehc
 
-        for f in (
-            ehc.try_except,
-            ehc.try_except_else,
-            ehc.try_except_else_finally,
-            ehc.try_except_finally,
-            ehc.with_no_store,
-            ehc.with_store,
-            ehc.try_with,
-            ehc.with_try,
-        ):
+        for f in ehc.TEST_CASES:
+            print(f.__name__)
             with self.subTest():
                 origin = f.__code__
                 concrete = ConcreteBytecode.from_code(f.__code__)
