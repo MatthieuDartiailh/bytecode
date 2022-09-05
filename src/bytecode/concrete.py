@@ -89,11 +89,14 @@ class ConcreteInstr(BaseInstr[int]):
         super().__init__(name, arg, lineno=lineno, location=location)
 
     def _check_arg(self, name: str, opcode: int, arg: int) -> None:
-        # opcode == 0 corresponds to CACHE instruction in 3.11+ and was unused before
-        if opcode == 0 or opcode >= _opcode.HAVE_ARGUMENT:
+        if opcode >= _opcode.HAVE_ARGUMENT:
             if arg is UNSET:
                 raise ValueError("operation %s requires an argument" % name)
 
+            _check_arg_int(arg, name)
+        # opcode == 0 corresponds to CACHE instruction in 3.11+ and was unused before
+        elif opcode == 0:
+            arg = arg if arg is not UNSET else 0
             _check_arg_int(arg, name)
         else:
             if arg is not UNSET:
@@ -515,7 +518,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
     # Python 3.11+ location format encoding
     @staticmethod
     def _pack_location_header(code: int, size: int) -> int:
-        print(code, size)
         return (1 << 7) + (code << 3) + (size - 1 if size <= 8 else 7)
 
     def _pack_location(
