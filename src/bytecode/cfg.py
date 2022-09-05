@@ -123,10 +123,6 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
         return target_block
 
 
-# XXX We need to track if we enter the block as part of handling an exception
-# since in that case 3 or 4 extra values will be pushed to the stack but we want
-# the entry stack depth to not account for those to be able to use it in the exception
-# table
 def _compute_stack_size(
     seen_blocks: Set[int],
     blocks_startsize: Dict[int, int],
@@ -162,10 +158,14 @@ def _compute_stack_size(
         with the determined stacksize.
 
     """
-    # If the block is currently being visited (seen = True) or if it was visited
-    # previously by using a larger starting size than the one in use, return the
-    # maxsize.
-    if id(block) in seen_blocks or blocks_startsize[id(block)] >= size:
+    # If the block is currently being visited (seen = True) or
+    # if it is not an exception handler and it was visited previously by using
+    # a larger starting size than the one in use, return the maxsize.
+    # For exception block we look for the smallest stack size which is the one
+    # the unwinding process can safely restore.
+    if exception_handler is None and (
+        id(block) in seen_blocks or blocks_startsize[id(block)] >= size
+    ):
         yield maxsize
 
     def update_size(pre_delta, post_delta, size, maxsize):
@@ -183,15 +183,26 @@ def _compute_stack_size(
     # modifying blocks in place so we can safely use their id as hash rather than
     # making them generally hashable which would be weird since they are list
     # subclasses
-    seen_blocks.add(id(block))
-    blocks_startsize[id(block)] = size
+    block_id = id(block)
+    seen_blocks.add(block_id)
+
+    # For exception handler block we look for the minimal stacksize which is the
+    # one that can be safely restored by the unwinding.
+    block_id = id(block)
+    if (
+        exception_handler is not None
+        and (known_size := blocks_startsize[block_id]) >= 0
+    ):
+        blocks_startsize[block_id] = min(size, known_size)
+    else:
+        blocks_startsize[block_id] = size
 
     # If this block is an exception handler reached through the exception table
-    # we will push some extra objects on the stack before processing start
+    # we will push some extra objects on the stack before processing start.
     if exception_handler is not None:
-        size += 3 + exception_handler  # True is used to indicated a push_lasti of True
+        size += 1 + exception_handler  # True is used to indicated a push_lasti of True
 
-    for instr in block:
+    for i, instr in enumerate(block):
 
         # Ignore SetLineno
         if isinstance(instr, (SetLineno, TryEnd)):
@@ -377,7 +388,9 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             # if requested update the TryBegin stack size
             if compute_exception_stack_depths:
                 for tb in seen_try_begin:
-                    tb.stack_depth = blocks_startsize[id(tb.target)]
+                    size = blocks_startsize[id(tb.target)]
+                    assert size >= 0
+                    tb.stack_depth = size
 
             return args
 
