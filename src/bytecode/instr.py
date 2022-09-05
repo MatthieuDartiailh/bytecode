@@ -455,7 +455,7 @@ class BaseInstr(Generic[A]):
             return -2, 2
         if _opname == "WITH_EXCEPT_START":
             # Call a function at position 7 on the stack and push the return value
-            return -7, 8
+            return (-4, 5) if sys.version_info >= (3, 11) else (-7, 8)
         if _opname == "MATCH_CLASS":
             # Starting with Python 3.11 MATCH_CLASS does not push a boolean anymore
             return -3, 1 if sys.version_info >= (3, 11) else 2
