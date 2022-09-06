@@ -123,6 +123,16 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
         return target_block
 
 
+def _update_size(pre_delta, post_delta, size, maxsize):
+    size += pre_delta
+    if size < 0:
+        msg = "Failed to compute stacksize, got negative size"
+        raise RuntimeError(msg)
+    size += post_delta
+    maxsize = max(maxsize, size)
+    return size, maxsize
+
+
 def _compute_stack_size(
     seen_blocks: Set[int],
     blocks_startsize: Dict[int, int],
@@ -131,6 +141,7 @@ def _compute_stack_size(
     size: int,
     maxsize: int,
     exception_handler: Optional[bool],
+    enter_with_block: bool,
     *,
     check_pre_and_post: bool = True,
 ):
@@ -163,19 +174,10 @@ def _compute_stack_size(
     # a larger starting size than the one in use, return the maxsize.
     # For exception block we look for the smallest stack size which is the one
     # the unwinding process can safely restore.
-    if exception_handler is None and (
-        id(block) in seen_blocks or blocks_startsize[id(block)] >= size
+    if id(block) in seen_blocks or (
+        exception_handler is None and blocks_startsize[id(block)] >= size
     ):
         yield maxsize
-
-    def update_size(pre_delta, post_delta, size, maxsize):
-        size += pre_delta
-        if size < 0:
-            msg = "Failed to compute stacksize, got negative size"
-            raise RuntimeError(msg)
-        size += post_delta
-        maxsize = max(maxsize, size)
-        return size, maxsize
 
     # Prevent recursive visit of block if two blocks are nested (jump from one
     # to the other).
@@ -213,14 +215,26 @@ def _compute_stack_size(
         # the exception handling block if requested.
         if isinstance(instr, TryBegin):
             seen_try_begin.append(instr)
+
+            # If this is the first TryBegin we see after a 'before with' we need
+            # to adjust the stack depth because the opcode will have occurred
+            # right after calling __enter__ pushed and will placed __exit__ on
+            # the stack which is the only thing that need to be preserved and not
+            # the value pushed by __enter__
+            s = size
+            if enter_with_block:
+                s -= 1
+                enter_with_block = False
+
             maxsize = (
                 yield seen_blocks,
                 blocks_startsize,
                 seen_try_begin,
                 instr.target,
-                size,
+                s,
                 maxsize,
                 instr.push_lasti,
+                enter_with_block,
             )
             continue
 
@@ -232,7 +246,8 @@ def _compute_stack_size(
                 if check_pre_and_post
                 else (instr.stack_effect(jump=True), 0)
             )
-            taken_size, maxsize = update_size(*effect, size, maxsize)
+            taken_size, maxsize = _update_size(*effect, size, maxsize)
+
             # Yield the parameters required to compute the stacksize required
             # by the block to which the jumnp points to and resume when we now
             # the maxsize.
@@ -244,6 +259,7 @@ def _compute_stack_size(
                 taken_size,
                 maxsize,
                 None,
+                enter_with_block,
             )
 
             # For unconditional jumps abort early since the other instruction will
@@ -258,7 +274,10 @@ def _compute_stack_size(
             if check_pre_and_post
             else (instr.stack_effect(jump=False), 0)
         )
-        size, maxsize = update_size(*effect, size, maxsize)
+        size, maxsize = _update_size(*effect, size, maxsize)
+
+        if instr.name in ("BEFORE_WITH", "BEFORE_ASYNC_WITH"):
+            enter_with_block = True
 
         # Instruction is final (return, raise, ...) so any following instruction
         # in the block is dead code.
@@ -275,6 +294,7 @@ def _compute_stack_size(
             size,
             maxsize,
             None,
+            enter_with_block,
         )
 
     seen_blocks.remove(id(block))
@@ -355,6 +375,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             initial_stack_size,
             0,
             None,
+            False,
             check_pre_and_post=check_pre_and_post,
         )
 
