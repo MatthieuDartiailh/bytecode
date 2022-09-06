@@ -142,6 +142,7 @@ def _compute_stack_size(
     maxsize: int,
     exception_handler: Optional[bool],
     enter_with_block: bool,
+    exception_block_maxsize: Dict[int, int],
     *,
     check_pre_and_post: bool = True,
 ):
@@ -226,7 +227,11 @@ def _compute_stack_size(
                 s -= 1
                 enter_with_block = False
 
-            maxsize = (
+            # For exception handling block we care about the result obtained with
+            # the smallest block startsize which is the relevant one and which
+            # will yield the smallest overall stack depth usage.
+            block_id = id(instr.target)
+            block_size = (
                 yield seen_blocks,
                 blocks_startsize,
                 seen_try_begin,
@@ -235,7 +240,14 @@ def _compute_stack_size(
                 maxsize,
                 instr.push_lasti,
                 enter_with_block,
+                exception_block_maxsize,
             )
+            if exception_block_maxsize[block_id] >= 0:
+                exception_block_maxsize[block_id] = min(
+                    exception_block_maxsize[block_id], block_size
+                )
+            else:
+                exception_block_maxsize[block_id] = block_size
             continue
 
         # For instructions with a jump first compute the stacksize required when the
@@ -260,6 +272,7 @@ def _compute_stack_size(
                 maxsize,
                 None,
                 enter_with_block,
+                exception_block_maxsize,
             )
 
             # For unconditional jumps abort early since the other instruction will
@@ -295,6 +308,7 @@ def _compute_stack_size(
             maxsize,
             None,
             enter_with_block,
+            exception_block_maxsize,
         )
 
     seen_blocks.remove(id(block))
@@ -355,6 +369,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         seen_try_begin: List[TryBegin] = []
         seen_blocks: Set[int] = set()
         blocks_startsize = dict.fromkeys([id(b) for b in self], -32768)
+        exception_block_maxsize = dict.fromkeys([id(b) for b in self], -32768)
 
         # Starting with Python 3.10, generator and coroutines start with one object
         # on the stack (None, anything is an error).
@@ -376,6 +391,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             0,
             None,
             False,
+            exception_block_maxsize,
             check_pre_and_post=check_pre_and_post,
         )
 
@@ -406,7 +422,12 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             # in which case the last yielded value is the stacksize.
             assert args is not None
 
-            # if requested update the TryBegin stack size
+            # Exception handling block size is reported separately since we need
+            # to report only the stack usage for the smallest start size for the
+            # block
+            args = max(args, *exception_block_maxsize.values())
+
+            # If requested update the TryBegin stack size
             if compute_exception_stack_depths:
                 for tb in seen_try_begin:
                     size = blocks_startsize[id(tb.target)]

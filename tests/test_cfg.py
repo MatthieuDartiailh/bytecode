@@ -788,6 +788,7 @@ class CFGExceptionHandlingTests(TestCase):
                 origin = f.__code__
                 cfg = ControlFlowGraph.from_bytecode(Bytecode.from_code(f.__code__))
                 as_code = cfg.to_code(check_pre_and_post=False)
+                self.assertEqual(origin.co_stacksize, as_code.co_stacksize)
                 if sys.version_info >= (3, 11):
                     self.assertSequenceEqual(
                         origin.co_exceptiontable, as_code.co_exceptiontable
