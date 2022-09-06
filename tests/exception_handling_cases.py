@@ -5,6 +5,7 @@ import sys
 
 # XXX add exception group cases
 
+
 def try_except():
     try:
         a = 1
@@ -97,6 +98,19 @@ def try_in_except():
     return a
 
 
+# Trick since the syntax does not exist pre-3.11
+if sys.version_info >= (3, 11):
+    src = """
+def try_except_group():
+    try:
+        a = 1
+    except* ValueError:
+        b = 2
+    return a
+"""
+    exec(src)
+
+
 def with_no_store():
     with contextlib.nullcontext(1):
         a = 1
@@ -129,6 +143,38 @@ def with_try():
     return b
 
 
+async def async_with_no_store():
+    async with contextlib.nullcontext():
+        a = 1
+    return a
+
+
+async def async_with_store():
+    async with contextlib.nullcontext() as b:
+        a = 1
+    return a
+
+
+async def try_async_with():
+    try:
+        async with contextlib.nullcontext(1):
+            a = 1
+    except Exception:
+        return 0
+
+    return a
+
+
+async def async_with_try():
+    async with contextlib.nullcontext(1):
+        try:
+            b = 1
+        except Exception:
+            return 0
+
+    return b
+
+
 TEST_CASES = [
     try_except,
     try_multi_except,
@@ -142,7 +188,14 @@ TEST_CASES = [
     with_store,
     try_with,
     with_try,
+    async_with_no_store,
+    async_with_store,
+    try_async_with,
+    async_with_try,
 ]
+
+if sys.version_info >= (3, 11):
+    TEST_CASES.insert(0, try_except_group)  # type: ignore
 
 # On 3.8 those two cases fail due to a re-ordering of the fast variables
 if sys.version_info < (3, 9):
