@@ -427,6 +427,10 @@ class BaseInstr(Generic[A]):
     def stack_effect(self, jump: Optional[bool] = None) -> int:
         if self._opcode < _opcode.HAVE_ARGUMENT:
             arg = None
+        # 3.11 where LOAD_GLOBAL arg encode whether or we push a null
+        elif self.name == "LOAD_GLOBAL" and isinstance(self._arg, tuple):
+            assert len(self._arg) == 2
+            arg = self._arg[0]
         elif not isinstance(self._arg, int) or self._opcode in _opcode.hasconst:
             # Argument is either a non-integer or an integer constant,
             # not oparg.
