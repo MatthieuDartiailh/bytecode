@@ -507,7 +507,12 @@ class BaseInstr(Generic[A]):
         """Is an unconditional jump?"""
         # JUMP_BACKWARD has been introduced in 3.11+
         # JUMP_ABSOLUTE was removed in 3.11+
-        return self.name in {"JUMP_FORWARD", "JUMP_ABSOLUTE", "JUMP_BACKWARD"}
+        return self.name in {
+            "JUMP_FORWARD",
+            "JUMP_ABSOLUTE",
+            "JUMP_BACKWARD",
+            "JUMP_BACKWARD_NO_INTERRUPT",
+        }
 
     def is_final(self) -> bool:
         if self._name in {
