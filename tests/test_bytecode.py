@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import asyncio
+import inspect
 import sys
 import textwrap
 import unittest
@@ -476,25 +478,22 @@ class BytecodeTests(TestCase):
     def test_exception_table_round_trip(self):
         from . import exception_handling_cases as ehc
 
-        for compute_stack_depth in [False]:  # XXX add true when supported
-            for f in ehc.TEST_CASES:
-                with self.subTest():
-                    print(f.__name__)
-                    origin = f.__code__
-                    bytecode = Bytecode.from_code(
-                        origin,
-                        conserve_exception_block_stackdepth=not compute_stack_depth,
-                    )
-                    as_code = bytecode.to_code(
-                        stacksize=f.__code__.co_stacksize,
-                        compute_exception_stack_depths=compute_stack_depth,
-                    )
-                    if sys.version_info >= (3, 11):
-                        self.assertSequenceEqual(
-                            origin.co_exceptiontable, as_code.co_exceptiontable
-                        )
-                    self.assertSequenceEqual(as_code.co_code, origin.co_code)
-                    f.__code__ = as_code
+        for f in ehc.TEST_CASES:
+            with self.subTest():
+                print(f.__name__)
+                origin = f.__code__
+                bytecode = Bytecode.from_code(
+                    origin,
+                    conserve_exception_block_stackdepth=True,
+                )
+                as_code = bytecode.to_code(
+                    stacksize=f.__code__.co_stacksize,
+                    compute_exception_stack_depths=False,
+                )
+                self.assertCodeObjectEqual(origin, as_code)
+                if inspect.iscoroutine(f):
+                    asyncio.run(f())
+                else:
                     f()
 
 

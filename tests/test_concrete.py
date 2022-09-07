@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import asyncio
+import inspect
 import opcode
 import sys
 import textwrap
@@ -1509,20 +1511,12 @@ class BytecodeToConcreteTests(TestCase):
                 origin = f.__code__
                 concrete = ConcreteBytecode.from_code(f.__code__)
                 as_code = concrete.to_code(stacksize=f.__code__.co_stacksize)
-                if sys.version_info >= (3, 11):
-                    self.assertSequenceEqual(
-                        origin.co_exceptiontable, as_code.co_exceptiontable
-                    )
-                    # Comparing linetables is too messy because CPython does not
-                    # always optimize the packing of the table
-                    self.assertSequenceEqual(
-                        list(origin.co_positions()), list(as_code.co_positions())
-                    )
-                # assert as_code == origin
-                f.__code__ = as_code
-                f()
+                self.assertCodeObjectEqual(origin, as_code)
+                if inspect.iscoroutine(f):
+                    asyncio.run(f())
+                else:
+                    f()
 
-    # XXX implement a code comparison function
     # XXX test more cases for line encoding in particular with extended args
 
 

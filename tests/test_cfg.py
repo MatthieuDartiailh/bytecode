@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
+import asyncio
 import contextlib
+import inspect
 import io
-import sys
 import unittest
 
 from bytecode import (
@@ -788,19 +789,11 @@ class CFGExceptionHandlingTests(TestCase):
                 origin = f.__code__
                 cfg = ControlFlowGraph.from_bytecode(Bytecode.from_code(f.__code__))
                 as_code = cfg.to_code(check_pre_and_post=False)
-                self.assertEqual(origin.co_stacksize, as_code.co_stacksize)
-                if sys.version_info >= (3, 11):
-                    self.assertSequenceEqual(
-                        origin.co_exceptiontable, as_code.co_exceptiontable
-                    )
-                    # Comparing linetables is too messy because CPython does not
-                    # always optimize the packing of the table
-                    # self.assertSequenceEqual(
-                    #     list(origin.co_positions()), list(as_code.co_positions())
-                    # )
-                # assert as_code == origin
-                f.__code__ = as_code
-                f()
+                self.assertCodeObjectEqual(origin, as_code)
+                if inspect.iscoroutine(f):
+                    asyncio.run(f())
+                else:
+                    f()
 
 
 if __name__ == "__main__":

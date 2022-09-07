@@ -143,6 +143,23 @@ def disassemble(source, *, filename="<string>", function=False):
 
 
 class TestCase(unittest.TestCase):
+    def assertCodeObjectEqual(self, code1: types.CodeType, code2: types.CodeType):
+        self.assertEqual(code1.co_stacksize, code2.co_stacksize)
+        self.assertEqual(code1.co_firstlineno, code2.co_firstlineno)
+        if sys.version_info >= (3, 11):
+            self.assertSequenceEqual(code1.co_exceptiontable, code2.co_exceptiontable)
+            # We do not compare linetables because CPython does not always optimize
+            # the packing of the table
+            self.assertSequenceEqual(
+                list(code1.co_positions()), list(code2.co_positions())
+            )
+        elif sys.version_info <= (3, 9):
+            self.assertSequenceEqual(code1.co_lnotab, code2.co_lnotab)
+        else:
+            self.assertSequenceEqual(list(code1.co_lines()), list(code2.co_lines()))
+        self.assertSequenceEqual(code1.co_code, code2.co_code)
+        self.assertEqual(code1.co_flags, code2.co_flags)
+
     def assertBlocksEqual(self, code, *expected_blocks):
         self.assertEqual(len(code), len(expected_blocks))
 
