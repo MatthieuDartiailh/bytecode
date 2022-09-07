@@ -459,7 +459,10 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 # rather than a Label. This is fine for comparison purposes which is
                 # our sole goal here.
                 jumps.append(
-                    (target_block, ConcreteInstr(instr.name, 0, lineno=instr.lineno))
+                    (
+                        target_block,
+                        ConcreteInstr(instr.name, 0, location=instr.location),
+                    )
                 )
 
                 instructions.extend(block[:-1])

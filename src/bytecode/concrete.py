@@ -702,7 +702,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 instr = ConcreteInstr(
                     instr.name,
                     arg,
-                    lineno=instr.lineno,
+                    location=instr.location,
                     extended_args=nb_extended_args,
                 )
                 instructions[index] = instr
@@ -933,7 +933,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 arg = c_arg
 
             if jump_target is None:
-                new_instr = Instr(c_instr.name, arg, lineno=lineno)
+                new_instr = Instr(c_instr.name, arg, location=c_instr.location)
             else:
                 instr_index = len(instructions)
                 # This is a hack but going around it just for typing would be a pain
@@ -955,7 +955,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             assert isinstance(instr, ConcreteInstr)
             # FIXME: better error reporting on missing label
             label = labels[jump_target]
-            instructions[index] = Instr(instr.name, label, lineno=instr.lineno)
+            instructions[index] = Instr(instr.name, label, location=instr.location)
 
         # Set the label for TryBegin
         for entry, tb in tb_instrs.items():
@@ -1053,8 +1053,10 @@ class _ConvertBytecodeToConcrete:
 
             elif self.required_caches:
                 if not self.seen_manual_cache:
+                    # We preserve the location of the instruction requiring the
+                    # presence of cache instructions
                     self.instructions.extend(
-                        [ConcreteInstr("CACHE", 0) for i in range(self.required_caches)]
+                        [ConcreteInstr("CACHE", 0, location=self.instructions[-1].location) for i in range(self.required_caches)]
                     )
                     self.required_caches = 0
                     self.seen_manual_cache = False
@@ -1080,6 +1082,8 @@ class _ConvertBytecodeToConcrete:
 
                 if instr.lineno is not UNSET:
                     lineno = instr.lineno
+                else:
+                    instr.lineno = lineno
 
                 arg = instr.arg
                 is_jump = False
@@ -1118,7 +1122,7 @@ class _ConvertBytecodeToConcrete:
 
                 # The above should have performed all the necessary conversion
                 assert isinstance(arg, int)
-                c_instr = ConcreteInstr(instr.name, arg, lineno=lineno)
+                c_instr = ConcreteInstr(instr.name, arg, location=instr.location)
                 if is_jump:
                     self.jumps.append((len(self.instructions), label, c_instr))
 

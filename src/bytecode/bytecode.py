@@ -179,7 +179,9 @@ class _InstrList(List[V]):
             else:
                 if isinstance(instr, Instr) and isinstance(instr.arg, Label):
                     target_label = instr.arg
-                    instr = _bytecode.ConcreteInstr(instr.name, 0, lineno=instr.lineno)
+                    instr = _bytecode.ConcreteInstr(
+                        instr.name, 0, location=instr.location
+                    )
                     jumps.append((target_label, instr))
                 instructions.append(instr)
                 offset += 1
