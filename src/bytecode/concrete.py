@@ -773,7 +773,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         return cfg.compute_stacksize(check_pre_and_post=check_pre_and_post)
 
     def to_code(
-        self, stacksize: Optional[int] = None, *, check_pre_and_post: bool = True
+        self, stacksize: Optional[int] = None, *, check_pre_and_post: bool = True,
+        compute_exception_stack_depths: bool = True,
     ) -> types.CodeType:
         code_str, linenos = self._assemble_code()
         lnotab = (
@@ -786,8 +787,18 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             )
         )
         nlocals = len(self.varnames)
-        if stacksize is None:
-            stacksize = self.compute_stacksize(check_pre_and_post=check_pre_and_post)
+
+        # Prevent reconverting the concrete bytecode to bytecode and cfg to do the
+        # calculation if we need to do it.
+        if stacksize is None or (
+            sys.version_info >= (3, 11) and compute_exception_stack_depths
+        ):
+            cfg = _bytecode.ControlFlowGraph.from_bytecode(self.to_bytecode())
+            stacksize = cfg.compute_stacksize(
+                check_pre_and_post=check_pre_and_post,
+                compute_exception_stack_depths=compute_exception_stack_depths,
+            )
+            self = cfg.to_bytecode().to_concrete_bytecode(compute_exception_stack_depths=False)
 
         if sys.version_info >= (3, 11):
             return types.CodeType(
@@ -876,6 +887,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         offset = 0
         ncells = len(self.cellvars)
 
+        # XXX use normalized linenos
         for lineno, c_instr in self._normalize_lineno(
             c_instructions, self.first_lineno
         ):
@@ -1142,6 +1154,7 @@ class _ConvertBytecodeToConcrete:
         # needed if a label is at the end
         offsets.append(offset)
 
+        # XXX may need some extra check to validate jump forward vs jump backward
         # fix argument of jump instructions: resolve labels
         modified = False
         for index, label, instr in self.jumps:
@@ -1176,8 +1189,9 @@ class _ConvertBytecodeToConcrete:
         compute_exception_stack_depths: bool = True,
     ) -> ConcreteBytecode:
         if sys.version_info >= (3, 11) and compute_exception_stack_depths:
-            # XXX convert to CFG and compute the stack depth for TryBegin
-            raise NotImplementedError
+            cfg = _bytecode.ControlFlowGraph.from_bytecode(self.bytecode)
+            cfg.compute_stacksize(compute_exception_stack_depths=True)
+            self.bytecode = cfg.to_bytecode()
 
         if compute_jumps_passes is None:
             compute_jumps_passes = self._compute_jumps_passes

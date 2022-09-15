@@ -158,7 +158,8 @@ class SetLineno:
     __slots__ = ("_lineno",)
 
     def __init__(self, lineno: int) -> None:
-        _check_location(lineno, "lineno", 1)
+        # In Python 3.11 0 is a valid lineno for some instructions (RESUME for example)
+        _check_location(lineno, "lineno", 0 if sys.version_info >= (3, 11) else 1)
         self._lineno: int = lineno
 
     @property
@@ -278,7 +279,8 @@ class InstrLocation:
         object.__setattr__(self, "end_lineno", end_lineno)
         object.__setattr__(self, "col_offset", col_offset)
         object.__setattr__(self, "end_col_offset", end_col_offset)
-        _check_location(lineno, "lineno", 1)
+        # In Python 3.11 0 is a valid lineno for some instructions (RESUME for example)
+        _check_location(lineno, "lineno", 0)
         _check_location(end_lineno, "end_lineno", 1)
         _check_location(col_offset, "col_offset", 0)
         _check_location(end_col_offset, "end_col_offset", 0)

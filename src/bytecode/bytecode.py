@@ -260,13 +260,21 @@ class Bytecode(
         if stacksize is None or (
             sys.version_info >= (3, 11) and compute_exception_stack_depths
         ):
-            # XXX convert to CFG and do all the calculations
-            stacksize = self.compute_stacksize(check_pre_and_post=check_pre_and_post)
+            cfg = _bytecode.ControlFlowGraph.from_bytecode(self)
+            stacksize = cfg.compute_stacksize(
+                check_pre_and_post=check_pre_and_post,
+                compute_exception_stack_depths=compute_exception_stack_depths,
+            )
+            self = cfg.to_bytecode()
+            compute_exception_stack_depths = False  # avoid redoing everything
         bc = self.to_concrete_bytecode(
             compute_jumps_passes=compute_jumps_passes,
             compute_exception_stack_depths=compute_exception_stack_depths,
         )
-        return bc.to_code(stacksize=stacksize)
+        return bc.to_code(
+            stacksize=stacksize,
+            compute_exception_stack_depths=compute_exception_stack_depths,
+        )
 
     def to_concrete_bytecode(
         self,

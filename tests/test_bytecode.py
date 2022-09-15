@@ -491,7 +491,7 @@ class BytecodeTests(TestCase):
                     compute_exception_stack_depths=False,
                 )
                 self.assertCodeObjectEqual(origin, as_code)
-                if inspect.iscoroutine(f):
+                if inspect.iscoroutinefunction(f):
                     asyncio.run(f())
                 else:
                     f()

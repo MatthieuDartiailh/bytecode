@@ -143,6 +143,17 @@ def disassemble(source, *, filename="<string>", function=False):
 
 
 class TestCase(unittest.TestCase):
+    def assertInstructionListEqual(self, l1, l2):
+        # DO not check location information
+        self.assertEqual(len(l1), len(l2))
+        for i1, i2 in zip(l1, l2):
+            if isinstance(i1, Instr):
+                self.assertEqual(i1.name, i2.name)
+                self.assertEqual(i1.arg, i2.arg)
+                self.assertEqual(i1.lineno, i2.lineno)
+            else:
+                assert type(i1) is type(i2)
+
     def assertCodeObjectEqual(self, code1: types.CodeType, code2: types.CodeType):
         self.assertEqual(code1.co_stacksize, code2.co_stacksize)
         self.assertEqual(code1.co_firstlineno, code2.co_firstlineno)
@@ -165,6 +176,6 @@ class TestCase(unittest.TestCase):
 
         for block1, block2 in zip(code, expected_blocks):
             block_index = code.get_block_index(block1)
-            self.assertListEqual(
-                list(block1), block2, "Block #%s is different" % block_index
+            self.assertInstructionListEqual(
+                list(block1), block2
             )
