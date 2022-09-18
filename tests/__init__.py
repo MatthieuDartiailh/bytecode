@@ -152,7 +152,7 @@ class TestCase(unittest.TestCase):
                 if not isinstance(i1.arg, Label):
                     self.assertEqual(i1.arg, i2.arg)
                 else:
-                    self.assertIs(type(i1.arg), type(i2.arg))
+                    self.assertIs(l1.index(i1.arg), l2.index(i2.arg))
                 self.assertEqual(i1.lineno, i2.lineno)
             else:
                 assert type(i1) is type(i2)
