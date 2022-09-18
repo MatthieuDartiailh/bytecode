@@ -516,6 +516,18 @@ class BaseInstr(Generic[A]):
             "JUMP_BACKWARD_NO_INTERRUPT",
         }
 
+    def is_abs_jump(self) -> bool:
+        """Is an absolute jump."""
+        return self._opcode in _opcode.hasjabs
+
+    def is_forward_rel_jump(self) -> bool:
+        """Is a forward relative jump."""
+        return self._opcode in _opcode.hasjrel and "BACKWARD" not in self._name
+
+    def is_backward_rel_jump(self) -> bool:
+        """Is a backward relative jump."""
+        return self._opcode in _opcode.hasjrel and "BACKWARD" in self._name
+
     def is_final(self) -> bool:
         if self._name in {
             "RETURN_VALUE",

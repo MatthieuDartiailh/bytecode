@@ -125,10 +125,13 @@ class ConcreteInstr(BaseInstr[int]):
         return (self._location, self._name, self._arg)
 
     def get_jump_target(self, instr_offset: int) -> Optional[int]:
-        if self._opcode in _opcode.hasjrel:
+        if self.is_forward_rel_jump():
             s = (self._size // 2) if OFFSET_AS_INSTRUCTION else self._size
             return instr_offset + s + self._arg
-        if self._opcode in _opcode.hasjabs:
+        if self.is_backward_rel_jump():
+            s = (self._size // 2) if OFFSET_AS_INSTRUCTION else self._size
+            return instr_offset + s - self._arg
+        if self.is_abs_jump():
             return self._arg
         return None
 
@@ -1161,11 +1164,16 @@ class _ConvertBytecodeToConcrete:
             target_index = self.labels[label]
             target_offset = offsets[target_index]
 
-            if instr.opcode in _opcode.hasjrel:
+            if instr.is_forward_rel_jump():
                 instr_offset = offsets[index]
                 target_offset -= instr_offset + (
                     instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size
                 )
+            elif instr.is_backward_rel_jump():
+                instr_offset = offsets[index]
+                target_offset = instr_offset + (
+                    instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size
+                ) - target_offset
 
             old_size = instr.size
             # FIXME: better error report if target_offset is negative
