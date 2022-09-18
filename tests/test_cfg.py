@@ -673,6 +673,8 @@ class CFGStacksizeComputationTests(TestCase):
         code = func.__code__
         bytecode = Bytecode.from_code(code)
         cfg = ControlFlowGraph.from_bytecode(bytecode)
+        as_code = cfg.to_code(check_pre_and_post=False)
+        self.assertCodeObjectEqual(code, as_code)
         self.assertEqual(code.co_stacksize, cfg.compute_stacksize())
 
     def test_empty_code(self):

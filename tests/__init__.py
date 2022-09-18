@@ -149,7 +149,10 @@ class TestCase(unittest.TestCase):
         for i1, i2 in zip(l1, l2):
             if isinstance(i1, Instr):
                 self.assertEqual(i1.name, i2.name)
-                self.assertEqual(i1.arg, i2.arg)
+                if not isinstance(i1.arg, Label):
+                    self.assertEqual(i1.arg, i2.arg)
+                else:
+                    self.assertIs(type(i1.arg), type(i2.arg))
                 self.assertEqual(i1.lineno, i2.lineno)
             else:
                 assert type(i1) is type(i2)

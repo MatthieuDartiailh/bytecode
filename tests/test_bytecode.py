@@ -155,12 +155,30 @@ class BytecodeTests(TestCase):
                 ],
             )
         # Control flow handling appears to have changed under Python 3.10
-        else:
+        elif sys.version_info < (3, 11):
             self.assertEqual(
                 bytecode,
                 [
                     Instr("LOAD_NAME", "test", lineno=1),
                     Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
+                    Instr("LOAD_CONST", 1, lineno=2),
+                    Instr("STORE_NAME", "x", lineno=2),
+                    Instr("LOAD_CONST", None, lineno=2),
+                    Instr("RETURN_VALUE", lineno=2),
+                    label_else,
+                    Instr("LOAD_CONST", 2, lineno=4),
+                    Instr("STORE_NAME", "x", lineno=4),
+                    Instr("LOAD_CONST", None, lineno=4),
+                    Instr("RETURN_VALUE", lineno=4),
+                ],
+            )
+        else:
+            self.assertInstructionListEqual(
+                bytecode,
+                [
+                    Instr("RESUME", 0, lineno=0),
+                    Instr("LOAD_NAME", "test", lineno=1),
+                    Instr("POP_JUMP_FORWARD_IF_FALSE", label_else, lineno=1),
                     Instr("LOAD_CONST", 1, lineno=2),
                     Instr("STORE_NAME", "x", lineno=2),
                     Instr("LOAD_CONST", None, lineno=2),
@@ -264,7 +282,7 @@ class BytecodeTests(TestCase):
             [
                 Instr("LOAD_NAME", "print"),
                 Instr("LOAD_CONST", "%s"),
-                Instr("LOAD_GLOBAL", "a"),
+                Instr("LOAD_GLOBAL", (False, "a")),
                 Instr("BINARY_MODULO"),
                 Instr("CALL_FUNCTION", 1),
                 Instr("RETURN_VALUE"),
@@ -422,6 +440,8 @@ class BytecodeTests(TestCase):
         self.assertEqual(co.co_stacksize, 1)
 
     def test_empty_dup(self):
+        if sys.version_info >= (3, 11):
+            self.skipTest("Instructions DUP_TOP do not exist in 3.11+")
         code = Bytecode()
         code.first_lineno = 1
         code.extend([Instr("DUP_TOP")])
@@ -429,6 +449,8 @@ class BytecodeTests(TestCase):
             code.compute_stacksize()
 
     def test_not_enough_dup(self):
+        if sys.version_info >= (3, 11):
+            self.skipTest("Instructions DUP_TOP_TWO do not exist in 3.11+")
         code = Bytecode()
         code.first_lineno = 1
         code.extend([Instr("LOAD_CONST", 1), Instr("DUP_TOP_TWO")])
@@ -436,6 +458,8 @@ class BytecodeTests(TestCase):
             code.compute_stacksize()
 
     def test_not_enough_rot(self):
+        if sys.version_info >= (3, 11):
+            self.skipTest("Instructions ROT_* do not exist in 3.11+")
         opnames = ["ROT_TWO", "ROT_THREE", "ROT_FOUR"]
         for opname in opnames:
             with self.subTest():
@@ -446,6 +470,8 @@ class BytecodeTests(TestCase):
                     code.compute_stacksize()
 
     def test_not_enough_rot_with_disable_check_of_pre_and_post(self):
+        if sys.version_info >= (3, 11):
+            self.skipTest("Instructions ROT_* do not exist in 3.11+")
         opnames = ["ROT_TWO", "ROT_THREE", "ROT_FOUR"]
         for opname in opnames:
             with self.subTest():
@@ -466,7 +492,7 @@ class BytecodeTests(TestCase):
                     lab1,
                     Instr("FOR_ITER", lab2),
                     Instr("STORE_FAST", "i"),
-                    Instr("JUMP_ABSOLUTE", lab1),
+                    Instr("JUMP_BACKWARD" if sys.version_info >= (3, 11) else"JUMP_ABSOLUTE", lab1),
                     lab2,
                 ]
             )
