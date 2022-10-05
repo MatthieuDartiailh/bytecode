@@ -135,13 +135,14 @@ def _update_size(pre_delta, post_delta, size, maxsize):
 
 def _compute_stack_size(
     seen_blocks: Set[int],
-    blocks_startsize: Dict[int, int],
+    blocks_startsizes: Dict[int, Set[int]],
     seen_try_begin: List[TryBegin],
     block: BasicBlock,
     size: int,
     maxsize: int,
     exception_handler: Optional[bool],
     enter_with_block: bool,
+    exception_block_startsize: Dict[int, int],
     exception_block_maxsize: Dict[int, int],
     *,
     check_pre_and_post: bool = True,
@@ -171,12 +172,11 @@ def _compute_stack_size(
 
     """
     # If the block is currently being visited (seen = True) or
-    # if it is not an exception handler and it was visited previously by using
-    # a larger starting size than the one in use, return the maxsize.
-    # For exception block we look for the smallest stack size which is the one
-    # the unwinding process can safely restore.
+    # it was visited previously by the same starting size than the one in use,
+    # return the maxsize.
+    # FIXME figure why exception handlers behave differently
     if id(block) in seen_blocks or (
-        exception_handler is None and blocks_startsize[id(block)] >= size
+        exception_handler is None and size in blocks_startsizes[id(block)]
     ):
         yield maxsize
 
@@ -192,13 +192,14 @@ def _compute_stack_size(
     # For exception handler block we look for the minimal stacksize which is the
     # one that can be safely restored by the unwinding.
     block_id = id(block)
+    blocks_startsizes[block_id].add(size)
     if (
         exception_handler is not None
-        and (known_size := blocks_startsize[block_id]) >= 0
+        and (known_size := exception_block_startsize[block_id]) >= 0
     ):
-        blocks_startsize[block_id] = min(size, known_size)
+        exception_block_startsize[block_id] = min(size, known_size)
     else:
-        blocks_startsize[block_id] = size
+        exception_block_startsize[block_id] = size
 
     # If this block is an exception handler reached through the exception table
     # we will push some extra objects on the stack before processing start.
@@ -208,7 +209,7 @@ def _compute_stack_size(
     for i, instr in enumerate(block):
 
         # Ignore SetLineno
-        if isinstance(instr, (SetLineno, TryEnd)):
+        if isinstance(instr, (SetLineno)):
             continue
 
         # Compute the stack size required by the exception handling block and
@@ -233,13 +234,14 @@ def _compute_stack_size(
             block_id = id(instr.target)
             block_size = (
                 yield seen_blocks,
-                blocks_startsize,
+                blocks_startsizes,
                 seen_try_begin,
                 instr.target,
                 s,
                 maxsize,
                 instr.push_lasti,
                 enter_with_block,
+                exception_block_startsize,
                 exception_block_maxsize,
             )
             if exception_block_maxsize[block_id] >= 0:
@@ -248,6 +250,38 @@ def _compute_stack_size(
                 )
             else:
                 exception_block_maxsize[block_id] = block_size
+            continue
+
+        elif isinstance(instr, TryEnd):
+            # Keep as entry for the exception block the smallest stack size which
+            # is the only safe one to restore. This is necessary because some blocks
+            # have a net decreasing stack usage.
+            # XXX this needs to restart a computation for the exception block
+            # we should track TryBegin corresponding to a with in a persistent
+            # manner
+            # All this needs to be refactored as a class I think
+            b_id = id(instr.entry.target)
+            if size < exception_block_startsize[b_id]:
+                exception_block_startsize[b_id] = size
+                block_id = b_id
+                block_size = (
+                    yield seen_blocks,
+                    blocks_startsizes,
+                    seen_try_begin,
+                    instr.entry.target,
+                    size,
+                    maxsize,
+                    instr.entry.push_lasti,
+                    enter_with_block,
+                    exception_block_startsize,
+                    exception_block_maxsize,
+                )
+                if exception_block_maxsize[block_id] >= 0:
+                    exception_block_maxsize[block_id] = min(
+                        exception_block_maxsize[block_id], block_size
+                    )
+                else:
+                    exception_block_maxsize[block_id] = block_size
             continue
 
         # For instructions with a jump first compute the stacksize required when the
@@ -265,19 +299,46 @@ def _compute_stack_size(
             # the maxsize.
             maxsize = (
                 yield seen_blocks,
-                blocks_startsize,
+                blocks_startsizes,
                 seen_try_begin,
                 instr.arg,
                 taken_size,
                 maxsize,
                 None,
                 enter_with_block,
+                exception_block_startsize,
                 exception_block_maxsize,
             )
 
             # For unconditional jumps abort early since the other instruction will
             # never be seen.
             if instr.is_uncond_jump():
+                # Check for TryEnd and keep as entry for the exception block the
+                # smallest stack size which is the only safe one to restore. This is
+                # necessary because some block has a net decreasing stack usage.
+                if i + 1 < len(block) and isinstance(b := block[i + 1], TryEnd):
+                    b_id = id(b.entry.target)
+                    if size < exception_block_startsize[b_id]:
+                        exception_block_startsize[b_id] = size
+                        block_id = b_id
+                        block_size = (
+                            yield seen_blocks,
+                            blocks_startsizes,
+                            seen_try_begin,
+                            b.entry.target,
+                            size,
+                            maxsize,
+                            b.entry.push_lasti,
+                            enter_with_block,
+                            exception_block_startsize,
+                            exception_block_maxsize,
+                        )
+                        if exception_block_maxsize[block_id] >= 0:
+                            exception_block_maxsize[block_id] = min(
+                                exception_block_maxsize[block_id], block_size
+                            )
+                        else:
+                            exception_block_maxsize[block_id] = block_size
                 seen_blocks.remove(id(block))
                 yield maxsize
 
@@ -296,18 +357,45 @@ def _compute_stack_size(
         # in the block is dead code.
         if instr.is_final():
             seen_blocks.remove(id(block))
+            # Check for TryEnd and keep as entry for the exception the smallest
+            # stack size which is the only safe one to restore. This is necessary
+            # because some block has a net decreasing stack usage.
+            if i + 1 < len(block) and isinstance(b := block[i + 1], TryEnd):
+                b_id = id(b.entry.target)
+                if size < exception_block_startsize[b_id]:
+                    exception_block_startsize[b_id] = size
+                    block_id = b_id
+                    block_size = (
+                        yield seen_blocks,
+                        blocks_startsizes,
+                        seen_try_begin,
+                        b.entry.target,
+                        s,
+                        maxsize,
+                        b.entry.push_lasti,
+                        enter_with_block,
+                        exception_block_startsize,
+                        exception_block_maxsize,
+                    )
+                    if exception_block_maxsize[block_id] >= 0:
+                        exception_block_maxsize[block_id] = min(
+                            exception_block_maxsize[block_id], block_size
+                        )
+                    else:
+                        exception_block_maxsize[block_id] = block_size
             yield maxsize
 
     if block.next_block:
         maxsize = (
             yield seen_blocks,
-            blocks_startsize,
+            blocks_startsizes,
             seen_try_begin,
             block.next_block,
             size,
             maxsize,
             None,
             enter_with_block,
+            exception_block_startsize,
             exception_block_maxsize,
         )
 
@@ -368,7 +456,8 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         # Ensure that previous calculation do not impact this one.
         seen_try_begin: List[TryBegin] = []
         seen_blocks: Set[int] = set()
-        blocks_startsize = dict.fromkeys([id(b) for b in self], -32768)
+        blocks_startsizes: Dict[int, Set[int]] = {id(b): set() for b in self}
+        exception_block_startsize = dict.fromkeys([id(b) for b in self], -32768)
         exception_block_maxsize = dict.fromkeys([id(b) for b in self], -32768)
 
         # Starting with Python 3.10, generator and coroutines start with one object
@@ -384,13 +473,14 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         # Create a generator/coroutine responsible of dealing with the first block
         coro = _compute_stack_size(
             seen_blocks,
-            blocks_startsize,
+            blocks_startsizes,
             seen_try_begin,
             self[0],
             initial_stack_size,
             0,
             None,
             False,
+            exception_block_startsize,
             exception_block_maxsize,
             check_pre_and_post=check_pre_and_post,
         )
@@ -430,7 +520,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             # If requested update the TryBegin stack size
             if compute_exception_stack_depths:
                 for tb in seen_try_begin:
-                    size = blocks_startsize[id(tb.target)]
+                    size = exception_block_startsize[id(tb.target)]
                     assert size >= 0
                     tb.stack_depth = size
 
