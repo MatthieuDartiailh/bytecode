@@ -751,6 +751,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # Encode value as a varint on 7 bits (MSB should come first) and set
         # the begin marker if requested.
         temp: List[int] = []
+        assert value >= 0
         while value:
             temp.append(value & 63 | (64 if temp else 0))
             value >>= 6
@@ -776,7 +777,10 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         return cfg.compute_stacksize(check_pre_and_post=check_pre_and_post)
 
     def to_code(
-        self, stacksize: Optional[int] = None, *, check_pre_and_post: bool = True,
+        self,
+        stacksize: Optional[int] = None,
+        *,
+        check_pre_and_post: bool = True,
         compute_exception_stack_depths: bool = True,
     ) -> types.CodeType:
         code_str, linenos = self._assemble_code()
@@ -801,7 +805,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 check_pre_and_post=check_pre_and_post,
                 compute_exception_stack_depths=compute_exception_stack_depths,
             )
-            self = cfg.to_bytecode().to_concrete_bytecode(compute_exception_stack_depths=False)
+            self = cfg.to_bytecode().to_concrete_bytecode(
+                compute_exception_stack_depths=False
+            )
 
         if sys.version_info >= (3, 11):
             return types.CodeType(
@@ -921,42 +927,44 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             # is not a jump target. It should never be the case but we double check.
             if prune_caches and c_instr.name == "CACHE":
                 assert jump_target is None
-                continue
 
-            arg: InstrArg
-            c_arg = c_instr.arg
-            # FIXME: better error reporting
-            if c_instr.opcode in _opcode.hasconst:
-                arg = self.consts[c_arg]
-            elif c_instr.opcode in _opcode.haslocal:
-                arg = self.varnames[c_arg]
-            elif c_instr.opcode in _opcode.hasname:
-                if sys.version_info >= (3, 11) and c_instr.name == "LOAD_GLOBAL":
-                    arg = (bool(c_arg & 1), self.names[c_arg >> 1])
-                else:
-                    arg = self.names[c_arg]
-            elif c_instr.opcode in _opcode.hasfree:
-                if c_arg < ncells:
-                    name = self.cellvars[c_arg]
-                    arg = CellVar(name)
-                else:
-                    name = self.freevars[c_arg - ncells]
-                    arg = FreeVar(name)
-            elif c_instr.opcode in _opcode.hascompare:
-                arg = Compare(c_arg)
+            # We may need to insert a TryEnd after a CACHE so we need to run the
+            # through the last block.
             else:
-                arg = c_arg
+                arg: InstrArg
+                c_arg = c_instr.arg
+                # FIXME: better error reporting
+                if c_instr.opcode in _opcode.hasconst:
+                    arg = self.consts[c_arg]
+                elif c_instr.opcode in _opcode.haslocal:
+                    arg = self.varnames[c_arg]
+                elif c_instr.opcode in _opcode.hasname:
+                    if sys.version_info >= (3, 11) and c_instr.name == "LOAD_GLOBAL":
+                        arg = (bool(c_arg & 1), self.names[c_arg >> 1])
+                    else:
+                        arg = self.names[c_arg]
+                elif c_instr.opcode in _opcode.hasfree:
+                    if c_arg < ncells:
+                        name = self.cellvars[c_arg]
+                        arg = CellVar(name)
+                    else:
+                        name = self.freevars[c_arg - ncells]
+                        arg = FreeVar(name)
+                elif c_instr.opcode in _opcode.hascompare:
+                    arg = Compare(c_arg)
+                else:
+                    arg = c_arg
 
-            if jump_target is None:
-                new_instr = Instr(c_instr.name, arg, location=c_instr.location)
-            else:
-                instr_index = len(instructions)
-                # This is a hack but going around it just for typing would be a pain
-                new_instr = c_instr  # type: ignore
-            instructions.append(new_instr)
+                if jump_target is None:
+                    new_instr = Instr(c_instr.name, arg, location=c_instr.location)
+                else:
+                    instr_index = len(instructions)
+                    # This is a hack but going around it just for typing would be a pain
+                    new_instr = c_instr  # type: ignore
+                instructions.append(new_instr)
 
-            if jump_target is not None:
-                jumps.append((instr_index, jump_target))
+                if jump_target is not None:
+                    jumps.append((instr_index, jump_target))
 
             # We now insert the TryEnd entries
             if current_instr_offset in ex_end:
@@ -1071,7 +1079,12 @@ class _ConvertBytecodeToConcrete:
                     # We preserve the location of the instruction requiring the
                     # presence of cache instructions
                     self.instructions.extend(
-                        [ConcreteInstr("CACHE", 0, location=self.instructions[-1].location) for i in range(self.required_caches)]
+                        [
+                            ConcreteInstr(
+                                "CACHE", 0, location=self.instructions[-1].location
+                            )
+                            for i in range(self.required_caches)
+                        ]
                     )
                     self.required_caches = 0
                     self.seen_manual_cache = False
@@ -1171,9 +1184,11 @@ class _ConvertBytecodeToConcrete:
                 )
             elif instr.is_backward_rel_jump():
                 instr_offset = offsets[index]
-                target_offset = instr_offset + (
-                    instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size
-                ) - target_offset
+                target_offset = (
+                    instr_offset
+                    + (instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size)
+                    - target_offset
+                )
 
             old_size = instr.size
             # FIXME: better error report if target_offset is negative
