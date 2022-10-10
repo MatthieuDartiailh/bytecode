@@ -2,15 +2,13 @@
 import contextlib
 import sys
 
-
-# XXX add exception group cases
-
+# NOTE we use in except/finally clause expression requiring a larger stack usage
 
 def try_except():
     try:
         a = 1
     except Exception:
-        return 0
+        return min(1, 2)
 
     return a
 
@@ -19,9 +17,9 @@ def try_multi_except():
     try:
         a = 1
     except ValueError:
-        return 0
+        return min(1, 2)
     except Exception:
-        return 0
+        return min(1, 2)
 
     return a
 
@@ -30,7 +28,7 @@ def try_finally():
     try:
         a = 1
     finally:
-        c = 2
+        c = min(1, 2)
 
     return a
 
@@ -39,7 +37,7 @@ def try_except_else():
     try:
         a = 1
     except Exception:
-        return 0
+        return min(1, 2)
     else:
         b = 1
 
@@ -50,7 +48,7 @@ def try_except_finally():
     try:
         a = 1
     except Exception:
-        return 0
+        return min(1, 2)
     finally:
         c = 1
 
@@ -61,11 +59,11 @@ def try_except_else_finally():
     try:
         a = 1
     except Exception:
-        return 0
+        return min(1, 2)
     else:
         b = 1
     finally:
-        c = 1
+        c = min(1, 2)
 
     return a
 
@@ -76,10 +74,10 @@ def nested_try():
         try:
             b = 2
         except Exception:
-            pass
+            e = min(1, 2)
         c = 3
     except Exception:
-        d = 4
+        d = min(1, 2)
 
     return a
 
@@ -92,7 +90,7 @@ def try_in_except():
         try:
             b = 2
         except Exception:
-            return 0
+            return min(1, 2)
         c = 3
 
     return a
@@ -105,7 +103,7 @@ def try_except_group():
     try:
         a = 1
     except* ValueError:
-        b = 2
+        b = min(1, 2)
     return a
 """
     exec(src)
@@ -128,7 +126,7 @@ def try_with():
         with contextlib.nullcontext(1):
             a = 1
     except Exception:
-        return 0
+        return min(1, 2)
 
     return a
 
@@ -138,7 +136,7 @@ def with_try():
         try:
             b = 1
         except Exception:
-            return 0
+            return min(1, 2)
 
     return b
 
@@ -160,7 +158,7 @@ async def try_async_with():
         async with contextlib.nullcontext(1):
             a = 1
     except Exception:
-        return 0
+        return min(1, 2)
 
     return a
 
@@ -170,7 +168,7 @@ async def async_with_try():
         try:
             b = 1
         except Exception:
-            return 0
+            return min(1, 2)
 
     return b
 
