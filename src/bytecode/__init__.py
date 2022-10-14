@@ -11,7 +11,8 @@ __all__ = [
     "__version__",
 ]
 
-from typing import Union
+from io import StringIO
+from typing import List, Union
 
 # import needed to use it in bytecode.py
 from bytecode.bytecode import (  # noqa
@@ -38,15 +39,20 @@ from bytecode.instr import (  # noqa
     Instr,
     Label,
     SetLineno,
+    TryBegin,
+    TryEnd,
 )
 from bytecode.version import __version__
 
 
-def dump_bytecode(
+def format_bytecode(
     bytecode: Union[Bytecode, ConcreteBytecode, ControlFlowGraph],
     *,
-    lineno: bool = False
-):
+    lineno: bool = False,
+) -> str:
+
+    try_begins: List[TryBegin] = []
+
     def format_line(index, line):
         nonlocal cur_lineno, prev_lineno
         if lineno:
@@ -78,6 +84,35 @@ def dump_bytecode(
             text = "%s %s" % (text, arg)
         return text
 
+    def format_try_begin(instr: TryBegin, labels: dict) -> str:
+
+        if isinstance(instr.target, Label):
+            try:
+                arg = "<%s>" % labels[instr.target]
+            except KeyError:
+                arg = "<error: unknown label>"
+        else:
+            try:
+                arg = "<%s>" % labels[id(instr.target)]
+            except KeyError:
+                arg = "<error: unknown label>"
+        line = "TryBegin %s -> %s [%s]" % (
+            len(try_begins),
+            arg,
+            instr.stack_depth,
+        ) + (" last_i" if instr.push_lasti else "")
+
+        # Track the seen try begin
+        try_begins.append(instr)
+
+        return line
+
+    def format_try_end(instr: TryEnd) -> str:
+        i = try_begins.index(instr.entry) if instr.entry in try_begins else "<unknwon>"
+        return "TryEnd (%s)" % i
+
+    buffer = StringIO()
+
     indent = " " * 4
 
     cur_lineno = bytecode.first_lineno
@@ -96,10 +131,21 @@ def dump_bytecode(
             else:
                 fields.append("% 3s    %s" % (offset, format_instr(c_instr)))
                 line = "".join(fields)
-            print(line)
+            buffer.write(line + "\n")
 
             if isinstance(c_instr, ConcreteInstr):
                 offset += c_instr.size
+
+        if bytecode.exception_table:
+            buffer.write("\n")
+            buffer.write("Exception table:\n")
+            for entry in bytecode.exception_table:
+                buffer.write(
+                    f"{entry.start_offset} to {entry.stop_offset} -> "
+                    f"{entry.target} [{entry.stack_depth}]"
+                    + (" lasti" if entry.push_lasti else "")
+                    + "\n"
+                )
 
     elif isinstance(bytecode, Bytecode):
         labels: dict[Label, str] = {}
@@ -112,14 +158,20 @@ def dump_bytecode(
                 label = labels[instr]
                 line = "%s:" % label
                 if index != 0:
-                    print()
+                    buffer.write("\n")
+            elif isinstance(instr, TryBegin):
+                line = indent + format_line(index, format_try_begin(instr, labels))
+                indent += "  "
+            elif isinstance(instr, TryEnd):
+                indent = indent[:-2]
+                line = indent + format_line(index, format_try_end(instr))
             else:
                 if instr.lineno is not None:
                     cur_lineno = instr.lineno
                 line = format_instr(instr, labels)
                 line = indent + format_line(index, line)
-            print(line)
-        print()
+            buffer.write(line + "\n")
+        buffer.write("\n")
 
     elif isinstance(bytecode, ControlFlowGraph):
         cfg_labels = {}
@@ -127,16 +179,36 @@ def dump_bytecode(
             cfg_labels[id(block)] = "block%s" % block_index
 
         for block_index, block in enumerate(bytecode, 1):
-            print("%s:" % cfg_labels[id(block)])
+            buffer.write("%s:\n" % cfg_labels[id(block)])
             prev_lineno = None
             for index, instr in enumerate(block):
-                if instr.lineno is not None:
-                    cur_lineno = instr.lineno
-                line = format_instr(instr, cfg_labels)
-                line = indent + format_line(index, line)
-                print(line)
+                if isinstance(instr, TryBegin):
+                    line = indent + format_line(
+                        index, format_try_begin(instr, cfg_labels)
+                    )
+                    indent += "  "
+                elif isinstance(instr, TryEnd):
+                    indent = indent[:-2]
+
+                    line = indent + format_line(index, format_try_end(instr))
+                else:
+                    if instr.lineno is not None:
+                        cur_lineno = instr.lineno
+                    line = format_instr(instr, cfg_labels)
+                    line = indent + format_line(index, line)
+                buffer.write(line + "\n")
             if block.next_block is not None:
-                print(indent + "-> %s" % cfg_labels[id(block.next_block)])
-            print()
+                buffer.write(indent + "-> %s\n" % cfg_labels[id(block.next_block)])
+            buffer.write("\n")
     else:
         raise TypeError("unknown bytecode class")
+
+    return buffer.getvalue()
+
+
+def dump_bytecode(
+    bytecode: Union[Bytecode, ConcreteBytecode, ControlFlowGraph],
+    *,
+    lineno: bool = False,
+) -> None:
+    print(format_bytecode(bytecode, lineno=lineno))
