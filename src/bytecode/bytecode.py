@@ -214,8 +214,15 @@ class Bytecode(
 
     def __iter__(self) -> Iterator[Union[Instr, Label, TryBegin, TryEnd, SetLineno]]:
         instructions = super().__iter__()
+        seen_try_begin = False
         for instr in instructions:
             self._check_instr(instr)
+            if isinstance(instr, TryBegin):
+                if seen_try_begin:
+                    raise RuntimeError("TryBegin pseudo instructions cannot be nested.")
+                seen_try_begin = True
+            elif isinstance(instr, TryEnd):
+                seen_try_begin = False
             yield instr
 
     def _check_instr(self, instr: Any) -> None:
