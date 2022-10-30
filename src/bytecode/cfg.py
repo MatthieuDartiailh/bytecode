@@ -82,7 +82,7 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
 
         return value
 
-    def get_last_non_artificial_instruction(self) -> Instr | None:
+    def get_last_non_artificial_instruction(self) -> Optional[Instr]:
         for instr in reversed(self):
             if isinstance(instr, Instr):
                 return instr
