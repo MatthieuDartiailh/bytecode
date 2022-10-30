@@ -898,8 +898,7 @@ class CFGExceptionHandlingTests(TestCase):
         from . import exception_handling_cases as ehc
 
         for f in ehc.TEST_CASES:
-            with self.subTest():
-                print(f.__name__)
+            with self.subTest(f.__name__):
                 origin = f.__code__
                 cfg = ControlFlowGraph.from_bytecode(Bytecode.from_code(f.__code__))
                 as_code = cfg.to_code(check_pre_and_post=False)
