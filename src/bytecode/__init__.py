@@ -180,7 +180,7 @@ def format_bytecode(
 
         for block_index, block in enumerate(bytecode, 1):
             buffer.write("%s:\n" % cfg_labels[id(block)])
-            prev_lineno = None
+            seen_instr = False
             for index, instr in enumerate(block):
                 if isinstance(instr, TryBegin):
                     line = indent + format_line(
@@ -188,10 +188,12 @@ def format_bytecode(
                     )
                     indent += "  "
                 elif isinstance(instr, TryEnd):
-                    indent = indent[:-2]
-
+                    if seen_instr:
+                        indent = indent[:-2]
                     line = indent + format_line(index, format_try_end(instr))
                 else:
+                    if isinstance(instr, Instr):
+                        seen_instr = True
                     if instr.lineno is not None:
                         cur_lineno = instr.lineno
                     line = format_instr(instr, cfg_labels)
