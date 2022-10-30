@@ -344,6 +344,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             bytecode.exception_table = bytecode._parse_exception_table(
                 code.co_exceptiontable
             )
+            bytecode.qualname = code.co_qualname
+        else:
+            bytecode.qualname = bytecode.qualname
 
         bytecode[:] = instructions
         return bytecode
@@ -823,7 +826,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 tuple(self.varnames),
                 self.filename,
                 self.name,
-                "",  # XXX qualname
+                self.qualname,
                 self.first_lineno,
                 lnotab,
                 self._assemble_exception_table(),

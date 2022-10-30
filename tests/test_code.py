@@ -64,7 +64,7 @@ class CodeTests(unittest.TestCase):
             function=True,
         )
 
-    # Added because Python 3.10 added some special beahavior with respect to
+    # Added because Python 3.10 added some special behavior with respect to
     # generators in term of stack size
     def test_generator_func(self):
         self.check(

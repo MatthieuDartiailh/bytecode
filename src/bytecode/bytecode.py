@@ -28,6 +28,7 @@ class BaseBytecode:
         self.kwonlyargcount = 0
         self.first_lineno = 1
         self.name = "<module>"
+        self.qualname = self.name
         self.filename = "<string>"
         self.docstring = UNSET
         self.cellvars = []
@@ -43,6 +44,7 @@ class BaseBytecode:
         self.flags = bytecode.flags
         self.first_lineno = bytecode.first_lineno
         self.name = bytecode.name
+        self.qualname = bytecode.qualname
         self.filename = bytecode.filename
         self.docstring = bytecode.docstring
         self.cellvars = list(bytecode.cellvars)
@@ -65,6 +67,8 @@ class BaseBytecode:
         if self.filename != other.filename:
             return False
         if self.name != other.name:
+            return False
+        if self.qualname != other.qualname:
             return False
         if self.docstring != other.docstring:
             return False

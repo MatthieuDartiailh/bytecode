@@ -167,6 +167,7 @@ class TestCase(unittest.TestCase):
             self.assertSequenceEqual(
                 list(code1.co_positions()), list(code2.co_positions())
             )
+            self.assertEqual(code1.co_qualname, code2.co_qualname)
         elif sys.version_info <= (3, 9):
             self.assertSequenceEqual(code1.co_lnotab, code2.co_lnotab)
         else:
