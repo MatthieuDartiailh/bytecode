@@ -371,9 +371,7 @@ class _StackSizeComputer:
                 self.common.seen_blocks.remove(id(self.block))
                 # Check for TryEnd after the final instruction which is possible
                 # TryEnd being only pseudo instructions.
-                if (
-                    te := self._get_trailing_try_end(i)
-                ):
+                if te := self._get_trailing_try_end(i):
 
                     b_id = id(te.entry.target)
                     if self.minsize < self.common.exception_block_startsize[b_id]:

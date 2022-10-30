@@ -179,6 +179,4 @@ class TestCase(unittest.TestCase):
 
         for block1, block2 in zip(code, expected_blocks):
             block_index = code.get_block_index(block1)
-            self.assertInstructionListEqual(
-                list(block1), block2
-            )
+            self.assertInstructionListEqual(list(block1), block2)

@@ -4,6 +4,7 @@ import sys
 
 # NOTE we use in except/finally clause expression requiring a larger stack usage
 
+
 def try_except():
     try:
         a = 1

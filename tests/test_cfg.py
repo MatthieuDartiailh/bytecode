@@ -652,7 +652,9 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
         # verify stacksize argument is honored
         explicit_stacksize = code.co_stacksize + 42
-        code = bytecode.to_code(stacksize=explicit_stacksize, compute_exception_stack_depths=False)
+        code = bytecode.to_code(
+            stacksize=explicit_stacksize, compute_exception_stack_depths=False
+        )
         self.assertEqual(code.co_stacksize, explicit_stacksize)
 
     def test_get_block_index(self):
@@ -881,7 +883,12 @@ class CFGStacksizeComputationTests(TestCase):
                             else "POP_JUMP_IF_FALSE",
                             label_else,
                         ),
-                        Instr("LOAD_GLOBAL", (False, f"f{i}") if sys.version_info >= (3, 11) else f"f{i}"),
+                        Instr(
+                            "LOAD_GLOBAL",
+                            (False, f"f{i}")
+                            if sys.version_info >= (3, 11)
+                            else f"f{i}",
+                        ),
                         Instr("RETURN_VALUE"),
                         label_else,
                     ]
