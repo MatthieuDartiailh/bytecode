@@ -1,6 +1,6 @@
-from dataclasses import dataclass
 import sys
 import types
+from dataclasses import dataclass
 from typing import (
     Any,
     Dict,

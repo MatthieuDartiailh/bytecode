@@ -25,8 +25,8 @@ from typing import (
 import bytecode as _bytecode
 from bytecode.flags import CompilerFlags
 from bytecode.instr import (
-    UNSET,
     _UNSET,
+    UNSET,
     BaseInstr,
     CellVar,
     Compare,
