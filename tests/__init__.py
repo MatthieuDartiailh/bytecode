@@ -168,10 +168,10 @@ class TestCase(unittest.TestCase):
                 list(code1.co_positions()), list(code2.co_positions())
             )
             self.assertEqual(code1.co_qualname, code2.co_qualname)
-        elif sys.version_info <= (3, 9):
-            self.assertSequenceEqual(code1.co_lnotab, code2.co_lnotab)
-        else:
+        elif sys.version_info >= (3, 10):
             self.assertSequenceEqual(list(code1.co_lines()), list(code2.co_lines()))
+        else:
+            self.assertSequenceEqual(code1.co_lnotab, code2.co_lnotab)
         self.assertSequenceEqual(code1.co_code, code2.co_code)
         self.assertEqual(code1.co_flags, code2.co_flags)
 
