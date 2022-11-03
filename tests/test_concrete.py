@@ -1286,8 +1286,9 @@ class BytecodeToConcreteTests(TestCase):
 
         code_obj = code.to_code()
         # We use 2 extended args (0x90) out of the maximum 3 which are allowed
-        expected = b"\x90\x01\x90\x00q\x00" + NOP * nb_nop + b"d\x00S\x00"
-        self.assertEqual(code_obj.co_code, expected)
+        i_code = opcode.opmap["JUMP_FORWARD"].to_bytes(1, "little")
+        expected = b"\x90\x01\x90\x00" + i_code + b"\x00" + NOP * nb_nop + b"d\x00S\x00"
+        self.assertSequenceEqual(code_obj.co_code, expected)
 
     def test_jumps(self):
         # if test:
@@ -1378,11 +1379,11 @@ class BytecodeToConcreteTests(TestCase):
         self.assertEqual(concrete.freevars, ["y"])
 
     def test_compute_jumps_convergence(self):
-        # XXX use JUMP_FORWARD
+        # XXX redo computation when using JUMP_FORWARD rather than jump absolute as before
         # Consider the following sequence of instructions:
         #
-        #     JUMP_ABSOLUTE Label1
-        #     JUMP_ABSOLUTE Label2
+        #     JUMP_FORWARD Label1
+        #     JUMP_FORWARD Label2
         #     ...126 instructions...
         #   Label1:                 Offset 254 on first pass, 256 second pass
         #     NOP

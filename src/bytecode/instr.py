@@ -176,6 +176,11 @@ class Label:
     __slots__ = ()
 
 
+#: Placeholder label temporarily used when performing some conversions
+#: concrete -> bytecode
+PLACEHOLDER_LABEL = Label()
+
+
 class TryBegin:
     __slots__ = ("target", "push_lasti", "stack_depth")
 

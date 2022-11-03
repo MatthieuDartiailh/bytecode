@@ -26,6 +26,7 @@ import bytecode as _bytecode
 from bytecode.flags import CompilerFlags
 from bytecode.instr import (
     _UNSET,
+    PLACEHOLDER_LABEL,
     UNSET,
     BaseInstr,
     CellVar,
@@ -919,7 +920,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         offset = 0
         ncells = len(self.cellvars)
 
-        # XXX use normalized linenos
         for lineno, c_instr in self._normalize_lineno(
             c_instructions, self.first_lineno
         ):
@@ -978,16 +978,14 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 else:
                     arg = c_arg
 
-                if jump_target is None:
-                    new_instr = Instr(c_instr.name, arg, location=c_instr.location)
-                else:
-                    instr_index = len(instructions)
-                    # This is a hack but going around it just for typing would be a pain
-                    new_instr = c_instr  # type: ignore
-                instructions.append(new_instr)
+                location = c_instr.location or InstrLocation(lineno, None, None, None)
 
                 if jump_target is not None:
+                    arg = PLACEHOLDER_LABEL
+                    instr_index = len(instructions)
                     jumps.append((instr_index, jump_target))
+
+                instructions.append(Instr(c_instr.name, arg, location=location))
 
             # We now insert the TryEnd entries
             if current_instr_offset in ex_end:
@@ -998,10 +996,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # Replace jump targets with labels
         for index, jump_target in jumps:
             instr = instructions[index]
-            assert isinstance(instr, ConcreteInstr)
+            assert isinstance(instr, Instr) and instr.arg is PLACEHOLDER_LABEL
             # FIXME: better error reporting on missing label
-            label = labels[jump_target]
-            instructions[index] = Instr(instr.name, label, location=instr.location)
+            instr.arg = labels[jump_target]
 
         # Set the label for TryBegin
         for entry, tb in tb_instrs.items():
