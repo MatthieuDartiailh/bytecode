@@ -205,7 +205,7 @@ def format_bytecode(
     else:
         raise TypeError("unknown bytecode class")
 
-    return buffer.getvalue()
+    return buffer.getvalue()[:-1]
 
 
 def dump_bytecode(
