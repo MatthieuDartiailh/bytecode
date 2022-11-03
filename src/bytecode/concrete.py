@@ -300,7 +300,12 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 for i in dis.get_instructions(code, show_caches=True)
             ]
         else:
-            line_starts = dict(dis.findlinestarts(code))
+            if sys.version_info >= (3, 10):
+                line_starts = dict(
+                    (offset, lineno) for offset, _, lineno in code.co_lines()
+                )
+            else:
+                line_starts = dict(dis.findlinestarts(code))
 
             # find block starts
             instructions = []
@@ -467,7 +472,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         assert 0 <= doff <= 254
 
     # Used on 3.10
-    # XXX update to support lineno of None from the InstrLocation
     def _assemble_linestable(
         self,
         first_lineno: int,
@@ -482,9 +486,25 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         iter_in = iter(linenos)
 
         offset, i_size, old_lineno, old_location = next(iter_in)
-        old_dlineno = old_lineno - first_lineno
+        if old_location is not None:
+            old_dlineno = (
+                old_location.lineno - first_lineno
+                if old_location.lineno is not None
+                else None
+            )
+        else:
+            old_dlineno = old_lineno - first_lineno
+
         for offset, i_size, lineno, location in iter_in:
-            dlineno = lineno - old_lineno
+            if location is not None:
+                dlineno = (
+                    location.lineno - old_lineno
+                    if location.lineno is not None
+                    else None
+                )
+            else:
+                dlineno = lineno - old_lineno
+
             if dlineno == 0:
                 continue
             old_lineno = lineno
