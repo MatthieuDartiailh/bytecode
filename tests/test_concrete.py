@@ -1379,7 +1379,6 @@ class BytecodeToConcreteTests(TestCase):
         self.assertEqual(concrete.freevars, ["y"])
 
     def test_compute_jumps_convergence(self):
-        # XXX redo computation when using JUMP_FORWARD rather than jump absolute as before
         # Consider the following sequence of instructions:
         #
         #     JUMP_FORWARD Label1
@@ -1409,9 +1408,9 @@ class BytecodeToConcreteTests(TestCase):
         nop = "NOP"
         code.append(Instr("JUMP_FORWARD", label1))
         code.append(Instr("JUMP_FORWARD", label2))
-        # Need 254 * 2 + 2 since the arg will change by 1 instruction rather than 2
-        # bytes.
-        for x in range(4, 510 if OFFSET_AS_INSTRUCTION else 254, 2):
+        # On Python 3.10+ (OFFSET_AS_INSTRUCTION), we need to start with an arg of
+        # 254 so that a bump of 1 will cause the use of an extended arg.
+        for x in range(4, 511 if OFFSET_AS_INSTRUCTION else 254, 2):
             code.append(Instr(nop))
         code.append(label1)
         code.append(Instr(nop))
