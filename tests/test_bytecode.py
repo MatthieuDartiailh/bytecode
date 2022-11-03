@@ -282,7 +282,9 @@ class BytecodeTests(TestCase):
             [
                 Instr("LOAD_NAME", "print"),
                 Instr("LOAD_CONST", "%s"),
-                Instr("LOAD_GLOBAL", (False, "a")),
+                Instr(
+                    "LOAD_GLOBAL", (False, "a") if sys.version_info >= (3, 11) else "a"
+                ),
                 Instr("BINARY_MODULO"),
                 Instr("CALL_FUNCTION", 1),
                 Instr("RETURN_VALUE"),
@@ -303,7 +305,7 @@ class BytecodeTests(TestCase):
             "UNARY_INVERT",
         )
         for opname in opnames:
-            with self.subTest():
+            with self.subTest(opname):
                 code = Bytecode()
                 code.first_lineno = 1
                 code.extend([Instr(opname)])
@@ -318,7 +320,7 @@ class BytecodeTests(TestCase):
             "UNARY_INVERT",
         )
         for opname in opnames:
-            with self.subTest():
+            with self.subTest(opname):
                 code = Bytecode()
                 code.first_lineno = 1
                 code.extend([Instr(opname)])
@@ -343,7 +345,7 @@ class BytecodeTests(TestCase):
             "BINARY_OR",
         )
         for opname in opnames:
-            with self.subTest():
+            with self.subTest(opname):
                 code = Bytecode()
                 code.first_lineno = 1
                 code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
@@ -368,7 +370,7 @@ class BytecodeTests(TestCase):
             "BINARY_OR",
         )
         for opname in opnames:
-            with self.subTest():
+            with self.subTest(opname):
                 code = Bytecode()
                 code.first_lineno = 1
                 code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
@@ -388,7 +390,7 @@ class BytecodeTests(TestCase):
             "UNPACK_EX",
         )
         for opname in opnames:
-            with self.subTest():
+            with self.subTest(opname):
                 code = Bytecode()
                 code.first_lineno = 1
                 code.extend([Instr(opname, 1)])
@@ -404,7 +406,7 @@ class BytecodeTests(TestCase):
         opnames = (*opnames, "BUILD_STRING")
 
         for opname in opnames:
-            with self.subTest():
+            with self.subTest(opname):
                 code = Bytecode()
                 code.first_lineno = 1
                 code.extend([Instr(opname, 1)])
@@ -462,7 +464,7 @@ class BytecodeTests(TestCase):
             self.skipTest("Instructions ROT_* do not exist in 3.11+")
         opnames = ["ROT_TWO", "ROT_THREE", "ROT_FOUR"]
         for opname in opnames:
-            with self.subTest():
+            with self.subTest(opname):
                 code = Bytecode()
                 code.first_lineno = 1
                 code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
@@ -474,7 +476,7 @@ class BytecodeTests(TestCase):
             self.skipTest("Instructions ROT_* do not exist in 3.11+")
         opnames = ["ROT_TWO", "ROT_THREE", "ROT_FOUR"]
         for opname in opnames:
-            with self.subTest():
+            with self.subTest(opname):
                 code = Bytecode()
                 code.first_lineno = 1
                 code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
@@ -482,36 +484,34 @@ class BytecodeTests(TestCase):
                 self.assertEqual(co.co_stacksize, 1)
 
     def test_for_iter_stack_effect_computation(self):
-        with self.subTest():
-            code = Bytecode()
-            code.first_lineno = 1
-            lab1 = Label()
-            lab2 = Label()
-            code.extend(
-                [
+        code = Bytecode()
+        code.first_lineno = 1
+        lab1 = Label()
+        lab2 = Label()
+        code.extend(
+            [
+                lab1,
+                Instr("FOR_ITER", lab2),
+                Instr("STORE_FAST", "i"),
+                Instr(
+                    "JUMP_BACKWARD"
+                    if sys.version_info >= (3, 11)
+                    else "JUMP_ABSOLUTE",
                     lab1,
-                    Instr("FOR_ITER", lab2),
-                    Instr("STORE_FAST", "i"),
-                    Instr(
-                        "JUMP_BACKWARD"
-                        if sys.version_info >= (3, 11)
-                        else "JUMP_ABSOLUTE",
-                        lab1,
-                    ),
-                    lab2,
-                ]
-            )
-            with self.assertRaises(RuntimeError):
-                # Use compute_stacksize since the code is so broken that conversion
-                # to from concrete is actually broken
-                code.compute_stacksize(check_pre_and_post=False)
+                ),
+                lab2,
+            ]
+        )
+        with self.assertRaises(RuntimeError):
+            # Use compute_stacksize since the code is so broken that conversion
+            # to from concrete is actually broken
+            code.compute_stacksize(check_pre_and_post=False)
 
     def test_exception_table_round_trip(self):
         from . import exception_handling_cases as ehc
 
         for f in ehc.TEST_CASES:
-            with self.subTest():
-                print(f.__name__)
+            with self.subTest(f.__name__):
                 origin = f.__code__
                 bytecode = Bytecode.from_code(
                     origin,
@@ -523,7 +523,9 @@ class BytecodeTests(TestCase):
                 )
                 self.assertCodeObjectEqual(origin, as_code)
                 if inspect.iscoroutinefunction(f):
-                    asyncio.run(f())
+                    # contextlib.nullcontext support async context only in 3.10+
+                    if sys.version_info >= (3, 10):
+                        asyncio.run(f())
                 else:
                     f()
 

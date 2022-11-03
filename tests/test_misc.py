@@ -23,7 +23,7 @@ class DumpCodeTests(unittest.TestCase):
                 bytecode.dump_bytecode(code)
             output = stderr.getvalue()
 
-        self.assertEqual(output, expected)
+        self.assertMultiLineEqual(output, expected)
 
     def test_bytecode(self):
         source = """

@@ -76,7 +76,7 @@ class InstrTests(TestCase):
         with self.assertRaises(TypeError):
             Instr("NOP", lineno="x")
         with self.assertRaises(ValueError):
-            Instr("NOP", lineno=0)
+            Instr("NOP", lineno=-1 if sys.version_info >= (3, 11) else 0)
 
         # invalid name
         with self.assertRaises(TypeError):
@@ -166,7 +166,7 @@ class InstrTests(TestCase):
         self.assertEqual(instr.lineno, 5)
 
         # invalid values/types
-        self.assertRaises(ValueError, setattr, instr, "lineno", 0)
+        self.assertRaises(ValueError, setattr, instr, "lineno", -1 if sys.version_info >= (3, 11) else 0)
         self.assertRaises(TypeError, setattr, instr, "lineno", 1.0)
         self.assertRaises(TypeError, setattr, instr, "name", 5)
         self.assertRaises(TypeError, setattr, instr, "opcode", 1.0)
@@ -387,7 +387,7 @@ class CompareTests(TestCase):
 
         params = zip(iter(Compare), (True, True, False, True, False, False))
         for cmp, expected in params:
-            with self.subTest():
+            with self.subTest(cmp):
                 bcode = Bytecode(
                     ([Instr("RESUME", 0)] if sys.version_info >= (3, 11) else [])
                     + [

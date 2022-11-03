@@ -911,7 +911,8 @@ class CFGExceptionHandlingTests(TestCase):
                 as_code = cfg.to_code(check_pre_and_post=False)
                 self.assertCodeObjectEqual(origin, as_code)
                 if inspect.iscoroutinefunction(f):
-                    asyncio.run(f())
+                    if sys.version_info >= (3, 10):
+                        asyncio.run(f())
                 else:
                     f()
 

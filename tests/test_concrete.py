@@ -1540,13 +1540,14 @@ class BytecodeToConcreteTests(TestCase):
 
         for f in ehc.TEST_CASES:
             print(f.__name__)
-            with self.subTest():
+            with self.subTest(f.__name__):
                 origin = f.__code__
                 concrete = ConcreteBytecode.from_code(f.__code__)
                 as_code = concrete.to_code(stacksize=f.__code__.co_stacksize)
                 self.assertCodeObjectEqual(origin, as_code)
                 if inspect.iscoroutinefunction(f):
-                    asyncio.run(f())
+                    if sys.version_info >= (3, 10):
+                        asyncio.run(f())
                 else:
                     f()
 
