@@ -432,7 +432,9 @@ class _StackSizeComputer:
 
         return None
 
-    def _is_stacksize_computation_relevant(self, block_id: int, fingerprint: Tuple[int, Optional[bool]]) -> bool:
+    def _is_stacksize_computation_relevant(
+        self, block_id: int, fingerprint: Tuple[int, Optional[bool]]
+    ) -> bool:
         if sys.version_info >= (3, 11):
             # The computation is relevant if the block was not visited previously
             # with the same starting size and exception handler status than the
