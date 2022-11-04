@@ -235,11 +235,11 @@ class _StackSizeComputer:
         block_id = id(self.block)
 
         # If the block is currently being visited (seen = True) or
-        # it was visited previously by the same starting size and exception handler
-        # status than the one in use, return the maxsize.
+        # it was visited previously with parameters that makes the computation
+        # irrelevant return the maxsize.
         fingerprint = (self.size, self.exception_handler)
         if id(self.block) in self.common.seen_blocks or (
-            fingerprint in self.common.blocks_startsizes[block_id]
+            not self._is_stacksize_computation_relevant(block_id, fingerprint)
         ):
             yield self.maxsize
 
@@ -431,6 +431,20 @@ class _StackSizeComputer:
             index += 1
 
         return None
+
+    def _is_stacksize_computation_relevant(self, block_id: int, fingerprint: Tuple[int, Optional[bool]]) -> bool:
+        if sys.version_info >= (3, 11):
+            # The computation is relevant if the block was not visited previously
+            # with the same starting size and exception handler status than the
+            # one in use
+            return fingerprint not in self.common.blocks_startsizes[block_id]
+        else:
+            # The computation is relevant if the block was only visited with smaller
+            # starting sizes than the one in use
+            if sizes := self.common.blocks_startsizes[block_id]:
+                return fingerprint[0] > max(f[0] for f in sizes)
+            else:
+                return True
 
 
 class ControlFlowGraph(_bytecode.BaseBytecode):
