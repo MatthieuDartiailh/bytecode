@@ -6,6 +6,7 @@ import textwrap
 import unittest
 
 from bytecode import Bytecode, ConcreteInstr, FreeVar, Instr, Label, SetLineno
+from bytecode.instr import BinaryOp
 
 from . import TestCase, get_code
 
@@ -211,9 +212,17 @@ class BytecodeTests(TestCase):
         code = ns["func"].__code__
 
         bytecode = Bytecode.from_code(code)
-        self.assertEqual(
+        self.assertInstructionListEqual(
             bytecode,
-            [
+            (
+                [
+                    Instr("COPY_FREE_VARS", 1, lineno=None),
+                    Instr("RESUME", 0, lineno=4),
+                ]
+                if sys.version_info >= (3, 11)
+                else []
+            )
+            + [
                 Instr("LOAD_DEREF", FreeVar("x"), lineno=5),
                 Instr("RETURN_VALUE", lineno=5),
             ],
@@ -229,9 +238,16 @@ class BytecodeTests(TestCase):
             function=True,
         )
         code = Bytecode.from_code(code)
-        self.assertEqual(
+        self.assertInstructionListEqual(
             code,
-            [
+            (
+                [
+                    Instr("RESUME", 0, lineno=1),
+                ]
+                if sys.version_info >= (3, 11)
+                else []
+            )
+            + [
                 Instr("LOAD_CONST", 33, lineno=2),
                 Instr("STORE_FAST", "x", lineno=2),
                 Instr("LOAD_FAST", "x", lineno=3),
@@ -285,8 +301,9 @@ class BytecodeTests(TestCase):
                 Instr(
                     "LOAD_GLOBAL", (False, "a") if sys.version_info >= (3, 11) else "a"
                 ),
-                Instr("BINARY_MODULO"),
-                Instr("CALL_FUNCTION", 1),
+                Instr("BINARY_OP", BinaryOp.ADD) if sys.version_info >= (3, 11) else Instr("BINARY_ADD"),
+                # On 3.11 we should have a pre-call
+                Instr("CALL" if sys.version_info >= (3, 11) else "CALL_FUNCTION", 1),
                 Instr("RETURN_VALUE"),
             ]
         )
@@ -294,7 +311,7 @@ class BytecodeTests(TestCase):
         # hopefully this is obvious from inspection? :-)
         self.assertEqual(co.co_stacksize, 3)
 
-        co = code.to_code(stacksize=42)
+        co = code.to_code(stacksize=42, compute_exception_stack_depths=False)
         self.assertEqual(co.co_stacksize, 42)
 
     def test_negative_size_unary(self):
@@ -328,59 +345,95 @@ class BytecodeTests(TestCase):
                 self.assertEqual(co.co_stacksize, 0)
 
     def test_negative_size_binary(self):
-        opnames = (
-            "BINARY_POWER",
-            "BINARY_MULTIPLY",
-            "BINARY_MATRIX_MULTIPLY",
-            "BINARY_FLOOR_DIVIDE",
-            "BINARY_TRUE_DIVIDE",
-            "BINARY_MODULO",
-            "BINARY_ADD",
-            "BINARY_SUBTRACT",
-            "BINARY_SUBSCR",
-            "BINARY_LSHIFT",
-            "BINARY_RSHIFT",
-            "BINARY_AND",
-            "BINARY_XOR",
-            "BINARY_OR",
+        operations = (
+            "SUBSCR",  # Subscr is special
+            "POWER",
+            "MULTIPLY",
+            "MATRIX_MULTIPLY",
+            "FLOOR_DIVIDE",
+            "TRUE_DIVIDE",
+            "ADD",
+            "SUBTRACT",
+            "LSHIFT",
+            "RSHIFT",
+            "AND",
+            "XOR",
+            "OR",
         )
-        for opname in opnames:
-            with self.subTest(opname):
-                code = Bytecode()
-                code.first_lineno = 1
-                code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
-                with self.assertRaises(RuntimeError):
-                    code.compute_stacksize()
+        if sys.version_info >= (3, 11):
+            operations += ("REMAINDER",)
+        else:
+            operations += ("MODULO",)
+
+        for opname in operations:
+            ops = (opname,)
+            if opname != "SUBSCR":
+                ops += ("INPLACE_" + opname,)
+            for op in ops:
+                with self.subTest(op):
+                    code = Bytecode()
+                    code.first_lineno = 1
+                    if sys.version_info >= (3, 11):
+                        if op == "SUBSCR":
+                            i = Instr("BINARY_SUBSCR")
+                        else:
+                            i = Instr("BINARY_OP", getattr(BinaryOp, op))
+                    else:
+                        if "INPLACE" not in op:
+                            op = "BINARY_" + op
+
+                    code.extend([Instr("LOAD_CONST", 1), i])
+                    with self.assertRaises(RuntimeError):
+                        code.compute_stacksize()
 
     def test_negative_size_binary_with_disable_check_of_pre_and_post(self):
-        opnames = (
-            "BINARY_POWER",
-            "BINARY_MULTIPLY",
-            "BINARY_MATRIX_MULTIPLY",
-            "BINARY_FLOOR_DIVIDE",
-            "BINARY_TRUE_DIVIDE",
-            "BINARY_MODULO",
-            "BINARY_ADD",
-            "BINARY_SUBTRACT",
-            "BINARY_SUBSCR",
-            "BINARY_LSHIFT",
-            "BINARY_RSHIFT",
-            "BINARY_AND",
-            "BINARY_XOR",
-            "BINARY_OR",
+        operations = (
+            "SUBSCR",  # Subscr is special
+            "POWER",
+            "MULTIPLY",
+            "MATRIX_MULTIPLY",
+            "FLOOR_DIVIDE",
+            "TRUE_DIVIDE",
+            "ADD",
+            "SUBTRACT",
+            "LSHIFT",
+            "RSHIFT",
+            "AND",
+            "XOR",
+            "OR",
         )
-        for opname in opnames:
-            with self.subTest(opname):
-                code = Bytecode()
-                code.first_lineno = 1
-                code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
-                co = code.to_code(check_pre_and_post=False)
-                self.assertEqual(co.co_stacksize, 1)
+        if sys.version_info >= (3, 11):
+            operations += ("REMAINDER",)
+        else:
+            operations += ("MODULO",)
+
+        for opname in operations:
+            ops = (opname,)
+            if opname != "SUBSCR":
+                ops += ("INPLACE_" + opname,)
+            for op in ops:
+                with self.subTest(op):
+                    code = Bytecode()
+                    code.first_lineno = 1
+                    if sys.version_info >= (3, 11):
+                        if op == "SUBSCR":
+                            i = Instr("BINARY_SUBSCR")
+                        else:
+                            i = Instr("BINARY_OP", getattr(BinaryOp, op))
+                    else:
+                        if "INPLACE" not in op:
+                            op = "BINARY_" + op
+
+                    code.extend([Instr("LOAD_CONST", 1), i])
+                    co = code.to_code(check_pre_and_post=False)
+                    self.assertEqual(co.co_stacksize, 1)
 
     def test_negative_size_call(self):
         code = Bytecode()
         code.first_lineno = 1
-        code.extend([Instr("CALL_FUNCTION", 0)])
+        code.extend(
+            [Instr("CALL" if sys.version_info >= (3, 11) else "CALL_FUNCTION", 0)]
+        )
         with self.assertRaises(RuntimeError):
             code.compute_stacksize()
 
