@@ -1,26 +1,27 @@
+
 import unittest
 
 from bytecode import Bytecode, ConcreteBytecode, ControlFlowGraph
 
-from . import get_code
+from . import get_code, TestCase
 
 
-class CodeTests(unittest.TestCase):
+class CodeTests(TestCase):
     """Check that bytecode.from_code(code).to_code() returns code."""
 
     def check(self, source, function=False):
         ref_code = get_code(source, function=function)
 
         code = ConcreteBytecode.from_code(ref_code).to_code()
-        self.assertEqual(code, ref_code)
+        self.assertCodeObjectEqual(code, ref_code)
 
         code = Bytecode.from_code(ref_code).to_code()
-        self.assertEqual(code, ref_code)
+        self.assertCodeObjectEqual(code, ref_code)
 
         bytecode = Bytecode.from_code(ref_code)
         blocks = ControlFlowGraph.from_bytecode(bytecode)
         code = blocks.to_bytecode().to_code()
-        self.assertEqual(code, ref_code)
+        self.assertCodeObjectEqual(code, ref_code)
 
     def test_loop(self):
         self.check(

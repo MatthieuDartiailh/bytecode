@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
+import dis
 import inspect
 import opcode
 import sys
@@ -259,6 +260,11 @@ class ConcreteBytecodeTests(TestCase):
         concrete.varnames = ["x", "y", "z"]
         concrete.first_lineno = fl
         concrete.extend(
+            (
+                [ConcreteInstr("RESUME", 0), SetLineno(1)]
+                if sys.version_info >= (3, 11)
+                else []
+            ) +
             [
                 SetLineno(fl + 3),
                 ConcreteInstr("LOAD_CONST", 1),
@@ -275,10 +281,14 @@ class ConcreteBytecodeTests(TestCase):
         )
 
         code = concrete.to_code()
-        self.assertEqual(code.co_code, f.__code__.co_code)
-        self.assertEqual(code.co_lnotab, f.__code__.co_lnotab)
-        if sys.version_info >= (3, 10):
-            self.assertEqual(code.co_linetable, f.__code__.co_linetable)
+        self.assertSequenceEqual(code.co_code, f.__code__.co_code)
+        if sys.version_info >= (3, 11):
+            # Offset cannot be right so only check the lines
+            self.assertSequenceEqual(list(dis.findlinestarts(code)), list(dis.findlinestarts(f.__code__)))
+        else:
+            self.assertEqual(code.co_lnotab, f.__code__.co_lnotab)
+            if sys.version_info >= (3, 10):
+                self.assertEqual(code.co_linetable, f.__code__.co_linetable)
 
     def test_negative_lnotab(self):
         # x = 7
@@ -327,7 +337,20 @@ class ConcreteBytecodeTests(TestCase):
         expected = b"d\x00Z\x00d\x01Z\x01"
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 1)
-        self.assertEqual(code.co_lnotab, b"\x02\x7f\x00\x01\x02\x01\x02\x80\x00\xff")
+        if sys.version_info >= (3, 11):
+            self.assertSequenceEqual(
+                list(code.co_positions()),
+                [
+                    (1, 1, None, None),
+                    (129, 129, None, None),
+                    (130, 130, None, None),
+                    (1, 1, None, None),
+                ],
+            )
+        else:
+            self.assertEqual(
+                code.co_lnotab, b"\x02\x7f\x00\x01\x02\x01\x02\x80\x00\xff"
+            )
 
     def test_extended_lnotab2(self):
         # x = 7
@@ -335,7 +358,12 @@ class ConcreteBytecodeTests(TestCase):
         # y = 8
         base_code = compile("x = 7" + "\n" * 200 + "y = 8", "", "exec")
         concrete = ConcreteBytecode(
-            [
+            (
+                [ConcreteInstr("RESUME", 0, lineno=0), SetLineno(1)]
+                if sys.version_info >= (3, 11)
+                else []
+            )
+            + [
                 ConcreteInstr("LOAD_CONST", 0),
                 ConcreteInstr("STORE_NAME", 0),
                 SetLineno(201),
@@ -350,11 +378,15 @@ class ConcreteBytecodeTests(TestCase):
         concrete.first_lineno = 1
 
         code = concrete.to_code()
-        self.assertEqual(code.co_code, base_code.co_code)
+        self.assertSequenceEqual(code.co_code, base_code.co_code)
         self.assertEqual(code.co_firstlineno, base_code.co_firstlineno)
-        self.assertEqual(code.co_lnotab, base_code.co_lnotab)
-        if sys.version_info >= (3, 10):
-            self.assertEqual(code.co_linetable, base_code.co_linetable)
+        if sys.version_info >= (3, 11):
+            # Offset cannot be right so only check the lines
+            self.assertSequenceEqual(list(dis.findlinestarts(code)), list(dis.findlinestarts(base_code)))
+        else:
+            self.assertSequenceEqual(code.co_lnotab, base_code.co_lnotab)
+            if sys.version_info >= (3, 10):
+                self.assertSequenceEqual(code.co_linetable, base_code.co_linetable)
 
     def test_to_bytecode_consts(self):
         # x = -0.0
@@ -599,35 +631,38 @@ class ConcreteFromCodeTests(TestCase):
         # Create a code object from arbitrary bytecode
         co_code = b"\x90\x12\x904\x90\xabd\xcd"
         code = get_code("x=1")
-        args = (
-            code.co_argcount,
-            code.co_posonlyargcount,
-            code.co_kwonlyargcount,
-            code.co_nlocals,
-            code.co_stacksize,
-            code.co_flags,
-            co_code,
-            code.co_consts,
-            code.co_names,
-            code.co_varnames,
-            code.co_filename,
-            code.co_name,
-            code.co_firstlineno,
-            code.co_linetable if sys.version_info >= (3, 10) else code.co_lnotab,
-            code.co_freevars,
-            code.co_cellvars,
-        )
+        if sys.version_info >= (3, 11):
+            self.skipTest("Under Python 3.11 we cannot easily disassemble invalid code")
+        else:
+            args = (
+                code.co_argcount,
+                code.co_posonlyargcount,
+                code.co_kwonlyargcount,
+                code.co_nlocals,
+                code.co_stacksize,
+                code.co_flags,
+                co_code,
+                code.co_consts,
+                code.co_names,
+                code.co_varnames,
+                code.co_filename,
+                code.co_name,
+                code.co_firstlineno,
+                code.co_linetable if sys.version_info >= (3, 10) else code.co_lnotab,
+                code.co_freevars,
+                code.co_cellvars,
+            )
 
-        code = types.CodeType(*args)
+        new_code = types.CodeType(*args)
 
         # without EXTENDED_ARG opcode
-        bytecode = ConcreteBytecode.from_code(code)
+        bytecode = ConcreteBytecode.from_code(new_code)
         self.assertInstructionListEqual(
             list(bytecode), [ConcreteInstr("LOAD_CONST", 0x1234ABCD, lineno=1)]
         )
 
         # with EXTENDED_ARG opcode
-        bytecode = ConcreteBytecode.from_code(code, extended_arg=True)
+        bytecode = ConcreteBytecode.from_code(new_code, extended_arg=True)
         expected = [
             ConcreteInstr("EXTENDED_ARG", 0x12, lineno=1),
             ConcreteInstr("EXTENDED_ARG", 0x34, lineno=1),
@@ -656,7 +691,20 @@ class ConcreteFromCodeTests(TestCase):
 
         # without EXTENDED_ARG
         concrete = ConcreteBytecode.from_code(code_obj)
-        if sys.version_info >= (3, 10):
+        if sys.version_info >= (3, 11):
+            func_code = concrete.consts[2]
+            names = ["int", "foo"]
+            consts = ["x", "y", func_code, None]
+            const_offset = 1
+            name_offset = 1
+            first_instrs = [
+                ConcreteInstr("LOAD_CONST", 0, lineno=1),
+                ConcreteInstr("LOAD_NAME", 0, lineno=1),
+                ConcreteInstr("LOAD_CONST", 1, lineno=1),
+                ConcreteInstr("LOAD_NAME", 0, lineno=1),
+                ConcreteInstr("BUILD_TUPLE", 4, lineno=1),
+            ]
+        elif sys.version_info >= (3, 10):
             func_code = concrete.consts[2]
             names = ["int", "foo"]
             consts = ["x", "y", func_code, "foo", None]
@@ -697,8 +745,8 @@ class ConcreteFromCodeTests(TestCase):
                 ConcreteInstr("BUILD_CONST_KEY_MAP", 2, lineno=1),
             ]
 
-        self.assertEqual(concrete.names, names)
-        self.assertEqual(concrete.consts, consts)
+        self.assertSequenceEqual(concrete.names, names)
+        self.assertSequenceEqual(concrete.consts, consts)
         expected = first_instrs + [
             ConcreteInstr("LOAD_CONST", 1 + const_offset, lineno=1),
             ConcreteInstr("LOAD_CONST", 2 + const_offset, lineno=1),
@@ -713,7 +761,11 @@ class ConcreteFromCodeTests(TestCase):
         concrete = ConcreteBytecode.from_code(code_obj, extended_arg=True)
         # With future annotation the int annotation is stringified and
         # stored as constant this the default behavior under Python 3.10
-        if sys.version_info >= (3, 10):
+        if sys.version_info >= (3, 11):
+            func_code = concrete.consts[2]
+            names = ["int", "foo"]
+            consts = ["x", "y", func_code, None]
+        elif sys.version_info >= (3, 10):
             func_code = concrete.consts[2]
             names = ["int", "foo"]
             consts = ["x", "y", func_code, "foo", None]
