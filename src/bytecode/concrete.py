@@ -311,7 +311,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             # find block starts
             instructions = []
             offset = 0
-            lineno = code.co_firstlineno
+            lineno: Optional[int] = code.co_firstlineno
             while offset < (len(code.co_code) // (2 if OFFSET_AS_INSTRUCTION else 1)):
                 lineno_off = (2 * offset) if OFFSET_AS_INSTRUCTION else offset
                 if lineno_off in line_starts:
