@@ -1408,13 +1408,12 @@ class BytecodeToConcreteTests(TestCase):
         nop = "NOP"
         code.append(Instr("JUMP_FORWARD", label1))
         code.append(Instr("JUMP_FORWARD", label2))
-        # On Python 3.10+ (OFFSET_AS_INSTRUCTION), we need to start with an arg of
-        # 254 so that a bump of 1 will cause the use of an extended arg.
-        for x in range(4, 511 if OFFSET_AS_INSTRUCTION else 254, 2):
+        # range excludes the last point ...
+        for _ in range(4, 511 if OFFSET_AS_INSTRUCTION else 255, 2):
             code.append(Instr(nop))
         code.append(label1)
         code.append(Instr(nop))
-        for x in range(
+        for _ in range(
             514 if OFFSET_AS_INSTRUCTION else 256,
             600 if OFFSET_AS_INSTRUCTION else 300,
             2,

@@ -1,3 +1,4 @@
+import dis
 import sys
 import textwrap
 import types
@@ -171,7 +172,9 @@ class TestCase(unittest.TestCase):
         elif sys.version_info >= (3, 10):
             self.assertSequenceEqual(list(code1.co_lines()), list(code2.co_lines()))
         else:
-            self.assertSequenceEqual(code1.co_lnotab, code2.co_lnotab)
+            # This is safer than directly comparing co_lnotab that sometimes contains
+            # cruft
+            self.assertSequenceEqual(list(dis.findlinestarts(code1)), list(dis.findlinestarts(code2)))
         self.assertSequenceEqual(code1.co_code, code2.co_code)
         self.assertEqual(code1.co_flags, code2.co_flags)
 
@@ -179,5 +182,4 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(code), len(expected_blocks))
 
         for block1, block2 in zip(code, expected_blocks):
-            block_index = code.get_block_index(block1)
             self.assertInstructionListEqual(list(block1), block2)
