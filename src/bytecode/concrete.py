@@ -293,9 +293,11 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # reduced maintenance cost.
         if sys.version_info >= (3, 11):
             instructions = [
+                # dis.get_instructions automatically handle extended arg which
+                # we do not want, so we fold back arguments to be between 0 and 255
                 ConcreteInstr(
                     i.opname,
-                    i.arg if i.arg is not None else UNSET,
+                    i.arg % 256 if i.arg is not None else UNSET,
                     location=InstrLocation.from_positions(i.positions),
                 )
                 for i in dis.get_instructions(code, show_caches=True)
@@ -649,18 +651,16 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         iter_in = iter(linenos)
 
-        _, size, _, old_location = next(iter_in)
+        _, size, lineno, old_location = next(iter_in)
         # Infer the line if location is None
-        old_location = old_location or InstrLocation(first_lineno, None, None, None)
+        old_location = old_location or InstrLocation(lineno, None, None, None)
+        lineno = first_lineno
 
         # We track the last set lineno to be able to compute deltas
-        lineno = first_lineno
-        for _, i_size, _, location in iter_in:
+        for _, i_size, new_lineno, location in iter_in:
 
             # Infer the line if location is None
-            location = location or InstrLocation(
-                old_location.lineno or lineno, None, None, None
-            )
+            location = location or InstrLocation(new_lineno, None, None, None)
 
             # Group together instruction with equivalent locations
             if old_location.lineno and old_location == location:
@@ -677,7 +677,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 locations.append(self._pack_location(size, lineno, old_location))
                 # Update the lineno since if we need more than one entry the
                 # reference for the delta of the lineno change
-                lineno = old_location.lineno or lineno
+                lineno = (
+                    old_location.lineno if old_location.lineno is not None else lineno
+                )
                 size -= 8
                 if size < 1:
                     break
