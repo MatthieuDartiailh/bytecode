@@ -82,7 +82,15 @@ def infer_flags(
     instr_names = {
         i.name
         for i in instructions
-        if not isinstance(i, (_bytecode.SetLineno, _bytecode.Label, _bytecode.TryBegin, _bytecode.TryEnd))
+        if not isinstance(
+            i,
+            (
+                _bytecode.SetLineno,
+                _bytecode.Label,
+                _bytecode.TryBegin,
+                _bytecode.TryEnd,
+            ),
+        )
     }
 
     # Identify optimized code
