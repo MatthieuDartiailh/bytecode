@@ -174,8 +174,41 @@ class TestCase(unittest.TestCase):
         else:
             # This is safer than directly comparing co_lnotab that sometimes contains
             # cruft
-            self.assertSequenceEqual(list(dis.findlinestarts(code1)), list(dis.findlinestarts(code2)))
-        self.assertSequenceEqual(code1.co_code, code2.co_code)
+            self.assertSequenceEqual(
+                list(dis.findlinestarts(code1)), list(dis.findlinestarts(code2))
+            )
+        if sys.version_info >= (3, 9):
+            self.assertSequenceEqual(code1.co_code, code2.co_code)
+        # On Python 3.8 it happens that fast storage index vary in a roundtrip
+        else:
+            import opcode
+
+            fast_storage = opcode.opmap["LOAD_FAST"], opcode.opmap["STORE_FAST"]
+            load_const = opcode.opmap["LOAD_CONST"]
+            load_by_name = (
+                opcode.opmap["LOAD_GLOBAL"],
+                opcode.opmap["LOAD_NAME"],
+                opcode.opmap["LOAD_METHOD"],
+            )
+            if code1.co_code != code2.co_code:
+                for b1, a1, b2, a2 in zip(
+                    code1.co_code[::2],
+                    code1.co_code[1::2],
+                    code2.co_code[::2],
+                    code2.co_code[1::2],
+                ):
+                    if b1 != b2:
+                        self.assertSequenceEqual(code1.co_code, code2.co_code)
+                    # Do not check the argument of fast storage manipulation opcode
+                    elif b1 in fast_storage:
+                        pass
+                    elif b1 == load_const:
+                        self.assertEqual(code1.co_consts[a1], code2.co_consts[a2])
+                    elif b1 in load_by_name:
+                        self.assertEqual(code1.co_names[a1], code2.co_names[a2])
+                    elif a1 != a2:
+                        self.assertSequenceEqual(code1.co_code, code2.co_code)
+
         self.assertEqual(code1.co_flags, code2.co_flags)
 
     def assertBlocksEqual(self, code, *expected_blocks):
