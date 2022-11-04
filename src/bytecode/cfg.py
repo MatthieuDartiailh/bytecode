@@ -226,7 +226,7 @@ class _StackSizeComputer:
         self.pending_try_begin = pending_try_begin
         self._current_try_begin = pending_try_begin
 
-    def run(self):
+    def run(self) -> Generator[Union["_StackSizeComputer", int], int, None]:
         """Iterate over the block instructions to compute stack usage."""
         # Blocks are not hashable but in this particular context we know we won't be
         # modifying blocks in place so we can safely use their id as hash rather than
@@ -294,6 +294,7 @@ class _StackSizeComputer:
                 b_id = id(instr.entry.target)
                 if self.minsize < self.common.exception_block_startsize[b_id]:
                     self.common.exception_block_startsize[b_id] = self.minsize
+                    assert isinstance(instr.entry.target, BasicBlock)
                     block_size = yield _StackSizeComputer(
                         self.common,
                         instr.entry.target,
@@ -319,8 +320,9 @@ class _StackSizeComputer:
                 )
 
                 # Yield the parameters required to compute the stacksize required
-                # by the block to which the jumnp points to and resume when we now
+                # by the block to which the jump points to and resume when we now
                 # the maxsize.
+                assert isinstance(instr.arg, BasicBlock)
                 maxsize = yield _StackSizeComputer(
                     self.common,
                     instr.arg,
@@ -330,6 +332,10 @@ class _StackSizeComputer:
                     None,
                     self._current_try_begin,
                 )
+
+                # Update the maximum used size by the usage implied by the following
+                # the jump
+                self.maxsize = max(self.maxsize, maxsize)
 
                 # For unconditional jumps abort early since the other instruction will
                 # never be seen.
@@ -355,7 +361,7 @@ class _StackSizeComputer:
                             self.common.exception_block_maxsize[b_id] = block_size
 
                     self.common.seen_blocks.remove(id(self.block))
-                    yield maxsize
+                    yield self.maxsize
 
             # jump=False: non-taken path of jumps, or any non-jump
             effect = (
@@ -368,7 +374,7 @@ class _StackSizeComputer:
             # Instruction is final (return, raise, ...) so any following instruction
             # in the block is dead code.
             if instr.is_final():
-                self.common.seen_blocks.remove(id(self.block))
+
                 # Check for TryEnd after the final instruction which is possible
                 # TryEnd being only pseudo instructions.
                 if te := self._get_trailing_try_end(i):
@@ -386,6 +392,8 @@ class _StackSizeComputer:
                             None,
                         )
                         self.common.exception_block_maxsize[b_id] = block_size
+
+                self.common.seen_blocks.remove(id(self.block))
 
                 yield self.maxsize
 
@@ -500,7 +508,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         ).run()
 
         # Create a list of generator that have not yet been exhausted
-        coroutines: List[Generator[Optional[Tuple], int, None]] = []
+        coroutines: List[Generator[Union[_StackSizeComputer, int], int, None]] = []
 
         push_coroutine = coroutines.append
         pop_coroutine = coroutines.pop
@@ -508,7 +516,9 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
         try:
             while True:
-                args = coro.send(None)
+                # Mypy does not seem to honor the fact that one must send None
+                # to a brand new generator irrespective of its send type.
+                args = coro.send(None)  # type: ignore
 
                 # Consume the stored generators as long as they return a simple
                 # integer that is to be used to resume the last stored generator.
@@ -524,7 +534,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         except IndexError:
             # The exception occurs when all the generators have been exhausted
             # in which case the last yielded value is the stacksize.
-            assert args is not None
+            assert args is not None and isinstance(args, int)
 
             # Exception handling block size is reported separately since we need
             # to report only the stack usage for the smallest start size for the

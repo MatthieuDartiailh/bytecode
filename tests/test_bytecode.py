@@ -494,9 +494,7 @@ class BytecodeTests(TestCase):
                 Instr("FOR_ITER", lab2),
                 Instr("STORE_FAST", "i"),
                 Instr(
-                    "JUMP_BACKWARD"
-                    if sys.version_info >= (3, 11)
-                    else "JUMP_ABSOLUTE",
+                    "JUMP_BACKWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
                     lab1,
                 ),
                 lab2,

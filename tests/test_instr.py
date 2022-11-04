@@ -166,7 +166,13 @@ class InstrTests(TestCase):
         self.assertEqual(instr.lineno, 5)
 
         # invalid values/types
-        self.assertRaises(ValueError, setattr, instr, "lineno", -1 if sys.version_info >= (3, 11) else 0)
+        self.assertRaises(
+            ValueError,
+            setattr,
+            instr,
+            "lineno",
+            -1 if sys.version_info >= (3, 11) else 0,
+        )
         self.assertRaises(TypeError, setattr, instr, "lineno", 1.0)
         self.assertRaises(TypeError, setattr, instr, "name", 5)
         self.assertRaises(TypeError, setattr, instr, "opcode", 1.0)
