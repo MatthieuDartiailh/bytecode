@@ -13,15 +13,15 @@ class CodeTests(TestCase):
         ref_code = get_code(source, function=function)
 
         code = ConcreteBytecode.from_code(ref_code).to_code()
-        self.assertCodeObjectEqual(code, ref_code)
+        self.assertCodeObjectEqual(ref_code, code)
 
         code = Bytecode.from_code(ref_code).to_code()
-        self.assertCodeObjectEqual(code, ref_code)
+        self.assertCodeObjectEqual(ref_code, code)
 
         bytecode = Bytecode.from_code(ref_code)
         blocks = ControlFlowGraph.from_bytecode(bytecode)
         code = blocks.to_bytecode().to_code()
-        self.assertCodeObjectEqual(code, ref_code)
+        self.assertCodeObjectEqual(ref_code, code)
 
     def test_loop(self):
         self.check(

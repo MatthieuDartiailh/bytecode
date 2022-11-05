@@ -639,6 +639,26 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         return packed
 
+    def _push_locations(
+        self, locations: List[bytearray], size: int, lineno: int, location: InstrLocation
+    ) -> int:
+        # We need the size in instruction not in bytes
+        size //= 2
+
+        # Repeatedly add element since we cannot cover more than 8 code
+        # elements. We recompute each time since in practice we will
+        # rarely loop.
+        while True:
+            locations.append(self._pack_location(size, lineno, location))
+            # Update the lineno since if we need more than one entry the
+            # reference for the delta of the lineno change
+            lineno = location.lineno if location.lineno is not None else lineno
+            size -= 8
+            if size < 1:
+                break
+
+        return lineno
+
     def _assemble_locations(
         self,
         first_lineno: int,
@@ -667,29 +687,13 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 size += i_size
                 continue
 
-            # We need the size in instruction not in bytes
-            size //= 2
-
-            # Repeatedly add element since we cannot cover more than 8 code
-            # elements. We recompute each time since in practice we will
-            # rarely loop.
-            while True:
-                locations.append(self._pack_location(size, lineno, old_location))
-                # Update the lineno since if we need more than one entry the
-                # reference for the delta of the lineno change
-                lineno = (
-                    old_location.lineno if old_location.lineno is not None else lineno
-                )
-                size -= 8
-                if size < 1:
-                    break
+            lineno = self._push_locations(locations, size, lineno, old_location)
 
             size = i_size
             old_location = location
 
         # Pack the line of the last instruction.
-        size //= 2  # Get the size in instructions not bytes
-        locations.append(self._pack_location(size, lineno, old_location))
+        self._push_locations(locations, size, lineno, old_location)
 
         return b"".join(locations)
 
