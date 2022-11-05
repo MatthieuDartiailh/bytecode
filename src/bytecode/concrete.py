@@ -640,7 +640,11 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         return packed
 
     def _push_locations(
-        self, locations: List[bytearray], size: int, lineno: int, location: InstrLocation
+        self,
+        locations: List[bytearray],
+        size: int,
+        lineno: int,
+        location: InstrLocation,
     ) -> int:
         # We need the size in instruction not in bytes
         size //= 2

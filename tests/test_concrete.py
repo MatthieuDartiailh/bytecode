@@ -264,8 +264,8 @@ class ConcreteBytecodeTests(TestCase):
                 [ConcreteInstr("RESUME", 0), SetLineno(1)]
                 if sys.version_info >= (3, 11)
                 else []
-            ) +
-            [
+            )
+            + [
                 SetLineno(fl + 3),
                 ConcreteInstr("LOAD_CONST", 1),
                 ConcreteInstr("STORE_FAST", 0),
@@ -284,7 +284,9 @@ class ConcreteBytecodeTests(TestCase):
         self.assertSequenceEqual(code.co_code, f.__code__.co_code)
         if sys.version_info >= (3, 11):
             # Offset cannot be right so only check the lines
-            self.assertSequenceEqual(list(dis.findlinestarts(code)), list(dis.findlinestarts(f.__code__)))
+            self.assertSequenceEqual(
+                list(dis.findlinestarts(code)), list(dis.findlinestarts(f.__code__))
+            )
         else:
             self.assertEqual(code.co_lnotab, f.__code__.co_lnotab)
             if sys.version_info >= (3, 10):
@@ -382,7 +384,9 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(code.co_firstlineno, base_code.co_firstlineno)
         if sys.version_info >= (3, 11):
             # Offset cannot be right so only check the lines
-            self.assertSequenceEqual(list(dis.findlinestarts(code)), list(dis.findlinestarts(base_code)))
+            self.assertSequenceEqual(
+                list(dis.findlinestarts(code)), list(dis.findlinestarts(base_code))
+            )
         else:
             self.assertSequenceEqual(code.co_lnotab, base_code.co_lnotab)
             if sys.version_info >= (3, 10):

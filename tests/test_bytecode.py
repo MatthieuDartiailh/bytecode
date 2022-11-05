@@ -301,7 +301,9 @@ class BytecodeTests(TestCase):
                 Instr(
                     "LOAD_GLOBAL", (False, "a") if sys.version_info >= (3, 11) else "a"
                 ),
-                Instr("BINARY_OP", BinaryOp.ADD) if sys.version_info >= (3, 11) else Instr("BINARY_ADD"),
+                Instr("BINARY_OP", BinaryOp.ADD)
+                if sys.version_info >= (3, 11)
+                else Instr("BINARY_ADD"),
                 # On 3.11 we should have a pre-call
                 Instr("CALL" if sys.version_info >= (3, 11) else "CALL_FUNCTION", 1),
                 Instr("RETURN_VALUE"),
