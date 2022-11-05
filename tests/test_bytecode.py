@@ -383,6 +383,7 @@ class BytecodeTests(TestCase):
                     else:
                         if "INPLACE" not in op:
                             op = "BINARY_" + op
+                        i = Instr(op)
 
                     code.extend([Instr("LOAD_CONST", 1), i])
                     with self.assertRaises(RuntimeError):
@@ -425,6 +426,7 @@ class BytecodeTests(TestCase):
                     else:
                         if "INPLACE" not in op:
                             op = "BINARY_" + op
+                        i = Instr(op)
 
                     code.extend([Instr("LOAD_CONST", 1), i])
                     co = code.to_code(check_pre_and_post=False)
