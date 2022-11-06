@@ -128,6 +128,7 @@ def infer_flags(
         "BEFORE_ASYNC_WITH",
         "SETUP_ASYNC_WITH",
         "END_ASYNC_FOR",
+        "ASYNC_GEN_WRAP",  # New in 3.11
     }
 
     # If performing inference or forcing an async behavior, first inspect
