@@ -14,8 +14,8 @@ except ImportError:
 
 import bytecode as _bytecode
 
-
 # --- Instruction argument tools and abstractions
+
 
 # Used for COMPARE_OP opcode argument
 @enum.unique
@@ -203,7 +203,7 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     # the callable and either self or NULL
     "CALL": (-2, 1),  # CALL pops the 2 above items and push the return
     "ROT_TWO": (-2, 2),
-    "ROT_THRE": (-3, 3),
+    "ROT_THREE": (-3, 3),
     "ROT_FOUR": (-4, 4),
     "DUP_TOP": (-1, 2),
     "DUP_TOP_TWO": (-2, 4),
@@ -252,7 +252,9 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
 }
 
 
-DYNAMIC_STACK_EFFECTS: Dict[str, Callable[[int, Any, Optional[bool]], Tuple[int, int]]] = {
+DYNAMIC_STACK_EFFECTS: Dict[
+    str, Callable[[int, Any, Optional[bool]], Tuple[int, int]]
+] = {
     "SWAP": lambda effect, arg, jump: (-arg, arg),
     "COPY": lambda effect, arg, jump: (-arg, arg + effect),
     "ROT_N": lambda effect, arg, jump: (-arg, arg),
