@@ -360,7 +360,7 @@ class InstrLocation:
                 elif col_offset > end_col_offset:
                     raise ValueError(
                         f"End column offset {end_col_offset} cannot be smaller than "
-                        "column offset: {col_offset}."
+                        f"column offset: {col_offset}."
                     )
             else:
                 raise ValueError(
