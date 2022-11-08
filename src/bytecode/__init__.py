@@ -8,6 +8,7 @@ __all__ = [
     "ControlFlowGraph",
     "CompilerFlags",
     "Compare",
+    "BinaryOp",
     "__version__",
 ]
 
@@ -33,6 +34,7 @@ from bytecode.flags import CompilerFlags
 # import needed to use it in bytecode.py
 from bytecode.instr import (  # noqa
     UNSET,
+    BinaryOp,
     CellVar,
     Compare,
     FreeVar,
