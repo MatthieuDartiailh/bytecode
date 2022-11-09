@@ -357,7 +357,9 @@ class InstrLocation:
                     raise ValueError(
                         "End column offset specified with no column offset."
                     )
-                elif col_offset > end_col_offset:
+                # Column offset must be increasing inside a signle line but
+                # have no relations between different lines.
+                elif lineno == end_lineno and col_offset > end_col_offset:
                     raise ValueError(
                         f"End column offset {end_col_offset} cannot be smaller than "
                         f"column offset: {col_offset}."
