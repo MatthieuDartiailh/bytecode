@@ -22,7 +22,7 @@ from bytecode.instr import UNSET, BaseInstr, Instr, Label, SetLineno, TryBegin, 
 
 
 class BaseBytecode:
-    def __init__(self):
+    def __init__(self) -> None:
         self.argcount = 0
         self.posonlyargcount = 0
         self.kwonlyargcount = 0
@@ -31,7 +31,7 @@ class BaseBytecode:
         self.qualname = self.name
         self.filename = "<string>"
         self.docstring = UNSET
-        self.cellvars = []
+        self.cellvars: List[str] = []
         # we cannot recreate freevars from instructions because of super()
         # special-case
         self.freevars: List[str] = []

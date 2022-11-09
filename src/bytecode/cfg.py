@@ -29,7 +29,10 @@ U = TypeVar("U", bound="ControlFlowGraph")
 
 class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]):
     def __init__(
-        self, instructions: Iterable[Union[Instr, SetLineno, TryBegin, TryEnd]] = None
+        self,
+        instructions: Optional[
+            Iterable[Union[Instr, SetLineno, TryBegin, TryEnd]]
+        ] = None,
     ) -> None:
         # a BasicBlock object, or None
         self.next_block: Optional["BasicBlock"] = None
@@ -476,7 +479,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         self._block_index[id(block)] = block_index
 
     def add_block(
-        self, instructions: Iterable[Union[Instr, SetLineno]] = None
+        self, instructions: Optional[Iterable[Union[Instr, SetLineno]]] = None
     ) -> BasicBlock:
         block = BasicBlock(instructions)
         self._add_block(block)
