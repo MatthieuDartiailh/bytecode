@@ -18,6 +18,7 @@ class FunctionCollector(ModuleWatchdog):
                 function.__code__ = Bytecode.from_code(function.__code__).to_code()
             except Exception:
                 print("Failed to recompile %s" % fname)
+                dis.dis(function)
                 raise
 
 
