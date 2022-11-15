@@ -1,3 +1,4 @@
+import dis
 import typing as t
 from types import FunctionType, ModuleType
 
