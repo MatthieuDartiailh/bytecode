@@ -10,7 +10,6 @@ from typing import (
     Optional,
     Sequence,
     SupportsIndex,
-    Tuple,
     TypeVar,
     Union,
     overload,
@@ -140,14 +139,14 @@ class _BaseBytecodeList(BaseBytecode, list, Generic[U]):
                 set_lineno = instr.lineno
                 lineno_pos.append(pos)
                 continue
-            # Filter out Labels
+            # Filter out other pseudo instructions
             if not isinstance(instr, BaseInstr):
                 continue
             if set_lineno is not None:
                 instr.lineno = set_lineno
             elif instr.lineno is UNSET:
                 instr.lineno = current_lineno
-            else:
+            elif instr.lineno is not None:
                 current_lineno = instr.lineno
 
         for i in reversed(lineno_pos):
