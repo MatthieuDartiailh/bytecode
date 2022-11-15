@@ -30,9 +30,11 @@ class BaseBytecode:
         self.qualname = self.name
         self.filename = "<string>"
         self.docstring = UNSET
+        # We cannot recreate cellvars/freevars from instructions because of super()
+        # special-case, which involves an implicit __class__ cell/free variable
+        # We could try to detect it but it would likely be brittle so cell and free
+        # vars need to be explicitely listed.
         self.cellvars: List[str] = []
-        # we cannot recreate freevars from instructions because of super()
-        # special-case
         self.freevars: List[str] = []
         self._flags: CompilerFlags = CompilerFlags(0)
 

@@ -188,7 +188,7 @@ class ExceptionTableEntry:
     stack_depth: int
 
     #: Should the offset, at which an exception was raised, be pushed on the stack
-    #: before the exception itself (which is pushed as (traceback, value, type)).
+    #: before the exception itself (which is pushed as a single value)).
     push_lasti: bool
 
     __slots__ = ("start_offset", "stop_offset", "target", "stack_depth", "push_lasti")
@@ -231,7 +231,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         *,
         consts: tuple = (),
         names: Tuple[str, ...] = (),
-        varnames=(),
+        varnames: Iterable[str] = (),
         exception_table: Optional[List[ExceptionTableEntry]] = None,
     ):
         super().__init__()
@@ -268,7 +268,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         return "<ConcreteBytecode instr#=%s>" % len(self)
 
     def __eq__(self, other: Any) -> bool:
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
 
         const_keys1 = list(map(const_key, self.consts))
@@ -817,18 +817,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         check_pre_and_post: bool = True,
         compute_exception_stack_depths: bool = True,
     ) -> types.CodeType:
-        code_str, linenos = self._assemble_code()
-        lnotab = (
-            self._assemble_locations(self.first_lineno, linenos)
-            if sys.version_info >= (3, 11)
-            else (
-                self._assemble_linestable(self.first_lineno, linenos)
-                if sys.version_info >= (3, 10)
-                else self._assemble_lnotab(self.first_lineno, linenos)
-            )
-        )
-        nlocals = len(self.varnames)
-
         # Prevent reconverting the concrete bytecode to bytecode and cfg to do the
         # calculation if we need to do it.
         if stacksize is None or (
@@ -842,6 +830,20 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             self = cfg.to_bytecode().to_concrete_bytecode(
                 compute_exception_stack_depths=False
             )
+
+        # Assemble the code string after round tripping to CFG if necessary.
+        code_str, linenos = self._assemble_code()
+
+        lnotab = (
+            self._assemble_locations(self.first_lineno, linenos)
+            if sys.version_info >= (3, 11)
+            else (
+                self._assemble_linestable(self.first_lineno, linenos)
+                if sys.version_info >= (3, 10)
+                else self._assemble_lnotab(self.first_lineno, linenos)
+            )
+        )
+        nlocals = len(self.varnames)
 
         if sys.version_info >= (3, 11):
             return types.CodeType(
@@ -928,7 +930,21 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         labels = {}
         tb_instrs: Dict[ExceptionTableEntry, TryBegin] = {}
         offset = 0
-        ncells = len(self.cellvars)
+        # In Python 3.11+ cell and varnames can be shared and are indexed in a single
+        # array.
+        # As a consequence, the instruction argument can be either:
+        # - < len(varnames): the name is shared an we can directly use
+        #   the index to access the name in celvars
+        # - > len(varnames): the name is not shared and is offset by the
+        #   number unshared varname.
+        # Free vars are never shared and correspond to index larger than the
+        # largest cell var.
+        # See PyCode_NewWithPosOnlyArgs
+        if sys.version_info >= (3, 11):
+            cells_lookup = self.varnames + [n for n in self.cellvars if n not in self.varnames]
+            ncells = len(cells_lookup)
+        else:
+            ncells = len(self.cellvars)
 
         for lineno, c_instr in self._normalize_lineno(
             c_instructions, self.first_lineno
@@ -1075,8 +1091,11 @@ class _ConvertBytecodeToConcrete:
         return index
 
     def concrete_instructions(self) -> None:
-        ncells = len(self.bytecode.cellvars)
         lineno = self.bytecode.first_lineno
+        # Track instruction (index) using cell vars and free vars to be able to update
+        # the index used once all the names are known.
+        cell_instrs: List[int] = []
+        free_instrs: List[int] = []
 
         for instr in self.bytecode:
 
@@ -1133,56 +1152,55 @@ class _ConvertBytecodeToConcrete:
                 entry.stop_offset = len(self.instructions) - 1
                 continue
 
-            if isinstance(instr, ConcreteInstr):
-                c_instr: ConcreteInstr = instr.copy()
-            else:
-                assert isinstance(instr, Instr)
+            assert isinstance(instr, Instr)
 
-                if instr.lineno is not UNSET:
-                    lineno = instr.lineno
+            if instr.lineno is not UNSET and instr.lineno is not None:
+                lineno = instr.lineno
+            elif instr.lineno is UNSET:
+                instr.lineno = lineno
+
+            arg = instr.arg
+            is_jump = False
+            if isinstance(arg, Label):
+                label = arg
+                # fake value, real value is set in compute_jumps()
+                arg = 0
+                is_jump = True
+            elif instr.opcode in _opcode.hasconst:
+                arg = self.add_const(arg)
+            elif instr.opcode in _opcode.haslocal:
+                assert isinstance(arg, str)
+                arg = self.add(self.varnames, arg)
+            elif instr.opcode in _opcode.hasname:
+                if sys.version_info >= (3, 11) and instr.name == "LOAD_GLOBAL":
+                    assert (
+                        isinstance(arg, tuple)
+                        and len(arg) == 2
+                        and isinstance(arg[0], bool)
+                        and isinstance(arg[1], str)
+                    )
+                    index = self.add(self.names, arg[1])
+                    arg = int(arg[0]) + (index << 1)
                 else:
-                    instr.lineno = lineno
-
-                arg = instr.arg
-                is_jump = False
-                if isinstance(arg, Label):
-                    label = arg
-                    # fake value, real value is set in compute_jumps()
-                    arg = 0
-                    is_jump = True
-                elif instr.opcode in _opcode.hasconst:
-                    arg = self.add_const(arg)
-                elif instr.opcode in _opcode.haslocal:
                     assert isinstance(arg, str)
-                    arg = self.add(self.varnames, arg)
-                elif instr.opcode in _opcode.hasname:
-                    if sys.version_info >= (3, 11) and instr.name == "LOAD_GLOBAL":
-                        assert (
-                            isinstance(arg, tuple)
-                            and len(arg) == 2
-                            and isinstance(arg[0], bool)
-                            and isinstance(arg[1], str)
-                        )
-                        index = self.add(self.names, arg[1])
-                        arg = int(arg[0]) + (index << 1)
-                    else:
-                        assert isinstance(arg, str)
-                        arg = self.add(self.names, arg)
-                elif instr.opcode in _opcode.hasfree:
-                    if isinstance(arg, CellVar):
-                        arg = self.bytecode.cellvars.index(arg.name)
-                    else:
-                        assert isinstance(arg, FreeVar)
-                        arg = ncells + self.bytecode.freevars.index(arg.name)
-                elif instr.opcode in _opcode.hascompare:
-                    if isinstance(arg, Compare):
-                        arg = arg.value
+                    arg = self.add(self.names, arg)
+            elif instr.opcode in _opcode.hasfree:
+                if isinstance(arg, CellVar):
+                    cell_instrs.append(len(self.instructions))
+                    arg = self.bytecode.cellvars.index(arg.name)
+                else:
+                    assert isinstance(arg, FreeVar)
+                    free_instrs.append(len(self.instructions))
+                    arg = self.bytecode.freevars.index(arg.name)
+            elif instr.opcode in _opcode.hascompare:
+                if isinstance(arg, Compare):
+                    arg = arg.value
 
-                # The above should have performed all the necessary conversion
-                assert isinstance(arg, int)
-                c_instr = ConcreteInstr(instr.name, arg, location=instr.location)
-                if is_jump:
-                    self.jumps.append((len(self.instructions), label, c_instr))
+            # The above should have performed all the necessary conversion
+            assert isinstance(arg, int)
+            c_instr = ConcreteInstr(instr.name, arg, location=instr.location)
+            if is_jump:
+                self.jumps.append((len(self.instructions), label, c_instr))
 
             # If the instruction expect some cache
             if sys.version_info >= (3, 11):
@@ -1190,6 +1208,31 @@ class _ConvertBytecodeToConcrete:
                 self.seen_manual_cache = False
 
             self.instructions.append(c_instr)
+
+        # On Python 3.11 varnames and cells can share some names. Wind the shared
+        # names and update the arg argument of instructions using cell vars.
+        # We also track by how much to offset free vars which are stored in a
+        # contiguous array after the cell vars
+        if sys.version_info >= (3, 11):
+            # Map naive cell index to shared index
+            shared_name_indexes: Dict[int, int] = {}
+            n_shared = 0
+            for i, name in enumerate(self.bytecode.cellvars):
+                if name in self.varnames:
+                    shared_name_indexes[i] = self.varnames.index(name)
+                    n_shared += 1
+                else:
+                    shared_name_indexes[i] = len(self.varnames) + i
+            for index in cell_instrs:
+                c_instr = self.instructions[i]
+                c_instr.arg = shared_name_indexes[c_instr.arg]
+            free_offset = len(self.varnames) + len(self.bytecode.cellvars) - n_shared
+        else:
+            free_offset = len(self.cellvars)
+
+        for index in free_instrs:
+            c_instr = self.instructions[index]
+            c_instr.arg += free_offset
 
     def compute_jumps(self) -> bool:
         offsets = []
