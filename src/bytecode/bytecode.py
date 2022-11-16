@@ -17,7 +17,16 @@ from typing import (
 
 import bytecode as _bytecode
 from bytecode.flags import CompilerFlags, infer_flags
-from bytecode.instr import UNSET, BaseInstr, Instr, Label, SetLineno, TryBegin, TryEnd
+from bytecode.instr import (
+    _UNSET,
+    UNSET,
+    BaseInstr,
+    Instr,
+    Label,
+    SetLineno,
+    TryBegin,
+    TryEnd,
+)
 
 
 class BaseBytecode:
@@ -29,11 +38,12 @@ class BaseBytecode:
         self.name = "<module>"
         self.qualname = self.name
         self.filename = "<string>"
-        self.docstring = UNSET
+        self.docstring: Union[str, None, _UNSET] = UNSET
         # We cannot recreate cellvars/freevars from instructions because of super()
         # special-case, which involves an implicit __class__ cell/free variable
-        # We could try to detect it but it would likely be brittle so cell and free
-        # vars need to be explicitely listed.
+        # We could try to detect it.
+        # CPython itself breaks if one aliases super so we could maybe make it work
+        # but it will require careful design and will be done later in the future.
         self.cellvars: List[str] = []
         self.freevars: List[str] = []
         self._flags: CompilerFlags = CompilerFlags(0)

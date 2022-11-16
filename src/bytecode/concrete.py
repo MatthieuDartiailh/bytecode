@@ -1230,7 +1230,7 @@ class _ConvertBytecodeToConcrete:
                 c_instr.arg = shared_name_indexes[c_instr.arg]
             free_offset = len(self.varnames) + len(self.bytecode.cellvars) - n_shared
         else:
-            free_offset = len(self.cellvars)
+            free_offset = len(self.bytecode.cellvars)
 
         for index in free_instrs:
             c_instr = self.instructions[index]
