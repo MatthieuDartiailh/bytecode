@@ -941,7 +941,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # largest cell var.
         # See PyCode_NewWithPosOnlyArgs
         if sys.version_info >= (3, 11):
-            cells_lookup = self.varnames + [n for n in self.cellvars if n not in self.varnames]
+            cells_lookup = self.varnames + [
+                n for n in self.cellvars if n not in self.varnames
+            ]
             ncells = len(cells_lookup)
         else:
             ncells = len(self.cellvars)
