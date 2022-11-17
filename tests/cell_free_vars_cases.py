@@ -2,26 +2,26 @@
 # capabilities.
 
 
-def simple_cellvar():                 # a cellvar in f
+def simple_cellvar():  # a cellvar in f
     a = 1
 
-    def g():                          # a freevar in g
+    def g():  # a freevar in g
         return a
 
     return g
 
 
-def cellvar_share_name(a=1):            # a cellvar in f, but stored as varname
-    def g():                          # a freevar in g
+def cellvar_share_name(a=1):  # a cellvar in f, but stored as varname
+    def g():  # a freevar in g
         return a
 
     return g
 
 
-def cellvar_shared_and_unshared(a=1):   # a, b cellvar in f, but a stored as varname
+def cellvar_shared_and_unshared(a=1):  # a, b cellvar in f, but a stored as varname
     b = 1
 
-    def g():                          # a, b freevar in g
+    def g():  # a, b freevar in g
         return a + b
 
     return g
