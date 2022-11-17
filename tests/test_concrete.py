@@ -1156,6 +1156,59 @@ class ConcreteFromCodeTests(TestCase):
 
     # XXX add tests for linenumbers which are None
 
+    def test_packing_lines(self):
+        import dis
+
+        from .long_lines_example import long_lines
+
+        line_starts = list(dis.findlinestarts(long_lines.__code__))
+
+        concrete = ConcreteBytecode.from_code(long_lines.__code__)
+        as_code = concrete.to_code()
+        self.assertEqual(line_starts, list(dis.findlinestarts(as_code)))
+
+    def test_exception_table_round_trip(self):
+        from . import exception_handling_cases as ehc
+
+        for f in ehc.TEST_CASES:
+            print(f.__name__)
+            with self.subTest(f.__name__):
+                origin = f.__code__
+                concrete = ConcreteBytecode.from_code(f.__code__)
+                as_code = concrete.to_code(
+                    stacksize=f.__code__.co_stacksize,
+                    compute_exception_stack_depths=False,
+                )
+                self.assertCodeObjectEqual(origin, as_code)
+                f.__code__ = as_code
+                if inspect.iscoroutinefunction(f):
+                    if sys.version_info >= (3, 10):
+                        asyncio.run(f())
+                else:
+                    f()
+
+    def test_cellvar_freevar_roundtrip(self):
+        from . import cell_free_vars_cases as cfc
+
+        def recompile_code_and_inner(code):
+            concrete = ConcreteBytecode.from_code(code)
+            for i, c in enumerate(concrete.consts):
+                if isinstance(c, types.CodeType):
+                    concrete.consts[i] = recompile_code_and_inner(c)
+            as_code = concrete.to_code(
+                stacksize=code.co_stacksize, compute_exception_stack_depths=False
+            )
+            self.assertCodeObjectEqual(code, as_code)
+            return as_code
+
+        for f in cfc.TEST_CASES:
+            print(f.__name__)
+            with self.subTest(f.__name__):
+                origin = f.__code__
+                f.__code__ = recompile_code_and_inner(origin)
+                while callable(f := f()):
+                    pass
+
 
 class BytecodeToConcreteTests(TestCase):
     def test_label(self):
@@ -1579,34 +1632,7 @@ class BytecodeToConcreteTests(TestCase):
         f.__code__ = code.to_code()
         self.assertEqual(f(), (obj1, obj2, obj3, obj4))
 
-    def test_packing_lines(self):
-        import dis
-
-        from .long_lines_example import long_lines
-
-        line_starts = list(dis.findlinestarts(long_lines.__code__))
-
-        concrete = ConcreteBytecode.from_code(long_lines.__code__)
-        as_code = concrete.to_code()
-        self.assertEqual(line_starts, list(dis.findlinestarts(as_code)))
-
-    def test_exception_table_round_trip(self):
-        from . import exception_handling_cases as ehc
-
-        for f in ehc.TEST_CASES:
-            print(f.__name__)
-            with self.subTest(f.__name__):
-                origin = f.__code__
-                concrete = ConcreteBytecode.from_code(f.__code__)
-                as_code = concrete.to_code(stacksize=f.__code__.co_stacksize)
-                self.assertCodeObjectEqual(origin, as_code)
-                if inspect.iscoroutinefunction(f):
-                    if sys.version_info >= (3, 10):
-                        asyncio.run(f())
-                else:
-                    f()
-
-    # XXX test more cases for line encoding in particular with extended args
+    # FIXME test more cases for line encoding in particular with extended args
 
 
 if __name__ == "__main__":

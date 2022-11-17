@@ -3,6 +3,7 @@ import asyncio
 import inspect
 import sys
 import textwrap
+import types
 import unittest
 
 from bytecode import Bytecode, ConcreteInstr, FreeVar, Instr, Label, SetLineno
@@ -583,6 +584,32 @@ class BytecodeTests(TestCase):
                         asyncio.run(f())
                 else:
                     f()
+
+    def test_cellvar_freevar_roundtrip(self):
+        from . import cell_free_vars_cases as cfc
+
+        def recompile_code_and_inner(code):
+            bytecode = Bytecode.from_code(
+                code,
+                conserve_exception_block_stackdepth=True,
+            )
+            for instr in bytecode:
+                if isinstance(instr.arg, types.CodeType):
+                    instr.arg = recompile_code_and_inner(instr.arg)
+            as_code = bytecode.to_code(
+                stacksize=code.co_stacksize,
+                compute_exception_stack_depths=False,
+            )
+            self.assertCodeObjectEqual(code, as_code)
+            return as_code
+
+        for f in cfc.TEST_CASES:
+            print(f.__name__)
+            with self.subTest(f.__name__):
+                origin = f.__code__
+                f.__code__ = recompile_code_and_inner(origin)
+                while callable(f := f()):
+                    pass
 
 
 if __name__ == "__main__":

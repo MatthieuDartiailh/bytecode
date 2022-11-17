@@ -161,6 +161,9 @@ class TestCase(unittest.TestCase):
     def assertCodeObjectEqual(self, code1: types.CodeType, code2: types.CodeType):
         self.assertEqual(code1.co_stacksize, code2.co_stacksize)
         self.assertEqual(code1.co_firstlineno, code2.co_firstlineno)
+        self.assertSequenceEqual(code1.co_cellvars, code2.co_cellvars)
+        self.assertSequenceEqual(code1.co_freevars, code2.co_freevars)
+        self.assertSequenceEqual(code1.co_varnames, code2.co_varnames)
         if sys.version_info >= (3, 11):
             self.assertSequenceEqual(code1.co_exceptiontable, code2.co_exceptiontable)
             # We do not compare linetables because CPython does not always optimize

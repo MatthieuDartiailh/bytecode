@@ -2,7 +2,10 @@
 import contextlib
 import sys
 
-# NOTE we use in except/finally clause expression requiring a larger stack usage
+# Functions attempting to cover most combination of exception error handling mechanisms
+# to test bytecode round tripping capabilities.
+
+# NOTE we use call in except/finally clause expression requiring a larger stack usage
 
 
 def try_except():

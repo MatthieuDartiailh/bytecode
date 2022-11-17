@@ -4,6 +4,7 @@ import contextlib
 import inspect
 import io
 import sys
+import types
 import unittest
 
 from bytecode import (
@@ -900,7 +901,7 @@ class CFGStacksizeComputationTests(TestCase):
         bytecode.compute_stacksize()
 
 
-class CFGExceptionHandlingTests(TestCase):
+class CFGRoundTripTests(TestCase):
     def test_roundtrip_exception_handling(self):
         from . import exception_handling_cases as ehc
 
@@ -908,13 +909,34 @@ class CFGExceptionHandlingTests(TestCase):
             with self.subTest(f.__name__):
                 origin = f.__code__
                 cfg = ControlFlowGraph.from_bytecode(Bytecode.from_code(f.__code__))
-                as_code = cfg.to_code(check_pre_and_post=False)
+                as_code = cfg.to_code()
                 self.assertCodeObjectEqual(origin, as_code)
                 if inspect.iscoroutinefunction(f):
                     if sys.version_info >= (3, 10):
                         asyncio.run(f())
                 else:
                     f()
+
+    def test_cellvar_freevar_roundtrip(self):
+        from . import cell_free_vars_cases as cfc
+
+        def recompile_code_and_inner(code):
+            cfg = ControlFlowGraph.from_bytecode(Bytecode.from_code(code))
+            for block in cfg:
+                for instr in block:
+                    if isinstance(instr.arg, types.CodeType):
+                        instr.arg = recompile_code_and_inner(instr.arg)
+            as_code = cfg.to_code()
+            self.assertCodeObjectEqual(code, as_code)
+            return as_code
+
+        for f in cfc.TEST_CASES:
+            print(f.__name__)
+            with self.subTest(f.__name__):
+                origin = f.__code__
+                f.__code__ = recompile_code_and_inner(origin)
+                while callable(f := f()):
+                    pass
 
 
 if __name__ == "__main__":

@@ -947,6 +947,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             ncells = len(cells_lookup)
         else:
             ncells = len(self.cellvars)
+            cells_lookup = self.cellvars
 
         for lineno, c_instr in self._normalize_lineno(
             c_instructions, self.first_lineno
@@ -996,7 +997,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                         arg = self.names[c_arg]
                 elif c_instr.opcode in _opcode.hasfree:
                     if c_arg < ncells:
-                        name = self.cellvars[c_arg]
+                        name = cells_lookup[c_arg]
                         arg = CellVar(name)
                     else:
                         name = self.freevars[c_arg - ncells]
@@ -1219,15 +1220,19 @@ class _ConvertBytecodeToConcrete:
             # Map naive cell index to shared index
             shared_name_indexes: Dict[int, int] = {}
             n_shared = 0
+            n_unshared = 0
             for i, name in enumerate(self.bytecode.cellvars):
                 if name in self.varnames:
                     shared_name_indexes[i] = self.varnames.index(name)
                     n_shared += 1
                 else:
-                    shared_name_indexes[i] = len(self.varnames) + i
+                    shared_name_indexes[i] = len(self.varnames) + n_unshared
+                    n_unshared += 1
+
             for index in cell_instrs:
-                c_instr = self.instructions[i]
+                c_instr = self.instructions[index]
                 c_instr.arg = shared_name_indexes[c_instr.arg]
+
             free_offset = len(self.varnames) + len(self.bytecode.cellvars) - n_shared
         else:
             free_offset = len(self.bytecode.cellvars)
