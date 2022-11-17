@@ -183,8 +183,9 @@ class ExceptionTableEntry:
     #: Offset in instruction to the first instruction of the exception handling block.
     target: int
 
-    #: Stack depth when enter the block delineated by start and stop offset of the
-    #: exception table entry.
+    #: Minimal stack depth in the block delineated by start and stop
+    #: offset of the exception table entry. Used to restore the stack (by
+    #: popping items) when entering the exception handling block.
     stack_depth: int
 
     #: Should the offset, at which an exception was raised, be pushed on the stack
@@ -213,14 +214,13 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
     #: List of "constant" objects for the bytecode
     consts: List
 
-    # XXX fix
-    #: List of names under which values are stored
+    #: List of names used by local variables.
     names: List[str]
 
-    #:
+    #: List of names used by input variables.
     varnames: List[str]
 
-    #: Table describing portion of the bytecode in which exception are caught and
+    #: Table describing portion of the bytecode in which exceptions are caught and
     #: where there are handled.
     #: Used only in Python 3.11+
     exception_table: List[ExceptionTableEntry]

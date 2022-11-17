@@ -26,6 +26,15 @@ Constants
 Functions
 =========
 
+.. function:: format_bytecode(bytecode, \*, lineno: bool = False) -> str:
+
+   Format a bytecode to a str representation. :class:`ConcreteBytecode`,
+   :class:`Bytecode` and :class:`ControlFlowGraph` are accepted for *bytecode*.
+
+   If *lineno* is true, show also line numbers and instruction index/offset.
+
+   This function is written for debug purpose.
+
 .. function:: dump_bytecode(bytecode, \*, lineno=False)
 
    Dump a bytecode to the standard output. :class:`ConcreteBytecode`,
@@ -42,7 +51,7 @@ Instruction classes
 Instr
 -----
 
-.. class:: Instr(name: str, arg=UNSET, \*, lineno: int=None)
+.. class:: Instr(name: str, arg=UNSET, \*, lineno: Union[int, None, UNSET] = UNSET, location: Optional[InstrLocation] = None)
 
    Abstract instruction.
 
@@ -96,7 +105,15 @@ Instr
    .. versionchanged:: 0.3
       The ``op`` attribute was renamed to :attr:`opcode`.
 
+   .. attribute:: location
+
+      Detailed location (:class:`InstrLocation`)
+
    Methods:
+
+   .. method:: require_arg() -> bool
+
+      Does the instruction require an argument?
 
    .. method:: copy()
 
@@ -133,6 +150,10 @@ Instr
 
       * JUMP_IF_FALSE_OR_POP
       * JUMP_IF_TRUE_OR_POP
+      * JUMP_FORWARD_IF_FALSE_OR_POP
+      * JUMP_BACKWARD_IF_FALSE_OR_POP
+      * JUMP_FORWARD_IF_TRUE_OR_POP
+      * JUMP_BACKWARD_IF_TRUE_OR_POP
       * POP_JUMP_IF_FALSE
       * POP_JUMP_IF_TRUE
 
@@ -144,6 +165,20 @@ Instr
 
       * JUMP_FORWARD
       * JUMP_ABSOLUTE
+      * JUMP_BACKWARD
+      * JUMP_BACKWARD_NO_INTERRUPT
+
+   .. method:: is_abs_jump() -> bool
+
+      Is the operation an absolute jump?
+
+   .. method:: is_forward_rel_jump() -> bool
+
+      Is the operation a forward relative jump?
+
+   .. method:: is_backward_rel_jump() -> bool
+
+      Is the operation a backward relative jump?
 
    .. method:: set(name: str, arg=UNSET)
 
@@ -164,7 +199,7 @@ Instr
       returns the stack effect for non-taken branches.
 
       .. versionchanged:: 0.8
-         ``stack_method`` was changed from a property to a method in order to
+         ``stack_effect`` was changed from a property to a method in order to
          add the keyword argument *jump*.
 
     .. method:: pre_and_post_stack_effect(jump: Optional[bool] = None) -> Tuple[int, int]
@@ -246,8 +281,8 @@ Compare
 
    * ``Compare.EQ`` (``2``): ``x == y``
    * ``Compare.NE`` (``3``): ``x != y``
-   * ``Compare.IS`` (``8``): ``x is y``
-   * ``Compare.IS_NOT`` (``9``): ``x is not y``
+   * ``Compare.IS`` (``8``): ``x is y`` removed in Python 3.9+
+   * ``Compare.IS_NOT`` (``9``): ``x is not y`` removed in Python 3.9+
 
    Inequality test:
 
@@ -258,10 +293,95 @@ Compare
 
    Other tests:
 
-   * ``Compare.IN`` (``6``): ``x in y``
-   * ``Compare.NOT_IN`` (``7``): ``x not in y``
+   * ``Compare.IN`` (``6``): ``x in y`` removed in Python 3.9+
+   * ``Compare.NOT_IN`` (``7``): ``x not in y`` removed in Python 3.9+
    * ``Compare.EXC_MATCH`` (``10``): used to compare exceptions
-     in ``except:`` blocks
+     in ``except:`` blocks. Removed in Python 3.9+
+
+
+Binary operation
+----------------
+
+.. class:: BinaryOp
+
+   Enum for the argument of the ``BINARY_OP`` instruction (3.11+).
+
+   Arithmetic operations
+
+   ``BinaryOp.ADD`` (``0``): ``x + y``
+   ``BinaryOp.SUBTRACT`` (``10``): ``x - y``
+   ``BinaryOp.MULTIPLY`` (``5``): ``x * y``
+   ``BinaryOp.TRUE_DIVIDE`` (``11``): ``x / y``
+   ``BinaryOp.FLOOR_DIVIDE`` (``2``): ``x // y``
+   ``BinaryOp.REMAINDER`` (``6``): ``x % y``
+   ``BinaryOp.MATRIX_MULTIPLY`` (``4``): ``x @ y``
+   ``BinaryOp.POWER`` (``8``): ``x ** y``
+
+   Logical and binary operations
+
+   ``BinaryOp.LSHIFT`` (``3``): ``x << y``
+   ``BinaryOp.RSHIFT`` (``9``): ``x >> y``
+   ``BinaryOp.AND`` (``1``): ``x & y``
+   ``BinaryOp.OR`` (``7``): ``x | y``
+   ``BinaryOp.XOR`` (``12``): ``x ^ y``
+
+   Inplace operations:
+
+   ``BinaryOp.INPLACE_ADD`` (``13``): ``x += y``
+   ``BinaryOp.INPLACE_SUBTRACT`` (``23``): ``x -= y``
+   ``BinaryOp.INPLACE_MULTIPLY`` (``18``): ``x *= y``
+   ``BinaryOp.INPLACE_TRUE_DIVIDE`` (``24``): ``x /= y``
+   ``BinaryOp.INPLACE_FLOOR_DIVIDE`` (``15``): ``x //= y``
+   ``BinaryOp.INPLACE_REMAINDER`` (``19``): ``x %= y``
+   ``BinaryOp.INPLACE_MATRIX_MULTIPLY`` (``17``): ``x @= y``
+   ``BinaryOp.INPLACE_POWER`` (``21``): ``x **= y``
+   ``BinaryOp.INPLACE_LSHIFT`` (``16``): ``x <<= y``
+   ``BinaryOp.INPLACE_RSHIFT`` (``22``): ``x >>= y``
+   ``BinaryOp.INPLACE_AND`` (``14``): ``x &= y``
+   ``BinaryOp.INPLACE_OR`` (``20``): ``x |= y``
+   ``BinaryOp.INPLACE_XOR`` (``25``): ``x ^= y``
+
+
+CellVar and FreeVar
+-------------------
+
+The following classes are used to represent the argument of opcode listed in
+``opcode.hasfree`` which includes:
+
+- MAKE_CELL
+- LOAD_CLOSURE
+- LOAD_DEREF
+- STORE_DEREF
+- DELETE_DEREF
+- LOAD_CLASSDEREF
+
+.. class:: CellVar
+
+   Argument of an opcode referring to a variable held in a cell.
+
+   Cell variables cannot always be inferred only from the instructions
+   (``__class__`` used by super() is implicit) and as a consequence cellvars are
+   explicitly listed on all bytecode objects.
+
+   Attributes:
+
+   .. attribute:: name
+
+      Name of the cell variable (``str``).
+
+.. class:: FreeVar
+
+   Argument of opcode referring to a free variable.
+
+   Free variables cannot always be inferred only from the instructions
+   (``__class__`` used by super() is implicit) and as a consequence freevars are
+   explicitly listed on all bytecode objects.
+
+   Attributes:
+
+   .. attribute:: name
+
+      Name of the free variable (``str``).
 
 
 Label
@@ -288,6 +408,88 @@ SetLineno
    .. attribute:: lineno
 
       Line number (``int``), read-only attribute.
+
+InstrLocation
+-------------
+
+.. class:: InstrLocation(lineno: Optional[int], end_lineno: Optional[int],        col_offset: Optional[int], end_col_offset: Optional[int])
+
+   Detailed location for an instruction.
+
+   .. attribute:: lineno
+
+      Line number on which the instruction starts.
+
+   .. attribute:: end_lineno
+
+      Line number on which the instruction ends.
+
+   .. attribute:: col_offset
+
+      Column offset within the start line at which the instruction starts.
+
+   .. attribute:: end_col_offset
+
+      Column offset within the end line at which the instruction starts.
+
+   .. classmethod:: from_positions(cls, position: dis.Positions) -> InstrLocation
+
+      Build an InstrLocation from a dis.Position object.
+
+
+TryBegin
+--------
+
+.. class:: TryBegin(target: Union[Label, BasicBlock], push_lasti: bool, stack_depth: Union[int, UNSET] = UNSET)
+
+   Pseudo instruction marking the beginning of an exception table entry.
+
+   Used in Python 3.11+ in :class:`Bytecode` and :class:`BasicBlock`.
+
+   .. attribute:: target
+
+      Target :class:`Label` or :class:`BasicBlock` to which to jump to if an exception
+      occurs on an instruction sitting between this :class:`TryBegin` and the
+      matching :class:`TryEnd`.
+
+   .. attribute:: push_lasti
+
+      Is the instruction offset at which an exception occurred pushed on the stack
+      before the exception itself when handling an exception.
+
+   .. attribute:: stack_depth
+
+      Stack depth that will be restored by the interpreter by popping from the stack
+      when handling an exception, before pushing the exception possibly preceded by
+      the instruction offset depending on :attr:`TryBegin.push_lasti`.
+
+   .. method:: copy() -> TryBegin
+
+      Create a copy of the TryBegin.
+
+
+TryEnd
+------
+
+.. class:: TryEnd(entry: TryBegin)
+
+   Pseudo instruction marking the end of an exception table entry.
+
+   .. note::
+
+      In a :class:`BasicBlock`, one may find a :class:`TryEnd` instance after a final
+      instruction. This results from the exception enclosing the final instruction.
+      Since :class:`TryEnd` is only a pseudo-instruction this does not violate
+      the guarantee made by a :class:`BasicBlock` which only applies to instructions.
+
+   .. note::
+
+      A jump may cause to exit an exception table entry. To make this explicit
+      within the :class:`ControlFlowGraph`, multiple :class:`TryExit` corresponding
+      to a single :class:`TryBegin` can exist. :class:`TryExit` corresponding to
+      exiting an exception table entry through a jump always appear as the first
+      element of the target block. Care should be taken however that the block
+      may be reached through a different path in which case it should be ignored.
 
 
 Bytecode classes
@@ -348,6 +550,12 @@ BaseBytecode
 
       Code name (``str``), default: ``'<module>'``.
 
+   .. attribute:: qualname
+
+      Qualified code name (``str``).
+
+      New in Python 3.11
+
    .. versionchanged:: 0.3
       Attribute ``kw_only_argcount`` renamed to :attr:`kwonlyargcount`.
 
@@ -365,10 +573,13 @@ Bytecode
    * :class:`Label`
    * :class:`SetLineno`
    * :class:`Instr`
-   * :class:`ConcreteInstr`
+   * :class:`TryBegin`
+   * :class:`TryEnd`
 
-   It is possible to use concrete instructions (:class:`ConcreteInstr`), but
-   abstract instructions are preferred.
+   .. versionchanged:: 0.14.0
+
+      It is not possible anymore to use concrete instructions (:class:`ConcreteInstr`)
+      in :class:`Bytecode`.
 
    Attributes:
 
@@ -389,7 +600,7 @@ Bytecode
       Check the validity of all the instruction and remove the :class:`SetLineno`
       instances after updating the instructions.
 
-   .. method:: to_concrete_bytecode(compute_jumps_passes: int = None) -> ConcreteBytecode
+   .. method:: to_concrete_bytecode(compute_jumps_passes: int = None, compute_exception_stack_depths: bool = True) -> ConcreteBytecode
 
       Convert to concrete bytecode with concrete instructions.
 
@@ -407,7 +618,11 @@ Bytecode
       3.6.5 unittests on OS X 11.13 results in 264996 compiled methods, only
       one of which requires 5 passes, and none requiring more.
 
-   .. method:: to_code(compute_jumps_passes: int = None, stacksize: int = None, *, check_pre_and_post: bool = True) -> types.CodeType
+      If *compute_exception_stack_depths*  is True, the stack depth for each
+      exception table entry will be computed (which requires to convert the
+      the bytecode to a :class:`ControlFlowGraph`)
+
+   .. method:: to_code(compute_jumps_passes: int = None, stacksize: int = None, *, check_pre_and_post: bool = True, compute_exception_stack_depths: bool = True) -> types.CodeType
 
       Convert to a Python code object.
 
@@ -419,6 +634,8 @@ Bytecode
 
       *check_pre_and_post*: see :meth:`ConcreteBytecode.to_code`
 
+      *compute_exception_stack_depths*: see :meth:`to_concrete_bytecode`
+
    .. method:: compute_stacksize(*, check_pre_and_post: bool = True) -> int
 
       Compute the stacksize needed to execute the code. Will raise an
@@ -429,13 +646,49 @@ Bytecode
 
       *check_pre_and_post* Allows caller to disable checking for stack underflow
 
-    .. method:: update_flags(is_async: bool = None)
+    .. method:: update_flags(is_async: bool = None) -> None
 
       Update the object flags by calling :py:func:infer_flags on itself.
 
 
 ConcreteBytecode
 ----------------
+
+.. class:: ExceptionTableEntry
+
+   Entry for a given line in the exception table.
+
+   All offset are expressed in instructions not in bytes.
+
+   Attributes:
+
+   .. attribute:: start_offset
+
+      Offset (``int``) in instruction between the beginning of the bytecode and
+      the beginning of this entry.
+
+   .. attribute:: stop_offset
+
+      Offset (``int``) in instruction between the beginning of the bytecode and
+      the end of this entry. This offset is inclusive meaning that the instruction
+      it points  to is included in the try/except handling.
+
+   .. attribute:: target
+
+      Offset (``int``) in instruction to the first instruction of the exception
+      handling block.
+
+   .. attribute:: stack_depth
+
+      Minimal stack depth (``int``) in the block delineated by start and stop
+      offset of the exception table entry. Used to restore the stack (by
+      popping items) when entering the exception handling block.
+
+   .. attribute:: push_lasti
+
+      ``bool`` indicating if the offset, at which an exception was raised, should
+      be pushed on the stack  before the exception itself (which is pushed as a single value).
+
 
 .. class:: ConcreteBytecode
 
@@ -447,7 +700,8 @@ ConcreteBytecode
    * :class:`SetLineno`
    * :class:`ConcreteInstr`
 
-   :class:`Label` and :class:`Instr` must not be used in concrete bytecode.
+   :class:`Label`, :class:`TryBegin`, :class:`TryEnd` and :class:`Instr` must
+   not be used in concrete bytecode.
 
    Attributes:
 
@@ -462,6 +716,12 @@ ConcreteBytecode
    .. attribute:: varnames
 
       List of variable names (``list`` of ``str``), default: empty list.
+
+   .. attribute:: exception_table
+
+      List of :class:`ExceptionTableEntry` describing portion of the bytecode
+      in which exceptions are caught and where there are handled.
+      Used only in Python 3.11+
 
    Static methods:
 
@@ -481,16 +741,20 @@ ConcreteBytecode
       instances after updating the instructions.
 
 
-   .. method:: to_code(stacksize: int = None, *, check_pre_and_post: bool = True) -> types.CodeType
+   .. method:: to_code(stacksize: int = None, *, check_pre_and_post: bool = True, compute_exception_stack_depths: bool = True) -> types.CodeType
 
       Convert to a Python code object.
 
       *stacksize* Allows caller to explicitly specify a stacksize.  If not
-      specified a ControlFlowGraph is created internally in order to call
-      ControlFlowGraph.compute_stacksize().  It's cheaper to pass a value if
+      specified a :class:`ControlFlowGraph` is created internally in order to call
+      :meth:`ControlFlowGraph.compute_stacksize`.  It's cheaper to pass a value if
       the value is known.
 
       *check_pre_and_post* Allows caller to disable checking for stack underflow
+
+      If *compute_exception_stack_depths*  is True, the stack depth for each
+      exception table entry will be computed (which requires to convert the
+      the bytecode to a :class:`ControlFlowGraph`)
 
    .. method:: to_bytecode() -> Bytecode
 
@@ -523,14 +787,17 @@ BasicBlock
    (:class:`Instr`) with no branches in except to the entry and no branches out
    except at the exit.
 
-   A block must only contain objects of the 3 following types:
+   A block must only contain objects of the 4 following types:
 
    * :class:`SetLineno`
    * :class:`Instr`
-   * :class:`ConcreteInstr`
+   * :class:`TryBegin`
+   * :class:`TryEnd`
 
-   It is possible to use concrete instructions (:class:`ConcreteInstr`) in
-   blocks, but abstract instructions (:class:`Instr`) are preferred.
+   .. versionchanged:: 0.14.0
+
+      It is not possible anymore to use concrete instructions (:class:`ConcreteInstr`)
+      in :class:`BasicBlock`.
 
    Only the last instruction can have a jump argument, and the jump argument
    must be a basic block (:class:`BasicBlock`).
@@ -617,56 +884,29 @@ ControlFlowGraph
 
       Convert to a bytecode object using labels.
 
-   .. method:: compute_stacksize(*, check_pre_and_post: bool = True) -> int
+   .. method:: compute_stacksize(*, check_pre_and_post: bool = True, compute_exception_stack_depths: bool = True) -> int
 
       Compute the stack size required by a bytecode object. Will raise an
       exception if the bytecode is invalid.
 
       *check_pre_and_post* Allows caller to disable checking for stack underflow
 
+      *compute_exception_stack_depths* Allows caller to disable the computation of
+      the stack depth required by exception table entries.
+
    .. method:: update_flags(is_async: bool = None)
 
       Update the object flags by calling :py:func:infer_flags on itself.
 
-   .. method:: to_code(stacksize: int = None, *, check_pre_and_post: bool = True)
+   .. method:: to_code(stacksize: int = None, *, check_pre_and_post: bool = True, compute_exception_stack_depths: bool = True)
 
       Convert to a Python code object.  Refer to descriptions of
       :meth:`Bytecode.to_code` and :meth:`ConcreteBytecode.to_code`.
 
       *check_pre_and_post* Allows caller to disable checking for stack underflow
 
-Cell and Free Variables
-=======================
-
-CellVar
--------
-
-.. class:: CellVar(name: str)
-
-   Cell variable used for instruction argument by operations taking a cell or
-   free variable name.
-
-
-   Attributes:
-
-   .. attribute:: name
-
-      Name of the cell variable (``str``).
-
-
-FreeVar
--------
-
-.. class:: FreeVar(name: str)
-
-   Free variable used for instruction argument by operations taking a cell or
-   free variable name.
-
-   Attributes:
-
-   .. attribute:: name
-
-      Name of the free variable (``str``).
+      *compute_exception_stack_depths* Allows caller to disable the computation of
+      the stack depth required by exception table entries.
 
 
 Line Numbers
@@ -678,6 +918,10 @@ previous instruction, starting at ``first_lineno`` of the bytecode.
 
 :class:`SetLineno` pseudo-instruction can be used to set the line number of
 following instructions.
+
+Starting with Python 3.11, instructions now have a starting lineno, and end lineno
+along with a starting column offset and an end column offset. :class:`InstrLocation`
+is used to store these new detailed information.
 
 
 Compiler Flags

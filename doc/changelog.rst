@@ -6,7 +6,30 @@ unreleased: Version 0.14.0
 
 New features:
 
-- add type annotations and make types stricter PR # 105
+- Removed the peephole optimizer  PR #107
+
+  Basically changes in Python 3.11 made it hard to port and the maintenance cost
+  exceeded the perceived use. It could be re-added if there is a demand for it.
+
+- Add support for Python 3.11 PR #107
+  Support for Python 3.11, comes a number of changes reflecting changes in
+  CPython bytecode itself:
+
+  - support for the exception table in ``ConcreteBytecode``
+  - support for pseudo-instruction ``TryBegin`` and ``TryEnd`` describing the
+    exception table in ``Bytecode`` and ``ControlflowGraph``
+  - new keyword arguments in conversion method related to computations required
+    for the exception table
+  - handling of CACHE opcode at the ``ConcreteBytecode`` level
+  - handling of the ability of ``LOAD_GLOBAL`` to push NULL (the argument is
+    now a ``tuple[bool, str]``)
+  - support for end_lineno and column offsets in instructions
+  - support for ``co_qualname`` (as ``qualname`` on bytecode objects)
+
+  and a number of internal changes related to changes in the internal bytecode
+  representation.
+
+- Add type annotations and make types stricter PR # 105
   In particular, ConcreteInstr does not inherit from Instr anymore and one
   cannot use ConcreteInstr in Bytecode object. This is saner than before.
 
@@ -19,8 +42,8 @@ Bugfixes:
   enumeration starting with Python 3.9. The new ``CONTAINS_OP`` and ``IS_OP``
   opcodes should be used instead.
 
-- Add proper pre and post stack effects to all opcodes (up to Python 3.10)
-  PR #106
+- Add proper pre and post stack effects to all opcodes (up to Python 3.11)
+  PR #106 #107
 
 Maintenance:
 
@@ -185,7 +208,7 @@ Bugfixes:
 2016-04-12: Version 0.4
 -----------------------
 
-:ref:`Peephole optimizer <peephole_opt>`:
+Peephole optimizer:
 
 * Reenable optimization on ``JUMP_IF_TRUE_OR_POP`` jumping to
   ``POP_JUMP_IF_FALSE <target>``.
@@ -222,7 +245,7 @@ Bugfixes:
 
 - Fix support of :class:`SetLineno`
 
-:ref:`Peephole optimizer <peephole_opt>`:
+Peephole optimizer:
 
 - Better code for LOAD_CONST x n + BUILD_LIST + UNPACK_SEQUENCE: rewrite
   LOAD_CONST in the reverse order instead of using ROT_TWO and ROT_THREE.
@@ -240,7 +263,7 @@ Bugfixes:
 - The project has now a documentation:
   `bytecode documentation <https://bytecode.readthedocs.io/>`_
 - Fix bug #1: support jumps larger than 2^16.
-- Add a new :ref:`bytecode.peephole_opt module <peephole_opt>`: a peephole
+- Add a new bytecode.peephole_opt module: a peephole
   optimizer, code based on peephole optimizer of CPython 3.6 which is
   implemented in C
 - Add :func:`dump_bytecode` function to ease debug.
