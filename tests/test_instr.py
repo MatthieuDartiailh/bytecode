@@ -13,7 +13,7 @@ from bytecode import (
     Label,
     SetLineno,
 )
-from bytecode.concrete import ConcreteBytecode
+from bytecode.instr import InstrLocation
 
 from . import TestCase
 
@@ -68,6 +68,32 @@ class VariableTests(TestCase):
                 self.assertEqual(v1, v2)
             else:
                 self.assertNotEqual(v1, v2)
+
+
+class InstrLocationTests(TestCase):
+    def test_init(self):
+        for args, error in [
+            ((None, None, None, None), ""),
+            ((None, 1, None, None), "End lineno specified with no lineno"),
+            ((12, 1, None, None), "cannot be smaller than lineno"),
+            ((12, 13, None, None), ""),
+            ((None, None, 1, None), "lineno information are incomplete"),
+            ((None, None, None, 1), "lineno information are incomplete"),
+            ((1, None, 1, None), "lineno information are incomplete"),
+            ((1, None, None, 1), "lineno information are incomplete"),
+            ((1, 2, None, 1), "with no column offset"),
+            ((1, 2, 12, 1), ""),
+            ((1, 1, 12, 1), "cannot be smaller than column offset"),
+            ((1, 1, 12, None), "No end column offset was"),
+        ]:
+            print(f"{args}, {error}")
+            with self.subTest(f"{args}, {error}"):
+                if error:
+                    with self.assertRaises(ValueError) as e:
+                        InstrLocation(*args)
+                    self.assertIn(error, str(e.exception))
+                else:
+                    InstrLocation(*args)
 
 
 class InstrTests(TestCase):
