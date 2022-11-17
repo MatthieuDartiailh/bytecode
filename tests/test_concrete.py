@@ -1337,8 +1337,11 @@ class BytecodeToConcreteTests(TestCase):
         self.assertEqual(func(18), -1)
 
         # Ensure that we properly round trip in such cases
-        self.assertEqual(
-            ConcreteBytecode.from_code(code).to_code().co_code, code.co_code
+        self.assertSequenceEqual(
+            ConcreteBytecode.from_code(code)
+            .to_code(stacksize=code.co_stacksize, compute_exception_stack_depths=False)
+            .co_code,
+            code.co_code,
         )
 
     def test_setlineno(self):
