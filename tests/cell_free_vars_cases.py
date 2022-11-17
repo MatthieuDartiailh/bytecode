@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     for f in TEST_CASES:
         print("--------------------------------------------------------------")
-        for line in inspect.getsourcelines(f)[0]:
+        for line in inspect.getsourcelines(f)[0]:  # type: ignore
             print(line.rstrip())
         print()
         dis.dis(f.__code__)
