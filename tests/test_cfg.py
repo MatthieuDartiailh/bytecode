@@ -911,7 +911,9 @@ class CFGRoundTripTests(TestCase):
             with self.subTest(f.__name__):
                 origin = f.__code__
                 print("Bytecode:")
-                bytecode = Bytecode.from_code(f.__code__)
+                bytecode = Bytecode.from_code(
+                    f.__code__, conserve_exception_block_stackdepth=True
+                )
                 dump_bytecode(bytecode)
                 print()
                 print("CFG:")
