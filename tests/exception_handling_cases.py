@@ -86,6 +86,42 @@ def nested_try():
     return a
 
 
+def nested_try_finally():
+    try:
+        a = 1
+        try:
+            b = 2
+        finally:
+            e = min(1, 2)
+        c = 3
+    finally:
+        d = min(1, 2)
+
+    return a
+
+
+# This case exhibits several pitfalls:
+# - a TryBegin appears in the block as a reraise requiring to create an artificial
+#  TryBegin/TryEnd pair
+# - complex exit conditions through jumps
+# - TryEnd following a non conditional jump
+def nested_try_with_looping_construct():
+    try:
+        try:
+            a = 1
+        finally:
+            b = min(1, 2)
+
+        while a:
+            c = 0
+            if min(5, 6):
+                break
+    finally:
+        c = 3
+
+    return a
+
+
 def try_in_except():
     try:
         a = 1
@@ -185,6 +221,8 @@ TEST_CASES = [
     try_except_finally,
     try_except_else_finally,
     nested_try,
+    nested_try_finally,
+    nested_try_with_looping_construct,
     try_in_except,
     with_no_store,
     with_store,

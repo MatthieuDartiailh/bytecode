@@ -444,6 +444,8 @@ TryBegin
 
    Pseudo instruction marking the beginning of an exception table entry.
 
+   TryBegin can never be nested.
+
    Used in Python 3.11+ in :class:`Bytecode` and :class:`BasicBlock`.
 
    .. attribute:: target
@@ -484,12 +486,16 @@ TryEnd
 
    .. note::
 
-      A jump may cause to exit an exception table entry. To make this explicit
-      within the :class:`ControlFlowGraph`, multiple :class:`TryExit` corresponding
-      to a single :class:`TryBegin` can exist. :class:`TryExit` corresponding to
-      exiting an exception table entry through a jump always appear as the first
-      element of the target block. Care should be taken however that the block
-      may be reached through a different path in which case it should be ignored.
+      A jump may cause to exit an exception table entry. If the jump is unconditional
+      the instruction is final and the above applies. For conditional jumps, within
+      a :class:`ControlFlowGraph`, we mark explicitly we exit the exception table
+      entry region by inserting a :class:`TryEnd` at the beginning of the target
+      block. As a consequence, multiple :class:`TryExit` corresponding to a single
+      :class:`TryBegin` can exist. :class:`TryEnd` corresponding to exiting an
+      exception table entry through a conditional jump always appear before the
+      first instruction of the target block. However, care needs to be taken since
+      that block may be reached through a different path in which no :class:`TryBegin`
+      was encountered. In such cases, the :class:`TryEnd` should be ignored.
 
 
 Bytecode classes

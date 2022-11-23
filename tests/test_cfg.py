@@ -15,6 +15,7 @@ from bytecode import (
     Instr,
     Label,
     SetLineno,
+    dump_bytecode,
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
 
@@ -906,9 +907,16 @@ class CFGRoundTripTests(TestCase):
         from . import exception_handling_cases as ehc
 
         for f in ehc.TEST_CASES:
+            print(f.__name__)
             with self.subTest(f.__name__):
                 origin = f.__code__
-                cfg = ControlFlowGraph.from_bytecode(Bytecode.from_code(f.__code__))
+                print("Bytecode:")
+                bytecode = Bytecode.from_code(f.__code__)
+                dump_bytecode(bytecode)
+                print()
+                print("CFG:")
+                cfg = ControlFlowGraph.from_bytecode(bytecode)
+                dump_bytecode(cfg)
                 as_code = cfg.to_code()
                 self.assertCodeObjectEqual(origin, as_code)
                 if inspect.iscoroutinefunction(f):

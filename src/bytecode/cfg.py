@@ -268,16 +268,18 @@ class _StackSizeComputer:
                 continue
 
             # When we encounter a TryBegin, we:
-            # - store it as the current TryBegin (TryBegin cannot be nested)
+            # - store it as the current TryBegin (since TryBegin cannot be nested)
             # - record its existence to remember to update its stack size when
-            # the computation ends
+            #   the computation ends
             # - update the minsize to the current size value since we need to
-            # know the minimal stack usage between the TryBegin/TryEnd pair to
-            # set the startsize of the exception handling block
+            #   know the minimal stack usage between the TryBegin/TryEnd pair to
+            #   set the startsize of the exception handling block
+            #
             # This approach does not require any special handling for with statements.
             if isinstance(instr, TryBegin):
-                self._current_try_begin = instr
+                assert self._current_try_begin is None
                 self.common.try_begins.append(instr)
+                self._current_try_begin = instr
                 self.minsize = self.size
 
                 continue
@@ -308,6 +310,7 @@ class _StackSizeComputer:
                         None,
                     )
                     self.common.exception_block_maxsize[b_id] = block_size
+                self._current_try_begin = None
                 continue
 
             # For instructions with a jump first compute the stacksize required when the
@@ -333,7 +336,9 @@ class _StackSizeComputer:
                     maxsize,
                     minsize,
                     None,
-                    self._current_try_begin,
+                    # Do not propagate the TryBegin if a final instruction is followed
+                    # by a TryEnd.
+                    None if instr.is_final() and self._get_trailing_try_end(i) else self._current_try_begin,
                 )
 
                 # Update the maximum used size by the usage implied by the following
@@ -716,63 +721,110 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         block = bytecode_blocks[0]
         labels = {}
         jumping_instrs: List[Instr] = []
-        try_begins: Dict[TryBegin, TryBegin] = {}  # Map input TryBegin to CFG TryBegin
+        # Map input TryBegin to CFG TryBegins (split across blocks may yield multiple
+        # TryBegin from a single in the bytecode).
+        try_begins: Dict[TryBegin, list[TryBegin]] = {}
         add_try_end = {}
 
         # Track the currently active try begin
         active_try_begin: Optional[TryBegin] = None
+        try_begin_inserted_in_block = False
+        last_instr: Optional[Instr] = None
         for index, instr in enumerate(bytecode):
 
+            # Reference to the current block if we create a new one in the following.
+            old_block: BasicBlock | None = None
+
+            # First we determine if we need to create a new block:
+            # - by checking the current instruction index
             if index in block_starts:
                 old_label = block_starts[index]
                 # Create a new block if the last created one is not empty
-                if index != 0 and block:
+                # (of real instructions)
+                if index != 0 and (li := block.get_last_non_artificial_instruction()):
+                    old_block = block
                     new_block = bytecode_blocks.add_block()
                     # If the last non artificial instruction is not final connect
                     # this block to the next.
-                    li = block.get_last_non_artificial_instruction()
-                    if li is not None and not li.is_final():
+                    if not li.is_final():
                         block.next_block = new_block
                     block = new_block
                 if old_label is not None:
                     labels[old_label] = block
 
-            elif block and (
-                (last_instr := block.get_last_non_artificial_instruction()) is not None
-            ):
-
-                # The last instruction is final, if the current instruction is a
-                # TryEnd insert it in the same block and move to the next instruction
+            # - by inspecting the last instr
+            elif block.get_last_non_artificial_instruction() and last_instr is not None:
+                # The last instruction is final but we did not create a block
+                # -> sounds like a block of dead code but we preserve it
                 if last_instr.is_final():
-                    b = block
+                    old_block = block
                     block = bytecode_blocks.add_block()
-                    # If the next instruction is a TryEnd ensures it remains
-                    # part of the block (since TryEnd is artificial)
-                    if isinstance(instr, TryEnd):
-                        assert active_try_begin
-                        nte = instr.copy()
-                        nte.entry = try_begins[active_try_begin]
-                        b.append(nte)
-                        active_try_begin = None
-                        continue
 
+                # We are dealing with a conditional jump
                 elif last_instr.has_jump():
                     assert isinstance(last_instr.arg, Label)
+                    old_block = block
                     new_block = bytecode_blocks.add_block()
                     block.next_block = new_block
                     block = new_block
 
-                    # Check if the jump goes beyond the existing TryEnd
-                    # and if it does add a TryEnd at the beginning of the target
-                    # block to ensure that we always see a TryEnd while
-                    # going through the CFG
-                    if active_try_begin in try_end_locations and (
-                        label_to_block_index[last_instr.arg]
-                        >= try_end_locations[active_try_begin]
-                    ):
-                        add_try_end[last_instr.arg] = TryEnd(
-                            try_begins[active_try_begin]
+            # If we created a new block, we check:
+            # - if the current instruction is a TryEnd and if the last instruction
+            #   is final in which case we insert the TryEnd in the old block.
+            # - if we have a currently active TryBegin for which we may need to
+            #   create a TryEnd in the previous and a new TryBegin in the new one
+            #   because the blocks are not connected.
+            if old_block is not None:
+                temp = try_begin_inserted_in_block
+                try_begin_inserted_in_block = False
+
+            if old_block is not None and last_instr is not None:
+
+                # The last instruction is final, if the current instruction is a
+                # TryEnd insert it in the same block and move to the next instruction
+                if last_instr.is_final() and isinstance(instr, TryEnd):
+                    assert active_try_begin
+                    nte = instr.copy()
+                    nte.entry = try_begins[active_try_begin][-1]
+                    old_block.append(nte)
+                    active_try_begin = None
+                    continue
+
+                # If we have an active TryBegin and last_instr is:
+                elif active_try_begin is not None:
+
+                    # - a jump whose target is beyond the TryEnd of the active
+                    #   TryBegin: we remember TryEnd should be prepended to the
+                    #   target block.
+                    if (
+                        last_instr.has_jump()
+                        and active_try_begin in try_end_locations
+                        and (
+                            # last_instr is a jump so arg is a Label
+                            label_to_block_index[last_instr.arg]  # type: ignore
+                            >= try_end_locations[active_try_begin]
                         )
+                    ):
+                        assert isinstance(last_instr.arg, Label)
+                        add_try_end[last_instr.arg] = TryEnd(
+                            try_begins[active_try_begin][-1]
+                        )
+
+                    # - final and the try begin originate from the current block:
+                    #   we insert a TryEnd in the old block and a new TryBegin in
+                    #   the new one since the blocks are disconnected.
+                    if last_instr.is_final() and temp:
+                        old_block.append(TryEnd(try_begins[active_try_begin][-1]))
+                        new_tb = TryBegin(
+                            active_try_begin.target, active_try_begin.push_lasti
+                        )
+                        block.append(new_tb)
+                        # Add this new TryBegin to the map to properly update
+                        # the target.
+                        try_begins[active_try_begin].append(new_tb)
+                        try_begin_inserted_in_block = True
+
+            last_instr = None
 
             if isinstance(instr, Label):
                 continue
@@ -783,23 +835,30 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 if isinstance(instr, TryBegin):
                     assert active_try_begin is None
                     active_try_begin = instr
+                    try_begin_inserted_in_block = True
                     assert isinstance(new, TryBegin)
-                    try_begins[instr] = new
+                    try_begins[instr] = [new]
                 elif isinstance(instr, TryEnd):
                     assert isinstance(new, TryEnd)
-                    new.entry = try_begins[instr.entry]
+                    new.entry = try_begins[instr.entry][-1]
                     active_try_begin = None
-                elif isinstance(instr.arg, Label):
-                    assert isinstance(new, Instr)
-                    jumping_instrs.append(new)
+                    try_begin_inserted_in_block = False
+                else:
+                    last_instr = instr
+                    if isinstance(instr.arg, Label):
+                        assert isinstance(new, Instr)
+                        jumping_instrs.append(new)
 
                 instr = new
 
             block.append(instr)
 
-        # Insert TryEnd at the beginning of block that were marked
+        # Insert TryEnd at the beginning of block that were marked (if we did not
+        # already insert an equivalent TryEnd earlier).
         for lab, te in add_try_end.items():
-            labels[lab].insert(0, te)
+            fi = labels[lab][0]
+            if not isinstance(fi, TryEnd) or fi.entry is not te.entry:
+                labels[lab].insert(0, te)
 
         # Replace labels by block in jumping instructions
         for instr in jumping_instrs:
@@ -808,10 +867,11 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             instr.arg = labels[label]
 
         # Replace labels by block in TryBegin
-        for b_tb, c_tb in try_begins.items():
+        for b_tb, c_tbs in try_begins.items():
             label = b_tb.target
             assert isinstance(label, Label)
-            c_tb.target = labels[label]
+            for c_tb in c_tbs:
+                c_tb.target = labels[label]
 
         return bytecode_blocks
 
@@ -833,6 +893,13 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         seen_try_end: Set[TryBegin] = set()
         instructions: List[Union[Instr, Label, TryBegin, TryEnd, SetLineno]] = []
 
+        # Track the last seen TryBegin and TryEnd to be able to fuse adjacent
+        # TryEnd/TryBegin pair which share the same target.
+        # In each case, we store the value found in the CFG and the value
+        # inserted in the bytecode.
+        last_try_begin: tuple[TryBegin, TryBegin] | None = None
+        last_try_end: tuple[TryEnd, TryEnd] | None = None
+
         for block in self:
             if id(block) in used_blocks:
                 new_label = Label()
@@ -844,8 +911,35 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 if isinstance(instr, (Instr, TryBegin, TryEnd)):
                     new = instr.copy()
                     if isinstance(instr, TryBegin):
+                        # If due to jumps and split TryBegin, we encounter a TryBegin
+                        # while we still have a TryBegin ensure they can be fused.
+                        if last_try_begin is not None:
+                            cfg_tb, byt_tb = last_try_begin
+                            assert instr.target is cfg_tb.target
+                            assert instr.push_lasti == cfg_tb.push_lasti
+                            byt_tb.stack_depth = min(
+                                byt_tb.stack_depth, instr.stack_depth
+                            )
+
+                        # If the TryBegin share the target and push_lasti of the
+                        # entry of an adjacent TryEnd, omit the new TryBegin that
+                        # was inserted to allow analysis of the CFG
+                        if last_try_end is not None:
+                            cfg_te, byt_te = last_try_end
+                            entry = cfg_te.entry
+                            if (
+                                entry.target is instr.target
+                                and entry.push_lasti == instr.push_lasti
+                            ):
+                                byt_te.entry.stack_depth = min(
+                                    entry.stack_depth, instr.stack_depth
+                                )
+                                try_begins[instr] = byt_te.entry
+                                continue
                         assert isinstance(new, TryBegin)
                         try_begins[instr] = new
+                        last_try_begin = (instr, new)
+                        last_try_end = None
                     elif isinstance(instr, TryEnd):
                         # Only keep the first seen TryEnd matching a TryBegin
                         assert isinstance(new, TryEnd)
@@ -853,9 +947,14 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                             continue
                         seen_try_end.add(instr.entry)
                         new.entry = try_begins[instr.entry]
+                        last_try_begin = None
+                        last_try_end = (instr, new)
                     elif isinstance(instr.arg, BasicBlock):
                         assert isinstance(new, Instr)
                         jumps.append(new)
+                        last_try_end = None
+                    else:
+                        last_try_end = None
 
                     instr = new
 
@@ -865,7 +964,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         for instr in jumps:
             instr.arg = labels[id(instr.arg)]
 
-        for tb in try_begins.values():
+        for tb in set(try_begins.values()):
             tb.target = labels[id(tb.target)]
 
         bytecode = _bytecode.Bytecode()
