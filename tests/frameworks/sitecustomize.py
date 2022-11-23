@@ -1,4 +1,5 @@
 import dis
+import io
 import typing as t
 from types import FunctionType, ModuleType
 
@@ -17,7 +18,7 @@ class FunctionCollector(ModuleWatchdog):
             try:
                 new = Bytecode.from_code(function.__code__).to_code()
                 # Check we can still disassemble the code
-                dis.dis(new)
+                dis.dis(new, file=io.StringIO())
             except Exception:
                 print("Failed to recompile %s" % fname)
                 dis.dis(function)
