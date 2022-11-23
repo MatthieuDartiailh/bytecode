@@ -15,11 +15,15 @@ class FunctionCollector(ModuleWatchdog):
         for fname, f in discovery.items():
             function = t.cast(FunctionType, f)
             try:
-                function.__code__ = Bytecode.from_code(function.__code__).to_code()
+                new = Bytecode.from_code(function.__code__).to_code()
+                # Check we can still disassemble the code
+                dis.dis(new)
             except Exception:
                 print("Failed to recompile %s" % fname)
                 dis.dis(function)
                 raise
+            else:
+                function.__code__ = new
 
 
 print("Collecting functions")
