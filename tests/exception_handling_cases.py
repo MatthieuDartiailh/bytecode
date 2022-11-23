@@ -122,6 +122,28 @@ def nested_try_with_looping_construct():
     return a
 
 
+# Test converting from bytecode to concrete in the presence of extended arg
+# which means the number of instruction before generating extended arg is not
+# the offset.
+# Hence the larger code required
+def try_except_with_extended_arg():
+    a = [1]
+    b = [(1, 2), (3, 4)]
+    for x in a:
+        if a[0] is b[1]:
+            try:
+                a.append(b.index((a[0], 2)))
+            except BrokenPipeError:
+                sys.stdout.write(str(a))
+                sys.stdout.flush()
+            else:
+                c = 1
+                d = 2
+                b.append(a.append((c, d)))
+                sys.stdout.write(str(b))
+                sys.stdout.flush()
+
+
 def try_in_except():
     try:
         a = 1
@@ -224,6 +246,7 @@ TEST_CASES = [
     nested_try_finally,
     nested_try_with_looping_construct,
     try_in_except,
+    try_except_with_extended_arg,
     with_no_store,
     with_store,
     try_with,

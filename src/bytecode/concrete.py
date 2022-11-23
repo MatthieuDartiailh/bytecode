@@ -208,6 +208,16 @@ class ExceptionTableEntry:
         self.stack_depth = stack_depth
         self.push_lasti = push_lasti
 
+    def __repr__(self) -> str:
+        return (
+            "ExceptionTableEntry("
+            f"start_offset={self.start_offset}, "
+            f"stop_offset={self.stop_offset}, "
+            f"target={self.target}, "
+            f"stack_depth={self.stack_depth}, "
+            f"push_lasti={self.push_lasti}"
+        )
+
 
 class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLineno]]):
 
@@ -1113,6 +1123,11 @@ class _ConvertBytecodeToConcrete:
             if isinstance(instr, TryBegin):
                 # We expect the stack depth to have be provided or computed earlier
                 assert instr.stack_depth is not UNSET
+                # NOTE here we store the index of the instruction at which the
+                # exception table entry starts. This is not the final value we want,
+                # we want the offset in the bytecode but that requires to compute
+                # the jumps first to resolve any possible extended arg needed in a
+                # jump.
                 self.exception_handling_blocks[instr] = ExceptionTableEntry(
                     len(self.instructions), 0, 0, instr.stack_depth, instr.push_lasti
                 )
@@ -1276,15 +1291,27 @@ class _ConvertBytecodeToConcrete:
             if instr.size != old_size:
                 modified = True
 
+        # If a jump required an extended arg hence invalidating the calculation
+        # we return early before filling the exception table entries
+        if modified:
+            return modified
+
         # Resolve labels for exception handling entries
         for tb, entry in self.exception_handling_blocks.items():
+
+            # Set the offset for the start and end offset from the instruction
+            # index stored when assembling the concrete instructions.
+            entry.start_offset = offsets[entry.start_offset]
+            entry.stop_offset = offsets[entry.stop_offset]
+
+            # Set the offset to the target instruction
             lb = tb.target
             assert isinstance(lb, Label)
             target_index = self.labels[lb]
             target_offset = offsets[target_index]
             entry.target = target_offset
 
-        return modified
+        return False
 
     def to_concrete_bytecode(
         self,
