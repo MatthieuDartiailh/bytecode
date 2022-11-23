@@ -1,5 +1,6 @@
 import dis
 import io
+import sys
 import typing as t
 from types import FunctionType, ModuleType
 
@@ -19,6 +20,11 @@ class FunctionCollector(ModuleWatchdog):
                 new = Bytecode.from_code(function.__code__).to_code()
                 # Check we can still disassemble the code
                 dis.dis(new, file=io.StringIO())
+                # Check we use safe values for the stack (stacksize and exception table)
+                # (avoid stack overflow and segfaults)
+                assert new.co_stacksize == function.__code__.co_stacksize
+                if sys.version_info >= (3, 11):
+                    assert new.co_exceptiontable == function.__code__.co_exceptiontable
             except Exception:
                 print("Failed to recompile %s" % fname)
                 dis.dis(function)
