@@ -125,7 +125,7 @@ def nested_try_with_looping_construct():
 # Test converting from bytecode to concrete in the presence of extended arg
 # which means the number of instruction before generating extended arg is not
 # the offset.
-# Hence the larger code required
+# Here if we ignore this we end with wrong start/stop value in the table
 def try_except_with_extended_arg():
     a = [1]
     b = [(1, 2), (3, 4)]
@@ -142,6 +142,36 @@ def try_except_with_extended_arg():
                 b.append(a.append((c, d)))
                 sys.stdout.write(str(b))
                 sys.stdout.flush()
+
+
+# Here extended arg can lead to omitting a TryEnd because we went over the offset
+# value at which we expected it.
+def try_except_with_extended_arg2():
+    a = list(range(10))
+
+    with contextlib.nullcontext() as selector:
+
+        while a.pop():
+            # timeout = self._remaining_time(endtime)
+            if sys is not None and sys.hexversion < 0:
+                sys.stdout.write(a)
+                raise RuntimeError("test")
+
+            for key in sys.stdlib_module_names:
+                # Dead code for the execution but help trigger the bug this test
+                # is meant to avoid regressing.
+                if key is sys.stdin:
+                    chunk = a[self._input_offset :
+                                        self._input_offset + _PIPE_BUF]
+                    try:
+                        self._input_offset += os.write(key.fd, chunk)
+                    except BrokenPipeError:
+                        selector.unregister(key.fileobj)
+                        key.fileobj.close()
+                    else:
+                        if self._input_offset >= len(self._input):
+                            selector.unregister(key.fileobj)
+                            key.fileobj.close()
 
 
 def try_in_except():
@@ -247,6 +277,7 @@ TEST_CASES = [
     nested_try_with_looping_construct,
     try_in_except,
     try_except_with_extended_arg,
+    try_except_with_extended_arg2,
     with_no_store,
     with_store,
     try_with,
@@ -268,6 +299,8 @@ if sys.version_info < (3, 9):
     TEST_CASES.remove(try_finally)
     TEST_CASES.remove(nested_try_finally)
     TEST_CASES.remove(nested_try_with_looping_construct)
+    TEST_CASES.remove(try_except_with_extended_arg)
+    TEST_CASES.remove(try_except_with_extended_arg2)
 
 if __name__ == "__main__":
     import dis

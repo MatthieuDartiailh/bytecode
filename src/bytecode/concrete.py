@@ -981,8 +981,14 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
             jump_target = c_instr.get_jump_target(offset)
             size = c_instr.size
+            # If an instruction uses extended args, those appear before the instruction
+            # causing the instruction to appear at offset that accounts for extended
+            # args. So we first update the offset to account for extended args, then
+            # record the instruction offset and then add the instruction itself to the
+            # offset.
+            offset += (size // 2 - 1) if OFFSET_AS_INSTRUCTION else (size - 2)
             current_instr_offset = offset
-            offset += (size // 2) if OFFSET_AS_INSTRUCTION else size
+            offset += 1 if OFFSET_AS_INSTRUCTION else 2
 
             # on Python 3.11+ remove CACHE opcodes if we are requested to do so.
             # We are careful to first advance the offset and check that the CACHE
@@ -1257,28 +1263,37 @@ class _ConvertBytecodeToConcrete:
             c_instr.arg += free_offset
 
     def compute_jumps(self) -> bool:
-        offsets = []
+        # For labels we need the offset before the instruction at a given index but for
+        # exception table entries we need the offset of the instruction which can differ
+        # in the presence of extended args...
+        label_offsets = []
+        instruction_offsets = []
         offset = 0
         for index, instr in enumerate(self.instructions):
-            offsets.append(offset)
-            offset += instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size
+            label_offsets.append(offset)
+            # If an instruction uses extended args, those appear before the instruction
+            # causing the instruction to appear at offset that accounts for extended
+            # args.
+            offset += (instr.size // 2 - 1) if OFFSET_AS_INSTRUCTION else (instr.size - 2)
+            instruction_offsets.append(offset)
+            offset += 1 if OFFSET_AS_INSTRUCTION else 2
         # needed if a label is at the end
-        offsets.append(offset)
+        label_offsets.append(offset)
 
         # XXX may need some extra check to validate jump forward vs jump backward
         # fix argument of jump instructions: resolve labels
         modified = False
         for index, label, instr in self.jumps:
             target_index = self.labels[label]
-            target_offset = offsets[target_index]
+            target_offset = label_offsets[target_index]
 
             if instr.is_forward_rel_jump():
-                instr_offset = offsets[index]
+                instr_offset = label_offsets[index]
                 target_offset -= instr_offset + (
                     instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size
                 )
             elif instr.is_backward_rel_jump():
-                instr_offset = offsets[index]
+                instr_offset = label_offsets[index]
                 target_offset = (
                     instr_offset
                     + (instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size)
@@ -1301,14 +1316,14 @@ class _ConvertBytecodeToConcrete:
 
             # Set the offset for the start and end offset from the instruction
             # index stored when assembling the concrete instructions.
-            entry.start_offset = offsets[entry.start_offset]
-            entry.stop_offset = offsets[entry.stop_offset]
+            entry.start_offset = instruction_offsets[entry.start_offset]
+            entry.stop_offset = instruction_offsets[entry.stop_offset]
 
             # Set the offset to the target instruction
             lb = tb.target
             assert isinstance(lb, Label)
             target_index = self.labels[lb]
-            target_offset = offsets[target_index]
+            target_offset = label_offsets[target_index]
             entry.target = target_offset
 
         return False
