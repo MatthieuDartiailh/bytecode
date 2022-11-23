@@ -338,7 +338,9 @@ class _StackSizeComputer:
                     None,
                     # Do not propagate the TryBegin if a final instruction is followed
                     # by a TryEnd.
-                    None if instr.is_final() and self._get_trailing_try_end(i) else self._current_try_begin,
+                    None
+                    if instr.is_final() and self._get_trailing_try_end(i)
+                    else self._current_try_begin,
                 )
 
                 # Update the maximum used size by the usage implied by the following

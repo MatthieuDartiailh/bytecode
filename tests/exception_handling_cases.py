@@ -241,7 +241,10 @@ if sys.version_info >= (3, 11):
 if sys.version_info < (3, 9):
     TEST_CASES.remove(try_except_else_finally)
     TEST_CASES.remove(try_except_finally)
-    TEST_CASES.remove(try_finally)  # Fail due to a varname re-ordering
+    # Fail due to a varname re-ordering
+    TEST_CASES.remove(try_finally)
+    TEST_CASES.remove(nested_try_finally)
+    TEST_CASES.remove(nested_try_with_looping_construct)
 
 if __name__ == "__main__":
     import dis
