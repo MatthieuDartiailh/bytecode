@@ -157,12 +157,11 @@ def try_except_with_extended_arg2():
                 sys.stdout.write(a)
                 raise RuntimeError("test")
 
-            for key in sys.stdlib_module_names:
+            for key in sys.version_info:
                 # Dead code for the execution but help trigger the bug this test
                 # is meant to avoid regressing.
                 if key is sys.stdin:
-                    chunk = a[self._input_offset :
-                                        self._input_offset + _PIPE_BUF]
+                    chunk = a[self._input_offset : self._input_offset + _PIPE_BUF]
                     try:
                         self._input_offset += os.write(key.fd, chunk)
                     except BrokenPipeError:

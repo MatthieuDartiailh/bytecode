@@ -1274,7 +1274,9 @@ class _ConvertBytecodeToConcrete:
             # If an instruction uses extended args, those appear before the instruction
             # causing the instruction to appear at offset that accounts for extended
             # args.
-            offset += (instr.size // 2 - 1) if OFFSET_AS_INSTRUCTION else (instr.size - 2)
+            offset += (
+                (instr.size // 2 - 1) if OFFSET_AS_INSTRUCTION else (instr.size - 2)
+            )
             instruction_offsets.append(offset)
             offset += 1 if OFFSET_AS_INSTRUCTION else 2
         # needed if a label is at the end
