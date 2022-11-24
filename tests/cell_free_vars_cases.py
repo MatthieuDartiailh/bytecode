@@ -57,12 +57,25 @@ def class_super():
     return B().f
 
 
+# NOTE this is not really a cell var case but it ensures proper
+# placements of CACHE vs labels
+_localedirs = {}
+_default_localedir = ""
+
+def bindtextdomain(domain="", localedir=None):
+    global _localedirs
+    if localedir is not None:
+        _localedirs[domain] = localedir
+    return _localedirs.get(domain, _default_localedir)
+
+
 TEST_CASES = [
     simple_cellvar,
     cellvar_share_name,
     cellvar_shared_and_unshared,
     class_super,
     class_loadderef,
+    bindtextdomain,
 ]
 
 if __name__ == "__main__":

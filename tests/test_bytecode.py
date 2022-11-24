@@ -594,7 +594,7 @@ class BytecodeTests(TestCase):
                 conserve_exception_block_stackdepth=True,
             )
             for instr in bytecode:
-                if isinstance(instr.arg, types.CodeType):
+                if isinstance(instr, Instr) and isinstance(instr.arg, types.CodeType):
                     instr.arg = recompile_code_and_inner(instr.arg)
             as_code = bytecode.to_code(
                 stacksize=code.co_stacksize,
