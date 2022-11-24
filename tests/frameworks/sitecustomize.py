@@ -17,7 +17,9 @@ class FunctionCollector(ModuleWatchdog):
         for fname, f in discovery.items():
             function = t.cast(FunctionType, f)
             try:
-                new = Bytecode.from_code(function.__code__).to_code()
+                new = Bytecode.from_code(
+                    function.__code__, conserve_exception_block_stackdepth=True
+                ).to_code()
                 # Check we can still disassemble the code
                 dis.dis(new, file=io.StringIO())
                 # Check we use safe values for the stack (stacksize and exception table)
