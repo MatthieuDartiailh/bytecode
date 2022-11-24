@@ -17,9 +17,7 @@ class FunctionCollector(ModuleWatchdog):
         for fname, f in discovery.items():
             function = t.cast(FunctionType, f)
             try:
-                byt = Bytecode.from_code(
-                    function.__code__
-                )
+                byt = Bytecode.from_code(function.__code__)
                 cfg = ControlFlowGraph.from_bytecode(byt)
                 new = cfg.to_code()
                 # Check we can still disassemble the code
