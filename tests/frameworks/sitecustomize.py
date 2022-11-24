@@ -25,6 +25,8 @@ class FunctionCollector(ModuleWatchdog):
                 assert new.co_stacksize == function.__code__.co_stacksize
                 if sys.version_info >= (3, 11):
                     assert new.co_exceptiontable == function.__code__.co_exceptiontable
+                # Enforce perfect code round tripping
+                assert new.co_code == function.__code__.co_code
             except Exception:
                 print("Failed to recompile %s" % fname)
                 dis.dis(function)
