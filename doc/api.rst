@@ -886,6 +886,10 @@ ControlFlowGraph
       Split a block into two blocks at the specific instruction. Return
       the newly created block, or *block* if index equals ``0``.
 
+   .. method:: get_dead_blocks() -> List[BasicBlock]
+
+      Retrieve all the blocks of the CFG that are unreachable.
+
    .. method:: to_bytecode() -> Bytecode
 
       Convert to a bytecode object using labels.
