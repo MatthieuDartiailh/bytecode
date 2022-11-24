@@ -5,6 +5,15 @@ on:
     branches:
       - main
   pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/cis.yml
+      - "src/**"
+      - "tests/frameworks/*"
+      - pyproject.toml
+      - setup.py
+      - tox.ini
 
 jobs:
   boto3:
@@ -19,12 +28,12 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}-dev
-      
+
       - name: Setup
         run: bash scripts/frameworks/boto3/setup.sh /tmp/boto3 ${{ matrix.python-version }}
 

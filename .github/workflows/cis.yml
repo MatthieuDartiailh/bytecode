@@ -11,6 +11,7 @@ on:
     paths:
       - .github/workflows/cis.yml
       - "src/**"
+      - "tests/*"
       - pyproject.toml
       - setup.py
       - tox.ini
