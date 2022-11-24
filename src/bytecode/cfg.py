@@ -285,8 +285,6 @@ class _StackSizeComputer:
             #
             # This approach does not require any special handling for with statements.
             if isinstance(instr, TryBegin):
-                if self._current_try_begin is not None:
-                    breakpoint()
                 assert self._current_try_begin is None
                 self.common.try_begins.append(instr)
                 self._current_try_begin = instr
@@ -306,20 +304,12 @@ class _StackSizeComputer:
                 if instr.entry is not self._current_try_begin:
                     continue
 
-                b_id = id(instr.entry.target)
-                if self.minsize < self.common.exception_block_startsize[b_id]:
-                    self.common.exception_block_startsize[b_id] = self.minsize
-                    assert isinstance(instr.entry.target, BasicBlock)
-                    block_size = yield _StackSizeComputer(
-                        self.common,
-                        instr.entry.target,
-                        self.minsize,
-                        self.maxsize,
-                        self.minsize,
-                        instr.entry.push_lasti,
-                        None,
-                    )
-                    self.common.exception_block_maxsize[b_id] = block_size
+                # Compute the stack usage of the exception handler
+                assert isinstance(instr.entry.target, BasicBlock)
+                yield from self._compute_exception_handler_stack_usage(
+                    instr.entry.target,
+                    instr.entry.push_lasti,
+                )
                 self._current_try_begin = None
                 continue
 
@@ -366,19 +356,11 @@ class _StackSizeComputer:
                         # TryBegin cannot be nested
                         assert te.entry is self._current_try_begin
 
-                        b_id = id(te.entry.target)
-                        if self.minsize < self.common.exception_block_startsize[b_id]:
-                            self.common.exception_block_startsize[b_id] = self.minsize
-                            block_size = yield _StackSizeComputer(
-                                self.common,
-                                te.entry.target,
-                                self.minsize,
-                                self.maxsize,
-                                self.minsize,
-                                te.entry.push_lasti,
-                                None,
-                            )
-                            self.common.exception_block_maxsize[b_id] = block_size
+                        assert isinstance(te.entry.target, BasicBlock)
+                        yield from self._compute_exception_handler_stack_usage(
+                            te.entry.target,
+                            te.entry.push_lasti,
+                        )
 
                     self.common.seen_blocks.remove(id(self.block))
                     yield self.maxsize
@@ -398,20 +380,11 @@ class _StackSizeComputer:
                 # Check for TryEnd after the final instruction which is possible
                 # TryEnd being only pseudo instructions.
                 if te := self._get_trailing_try_end(i):
-
-                    b_id = id(te.entry.target)
-                    if self.minsize < self.common.exception_block_startsize[b_id]:
-                        self.common.exception_block_startsize[b_id] = self.minsize
-                        block_size = yield _StackSizeComputer(
-                            self.common,
-                            te.entry.target,
-                            self.minsize,
-                            self.maxsize,
-                            self.minsize,
-                            te.entry.push_lasti,
-                            None,
-                        )
-                        self.common.exception_block_maxsize[b_id] = block_size
+                    assert isinstance(te.entry.target, BasicBlock)
+                    yield from self._compute_exception_handler_stack_usage(
+                        te.entry.target,
+                        te.entry.push_lasti,
+                    )
 
                 self.common.seen_blocks.remove(id(self.block))
 
@@ -451,6 +424,25 @@ class _StackSizeComputer:
             index += 1
 
         return None
+
+    def _compute_exception_handler_stack_usage(
+        self, block: BasicBlock, push_lasti: bool
+    ) -> Generator[Union["_StackSizeComputer", int], int, None]:
+        b_id = id(block)
+        if self.minsize < self.common.exception_block_startsize[b_id]:
+            block_size = yield _StackSizeComputer(
+                self.common,
+                block,
+                self.minsize,
+                self.maxsize,
+                self.minsize,
+                push_lasti,
+                None,
+            )
+            # The entry cannot be smaller than abs(stc.minimal_entry_size) as otherwise
+            # we an underflow would have occured.
+            self.common.exception_block_startsize[b_id] = self.minsize
+            self.common.exception_block_maxsize[b_id] = block_size
 
     def _is_stacksize_computation_relevant(
         self, block_id: int, fingerprint: Tuple[int, Optional[bool]]
@@ -727,6 +719,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 if isinstance(i, Instr) and isinstance(i.arg, BasicBlock):
                     stack.append(i.arg)
                 elif isinstance(i, TryBegin):
+                    assert isinstance(i.target, BasicBlock)
                     stack.append(i.target)
 
         return [b for b in self if id(b) not in seen_block_ids]
