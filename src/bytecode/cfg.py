@@ -1,5 +1,6 @@
 import sys
 import types
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -277,6 +278,8 @@ class _StackSizeComputer:
             #
             # This approach does not require any special handling for with statements.
             if isinstance(instr, TryBegin):
+                if self._current_try_begin is not None:
+                    breakpoint()
                 assert self._current_try_begin is None
                 self.common.try_begins.append(instr)
                 self._current_try_begin = instr
@@ -736,7 +739,10 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         # Map input TryBegin to CFG TryBegins (split across blocks may yield multiple
         # TryBegin from a single in the bytecode).
         try_begins: Dict[TryBegin, list[TryBegin]] = {}
-        add_try_end = {}
+        # Storage for TryEnds that need to be inserted at the beginning of a block.
+        # We use a list because the same block can be reached through several paths
+        # with different active TryBegins
+        add_try_end: Dict[Label, List[TryEnd]] = defaultdict(list)
 
         # Track the currently active try begin
         active_try_begin: Optional[TryBegin] = None
@@ -818,8 +824,8 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                         )
                     ):
                         assert isinstance(last_instr.arg, Label)
-                        add_try_end[last_instr.arg] = TryEnd(
-                            try_begins[active_try_begin][-1]
+                        add_try_end[last_instr.arg].append(
+                            TryEnd(try_begins[active_try_begin][-1])
                         )
 
                     # - final and the try begin originate from the current block:
@@ -865,12 +871,20 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
             block.append(instr)
 
-        # Insert TryEnd at the beginning of block that were marked (if we did not
-        # already insert an equivalent TryEnd earlier).
-        for lab, te in add_try_end.items():
-            fi = labels[lab][0]
-            if not isinstance(fi, TryEnd) or fi.entry is not te.entry:
-                labels[lab].insert(0, te)
+        # Insert the necessary TryEnds at the beginning of block that were marked
+        # (if we did not already insert an equivalent TryEnd earlier).
+        for lab, tes in add_try_end.items():
+            block = labels[lab]
+            existing_te_entries = set()
+            for i in block:
+                if isinstance(i, TryEnd):
+                    existing_te_entries.add(i.entry)
+                else:
+                    break
+            for te in tes:
+                if te.entry not in existing_te_entries:
+                    labels[lab].insert(0, te)
+                    existing_te_entries.add(te.entry)
 
         # Replace labels by block in jumping instructions
         for instr in jumping_instrs:
