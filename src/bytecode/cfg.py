@@ -567,6 +567,16 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             # block
             args = max(args, *common.exception_block_maxsize.values())
 
+            # Check if there is dead code that may contain TryBegin/TryEnd pairs.
+            # For any such pair we set a huge size (the exception table format does not
+            # mandate a maximum value). We do so so that if  the pair is fused with
+            # another it does not alter the computed size.
+            for block in self:
+                if not common.blocks_startsizes[id(block)]:
+                    for i in block:
+                        if isinstance(i, TryBegin):
+                            i.stack_depth = 32768
+
             # If requested update the TryBegin stack size
             if compute_exception_stack_depths:
                 for tb in common.try_begins:
