@@ -62,6 +62,7 @@ def class_super():
 _localedirs = {}
 _default_localedir = ""
 
+
 def bindtextdomain(domain="", localedir=None):
     global _localedirs
     if localedir is not None:
