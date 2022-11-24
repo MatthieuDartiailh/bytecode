@@ -66,6 +66,13 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
                         type(instr.arg).__name__,
                     )
 
+            if isinstance(instr, TryBegin):
+                if not isinstance(instr.target, BasicBlock):
+                    raise ValueError(
+                        "TryBegin target must a BasicBlock, got %s",
+                        type(instr.target).__name__,
+                    )
+
             yield instr
 
     @overload
@@ -876,7 +883,12 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         for lab, tes in add_try_end.items():
             block = labels[lab]
             existing_te_entries = set()
-            for i in block:
+            index = 0
+            # We use a while loop since the block cannot yet be iterated on since
+            # jumps still use labels instead of blocks
+            while index < len(block):
+                i = block[index]
+                index += 1
                 if isinstance(i, TryEnd):
                     existing_te_entries.add(i.entry)
                 else:
