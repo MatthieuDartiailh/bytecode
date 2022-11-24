@@ -1118,27 +1118,6 @@ class _ConvertBytecodeToConcrete:
 
         for instr in self.bytecode:
 
-            if isinstance(instr, Label):
-                self.labels[instr] = len(self.instructions)
-                continue
-
-            if isinstance(instr, SetLineno):
-                lineno = instr.lineno
-                continue
-
-            if isinstance(instr, TryBegin):
-                # We expect the stack depth to have be provided or computed earlier
-                assert instr.stack_depth is not UNSET
-                # NOTE here we store the index of the instruction at which the
-                # exception table entry starts. This is not the final value we want,
-                # we want the offset in the bytecode but that requires to compute
-                # the jumps first to resolve any possible extended arg needed in a
-                # jump.
-                self.exception_handling_blocks[instr] = ExceptionTableEntry(
-                    len(self.instructions), 0, 0, instr.stack_depth, instr.push_lasti
-                )
-                continue
-
             # Enforce proper use of CACHE opcode on Python 3.11+ by checking we get the
             # number we expect or directly generate the needed ones.
             if isinstance(instr, Instr) and instr.name == "CACHE":
@@ -1166,6 +1145,27 @@ class _ConvertBytecodeToConcrete:
                         "Found some manual opcode but less than expected. "
                         f"Missing {self.required_caches} CACHE opcodes."
                     )
+
+            if isinstance(instr, Label):
+                self.labels[instr] = len(self.instructions)
+                continue
+
+            if isinstance(instr, SetLineno):
+                lineno = instr.lineno
+                continue
+
+            if isinstance(instr, TryBegin):
+                # We expect the stack depth to have be provided or computed earlier
+                assert instr.stack_depth is not UNSET
+                # NOTE here we store the index of the instruction at which the
+                # exception table entry starts. This is not the final value we want,
+                # we want the offset in the bytecode but that requires to compute
+                # the jumps first to resolve any possible extended arg needed in a
+                # jump.
+                self.exception_handling_blocks[instr] = ExceptionTableEntry(
+                    len(self.instructions), 0, 0, instr.stack_depth, instr.push_lasti
+                )
+                continue
 
             # Do not handle TryEnd before we insert possible CACHE opcode
             if isinstance(instr, TryEnd):
