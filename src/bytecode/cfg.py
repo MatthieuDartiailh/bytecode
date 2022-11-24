@@ -584,7 +584,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             for block in self:
                 if not common.blocks_startsizes[id(block)]:
                     for i in block:
-                        if isinstance(i, TryBegin):
+                        if isinstance(i, TryBegin) and i.stack_depth is UNSET:
                             i.stack_depth = 32768
 
             # If requested update the TryBegin stack size

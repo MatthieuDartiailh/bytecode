@@ -173,7 +173,7 @@ def try_except_with_extended_arg2():
                             key.fileobj.close()
 
 
-def try_in_except():
+def try_except_in_except():
     try:
         a = 1
     except Exception:
@@ -185,6 +185,23 @@ def try_in_except():
         c = 3
 
     return a
+
+# TODO add:
+# - try/finally in except
+# - try/except in else
+# - try/except, try/finally in finally
+
+
+def try_finally_in_else():
+    try:
+        a = 1
+    except ValueError as e:
+        return
+    else:
+        try:
+            pass
+        finally:
+            a = 1
 
 
 # Trick since the syntax does not exist pre-3.11
@@ -274,7 +291,8 @@ TEST_CASES = [
     nested_try,
     nested_try_finally,
     nested_try_with_looping_construct,
-    try_in_except,
+    try_except_in_except,
+    try_finally_in_else,
     try_except_with_extended_arg,
     try_except_with_extended_arg2,
     with_no_store,
