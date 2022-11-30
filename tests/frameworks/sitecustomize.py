@@ -4,8 +4,8 @@ import sys
 import typing as t
 from types import FunctionType, ModuleType
 
-from function import FunctionDiscovery
-from module import ModuleWatchdog
+from function import FunctionDiscovery  # type: ignore
+from module import ModuleWatchdog  # type: ignore
 
 from bytecode import Bytecode, ControlFlowGraph
 

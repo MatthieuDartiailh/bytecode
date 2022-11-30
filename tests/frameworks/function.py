@@ -14,7 +14,7 @@ from os.path import abspath
 from types import FunctionType, ModuleType
 from typing import Any, Dict, Optional, Tuple, Type, Union, cast
 
-from module import origin
+from module import origin  # type: ignore
 
 FunctionContainerType = Union[
     type, property, classmethod, staticmethod, Tuple, ModuleType
