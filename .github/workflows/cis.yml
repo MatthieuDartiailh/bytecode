@@ -71,7 +71,7 @@ jobs:
         run: |
           tox
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         if: github.event_name != 'schedule'
         with:
           name: codecov-umbrella
