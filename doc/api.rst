@@ -818,18 +818,22 @@ BasicBlock
 
    Methods:
 
-   .. method:: legalize(first_lineno: int)
+   .. method:: legalize(first_lineno: int) -> None
 
       Check the validity of all the instruction and remove the :class:`SetLineno`
       instances after updating the instructions. `first_lineno` specifies
       the line number to use for instruction without a set line number encountered
       before the first :class:`SetLineno` instance.
 
-   .. method:: get_jump()
+   .. method:: get_jump() --> BasicBlock | None
 
       Get the target block (:class:`BasicBlock`) of the jump if the basic block
       ends with an instruction with a jump argument. Otherwise, return
       ``None``.
+
+   .. method:: get_trailing_end(index: int) -> TryEnd | None
+
+      Get the first TryEnd found after the position ``index`` in the block if any.
 
 
 ControlFlowGraph

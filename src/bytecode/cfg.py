@@ -143,6 +143,14 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
         assert isinstance(target_block, BasicBlock)
         return target_block
 
+    def get_trailing_try_end(self, index: int):
+        while index + 1 < len(self):
+            if isinstance(b := self[index + 1], TryEnd):
+                return b
+            index += 1
+
+        return None
+
 
 def _update_size(pre_delta, post_delta, size, maxsize, minsize):
     size += pre_delta
@@ -339,7 +347,7 @@ class _StackSizeComputer:
                     # Do not propagate the TryBegin if a final instruction is followed
                     # by a TryEnd.
                     None
-                    if instr.is_final() and self._get_trailing_try_end(i)
+                    if instr.is_final() and self.block.get_trailing_try_end(i)
                     else self._current_try_begin,
                 )
 
@@ -352,7 +360,7 @@ class _StackSizeComputer:
                 if instr.is_uncond_jump():
                     # Check for TryEnd after the final instruction which is possible
                     # TryEnd being only pseudo instructions
-                    if te := self._get_trailing_try_end(i):
+                    if te := self.block.get_trailing_try_end(i):
                         # TryBegin cannot be nested
                         assert te.entry is self._current_try_begin
 
@@ -379,7 +387,7 @@ class _StackSizeComputer:
 
                 # Check for TryEnd after the final instruction which is possible
                 # TryEnd being only pseudo instructions.
-                if te := self._get_trailing_try_end(i):
+                if te := self.block.get_trailing_try_end(i):
                     assert isinstance(te.entry.target, BasicBlock)
                     yield from self._compute_exception_handler_stack_usage(
                         te.entry.target,
@@ -416,14 +424,6 @@ class _StackSizeComputer:
         self.size = size
         self.minsize = minsize
         self.maxsize = maxsize
-
-    def _get_trailing_try_end(self, index: int):
-        while index + 1 < len(self.block):
-            if isinstance(b := self.block[index + 1], TryEnd):
-                return b
-            index += 1
-
-        return None
 
     def _compute_exception_handler_stack_usage(
         self, block: BasicBlock, push_lasti: bool
@@ -592,38 +592,51 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         return "<ControlFlowGraph block#=%s>" % len(self._blocks)
 
     # Helper to obtain a flat list of instr, which does not refer to block at
-    # anymore.
+    # anymore. Used for comparison of different CFG.
     def _get_instructions(
         self,
-    ) -> List[Union[Instr, ConcreteInstr, SetLineno, TryBegin, TryEnd]]:
-        instructions: List[
-            Union[Instr, ConcreteInstr, SetLineno, TryBegin, TryEnd]
-        ] = []
-        jumps: List[Tuple[BasicBlock, ConcreteInstr]] = []
+    ) -> List:
+        instructions: List = []
+        try_begins: Dict[TryBegin, int] = {}
 
-        # XXX handle TryBegin
         for block in self:
-            target_block = block.get_jump()
-            if target_block is not None:
-                instr = block[-1]
-                assert isinstance(instr, Instr)
-                # We use a concrete instr here to be able to use an integer as argument
-                # rather than a Label. This is fine for comparison purposes which is
-                # our sole goal here.
-                jumps.append(
-                    (
-                        target_block,
-                        ConcreteInstr(instr.name, 0, location=instr.location),
+            for index, instr in enumerate(block):
+                if isinstance(instr, TryBegin):
+                    assert isinstance(instr.target, BasicBlock)
+                    try_begins.setdefault(instr, len(try_begins))
+                    instructions.append(
+                        (
+                            "TryBegin",
+                            try_begins[instr],
+                            self.get_block_index(instr.target),
+                            instr.push_lasti,
+                        )
                     )
-                )
+                elif isinstance(instr, TryEnd):
+                    instructions.append(("TryEnd", try_begins[instr.entry]))
+                elif isinstance(instr, Instr) and (
+                    instr.has_jump() or instr.is_final()
+                ):
+                    if instr.has_jump():
+                        target_block = instr.arg
+                        assert isinstance(target_block, BasicBlock)
+                        # We use a concrete instr here to be able to use an integer as
+                        # argument rather than a Label. This is fine for comparison
+                        # purposes which is our sole goal here.
+                        c_instr = ConcreteInstr(
+                            instr.name,
+                            self.get_block_index(target_block),
+                            location=instr.location,
+                        )
+                        instructions.append(c_instr)
+                    else:
+                        instructions.append(instr)
 
-                instructions.extend(block[:-1])
-                instructions.append(instr)
-            else:
-                instructions.extend(block)
-
-        for target_block, c_instr in jumps:
-            c_instr.arg = self.get_block_index(target_block)
+                    if te := block.get_trailing_try_end(index):
+                        instructions.append(("TryEnd", try_begins[te.entry]))
+                    break
+                else:
+                    instructions.append(instr)
 
         return instructions
 

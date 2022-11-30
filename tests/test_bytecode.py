@@ -127,6 +127,34 @@ class BytecodeTests(TestCase):
         ):
             self.assertEqual(getattr(code, name, None), getattr(copy_code, name, None))
 
+    def test_eq(self):
+        code = get_code(
+            """
+            if test:
+                x = 1
+            else:
+                x = 2
+        """
+        )
+        b1 = Bytecode.from_code(code)
+        b2 = Bytecode.from_code(code)
+        self.assertEqual(b1, b2)
+
+    def test_eq_with_try(self):
+        code = get_code(
+            """
+            try:
+                x = 1
+            except Exception:
+                pass
+            finally:
+                print()
+        """
+        )
+        b1 = Bytecode.from_code(code)
+        b2 = Bytecode.from_code(code)
+        self.assertEqual(b1, b2)
+
     def test_from_code(self):
         code = get_code(
             """

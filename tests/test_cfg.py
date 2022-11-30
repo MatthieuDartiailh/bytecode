@@ -486,6 +486,12 @@ class BytecodeBlocksFunctionalTests(TestCase):
         cfg.argnames = code1.argnames
         self.assertFalse(code1 == cfg)
 
+    def test_eq_with_try_except(self):
+        source = "try:\n  x = 1\nexcept Exception:\n  pass\nfinally:\n  print()"
+        code1 = disassemble(source)
+        code2 = disassemble(source)
+        self.assertEqual(code1, code2)
+
     def check_getitem(self, code):
         # check internal Code block indexes (index by index, index by label)
         for block_index, block in enumerate(code):

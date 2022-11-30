@@ -4,6 +4,7 @@ import types
 from abc import abstractmethod
 from typing import (
     Any,
+    Dict,
     Generic,
     Iterator,
     List,
@@ -184,6 +185,8 @@ class _InstrList(List[V]):
         instructions: List = []
         labels = {}
         jumps = []
+        try_begins: Dict[TryBegin, int] = {}
+        try_jumps = []
 
         offset = 0
         instr: Any
@@ -191,6 +194,13 @@ class _InstrList(List[V]):
             if isinstance(instr, Label):
                 instructions.append("label_instr%s" % index)
                 labels[instr] = offset
+            elif isinstance(instr, TryBegin):
+                try_begins.setdefault(instr, len(try_begins))
+                assert isinstance(instr.target, Label)
+                try_jumps.append((instr.target, len(instructions)))
+                instructions.append(instr)
+            elif isinstance(instr, TryEnd):
+                instructions.append(("TryEnd", try_begins[instr.entry]))
             else:
                 if isinstance(instr, Instr) and isinstance(instr.arg, Label):
                     target_label = instr.arg
@@ -203,6 +213,16 @@ class _InstrList(List[V]):
 
         for target_label, instr in jumps:
             instr.arg = labels[target_label]
+
+        for target_label, index in try_jumps:
+            instr = instructions[index]
+            assert isinstance(instr, TryBegin)
+            instructions[index] = (
+                "TryBegin",
+                try_begins[instr],
+                labels[target_label],
+                instr.push_lasti,
+            )
 
         return instructions
 
