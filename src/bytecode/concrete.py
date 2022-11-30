@@ -1202,7 +1202,7 @@ class _ConvertBytecodeToConcrete:
                         and len(arg) == 2
                         and isinstance(arg[0], bool)
                         and isinstance(arg[1], str)
-                    )
+                    ), arg
                     index = self.add(self.names, arg[1])
                     arg = int(arg[0]) + (index << 1)
                 else:
