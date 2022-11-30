@@ -664,7 +664,7 @@ ConcreteBytecode
 
    Entry for a given line in the exception table.
 
-   All offset are expressed in instructions not in bytes.
+   All offsets are expressed in instructions not in bytes.
 
    Attributes:
 
@@ -677,7 +677,7 @@ ConcreteBytecode
 
       Offset (``int``) in instruction between the beginning of the bytecode and
       the end of this entry. This offset is inclusive meaning that the instruction
-      it points  to is included in the try/except handling.
+      it points to is included in the try/except handling.
 
    .. attribute:: target
 
@@ -693,7 +693,7 @@ ConcreteBytecode
    .. attribute:: push_lasti
 
       ``bool`` indicating if the offset, at which an exception was raised, should
-      be pushed on the stack  before the exception itself (which is pushed as a single value).
+      be pushed on the stack before the exception itself (which is pushed as a single value).
 
 
 .. class:: ConcreteBytecode

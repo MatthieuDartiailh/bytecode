@@ -12,7 +12,8 @@ New features:
   exceeded the perceived use. It could be re-added if there is a demand for it.
 
 - Add support for Python 3.11 PR #107
-  Support for Python 3.11, comes a number of changes reflecting changes in
+
+  Support for Python 3.11, comes with a number of changes reflecting changes in
   CPython bytecode itself:
 
   - support for the exception table in ``ConcreteBytecode``
