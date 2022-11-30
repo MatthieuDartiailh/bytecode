@@ -1,7 +1,7 @@
 ChangeLog
 =========
 
-unreleased: Version 0.14.0
+2022-11-30: Version 0.14.0
 --------------------------
 
 New features:
@@ -52,7 +52,7 @@ Maintenance:
 - Drop support for Python 3.6 and 3.7 PR #100
 
 
-04/10/2021: Version 0.13.0
+2021-10-04: Version 0.13.0
 --------------------------
 
 New features:
@@ -70,7 +70,7 @@ Bugfixes:
 - Fix line table assembly in Python 3.10. PR #85
 
 
-02/02/2021: Version 0.12.0
+2021-02-02: Version 0.12.0
 --------------------------
 
 New features:
