@@ -908,6 +908,17 @@ ControlFlowGraph
       *compute_exception_stack_depths* Allows caller to disable the computation of
       the stack depth required by exception table entries.
 
+      NOTE:
+
+      The computation will only consider block that can be reached from the entry block.
+      In particular, stack size for TryBegin/TryEnd in dead blocks is not updated.
+
+      In some cases, stack usage may be slightly overestimated compared to CPython.
+      This occurs when CPython duplicated the code for a finally clause but computed
+      stack size before the duplication in which case one could infer a smaller stack
+      usage for a TryBegin/TryEnd pair than can be done with the final bytecode
+      form.
+
    .. method:: update_flags(is_async: bool = None)
 
       Update the object flags by calling :py:func:infer_flags on itself.
