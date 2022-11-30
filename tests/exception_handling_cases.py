@@ -366,6 +366,7 @@ if sys.version_info < (3, 9):
     # Fail due to a varname re-ordering
     TEST_CASES.remove(try_finally)
     TEST_CASES.remove(nested_try_finally)
+    TEST_CASES.remove(try_finally_in_except)
     TEST_CASES.remove(nested_try_with_looping_construct)
     TEST_CASES.remove(try_except_with_extended_arg)
     TEST_CASES.remove(try_except_with_extended_arg2)
