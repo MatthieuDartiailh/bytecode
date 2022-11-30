@@ -186,10 +186,32 @@ def try_except_in_except():
 
     return a
 
-# TODO add:
-# - try/finally in except
-# - try/except in else
-# - try/except, try/finally in finally
+
+def try_finally_in_except():
+    try:
+        a = min(1, 2)
+    except Exception:
+        try:
+            b = min(3, 4)
+        finally:
+            c = 1
+        return c
+    return a
+
+
+def try_except_in_else():
+    try:
+        a = min(1, 2)
+    except Exception:
+        a = 1
+    else:
+        try:
+            b = min(3, 4)
+        except Exception:
+            b = 1
+        return b
+
+    return a
 
 
 def try_finally_in_else():
@@ -202,6 +224,31 @@ def try_finally_in_else():
             pass
         finally:
             a = 1
+
+
+def try_except_in_finally():
+    try:
+        a = min(1, 2)
+    finally:
+        try:
+            a = max(1, 2)
+        except Exception:
+            a = 1
+
+    return a
+
+
+def try_finally_in_finally():
+    a = 0
+    try:
+        a = min(1, 2)
+    finally:
+        try:
+            a = max(1, 2)
+        finally:
+            a = min(a, 1)
+
+    return a
 
 
 # Trick since the syntax does not exist pre-3.11
@@ -292,7 +339,11 @@ TEST_CASES = [
     nested_try_finally,
     nested_try_with_looping_construct,
     try_except_in_except,
+    try_except_in_else,
+    try_except_in_finally,
+    try_finally_in_except,
     try_finally_in_else,
+    try_finally_in_finally,
     try_except_with_extended_arg,
     try_except_with_extended_arg2,
     with_no_store,
