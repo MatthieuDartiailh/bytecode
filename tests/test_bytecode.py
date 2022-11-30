@@ -569,6 +569,42 @@ class BytecodeTests(TestCase):
                 co = code.to_code(check_pre_and_post=False)
                 self.assertEqual(co.co_stacksize, 1)
 
+    def test_not_enough_copy(self):
+        if sys.version_info < (3, 11):
+            self.skipTest("Instruction COPY does not exist before 3.11")
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("LOAD_CONST", 1), Instr("COPY", 2)])
+        with self.assertRaises(RuntimeError):
+            code.compute_stacksize()
+
+    def test_not_enough_copy_with_disable_check_of_pre_and_post(self):
+        if sys.version_info < (3, 11):
+            self.skipTest("Instruction COPY does not exist before 3.11")
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("LOAD_CONST", 1), Instr("COPY", 2)])
+        co = code.to_code(check_pre_and_post=False)
+        self.assertEqual(co.co_stacksize, 2)
+
+    def test_not_enough_swap(self):
+        if sys.version_info < (3, 11):
+            self.skipTest("Instruction SWAP does not exist before 3.11")
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("LOAD_CONST", 1), Instr("SWAP", 2)])
+        with self.assertRaises(RuntimeError):
+            code.compute_stacksize()
+
+    def test_not_enough_swap_with_disable_check_of_pre_and_post(self):
+        if sys.version_info < (3, 11):
+            self.skipTest("Instruction SWAP does not exist before 3.11")
+        code = Bytecode()
+        code.first_lineno = 1
+        code.extend([Instr("LOAD_CONST", 1), Instr("SWAP", 2)])
+        co = code.to_code(check_pre_and_post=False)
+        self.assertEqual(co.co_stacksize, 1)
+
     def test_for_iter_stack_effect_computation(self):
         code = Bytecode()
         code.first_lineno = 1
