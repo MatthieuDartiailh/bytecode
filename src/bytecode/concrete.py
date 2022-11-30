@@ -518,7 +518,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             else:
                 dlineno = lineno - old_lineno
 
-            if dlineno == 0:
+            if dlineno == 0 or (old_dlineno is None and dlineno is None):
                 continue
             old_lineno = lineno
 
