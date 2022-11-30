@@ -1,18 +1,8 @@
 from collections import deque
-
-try:
-    from collections.abc import Iterator
-except ImportError:
-    from collections import Iterator  # type: ignore[attr-defined,no-redef]
-
-try:
-    from typing import Protocol
-except ImportError:
-    from typing_extensions import Protocol  # type: ignore[misc]
-
+from collections.abc import Iterator
 from os.path import abspath
 from types import FunctionType, ModuleType
-from typing import Any, Dict, Optional, Tuple, Type, Union, cast
+from typing import Any, Dict, Optional, Protocol, Tuple, Type, Union, cast
 
 from module import origin  # type: ignore
 
