@@ -1,3 +1,4 @@
+import dis
 import sys
 import textwrap
 import types
@@ -143,11 +144,78 @@ def disassemble(source, *, filename="<string>", function=False):
 
 
 class TestCase(unittest.TestCase):
+    def assertInstructionListEqual(self, l1, l2):
+        # DO not check location information
+        self.assertEqual(len(l1), len(l2))
+        for i1, i2 in zip(l1, l2):
+            if isinstance(i1, Instr):
+                self.assertEqual(i1.name, i2.name)
+                if not isinstance(i1.arg, Label):
+                    self.assertEqual(i1.arg, i2.arg)
+                else:
+                    self.assertIs(l1.index(i1.arg), l2.index(i2.arg))
+                self.assertEqual(i1.lineno, i2.lineno)
+            else:
+                assert type(i1) is type(i2)
+
+    def assertCodeObjectEqual(self, code1: types.CodeType, code2: types.CodeType):
+        self.assertEqual(code1.co_stacksize, code2.co_stacksize)
+        self.assertEqual(code1.co_firstlineno, code2.co_firstlineno)
+        self.assertSequenceEqual(code1.co_cellvars, code2.co_cellvars)
+        self.assertSequenceEqual(code1.co_freevars, code2.co_freevars)
+        self.assertSequenceEqual(code1.co_varnames, code2.co_varnames)
+        if sys.version_info >= (3, 11):
+            self.assertSequenceEqual(code1.co_exceptiontable, code2.co_exceptiontable)
+            # We do not compare linetables because CPython does not always optimize
+            # the packing of the table
+            self.assertSequenceEqual(
+                list(code1.co_positions()), list(code2.co_positions())
+            )
+            self.assertEqual(code1.co_qualname, code2.co_qualname)
+        elif sys.version_info >= (3, 10):
+            self.assertSequenceEqual(list(code1.co_lines()), list(code2.co_lines()))
+        else:
+            # This is safer than directly comparing co_lnotab that sometimes contains
+            # cruft
+            self.assertSequenceEqual(
+                list(dis.findlinestarts(code1)), list(dis.findlinestarts(code2))
+            )
+        if sys.version_info >= (3, 9):
+            self.assertSequenceEqual(code1.co_code, code2.co_code)
+        # On Python 3.8 it happens that fast storage index vary in a roundtrip
+        else:
+            import opcode
+
+            fast_storage = opcode.opmap["LOAD_FAST"], opcode.opmap["STORE_FAST"]
+            load_const = opcode.opmap["LOAD_CONST"]
+            load_by_name = (
+                opcode.opmap["LOAD_GLOBAL"],
+                opcode.opmap["LOAD_NAME"],
+                opcode.opmap["LOAD_METHOD"],
+            )
+            if code1.co_code != code2.co_code:
+                for b1, a1, b2, a2 in zip(
+                    code1.co_code[::2],
+                    code1.co_code[1::2],
+                    code2.co_code[::2],
+                    code2.co_code[1::2],
+                ):
+                    if b1 != b2:
+                        self.assertSequenceEqual(code1.co_code, code2.co_code)
+                    # Do not check the argument of fast storage manipulation opcode
+                    elif b1 in fast_storage:
+                        pass
+                    elif b1 == load_const:
+                        self.assertEqual(code1.co_consts[a1], code2.co_consts[a2])
+                    elif b1 in load_by_name:
+                        self.assertEqual(code1.co_names[a1], code2.co_names[a2])
+                    elif a1 != a2:
+                        self.assertSequenceEqual(code1.co_code, code2.co_code)
+
+        self.assertEqual(code1.co_flags, code2.co_flags)
+
     def assertBlocksEqual(self, code, *expected_blocks):
         self.assertEqual(len(code), len(expected_blocks))
 
         for block1, block2 in zip(code, expected_blocks):
-            block_index = code.get_block_index(block1)
-            self.assertListEqual(
-                list(block1), block2, "Block #%s is different" % block_index
-            )
+            self.assertInstructionListEqual(list(block1), block2)

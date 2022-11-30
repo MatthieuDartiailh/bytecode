@@ -2,25 +2,25 @@ import unittest
 
 from bytecode import Bytecode, ConcreteBytecode, ControlFlowGraph
 
-from . import get_code
+from . import TestCase, get_code
 
 
-class CodeTests(unittest.TestCase):
+class CodeTests(TestCase):
     """Check that bytecode.from_code(code).to_code() returns code."""
 
     def check(self, source, function=False):
         ref_code = get_code(source, function=function)
 
         code = ConcreteBytecode.from_code(ref_code).to_code()
-        self.assertEqual(code, ref_code)
+        self.assertCodeObjectEqual(ref_code, code)
 
         code = Bytecode.from_code(ref_code).to_code()
-        self.assertEqual(code, ref_code)
+        self.assertCodeObjectEqual(ref_code, code)
 
         bytecode = Bytecode.from_code(ref_code)
         blocks = ControlFlowGraph.from_bytecode(bytecode)
         code = blocks.to_bytecode().to_code()
-        self.assertEqual(code, ref_code)
+        self.assertCodeObjectEqual(ref_code, code)
 
     def test_loop(self):
         self.check(
@@ -64,7 +64,7 @@ class CodeTests(unittest.TestCase):
             function=True,
         )
 
-    # Added because Python 3.10 added some special beahavior with respect to
+    # Added because Python 3.10 added some special behavior with respect to
     # generators in term of stack size
     def test_generator_func(self):
         self.check(

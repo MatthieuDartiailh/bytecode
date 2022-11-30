@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
+import asyncio
 import contextlib
+import inspect
 import io
 import sys
+import types
 import unittest
 
 from bytecode import (
@@ -12,6 +15,7 @@ from bytecode import (
     Instr,
     Label,
     SetLineno,
+    dump_bytecode,
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
 
@@ -54,7 +58,15 @@ class BlockTests(unittest.TestCase):
         # Only one jump allowed and only at the end
         block = BasicBlock()
         block2 = BasicBlock()
-        block.extend([Instr("JUMP_ABSOLUTE", block2), Instr("NOP")])
+        block.extend(
+            [
+                Instr(
+                    "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    block2,
+                ),
+                Instr("NOP"),
+            ]
+        )
         with self.assertRaises(ValueError):
             list(block)
         with self.assertRaises(ValueError):
@@ -63,7 +75,14 @@ class BlockTests(unittest.TestCase):
         # jump target must be a BasicBlock
         block = BasicBlock()
         label = Label()
-        block.extend([Instr("JUMP_ABSOLUTE", label)])
+        block.extend(
+            [
+                Instr(
+                    "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    label,
+                )
+            ]
+        )
         with self.assertRaises(ValueError):
             list(block)
         with self.assertRaises(ValueError):
@@ -216,7 +235,13 @@ class BytecodeBlocksTests(TestCase):
         blocks[0].extend(
             [
                 Instr("LOAD_NAME", "test", lineno=1),
-                Instr("POP_JUMP_IF_FALSE", blocks[2], lineno=1),
+                Instr(
+                    "POP_JUMP_FORWARD_IF_FALSE"
+                    if sys.version_info >= (3, 11)
+                    else "POP_JUMP_IF_FALSE",
+                    blocks[2],
+                    lineno=1,
+                ),
             ]
         )
 
@@ -243,7 +268,13 @@ class BytecodeBlocksTests(TestCase):
             bytecode,
             [
                 Instr("LOAD_NAME", "test", lineno=1),
-                Instr("POP_JUMP_IF_FALSE", label, lineno=1),
+                Instr(
+                    "POP_JUMP_FORWARD_IF_FALSE"
+                    if sys.version_info >= (3, 11)
+                    else "POP_JUMP_IF_FALSE",
+                    label,
+                    lineno=1,
+                ),
                 Instr("LOAD_CONST", 5, lineno=2),
                 Instr("STORE_NAME", "x", lineno=2),
                 Instr("JUMP_FORWARD", label, lineno=2),
@@ -262,7 +293,12 @@ class BytecodeBlocksTests(TestCase):
             [
                 Instr("LOAD_NAME", "x"),
                 Instr("UNARY_NOT"),
-                Instr("POP_JUMP_IF_FALSE", label),
+                Instr(
+                    "POP_JUMP_FORWARD_IF_FALSE"
+                    if sys.version_info >= (3, 11)
+                    else "POP_JUMP_IF_FALSE",
+                    label,
+                ),
                 Instr("LOAD_CONST", 9),
                 Instr("STORE_NAME", "y"),
                 label,
@@ -275,7 +311,12 @@ class BytecodeBlocksTests(TestCase):
             [
                 Instr("LOAD_NAME", "x"),
                 Instr("UNARY_NOT"),
-                Instr("POP_JUMP_IF_FALSE", cfg[2]),
+                Instr(
+                    "POP_JUMP_FORWARD_IF_FALSE"
+                    if sys.version_info >= (3, 11)
+                    else "POP_JUMP_IF_FALSE",
+                    cfg[2],
+                ),
             ],
             [Instr("LOAD_CONST", 9), Instr("STORE_NAME", "y")],
             [],
@@ -287,7 +328,13 @@ class BytecodeBlocksTests(TestCase):
         bytecode.extend(
             [
                 Instr("LOAD_NAME", "test", lineno=1),
-                Instr("POP_JUMP_IF_FALSE", label, lineno=1),
+                Instr(
+                    "POP_JUMP_FORWARD_IF_FALSE"
+                    if sys.version_info >= (3, 11)
+                    else "POP_JUMP_IF_FALSE",
+                    label,
+                    lineno=1,
+                ),
                 Instr("LOAD_CONST", 5, lineno=2),
                 Instr("STORE_NAME", "x", lineno=2),
                 Instr("JUMP_FORWARD", label, lineno=2),
@@ -308,7 +355,13 @@ class BytecodeBlocksTests(TestCase):
             blocks,
             [
                 Instr("LOAD_NAME", "test", lineno=1),
-                Instr("POP_JUMP_IF_FALSE", label2, lineno=1),
+                Instr(
+                    "POP_JUMP_FORWARD_IF_FALSE"
+                    if sys.version_info >= (3, 11)
+                    else "POP_JUMP_IF_FALSE",
+                    label2,
+                    lineno=1,
+                ),
             ],
             [
                 Instr("LOAD_CONST", 5, lineno=2),
@@ -340,10 +393,28 @@ class BytecodeBlocksTests(TestCase):
                 Instr("LOAD_NAME", "x", lineno=2),
                 Instr("LOAD_CONST", 2, lineno=2),
                 Instr("COMPARE_OP", Compare.EQ, lineno=2),
-                Instr("POP_JUMP_IF_FALSE", label_loop_start, lineno=2),
-                Instr("JUMP_ABSOLUTE", label_loop_exit, lineno=3),
-                Instr("JUMP_ABSOLUTE", label_loop_start, lineno=4),
-                Instr("JUMP_ABSOLUTE", label_loop_start, lineno=4),
+                Instr(
+                    "POP_JUMP_BACKWARD_IF_FALSE"
+                    if sys.version_info >= (3, 11)
+                    else "POP_JUMP_IF_FALSE",
+                    label_loop_start,
+                    lineno=2,
+                ),
+                Instr(
+                    "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    label_loop_exit,
+                    lineno=3,
+                ),
+                Instr(
+                    "JUMP_BACKWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    label_loop_start,
+                    lineno=4,
+                ),
+                Instr(
+                    "JUMP_BACKWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    label_loop_start,
+                    lineno=4,
+                ),
                 label_loop_exit,
                 Instr("LOAD_CONST", None, lineno=4),
                 Instr("RETURN_VALUE", lineno=4),
@@ -359,11 +430,35 @@ class BytecodeBlocksTests(TestCase):
                 Instr("LOAD_NAME", "x", lineno=2),
                 Instr("LOAD_CONST", 2, lineno=2),
                 Instr("COMPARE_OP", Compare.EQ, lineno=2),
-                Instr("POP_JUMP_IF_FALSE", blocks[1], lineno=2),
+                Instr(
+                    "POP_JUMP_BACKWARD_IF_FALSE"
+                    if sys.version_info >= (3, 11)
+                    else "POP_JUMP_IF_FALSE",
+                    blocks[1],
+                    lineno=2,
+                ),
             ],
-            [Instr("JUMP_ABSOLUTE", blocks[6], lineno=3)],
-            [Instr("JUMP_ABSOLUTE", blocks[1], lineno=4)],
-            [Instr("JUMP_ABSOLUTE", blocks[1], lineno=4)],
+            [
+                Instr(
+                    "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    blocks[6],
+                    lineno=3,
+                )
+            ],
+            [
+                Instr(
+                    "JUMP_BACKWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    blocks[1],
+                    lineno=4,
+                )
+            ],
+            [
+                Instr(
+                    "JUMP_BACKWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    blocks[1],
+                    lineno=4,
+                )
+            ],
             [Instr("LOAD_CONST", None, lineno=4), Instr("RETURN_VALUE", lineno=4)],
         ]
         self.assertBlocksEqual(blocks, *expected)
@@ -391,6 +486,12 @@ class BytecodeBlocksFunctionalTests(TestCase):
         cfg.argnames = code1.argnames
         self.assertFalse(code1 == cfg)
 
+    def test_eq_with_try_except(self):
+        source = "try:\n  x = 1\nexcept Exception:\n  pass\nfinally:\n  print()"
+        code1 = disassemble(source)
+        code2 = disassemble(source)
+        self.assertEqual(code1, code2)
+
     def check_getitem(self, code):
         # check internal Code block indexes (index by index, index by label)
         for block_index, block in enumerate(code):
@@ -407,8 +508,12 @@ class BytecodeBlocksFunctionalTests(TestCase):
     def sample_code(self):
         code = disassemble("x = 1", remove_last_return_none=True)
         self.assertBlocksEqual(
-            code, [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)]
+            code,
+            ([Instr("RESUME", 0, lineno=0)] if sys.version_info >= (3, 11) else [])
+            + [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)],
         )
+        if sys.version_info >= (3, 11):
+            del code[0][0]
         return code
 
     def test_split_block(self):
@@ -499,7 +604,13 @@ class BytecodeBlocksFunctionalTests(TestCase):
         block0.extend(
             [
                 Instr("LOAD_FAST", "x", lineno=4),
-                Instr("POP_JUMP_IF_FALSE", block2, lineno=4),
+                Instr(
+                    "POP_JUMP_FORWARD_IF_FALSE"
+                    if sys.version_info >= (3, 11)
+                    else "POP_JUMP_IF_FALSE",
+                    block2,
+                    lineno=4,
+                ),
             ]
         )
         block1.extend(
@@ -514,7 +625,12 @@ class BytecodeBlocksFunctionalTests(TestCase):
             ]
         )
 
-        if OFFSET_AS_INSTRUCTION:
+        if sys.version_info >= (3, 11):
+            # jump is relative not absolute
+            expected = (
+                b"|\x05" b"r\x02" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
+            )
+        elif OFFSET_AS_INSTRUCTION:
             # The argument of the jump is divided by 2
             expected = (
                 b"|\x05" b"r\x04" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
@@ -544,7 +660,9 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
         # verify stacksize argument is honored
         explicit_stacksize = code.co_stacksize + 42
-        code = bytecode.to_code(stacksize=explicit_stacksize)
+        code = bytecode.to_code(
+            stacksize=explicit_stacksize, compute_exception_stack_depths=False
+        )
         self.assertEqual(code.co_stacksize, explicit_stacksize)
 
     def test_get_block_index(self):
@@ -565,6 +683,8 @@ class CFGStacksizeComputationTests(TestCase):
         code = func.__code__
         bytecode = Bytecode.from_code(code)
         cfg = ControlFlowGraph.from_bytecode(bytecode)
+        as_code = cfg.to_code(check_pre_and_post=False)
+        self.assertCodeObjectEqual(code, as_code)
         self.assertEqual(code.co_stacksize, cfg.compute_stacksize())
 
     def test_empty_code(self):
@@ -765,8 +885,18 @@ class CFGStacksizeComputationTests(TestCase):
                 instructions.extend(
                     [
                         Instr("LOAD_FAST", "x"),
-                        Instr("POP_JUMP_IF_FALSE", label_else),
-                        Instr("LOAD_GLOBAL", "f{}".format(i)),
+                        Instr(
+                            "POP_JUMP_FORWARD_IF_FALSE"
+                            if sys.version_info >= (3, 11)
+                            else "POP_JUMP_IF_FALSE",
+                            label_else,
+                        ),
+                        Instr(
+                            "LOAD_GLOBAL",
+                            (False, f"f{i}")
+                            if sys.version_info >= (3, 11)
+                            else f"f{i}",
+                        ),
                         Instr("RETURN_VALUE"),
                         label_else,
                     ]
@@ -776,6 +906,53 @@ class CFGStacksizeComputationTests(TestCase):
 
         bytecode = Bytecode(mk_if_then_else(5000))
         bytecode.compute_stacksize()
+
+
+class CFGRoundTripTests(TestCase):
+    def test_roundtrip_exception_handling(self):
+        from . import exception_handling_cases as ehc
+
+        for f in ehc.TEST_CASES:
+            print(f.__name__)
+            with self.subTest(f.__name__):
+                origin = f.__code__
+                print("Bytecode:")
+                bytecode = Bytecode.from_code(
+                    f.__code__, conserve_exception_block_stackdepth=True
+                )
+                dump_bytecode(bytecode)
+                print()
+                print("CFG:")
+                cfg = ControlFlowGraph.from_bytecode(bytecode)
+                dump_bytecode(cfg)
+                as_code = cfg.to_code()
+                self.assertCodeObjectEqual(origin, as_code)
+                if inspect.iscoroutinefunction(f):
+                    if sys.version_info >= (3, 10):
+                        asyncio.run(f())
+                else:
+                    f()
+
+    def test_cellvar_freevar_roundtrip(self):
+        from . import cell_free_vars_cases as cfc
+
+        def recompile_code_and_inner(code):
+            cfg = ControlFlowGraph.from_bytecode(Bytecode.from_code(code))
+            for block in cfg:
+                for instr in block:
+                    if isinstance(instr.arg, types.CodeType):
+                        instr.arg = recompile_code_and_inner(instr.arg)
+            as_code = cfg.to_code()
+            self.assertCodeObjectEqual(code, as_code)
+            return as_code
+
+        for f in cfc.TEST_CASES:
+            print(f.__name__)
+            with self.subTest(f.__name__):
+                origin = f.__code__
+                f.__code__ = recompile_code_and_inner(origin)
+                while callable(f := f()):
+                    pass
 
 
 if __name__ == "__main__":

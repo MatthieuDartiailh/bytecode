@@ -1,0 +1,43 @@
+name: Frameworks tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/cis.yml
+      - "src/**"
+      - "tests/frameworks/*"
+      - pyproject.toml
+      - setup.py
+      - tox.ini
+
+jobs:
+  boto3:
+    name: boto3 with Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}-dev
+
+      - name: Setup
+        run: bash scripts/frameworks/boto3/setup.sh /tmp/boto3 ${{ matrix.python-version }}
+
+      - name: Run
+        env:
+          PYTHONPATH: ${{ github.workspace }}/tests/frameworks/
+        run: bash scripts/frameworks/boto3/run.sh /tmp/boto3 ${{ matrix.python-version }}

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import opcode
+import sys
 import unittest
 
 from bytecode import (
@@ -12,8 +13,17 @@ from bytecode import (
     Label,
     SetLineno,
 )
+from bytecode.instr import InstrLocation
 
 from . import TestCase
+
+# Starting with Python 3.11 jump opcode have changed quite a bit. We define here
+# opcode useful to test for both Python < 3.11 and Python >= 3.11
+UNCONDITIONAL_JUMP = "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE"
+CONDITIONAL_JUMP = (
+    "POP_JUMP_FORWARD_IF_TRUE" if sys.version_info >= (3, 11) else "POP_JUMP_IF_TRUE"
+)
+CALL = "CALL" if sys.version_info >= (3, 11) else "CALL_FUNCTION"
 
 
 class SetLinenoTests(TestCase):
@@ -60,13 +70,39 @@ class VariableTests(TestCase):
                 self.assertNotEqual(v1, v2)
 
 
+class InstrLocationTests(TestCase):
+    def test_init(self):
+        for args, error in [
+            ((None, None, None, None), ""),
+            ((None, 1, None, None), "End lineno specified with no lineno"),
+            ((12, 1, None, None), "cannot be smaller than lineno"),
+            ((12, 13, None, None), ""),
+            ((None, None, 1, None), "lineno information are incomplete"),
+            ((None, None, None, 1), "lineno information are incomplete"),
+            ((1, None, 1, None), "lineno information are incomplete"),
+            ((1, None, None, 1), "lineno information are incomplete"),
+            ((1, 2, None, 1), "with no column offset"),
+            ((1, 2, 12, 1), ""),
+            ((1, 1, 12, 1), "cannot be smaller than column offset"),
+            ((1, 1, 12, None), "No end column offset was"),
+        ]:
+            print(f"{args}, {error}")
+            with self.subTest(f"{args}, {error}"):
+                if error:
+                    with self.assertRaises(ValueError) as e:
+                        InstrLocation(*args)
+                    self.assertIn(error, str(e.exception))
+                else:
+                    InstrLocation(*args)
+
+
 class InstrTests(TestCase):
     def test_constructor(self):
         # invalid line number
         with self.assertRaises(TypeError):
             Instr("NOP", lineno="x")
         with self.assertRaises(ValueError):
-            Instr("NOP", lineno=0)
+            Instr("NOP", lineno=-1 if sys.version_info >= (3, 11) else 0)
 
         # invalid name
         with self.assertRaises(TypeError):
@@ -98,10 +134,10 @@ class InstrTests(TestCase):
         self.assertRaises(ValueError, Instr, "EXTENDED_ARG", 0)
 
         # has_jump()
-        self.assertRaises(TypeError, Instr, "JUMP_ABSOLUTE", 1)
-        self.assertRaises(TypeError, Instr, "JUMP_ABSOLUTE", 1.0)
-        Instr("JUMP_ABSOLUTE", label)
-        Instr("JUMP_ABSOLUTE", block)
+        self.assertRaises(TypeError, Instr, UNCONDITIONAL_JUMP, 1)
+        self.assertRaises(TypeError, Instr, UNCONDITIONAL_JUMP, 1.0)
+        Instr(UNCONDITIONAL_JUMP, label)
+        Instr(UNCONDITIONAL_JUMP, block)
 
         # hasfree
         self.assertRaises(TypeError, Instr, "LOAD_DEREF", "x")
@@ -128,13 +164,13 @@ class InstrTests(TestCase):
         Instr("COMPARE_OP", Compare.EQ)
 
         # HAVE_ARGUMENT
-        self.assertRaises(ValueError, Instr, "CALL_FUNCTION", -1)
-        self.assertRaises(TypeError, Instr, "CALL_FUNCTION", 3.0)
-        Instr("CALL_FUNCTION", 3)
+        self.assertRaises(ValueError, Instr, CALL, -1)
+        self.assertRaises(TypeError, Instr, CALL, 3.0)
+        Instr(CALL, 3)
 
         # test maximum argument
-        self.assertRaises(ValueError, Instr, "CALL_FUNCTION", 2147483647 + 1)
-        instr = Instr("CALL_FUNCTION", 2147483647)
+        self.assertRaises(ValueError, Instr, CALL, 2147483647 + 1)
+        instr = Instr(CALL, 2147483647)
         self.assertEqual(instr.arg, 2147483647)
 
         # not HAVE_ARGUMENT
@@ -142,7 +178,7 @@ class InstrTests(TestCase):
         Instr("NOP")
 
     def test_require_arg(self):
-        i = Instr("CALL_FUNCTION", 3)
+        i = Instr(CALL, 3)
         self.assertTrue(i.require_arg())
         i = Instr("NOP")
         self.assertFalse(i.require_arg())
@@ -155,7 +191,13 @@ class InstrTests(TestCase):
         self.assertEqual(instr.lineno, 5)
 
         # invalid values/types
-        self.assertRaises(ValueError, setattr, instr, "lineno", 0)
+        self.assertRaises(
+            ValueError,
+            setattr,
+            instr,
+            "lineno",
+            -1 if sys.version_info >= (3, 11) else 0,
+        )
         self.assertRaises(TypeError, setattr, instr, "lineno", 1.0)
         self.assertRaises(TypeError, setattr, instr, "name", 5)
         self.assertRaises(TypeError, setattr, instr, "opcode", 1.0)
@@ -168,7 +210,7 @@ class InstrTests(TestCase):
         self.assertRaises(AttributeError, delattr, instr, "arg")
 
         # no argument
-        instr = Instr("ROT_TWO")
+        instr = Instr("RETURN_VALUE")
         self.assertIs(instr.arg, UNSET)
 
     def test_modify_op(self):
@@ -202,7 +244,7 @@ class InstrTests(TestCase):
 
     def test_has_jump(self):
         label = Label()
-        jump = Instr("JUMP_ABSOLUTE", label)
+        jump = Instr(UNCONDITIONAL_JUMP, label)
         self.assertTrue(jump.has_jump())
 
         instr = Instr("LOAD_FAST", "x")
@@ -210,7 +252,7 @@ class InstrTests(TestCase):
 
     def test_is_cond_jump(self):
         label = Label()
-        jump = Instr("POP_JUMP_IF_TRUE", label)
+        jump = Instr(CONDITIONAL_JUMP, label)
         self.assertTrue(jump.is_cond_jump())
 
         instr = Instr("LOAD_FAST", "x")
@@ -218,10 +260,10 @@ class InstrTests(TestCase):
 
     def test_is_uncond_jump(self):
         label = Label()
-        jump = Instr("JUMP_ABSOLUTE", label)
+        jump = Instr(UNCONDITIONAL_JUMP, label)
         self.assertTrue(jump.is_uncond_jump())
 
-        instr = Instr("POP_JUMP_IF_TRUE", label)
+        instr = Instr(CONDITIONAL_JUMP, label)
         self.assertFalse(instr.is_uncond_jump())
 
     def test_const_key_not_equal(self):
@@ -301,10 +343,12 @@ class InstrTests(TestCase):
                 self.assertEqual(jump, no_jump)
 
         for name, op in opcode.opmap.items():
+            print(name)
             with self.subTest(name):
                 # Use ConcreteInstr instead of Instr because it doesn't care
                 # what kind of argument it is constructed with.
-                if op < opcode.HAVE_ARGUMENT:
+                # The 0 handles the CACHE case
+                if 0 < op < opcode.HAVE_ARGUMENT:
                     check(ConcreteInstr(name))
                 else:
                     for arg in range(256):
@@ -355,7 +399,10 @@ class InstrTests(TestCase):
         self.assertIsNotNone(instr_load_code)
 
         g_code = Bytecode.from_code(instr_load_code.arg)
-        g_code[0].arg = mutable_datum
+        # UNder Python 3.11+ we the first instruction is not LOAD_CONST but RESUME
+        for instr in g_code:
+            if isinstance(each, Instr) and instr.name == "LOAD_CONST":
+                instr.arg = mutable_datum
         instr_load_code.arg = g_code.to_code()
         f.__code__ = f_code.to_code()
 
@@ -371,16 +418,17 @@ class CompareTests(TestCase):
 
         params = zip(iter(Compare), (True, True, False, True, False, False))
         for cmp, expected in params:
-            with self.subTest():
-                f.__code__ = Bytecode(
-                    [
+            with self.subTest(cmp):
+                bcode = Bytecode(
+                    ([Instr("RESUME", 0)] if sys.version_info >= (3, 11) else [])
+                    + [
                         Instr("LOAD_CONST", 24),
                         Instr("LOAD_CONST", 42),
                         Instr("COMPARE_OP", cmp),
                         Instr("RETURN_VALUE"),
                     ]
-                ).to_code()
-
+                )
+                f.__code__ = bcode.to_code()
                 self.assertIs(f(), expected)
 
 

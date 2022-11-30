@@ -82,7 +82,15 @@ def infer_flags(
     instr_names = {
         i.name
         for i in instructions
-        if not isinstance(i, (_bytecode.SetLineno, _bytecode.Label))
+        if not isinstance(
+            i,
+            (
+                _bytecode.SetLineno,
+                _bytecode.Label,
+                _bytecode.TryBegin,
+                _bytecode.TryEnd,
+            ),
+        )
     }
 
     # Identify optimized code
@@ -120,6 +128,7 @@ def infer_flags(
         "BEFORE_ASYNC_WITH",
         "SETUP_ASYNC_WITH",
         "END_ASYNC_FOR",
+        "ASYNC_GEN_WRAP",  # New in 3.11
     }
 
     # If performing inference or forcing an async behavior, first inspect

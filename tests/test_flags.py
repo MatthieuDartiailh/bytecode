@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import unittest
 
 from bytecode import (
@@ -9,7 +10,11 @@ from bytecode import (
     ControlFlowGraph,
 )
 from bytecode.flags import infer_flags
-from bytecode.instr import FreeVar, Instr
+from bytecode.instr import UNSET, FreeVar, Instr
+
+# Py 3.11
+# - new opcodes could modify inference:
+#   - SEND, ASYNC_GEN_WRAP, RETURN_GENERATOR,
 
 
 class FlagsTests(unittest.TestCase):
@@ -65,7 +70,9 @@ class FlagsTests(unittest.TestCase):
 
         # Infer coroutine
         code = ConcreteBytecode()
-        code.append(ConcreteInstr("GET_AWAITABLE"))
+        code.append(
+            ConcreteInstr("GET_AWAITABLE", 0 if sys.version_info >= (3, 11) else UNSET)
+        )
         code.update_flags()
         self.assertTrue(bool(code.flags & CompilerFlags.COROUTINE))
 
@@ -74,11 +81,18 @@ class FlagsTests(unittest.TestCase):
             ("YIELD_VALUE", CompilerFlags.ASYNC_GENERATOR),
             ("YIELD_FROM", CompilerFlags.COROUTINE),
         ):
-            code = ConcreteBytecode()
-            code.append(ConcreteInstr("GET_AWAITABLE"))
-            code.append(ConcreteInstr(i))
-            code.update_flags()
-            self.assertTrue(bool(code.flags & expected))
+            with self.subTest(i):
+                if sys.version_info >= (3, 11) and i == "YIELD_FROM":
+                    self.skipTest("YIELD_FROM does not exist on 3.11")
+                code = ConcreteBytecode()
+                code.append(
+                    ConcreteInstr(
+                        "GET_AWAITABLE", 0 if sys.version_info >= (3, 11) else UNSET
+                    )
+                )
+                code.append(ConcreteInstr(i))
+                code.update_flags()
+                self.assertTrue(bool(code.flags & expected))
 
     def test_async_gen_no_flag_is_async_True(self):
         # Test inference when we request an async function
@@ -93,10 +107,13 @@ class FlagsTests(unittest.TestCase):
             ("YIELD_VALUE", CompilerFlags.ASYNC_GENERATOR),
             ("YIELD_FROM", CompilerFlags.COROUTINE),
         ):
-            code = ConcreteBytecode()
-            code.append(ConcreteInstr(i))
-            code.update_flags(is_async=True)
-            self.assertTrue(bool(code.flags & expected))
+            with self.subTest(i):
+                if sys.version_info >= (3, 11) and i == "YIELD_FROM":
+                    self.skipTest("YIELD_FROM does not exist on 3.11")
+                code = ConcreteBytecode()
+                code.append(ConcreteInstr(i))
+                code.update_flags(is_async=True)
+                self.assertTrue(bool(code.flags & expected))
 
     def test_async_gen_no_flag_is_async_False(self):
         # Test inference when we request a non-async function
@@ -110,7 +127,9 @@ class FlagsTests(unittest.TestCase):
 
         # Abort on coroutine
         code = ConcreteBytecode()
-        code.append(ConcreteInstr("GET_AWAITABLE"))
+        code.append(
+            ConcreteInstr("GET_AWAITABLE", 0 if sys.version_info >= (3, 11) else UNSET)
+        )
         code.flags = CompilerFlags(CompilerFlags.COROUTINE)
         with self.assertRaises(ValueError):
             code.update_flags(is_async=False)
@@ -133,20 +152,28 @@ class FlagsTests(unittest.TestCase):
                 self.assertTrue(bool(code.flags & expected))
 
             # Infer coroutine
-            code = ConcreteBytecode()
-            code.append(ConcreteInstr("YIELD_FROM"))
-            for f, expected in (
-                (CompilerFlags.COROUTINE, CompilerFlags.COROUTINE),
-                (CompilerFlags.ASYNC_GENERATOR, CompilerFlags.COROUTINE),
-                (CompilerFlags.ITERABLE_COROUTINE, CompilerFlags.ITERABLE_COROUTINE),
-            ):
-                code.flags = CompilerFlags(f)
-                code.update_flags(is_async=is_async)
-                self.assertTrue(bool(code.flags & expected))
+            if sys.version_info < (3, 11):
+                code = ConcreteBytecode()
+                code.append(ConcreteInstr("YIELD_FROM"))
+                for f, expected in (
+                    (CompilerFlags.COROUTINE, CompilerFlags.COROUTINE),
+                    (CompilerFlags.ASYNC_GENERATOR, CompilerFlags.COROUTINE),
+                    (
+                        CompilerFlags.ITERABLE_COROUTINE,
+                        CompilerFlags.ITERABLE_COROUTINE,
+                    ),
+                ):
+                    code.flags = CompilerFlags(f)
+                    code.update_flags(is_async=is_async)
+                    self.assertTrue(bool(code.flags & expected))
 
             # Crash on ITERABLE_COROUTINE with async bytecode
             code = ConcreteBytecode()
-            code.append(ConcreteInstr("GET_AWAITABLE"))
+            code.append(
+                ConcreteInstr(
+                    "GET_AWAITABLE", 0 if sys.version_info >= (3, 11) else UNSET
+                )
+            )
             code.flags = CompilerFlags(CompilerFlags.ITERABLE_COROUTINE)
             with self.assertRaises(ValueError):
                 code.update_flags(is_async=is_async)

@@ -4,13 +4,13 @@ import types
 from abc import abstractmethod
 from typing import (
     Any,
+    Dict,
     Generic,
     Iterator,
     List,
     Optional,
     Sequence,
     SupportsIndex,
-    Tuple,
     TypeVar,
     Union,
     overload,
@@ -18,21 +18,34 @@ from typing import (
 
 import bytecode as _bytecode
 from bytecode.flags import CompilerFlags, infer_flags
-from bytecode.instr import UNSET, BaseInstr, Instr, Label, SetLineno
+from bytecode.instr import (
+    _UNSET,
+    UNSET,
+    BaseInstr,
+    Instr,
+    Label,
+    SetLineno,
+    TryBegin,
+    TryEnd,
+)
 
 
 class BaseBytecode:
-    def __init__(self):
+    def __init__(self) -> None:
         self.argcount = 0
         self.posonlyargcount = 0
         self.kwonlyargcount = 0
         self.first_lineno = 1
         self.name = "<module>"
+        self.qualname = self.name
         self.filename = "<string>"
-        self.docstring = UNSET
-        self.cellvars = []
-        # we cannot recreate freevars from instructions because of super()
-        # special-case
+        self.docstring: Union[str, None, _UNSET] = UNSET
+        # We cannot recreate cellvars/freevars from instructions because of super()
+        # special-case, which involves an implicit __class__ cell/free variable
+        # We could try to detect it.
+        # CPython itself breaks if one aliases super so we could maybe make it work
+        # but it will require careful design and will be done later in the future.
+        self.cellvars: List[str] = []
         self.freevars: List[str] = []
         self._flags: CompilerFlags = CompilerFlags(0)
 
@@ -43,6 +56,7 @@ class BaseBytecode:
         self.flags = bytecode.flags
         self.first_lineno = bytecode.first_lineno
         self.name = bytecode.name
+        self.qualname = bytecode.qualname
         self.filename = bytecode.filename
         self.docstring = bytecode.docstring
         self.cellvars = list(bytecode.cellvars)
@@ -65,6 +79,8 @@ class BaseBytecode:
         if self.filename != other.filename:
             return False
         if self.name != other.name:
+            return False
+        if self.qualname != other.qualname:
             return False
         if self.docstring != other.docstring:
             return False
@@ -136,14 +152,14 @@ class _BaseBytecodeList(BaseBytecode, list, Generic[U]):
                 set_lineno = instr.lineno
                 lineno_pos.append(pos)
                 continue
-            # Filter out Labels
+            # Filter out other pseudo instructions
             if not isinstance(instr, BaseInstr):
                 continue
             if set_lineno is not None:
                 instr.lineno = set_lineno
-            elif instr.lineno is None:
+            elif instr.lineno is UNSET:
                 instr.lineno = current_lineno
-            else:
+            elif instr.lineno is not None:
                 current_lineno = instr.lineno
 
         for i in reversed(lineno_pos):
@@ -169,6 +185,8 @@ class _InstrList(List[V]):
         instructions: List = []
         labels = {}
         jumps = []
+        try_begins: Dict[TryBegin, int] = {}
+        try_jumps = []
 
         offset = 0
         instr: Any
@@ -176,16 +194,35 @@ class _InstrList(List[V]):
             if isinstance(instr, Label):
                 instructions.append("label_instr%s" % index)
                 labels[instr] = offset
+            elif isinstance(instr, TryBegin):
+                try_begins.setdefault(instr, len(try_begins))
+                assert isinstance(instr.target, Label)
+                try_jumps.append((instr.target, len(instructions)))
+                instructions.append(instr)
+            elif isinstance(instr, TryEnd):
+                instructions.append(("TryEnd", try_begins[instr.entry]))
             else:
                 if isinstance(instr, Instr) and isinstance(instr.arg, Label):
                     target_label = instr.arg
-                    instr = _bytecode.ConcreteInstr(instr.name, 0, lineno=instr.lineno)
+                    instr = _bytecode.ConcreteInstr(
+                        instr.name, 0, location=instr.location
+                    )
                     jumps.append((target_label, instr))
                 instructions.append(instr)
                 offset += 1
 
         for target_label, instr in jumps:
             instr.arg = labels[target_label]
+
+        for target_label, index in try_jumps:
+            instr = instructions[index]
+            assert isinstance(instr, TryBegin)
+            instructions[index] = (
+                "TryBegin",
+                try_begins[instr],
+                labels[target_label],
+                instr.push_lasti,
+            )
 
         return instructions
 
@@ -197,11 +234,12 @@ class _InstrList(List[V]):
 
 
 class Bytecode(
-    _InstrList[Union[Instr, Label, SetLineno]],
-    _BaseBytecodeList[Union[Instr, Label, SetLineno]],
+    _InstrList[Union[Instr, Label, TryBegin, TryEnd, SetLineno]],
+    _BaseBytecodeList[Union[Instr, Label, TryBegin, TryEnd, SetLineno]],
 ):
     def __init__(
-        self, instructions: Sequence[Union[Instr, Label, SetLineno]] = ()
+        self,
+        instructions: Sequence[Union[Instr, Label, TryBegin, TryEnd, SetLineno]] = (),
     ) -> None:
         BaseBytecode.__init__(self)
         self.argnames: List[str] = []
@@ -209,14 +247,21 @@ class Bytecode(
             self._check_instr(instr)
         self.extend(instructions)
 
-    def __iter__(self) -> Iterator[Union[Instr, Label, SetLineno]]:
+    def __iter__(self) -> Iterator[Union[Instr, Label, TryBegin, TryEnd, SetLineno]]:
         instructions = super().__iter__()
+        seen_try_begin = False
         for instr in instructions:
             self._check_instr(instr)
+            if isinstance(instr, TryBegin):
+                if seen_try_begin:
+                    raise RuntimeError("TryBegin pseudo instructions cannot be nested.")
+                seen_try_begin = True
+            elif isinstance(instr, TryEnd):
+                seen_try_begin = False
             yield instr
 
     def _check_instr(self, instr: Any) -> None:
-        if not isinstance(instr, (Label, SetLineno, Instr)):
+        if not isinstance(instr, (Label, SetLineno, Instr, TryBegin, TryEnd)):
             raise ValueError(
                 "Bytecode must only contain Label, "
                 "SetLineno, and Instr objects, "
@@ -229,9 +274,16 @@ class Bytecode(
             self.argnames = bytecode.argnames
 
     @staticmethod
-    def from_code(code: types.CodeType) -> "Bytecode":
+    def from_code(
+        code: types.CodeType,
+        prune_caches: bool = True,
+        conserve_exception_block_stackdepth: bool = False,
+    ) -> "Bytecode":
         concrete = _bytecode.ConcreteBytecode.from_code(code)
-        return concrete.to_bytecode()
+        return concrete.to_bytecode(
+            prune_caches=prune_caches,
+            conserve_exception_block_stackdepth=conserve_exception_block_stackdepth,
+        )
 
     def compute_stacksize(self, *, check_pre_and_post: bool = True) -> int:
         cfg = _bytecode.ControlFlowGraph.from_bytecode(self)
@@ -242,17 +294,37 @@ class Bytecode(
         compute_jumps_passes: Optional[int] = None,
         stacksize: Optional[int] = None,
         *,
-        check_pre_and_post: bool = True
+        check_pre_and_post: bool = True,
+        compute_exception_stack_depths: bool = True,
     ) -> types.CodeType:
         # Prevent reconverting the concrete bytecode to bytecode and cfg to do the
         # calculation if we need to do it.
-        if stacksize is None:
-            stacksize = self.compute_stacksize(check_pre_and_post=check_pre_and_post)
-        bc = self.to_concrete_bytecode(compute_jumps_passes=compute_jumps_passes)
-        return bc.to_code(stacksize=stacksize)
+        if stacksize is None or (
+            sys.version_info >= (3, 11) and compute_exception_stack_depths
+        ):
+            cfg = _bytecode.ControlFlowGraph.from_bytecode(self)
+            stacksize = cfg.compute_stacksize(
+                check_pre_and_post=check_pre_and_post,
+                compute_exception_stack_depths=compute_exception_stack_depths,
+            )
+            self = cfg.to_bytecode()
+            compute_exception_stack_depths = False  # avoid redoing everything
+        bc = self.to_concrete_bytecode(
+            compute_jumps_passes=compute_jumps_passes,
+            compute_exception_stack_depths=compute_exception_stack_depths,
+        )
+        return bc.to_code(
+            stacksize=stacksize,
+            compute_exception_stack_depths=compute_exception_stack_depths,
+        )
 
     def to_concrete_bytecode(
-        self, compute_jumps_passes: Optional[int] = None
+        self,
+        compute_jumps_passes: Optional[int] = None,
+        compute_exception_stack_depths: bool = True,
     ) -> "_bytecode.ConcreteBytecode":
         converter = _bytecode._ConvertBytecodeToConcrete(self)
-        return converter.to_concrete_bytecode(compute_jumps_passes=compute_jumps_passes)
+        return converter.to_concrete_bytecode(
+            compute_jumps_passes=compute_jumps_passes,
+            compute_exception_stack_depths=compute_exception_stack_depths,
+        )
