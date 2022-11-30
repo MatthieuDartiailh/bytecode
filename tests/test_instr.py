@@ -126,7 +126,6 @@ class InstrTests(TestCase):
         self.assertIn("arg", r)
         self.assertIn("_x_", r)
 
-    # XXX use
     def test_invalid_arg(self):
         label = Label()
         block = BasicBlock()

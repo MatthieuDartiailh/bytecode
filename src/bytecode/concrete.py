@@ -1282,7 +1282,7 @@ class _ConvertBytecodeToConcrete:
         # needed if a label is at the end
         label_offsets.append(offset)
 
-        # XXX may need some extra check to validate jump forward vs jump backward
+        # FIXME may need some extra check to validate jump forward vs jump backward
         # fix argument of jump instructions: resolve labels
         modified = False
         for index, label, instr in self.jumps:
