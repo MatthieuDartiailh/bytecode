@@ -488,9 +488,9 @@ TryEnd
 
       A jump may cause to exit an exception table entry. If the jump is unconditional
       the instruction is final and the above applies. For conditional jumps, within
-      a :class:`ControlFlowGraph`, we mark explicitly we exit the exception table
-      entry region by inserting a :class:`TryEnd` at the beginning of the target
-      block. As a consequence, multiple :class:`TryExit` corresponding to a single
+      a :class:`ControlFlowGraph`, we insert a :class:`TryEnd` at the beginning of
+      the target block to explicitly signal that we left the exception table entry
+      region. As a consequence, multiple :class:`TryExit` corresponding to a single
       :class:`TryBegin` can exist. :class:`TryEnd` corresponding to exiting an
       exception table entry through a conditional jump always appear before the
       first instruction of the target block. However, care needs to be taken since
