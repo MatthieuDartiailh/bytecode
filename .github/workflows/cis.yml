@@ -74,5 +74,6 @@ jobs:
         uses: codecov/codecov-action@v3
         if: github.event_name != 'schedule'
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           name: codecov-umbrella
           fail_ci_if_error: true
