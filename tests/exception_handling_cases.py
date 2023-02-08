@@ -150,7 +150,6 @@ def try_except_with_extended_arg2():
     a = list(range(10))
 
     with contextlib.nullcontext() as selector:
-
         while a.pop():
             # timeout = self._remaining_time(endtime)
             if sys is not None and sys.hexversion < 0:

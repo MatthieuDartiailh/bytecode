@@ -244,7 +244,6 @@ class ConcreteBytecodeTests(TestCase):
             ConcreteBytecode([Label()])
 
     def test_to_code_lnotab(self):
-
         # We use an actual function for the simple case to
         # ensure we get lnotab right
         def f():

@@ -134,7 +134,6 @@ def infer_flags(
     # If performing inference or forcing an async behavior, first inspect
     # the flags since this is the only way to identify iterable coroutines
     if is_async in (None, True):
-
         if bytecode.flags & CompilerFlags.COROUTINE:
             if sure_generator:
                 flags |= CompilerFlags.ASYNC_GENERATOR

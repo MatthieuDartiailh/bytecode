@@ -278,7 +278,6 @@ class _StackSizeComputer:
             # an extra object on the stack.
 
         for i, instr in enumerate(self.block):
-
             # Ignore SetLineno
             if isinstance(instr, (SetLineno)):
                 continue
@@ -384,7 +383,6 @@ class _StackSizeComputer:
             # Instruction is final (return, raise, ...) so any following instruction
             # in the block is dead code.
             if instr.is_final():
-
                 # Check for TryEnd after the final instruction which is possible
                 # TryEnd being only pseudo instructions.
                 if te := self.block.get_trailing_try_end(i):
@@ -781,7 +779,6 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         try_begin_inserted_in_block = False
         last_instr: Optional[Instr] = None
         for index, instr in enumerate(bytecode):
-
             # Reference to the current block if we create a new one in the following.
             old_block: BasicBlock | None = None
 
@@ -829,7 +826,6 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 try_begin_inserted_in_block = False
 
             if old_block is not None and last_instr is not None:
-
                 # The last instruction is final, if the current instruction is a
                 # TryEnd insert it in the same block and move to the next instruction
                 if last_instr.is_final() and isinstance(instr, TryEnd):
@@ -842,7 +838,6 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
                 # If we have an active TryBegin and last_instr is:
                 elif active_try_begin is not None:
-
                     # - a jump whose target is beyond the TryEnd of the active
                     #   TryBegin: we remember TryEnd should be prepended to the
                     #   target block.

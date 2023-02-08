@@ -68,7 +68,6 @@ class BinaryOp(enum.IntEnum):
 # This make type checking happy but means it won't catch attempt to manipulate an unset
 # statically. We would need guard on object attribute narrowed down through methods
 class _UNSET(int):
-
     instance = None
 
     def __new__(cls):
@@ -667,7 +666,6 @@ InstrArg = Union[
 
 
 class Instr(BaseInstr[InstrArg]):
-
     __slots__ = ()
 
     def _cmp_key(self) -> Tuple[Optional[InstrLocation], str, Any]:

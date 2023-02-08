@@ -111,7 +111,6 @@ class InstrTests(TestCase):
             Instr("xxx")
 
     def test_repr(self):
-
         # No arg
         r = repr(Instr("NOP", lineno=10))
         self.assertIn("NOP", r)

@@ -35,7 +35,6 @@ class A:
 
 
 def class_loadderef():
-
     a = 1
 
     class B(A):

@@ -220,7 +220,6 @@ class ExceptionTableEntry:
 
 
 class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLineno]]):
-
     #: List of "constant" objects for the bytecode
     consts: List
 
@@ -297,7 +296,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
     def from_code(
         code: types.CodeType, *, extended_arg: bool = False
     ) -> "ConcreteBytecode":
-
         instructions: MutableSequence[Union[SetLineno, ConcreteInstr]]
         # For Python 3.11+ we use dis to extract the detailed location information at
         # reduced maintenance cost.
@@ -470,7 +468,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # then use as many 254 offset with no line change to reduce the offset to
         # less than 254.
         if doff > 254:
-
             linetable.append(struct.pack("Bb", 254, dlineno))
             doff -= 254
 
@@ -692,7 +689,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         # We track the last set lineno to be able to compute deltas
         for _, i_size, new_lineno, location in iter_in:
-
             # Infer the line if location is None
             location = location or InstrLocation(new_lineno, None, None, None)
 
@@ -1066,7 +1062,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
 
 class _ConvertBytecodeToConcrete:
-
     # XXX document attributes
 
     #: Default number of passes of compute_jumps() before giving up.  Refer to
@@ -1117,7 +1112,6 @@ class _ConvertBytecodeToConcrete:
         free_instrs: List[int] = []
 
         for instr in self.bytecode:
-
             # Enforce proper use of CACHE opcode on Python 3.11+ by checking we get the
             # number we expect or directly generate the needed ones.
             if isinstance(instr, Instr) and instr.name == "CACHE":
@@ -1315,7 +1309,6 @@ class _ConvertBytecodeToConcrete:
 
         # Resolve labels for exception handling entries
         for tb, entry in self.exception_handling_blocks.items():
-
             # Set the offset for the start and end offset from the instruction
             # index stored when assembling the concrete instructions.
             entry.start_offset = instruction_offsets[entry.start_offset]

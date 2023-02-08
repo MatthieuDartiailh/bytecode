@@ -52,7 +52,6 @@ def format_bytecode(
     *,
     lineno: bool = False,
 ) -> str:
-
     try_begins: List[TryBegin] = []
 
     def format_line(index, line):
@@ -87,7 +86,6 @@ def format_bytecode(
         return text
 
     def format_try_begin(instr: TryBegin, labels: dict) -> str:
-
         if isinstance(instr.target, Label):
             try:
                 arg = "<%s>" % labels[instr.target]
