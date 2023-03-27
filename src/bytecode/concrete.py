@@ -739,7 +739,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 continue
 
             if extended_arg is not None:
-                arg = (extended_arg << 8) + instr.arg
+                arg = UNSET if instr.name == "NOP" else (extended_arg << 8) + instr.arg
                 extended_arg = None
 
                 instr = ConcreteInstr(

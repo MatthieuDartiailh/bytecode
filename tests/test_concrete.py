@@ -785,6 +785,58 @@ class ConcreteFromCodeTests(TestCase):
         self.assertEqual(concrete.consts, consts)
         self.assertInstructionListEqual(list(concrete), expected)
 
+    # Ensure that concrete._remove_extended_args can handle extended_arg NOPs that get
+    # passed in from other to_code/from_code methods.
+    def test_extended_arg_nop(self):
+        constants = [None] * (0x000129 + 1)
+        constants[0x000129] = "Arbitrary String"
+
+        code = types.CodeType(
+            0,
+            0,
+            0,
+            0,
+            1,
+            64,
+            bytes(
+                [
+                    0x90,
+                    0x01,  # EXTENDED_ARG 0x01
+                    0x09,
+                    0xFF,  # NOP 0xFF
+                    0x90,
+                    0x01,  # EXTENDED_ARG 0x01
+                    0x64,
+                    0x29,  # LOAD_CONST 0x29
+                    0x53,
+                    0x00,  # RETURN_VALUE 0x00
+                ]
+            ),
+            tuple(constants),
+            (),
+            (),
+            "<no file>",
+            "code",
+            1,
+            b"",
+        )
+        # Check it can be encoded and decoded
+        codetype_output = Bytecode.from_code(code).to_code().co_consts
+
+        code = ConcreteBytecode()
+        code.consts = constants
+        code.extend(
+            [
+                ConcreteInstr("EXTENDED_ARG", 0x01),
+                ConcreteInstr("NOP"),
+                ConcreteInstr("EXTENDED_ARG", 0x01),
+                ConcreteInstr("LOAD_CONST", 0x29),
+                ConcreteInstr("RETURN_VALUE"),
+            ]
+        )
+        concrete_output = ConcreteBytecode.to_code(code).co_consts
+        self.assertEqual(codetype_output, concrete_output)
+
     # The next three tests ensure we can round trip ConcreteBytecode generated
     # with extended_args=True
 
