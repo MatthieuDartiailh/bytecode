@@ -790,28 +790,16 @@ class ConcreteFromCodeTests(TestCase):
     def test_extended_arg_nop(self):
         constants = [None] * (0x000129 + 1)
         constants[0x000129] = "Arbitrary String"
-
-        code = types.CodeType(
-            0,
+        # EXTENDED_ARG 0x01, NOP 0xFF, EXTENDED_ARG 0x01,
+        # LOAD_CONST 0x29, RETURN_VALUE 0x00
+        codestring = bytes([0x90, 0x01, 0x09, 0xFF, 0x90, 0x01, 0x64, 0x29, 0x53, 0x00])
+        codetype_list = [
             0,
             0,
             0,
             1,
             64,
-            bytes(
-                [
-                    0x90,
-                    0x01,  # EXTENDED_ARG 0x01
-                    0x09,
-                    0xFF,  # NOP 0xFF
-                    0x90,
-                    0x01,  # EXTENDED_ARG 0x01
-                    0x64,
-                    0x29,  # LOAD_CONST 0x29
-                    0x53,
-                    0x00,  # RETURN_VALUE 0x00
-                ]
-            ),
+            codestring,
             tuple(constants),
             (),
             (),
@@ -819,7 +807,16 @@ class ConcreteFromCodeTests(TestCase):
             "code",
             1,
             b"",
-        )
+            (),
+            (),
+        ]
+        if sys.version_info >= (3, 8):
+            codetype_list.insert(1, 0)
+        if sys.version_info >= (3, 11):
+            codetype_list.insert(12, "code")
+            codetype_list.insert(14, bytes())
+        codetype_args = tuple(codetype_list)
+        code = types.CodeType(*codetype_args)
         # Check it can be encoded and decoded
         codetype_output = Bytecode.from_code(code).to_code().co_consts
 
