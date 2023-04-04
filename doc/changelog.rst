@@ -1,6 +1,14 @@
 ChangeLog
 =========
 
+2023-04-04: Version 0.14.1
+--------------------------
+
+Bugfixes:
+
+- allow to disassemble code containing ``EXTENDED_ARG`` targeting a ``NOP`` PR #117
+
+
 2022-11-30: Version 0.14.0
 --------------------------
 
