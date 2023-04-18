@@ -989,9 +989,14 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                                 entry.target is instr.target
                                 and entry.push_lasti == instr.push_lasti
                             ):
-                                byt_te.entry.stack_depth = min(
-                                    entry.stack_depth, instr.stack_depth
-                                )
+                                # If the exception table is in a dead code portion
+                                # simply use a size of zero
+                                if entry.stack_depth is UNSET:
+                                    byt_te.entry.stack_depth = 0
+                                else:
+                                    byt_te.entry.stack_depth = min(
+                                        entry.stack_depth, instr.stack_depth
+                                    )
                                 try_begins[instr] = byt_te.entry
                                 continue
                         assert isinstance(new, TryBegin)
