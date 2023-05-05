@@ -4,6 +4,7 @@ import contextlib
 import inspect
 import io
 import sys
+import textwrap
 import types
 import unittest
 
@@ -873,6 +874,20 @@ class CFGStacksizeComputationTests(TestCase):
         test.__code__ = Bytecode.from_code(test.__code__).to_code()
         self.assertEqual(test.__code__.co_stacksize, 1)
         self.assertEqual(test(1), 0)
+
+    def test_stack_size_with_dead_code2(self):
+        # See GH #118
+        source = """
+        try:
+            pass
+        except Exception as e:
+            pass
+        """
+        source = textwrap.dedent(source).strip()
+        code = compile(source, "<string>", "exec")
+        bytecode = Bytecode.from_code(code)
+        cfg = ControlFlowGraph.from_bytecode(bytecode)
+        cfg.to_bytecode()
 
     def test_huge_code_with_numerous_blocks(self):
         def base_func(x):
