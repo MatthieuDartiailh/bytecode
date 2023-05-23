@@ -1007,6 +1007,11 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                         # Only keep the first seen TryEnd matching a TryBegin
                         assert isinstance(new, TryEnd)
                         if instr.entry in seen_try_end:
+                            # If we encounter a previously seen TryEnd, it
+                            # makes no sense to remember the last try end
+                            # since cancelling out a TryBegin/TryEnd pair does
+                            # not make sense in this case.
+                            last_try_end = None
                             continue
                         seen_try_end.add(instr.entry)
                         new.entry = try_begins[instr.entry]
