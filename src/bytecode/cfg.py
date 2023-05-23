@@ -819,8 +819,8 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             # - if the current instruction is a TryEnd and if the last instruction
             #   is final in which case we insert the TryEnd in the old block.
             # - if we have a currently active TryBegin for which we may need to
-            #   create a TryEnd in the previous and a new TryBegin in the new one
-            #   because the blocks are not connected.
+            #   create a TryEnd in the previous block and a new TryBegin in the
+            #   new one because the blocks are not connected.
             if old_block is not None:
                 temp = try_begin_inserted_in_block
                 try_begin_inserted_in_block = False
@@ -981,7 +981,8 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
 
                         # If the TryBegin share the target and push_lasti of the
                         # entry of an adjacent TryEnd, omit the new TryBegin that
-                        # was inserted to allow analysis of the CFG
+                        # was inserted to allow analysis of the CFG and remove
+                        # the already inserted TryEnd.
                         if last_try_end is not None:
                             cfg_te, byt_te = last_try_end
                             entry = cfg_te.entry
@@ -989,15 +990,17 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                                 entry.target is instr.target
                                 and entry.push_lasti == instr.push_lasti
                             ):
-                                # If the exception table is in a dead code portion
-                                # simply use a size of zero
+                                # If we did not yet compute the required stack depth
+                                # keep the value as UNSET
                                 if entry.stack_depth is UNSET:
-                                    byt_te.entry.stack_depth = 0
+                                    assert instr.stack_depth is UNSET
+                                    byt_te.entry.stack_depth = UNSET
                                 else:
                                     byt_te.entry.stack_depth = min(
                                         entry.stack_depth, instr.stack_depth
                                     )
                                 try_begins[instr] = byt_te.entry
+                                instructions.remove(byt_te)
                                 continue
                         assert isinstance(new, TryBegin)
                         try_begins[instr] = new
@@ -1007,11 +1010,6 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                         # Only keep the first seen TryEnd matching a TryBegin
                         assert isinstance(new, TryEnd)
                         if instr.entry in seen_try_end:
-                            # If we encounter a previously seen TryEnd, it
-                            # makes no sense to remember the last try end
-                            # since cancelling out a TryBegin/TryEnd pair does
-                            # not make sense in this case.
-                            last_try_end = None
                             continue
                         seen_try_end.add(instr.entry)
                         new.entry = try_begins[instr.entry]
