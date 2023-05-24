@@ -1,6 +1,16 @@
 ChangeLog
 =========
 
+unreleased: Version 0.14.2
+--------------------------
+
+Bugfixes:
+
+- allow to convert a CFG, for which stack sizes have not been computed, to Bytecode
+  even in the presence of mergeable TryBegin/TryEnd  PR #120
+- remove spurious TryEnd leftover when going from CFG to Bytecode  PR #120
+
+
 2023-04-04: Version 0.14.1
 --------------------------
 
