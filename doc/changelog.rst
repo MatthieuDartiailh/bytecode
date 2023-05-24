@@ -1,7 +1,7 @@
 ChangeLog
 =========
 
-unreleased: Version 0.14.2
+2023-05-24: Version 0.14.2
 --------------------------
 
 Bugfixes:
