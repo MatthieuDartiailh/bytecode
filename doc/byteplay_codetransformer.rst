@@ -28,7 +28,7 @@ issues (at least for my specific use cases).
 Free and cell variables
 -----------------------
 
-Converting a code object to bytecode and then back to code must no modify the
+Converting a code object to bytecode and then back to code must not modify the
 code object. It is an important requirement.
 
 The LOAD_DEREF instruction supports free variables and cell variables. byteplay
