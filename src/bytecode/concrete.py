@@ -1,7 +1,6 @@
 import dis
 import inspect
 import opcode as _opcode
-import stat
 import struct
 import sys
 import types
@@ -26,6 +25,7 @@ import bytecode as _bytecode
 from bytecode.flags import CompilerFlags
 from bytecode.instr import (
     _UNSET,
+    BITFLAG_INSTRUCTIONS,
     PLACEHOLDER_LABEL,
     UNSET,
     BaseInstr,
@@ -1003,7 +1003,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 elif c_instr.opcode in _opcode.haslocal:
                     arg = self.varnames[c_arg]
                 elif c_instr.opcode in _opcode.hasname:
-                    if sys.version_info >= (3, 11) and c_instr.name == "LOAD_GLOBAL":
+                    if c_instr.name in BITFLAG_INSTRUCTIONS:
                         arg = (bool(c_arg & 1), self.names[c_arg >> 1])
                     else:
                         arg = self.names[c_arg]
@@ -1190,7 +1190,7 @@ class _ConvertBytecodeToConcrete:
                 assert isinstance(arg, str)
                 arg = self.add(self.varnames, arg)
             elif instr.opcode in _opcode.hasname:
-                if sys.version_info >= (3, 11) and instr.name == "LOAD_GLOBAL":
+                if instr.name in BITFLAG_INSTRUCTIONS:
                     assert (
                         isinstance(arg, tuple)
                         and len(arg) == 2

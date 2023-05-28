@@ -1,6 +1,19 @@
 ChangeLog
 =========
 
+unreleased: Version 0.15.0
+--------------------------
+
+New features:
+
+- Add support for Python 3.12 PR #
+
+  Support for Python 3.12, comes with a number of changes reflecting changes in
+  CPython bytecode itself:
+
+  - handle the ability of ``LOAD_ATTR`` to replace ``LOAD_METHOD``
+    As a consequence the argument is now a ``tuple[bool, str]``
+
 2023-05-24: Version 0.14.2
 --------------------------
 

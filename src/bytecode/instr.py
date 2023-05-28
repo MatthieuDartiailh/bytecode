@@ -16,6 +16,16 @@ import bytecode as _bytecode
 
 # --- Instruction argument tools and abstractions
 
+# Instructions relying on a bit to modify its behavior.
+# The lowest bit is used to encode custom behavior.
+BITFLAG_INSTRUCTIONS = (
+    ("LOAD_GLOBAL", "LOAD_ATTR")
+    if sys.version_info >= (3, 12)
+    else ("LOAD_GLOBAL",)
+    if sys.version_info >= (3, 11)
+    else ()
+)
+
 
 # Used for COMPARE_OP opcode argument
 @enum.unique
@@ -703,7 +713,7 @@ class Instr(BaseInstr[InstrArg]):
                 )
 
         elif opcode in _opcode.haslocal or opcode in _opcode.hasname:
-            if sys.version_info >= (3, 11) and name == "LOAD_GLOBAL":
+            if name in BITFLAG_INSTRUCTIONS:
                 if not (
                     isinstance(arg, tuple)
                     and len(arg) == 2
