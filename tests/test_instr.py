@@ -13,7 +13,7 @@ from bytecode import (
     Label,
     SetLineno,
 )
-from bytecode.instr import InstrLocation
+from bytecode.instr import InstrLocation, opcode_has_argument
 
 from . import TestCase
 
@@ -347,7 +347,7 @@ class InstrTests(TestCase):
                 # Use ConcreteInstr instead of Instr because it doesn't care
                 # what kind of argument it is constructed with.
                 # The 0 handles the CACHE case
-                if 0 < op < opcode.HAVE_ARGUMENT:
+                if opcode_has_argument(op) or op == 0:
                     check(ConcreteInstr(name))
                 else:
                     for arg in range(256):

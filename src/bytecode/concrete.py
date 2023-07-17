@@ -26,6 +26,10 @@ from bytecode.flags import CompilerFlags
 from bytecode.instr import (
     _UNSET,
     BITFLAG_INSTRUCTIONS,
+    BITFLAG2_INSTRUCTIONS,
+    INTRINSIC,
+    INTRINSIC_1OP,
+    INTRINSIC_2OP,
     PLACEHOLDER_LABEL,
     UNSET,
     BaseInstr,
@@ -35,12 +39,15 @@ from bytecode.instr import (
     Instr,
     InstrArg,
     InstrLocation,
+    Intrinsic1Op,
+    Intrinsic2Op,
     Label,
     SetLineno,
     TryBegin,
     TryEnd,
     _check_arg_int,
     const_key,
+    opcode_has_argument,
 )
 
 # - jumps use instruction
@@ -90,7 +97,7 @@ class ConcreteInstr(BaseInstr[int]):
         super().__init__(name, arg, lineno=lineno, location=location)
 
     def _check_arg(self, name: str, opcode: int, arg: int) -> None:
-        if opcode >= _opcode.HAVE_ARGUMENT:
+        if opcode_has_argument(opcode):
             if arg is UNSET:
                 raise ValueError("operation %s requires an argument" % name)
 
@@ -156,7 +163,7 @@ class ConcreteInstr(BaseInstr[int]):
     def disassemble(cls: Type[T], lineno: Optional[int], code: bytes, offset: int) -> T:
         index = 2 * offset if OFFSET_AS_INSTRUCTION else offset
         op = code[index]
-        if op >= _opcode.HAVE_ARGUMENT:
+        if opcode_has_argument(op):
             arg = code[index + 1]
         else:
             arg = UNSET
@@ -1005,6 +1012,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 elif c_instr.opcode in _opcode.hasname:
                     if c_instr.name in BITFLAG_INSTRUCTIONS:
                         arg = (bool(c_arg & 1), self.names[c_arg >> 1])
+                    elif c_instr.name in BITFLAG2_INSTRUCTIONS:
+                        arg = (bool(c_arg & 1), bool(c_arg & 2), self.names[c_arg >> 2])
                     else:
                         arg = self.names[c_arg]
                 elif c_instr.opcode in _opcode.hasfree:
@@ -1016,6 +1025,10 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                         arg = FreeVar(name)
                 elif c_instr.opcode in _opcode.hascompare:
                     arg = Compare(c_arg)
+                elif c_instr.opcode in INTRINSIC_1OP:
+                    arg = Intrinsic1Op(c_arg)
+                elif c_instr.opcode in INTRINSIC_2OP:
+                    arg = Intrinsic2Op(c_arg)
                 else:
                     arg = c_arg
 
@@ -1212,6 +1225,9 @@ class _ConvertBytecodeToConcrete:
                     arg = self.bytecode.freevars.index(arg.name)
             elif instr.opcode in _opcode.hascompare:
                 if isinstance(arg, Compare):
+                    arg = arg.value
+            elif instr.opcode in INTRINSIC:
+                if isinstance(arg, (Intrinsic1Op, Intrinsic2Op)):
                     arg = arg.value
 
             # The above should have performed all the necessary conversion
