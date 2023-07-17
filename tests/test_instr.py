@@ -347,7 +347,7 @@ class InstrTests(TestCase):
                 # Use ConcreteInstr instead of Instr because it doesn't care
                 # what kind of argument it is constructed with.
                 # The 0 handles the CACHE case
-                if opcode_has_argument(op) or op == 0:
+                if not opcode_has_argument(op) and op != 0:
                     check(ConcreteInstr(name))
                 else:
                     for arg in range(256):
