@@ -25,8 +25,8 @@ import bytecode as _bytecode
 from bytecode.flags import CompilerFlags
 from bytecode.instr import (
     _UNSET,
-    BITFLAG_INSTRUCTIONS,
     BITFLAG2_INSTRUCTIONS,
+    BITFLAG_INSTRUCTIONS,
     INTRINSIC,
     INTRINSIC_1OP,
     INTRINSIC_2OP,

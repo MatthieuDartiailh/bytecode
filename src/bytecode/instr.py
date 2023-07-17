@@ -26,11 +26,7 @@ BITFLAG_INSTRUCTIONS = (
     else ()
 )
 
-BITFLAG2_INSTRUCTIONS = (
-    ("LOAD_SUPER_ATTR")
-    if sys.version_info >= (3, 12)
-    else ()
-)
+BITFLAG2_INSTRUCTIONS = ("LOAD_SUPER_ATTR") if sys.version_info >= (3, 12) else ()
 
 
 # Intrinsic related opcodes
