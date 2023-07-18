@@ -1212,8 +1212,18 @@ class _ConvertBytecodeToConcrete:
                     ), arg
                     index = self.add(self.names, arg[1])
                     arg = int(arg[0]) + (index << 1)
+                elif instr.name in BITFLAG2_INSTRUCTIONS:
+                    assert (
+                        isinstance(arg, tuple)
+                        and len(arg) == 3
+                        and isinstance(arg[0], bool)
+                        and isinstance(arg[1], bool)
+                        and isinstance(arg[2], str)
+                    ), arg
+                    index = self.add(self.names, arg[2])
+                    arg = int(arg[0]) + 2 * int(arg[1]) + (index << 2)
                 else:
-                    assert isinstance(arg, str)
+                    assert isinstance(arg, str), f"Got {arg}, expected a str"
                     arg = self.add(self.names, arg)
             elif instr.opcode in _opcode.hasfree:
                 if isinstance(arg, CellVar):
