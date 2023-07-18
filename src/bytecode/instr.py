@@ -308,7 +308,7 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     },
     # Python 3.12 changes not covered by dis.stack_effect
     "BINARY_SLICE": (-3, 1),
-    "STORE_SLICE": (-4, 1),
+    # "STORE_SLICE" handled by dis.stack_effect
     "LOAD_FROM_DICT_OR_GLOBALS": (-1, 1),
     "LOAD_FROM_DICT_OR_DEREF": (-1, 1),
     "LOAD_SUPER_ATTR": (-3, 1),
@@ -737,7 +737,15 @@ class BaseInstr(Generic[A]):
 
 
 InstrArg = Union[
-    int, str, Label, CellVar, FreeVar, "_bytecode.BasicBlock", Compare, Tuple[bool, str]
+    int,
+    str,
+    Label,
+    CellVar,
+    FreeVar,
+    "_bytecode.BasicBlock",
+    Compare,
+    Tuple[bool, str],
+    Tuple[bool, bool, str],
 ]
 
 
