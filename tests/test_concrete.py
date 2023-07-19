@@ -1288,7 +1288,7 @@ class BytecodeToConcreteTests(TestCase):
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     label,
                 ),
@@ -1308,7 +1308,7 @@ class BytecodeToConcreteTests(TestCase):
             ConcreteInstr("LOAD_NAME", 0, lineno=1),
             ConcreteInstr(
                 "POP_JUMP_FORWARD_IF_FALSE"
-                if sys.version_info >= (3, 11)
+                if (3, 12) > sys.version_info >= (3, 11)
                 else "POP_JUMP_IF_FALSE",
                 7 if OFFSET_AS_INSTRUCTION else 14,
                 lineno=1,
@@ -1463,7 +1463,7 @@ class BytecodeToConcreteTests(TestCase):
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     label_else,
                 ),
@@ -1484,7 +1484,7 @@ class BytecodeToConcreteTests(TestCase):
             ConcreteInstr("LOAD_NAME", 0, lineno=1),
             ConcreteInstr(
                 "POP_JUMP_FORWARD_IF_FALSE"
-                if sys.version_info >= (3, 11)
+                if (3, 12) > sys.version_info >= (3, 11)
                 else "POP_JUMP_IF_FALSE",
                 5 if OFFSET_AS_INSTRUCTION else 10,
                 lineno=1,

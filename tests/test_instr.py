@@ -21,7 +21,7 @@ from . import TestCase
 # opcode useful to test for both Python < 3.11 and Python >= 3.11
 UNCONDITIONAL_JUMP = "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE"
 CONDITIONAL_JUMP = (
-    "POP_JUMP_FORWARD_IF_TRUE" if sys.version_info >= (3, 11) else "POP_JUMP_IF_TRUE"
+    "POP_JUMP_FORWARD_IF_TRUE" if (3, 12) > sys.version_info >= (3, 11) else "POP_JUMP_IF_TRUE"
 )
 CALL = "CALL" if sys.version_info >= (3, 11) else "CALL_FUNCTION"
 

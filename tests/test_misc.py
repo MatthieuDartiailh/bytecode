@@ -38,7 +38,30 @@ class DumpCodeTests(unittest.TestCase):
 
         # without line numbers
         enum_repr = "<Compare.EQ: 2>"
-        if sys.version_info >= (3, 11):
+        if sys.version_info >= (3, 12):
+            expected = f"""
+    RESUME 0
+    LOAD_FAST 'test'
+    LOAD_CONST 1
+    COMPARE_OP {enum_repr}
+    POP_JUMP_IF_FALSE <label_instr7>
+    LOAD_CONST 1
+    RETURN_VALUE
+
+label_instr7:
+    LOAD_FAST 'test'
+    LOAD_CONST 2
+    COMPARE_OP {enum_repr}
+    POP_JUMP_IF_FALSE <label_instr14>
+    LOAD_CONST 2
+    RETURN_VALUE
+
+label_instr14:
+    LOAD_CONST 3
+    RETURN_VALUE
+
+    """
+        elif sys.version_info >= (3, 11):
             expected = f"""
     RESUME 0
     LOAD_FAST 'test'
@@ -86,7 +109,30 @@ label_instr13:
         self.check_dump_bytecode(code, expected[1:].rstrip(" "))
 
         # with line numbers
-        if sys.version_info >= (3, 11):
+        if sys.version_info >= (3, 12):
+            expected = f"""
+    L.  1   0: RESUME 0
+    L.  2   1: LOAD_FAST 'test'
+            2: LOAD_CONST 1
+            3: COMPARE_OP {enum_repr}
+            4: POP_JUMP_IF_FALSE <label_instr7>
+    L.  3   5: LOAD_CONST 1
+            6: RETURN_VALUE
+
+label_instr7:
+    L.  4   8: LOAD_FAST 'test'
+            9: LOAD_CONST 2
+           10: COMPARE_OP {enum_repr}
+           11: POP_JUMP_IF_FALSE <label_instr14>
+    L.  5  12: LOAD_CONST 2
+           13: RETURN_VALUE
+
+label_instr14:
+    L.  6  15: LOAD_CONST 3
+           16: RETURN_VALUE
+
+    """
+        elif sys.version_info >= (3, 11):
             expected = f"""
     L.  1   0: RESUME 0
     L.  2   1: LOAD_FAST 'test'
