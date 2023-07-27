@@ -63,7 +63,11 @@ class FlagsTests(unittest.TestCase):
 
         # Infer generator
         code = ConcreteBytecode()
-        code.append(ConcreteInstr("YIELD_VALUE"))
+        code.append(
+            ConcreteInstr("YIELD_VALUE", 0)
+            if sys.version_info >= (3, 12)
+            else ConcreteInstr("YIELD_VALUE")
+        )
         code.update_flags()
         self.assertTrue(bool(code.flags & CompilerFlags.GENERATOR))
 
@@ -89,7 +93,11 @@ class FlagsTests(unittest.TestCase):
                         "GET_AWAITABLE", 0 if sys.version_info >= (3, 11) else UNSET
                     )
                 )
-                code.append(ConcreteInstr(i))
+                code.append(
+                    ConcreteInstr(i, 0)
+                    if sys.version_info >= (3, 12)
+                    else ConcreteInstr(i)
+                )
                 code.update_flags()
                 self.assertTrue(bool(code.flags & expected))
 
@@ -110,7 +118,11 @@ class FlagsTests(unittest.TestCase):
                 if sys.version_info >= (3, 11) and i == "YIELD_FROM":
                     self.skipTest("YIELD_FROM does not exist on 3.11")
                 code = ConcreteBytecode()
-                code.append(ConcreteInstr(i))
+                code.append(
+                    ConcreteInstr(i, 0)
+                    if sys.version_info >= (3, 12)
+                    else ConcreteInstr(i)
+                )
                 code.update_flags(is_async=True)
                 self.assertTrue(bool(code.flags & expected))
 
@@ -119,7 +131,11 @@ class FlagsTests(unittest.TestCase):
 
         # Infer generator
         code = ConcreteBytecode()
-        code.append(ConcreteInstr("YIELD_VALUE"))
+        code.append(
+            ConcreteInstr("YIELD_VALUE", 0)
+            if sys.version_info >= (3, 12)
+            else ConcreteInstr("YIELD_VALUE")
+        )
         code.flags = CompilerFlags(CompilerFlags.COROUTINE)
         code.update_flags(is_async=False)
         self.assertTrue(bool(code.flags & CompilerFlags.GENERATOR))
@@ -139,7 +155,11 @@ class FlagsTests(unittest.TestCase):
         for is_async in (None, True):
             # Infer generator
             code = ConcreteBytecode()
-            code.append(ConcreteInstr("YIELD_VALUE"))
+            code.append(
+                ConcreteInstr("YIELD_VALUE", 0)
+                if sys.version_info >= (3, 12)
+                else ConcreteInstr("YIELD_VALUE")
+            )
             for f, expected in (
                 (CompilerFlags.COROUTINE, CompilerFlags.ASYNC_GENERATOR),
                 (CompilerFlags.ASYNC_GENERATOR, CompilerFlags.ASYNC_GENERATOR),
