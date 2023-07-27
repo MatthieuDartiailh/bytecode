@@ -45,20 +45,17 @@ class DumpCodeTests(unittest.TestCase):
     LOAD_CONST 1
     COMPARE_OP {enum_repr}
     POP_JUMP_IF_FALSE <label_instr7>
-    LOAD_CONST 1
-    RETURN_VALUE
+    RETURN_CONST 1
 
 label_instr7:
     LOAD_FAST 'test'
     LOAD_CONST 2
     COMPARE_OP {enum_repr}
     POP_JUMP_IF_FALSE <label_instr14>
-    LOAD_CONST 2
-    RETURN_VALUE
+    RETURN_CONST 2
 
 label_instr14:
-    LOAD_CONST 3
-    RETURN_VALUE
+    RETURN_CONST 3
 
     """
         elif sys.version_info >= (3, 11):
@@ -115,21 +112,18 @@ label_instr13:
     L.  2   1: LOAD_FAST 'test'
             2: LOAD_CONST 1
             3: COMPARE_OP {enum_repr}
-            4: POP_JUMP_IF_FALSE <label_instr7>
-    L.  3   5: LOAD_CONST 1
-            6: RETURN_VALUE
+            4: POP_JUMP_IF_FALSE <label_instr6>
+    L.  3   5: RETURN_CONST 1
 
-label_instr7:
-    L.  4   8: LOAD_FAST 'test'
-            9: LOAD_CONST 2
-           10: COMPARE_OP {enum_repr}
-           11: POP_JUMP_IF_FALSE <label_instr14>
-    L.  5  12: LOAD_CONST 2
-           13: RETURN_VALUE
+label_instr6:
+    L.  4   7: LOAD_FAST 'test'
+            8: LOAD_CONST 2
+            9: COMPARE_OP {enum_repr}
+           10: POP_JUMP_IF_FALSE <label_instr12>
+    L.  5  11: RETURN_CONST 2
 
-label_instr14:
-    L.  6  15: LOAD_CONST 3
-           16: RETURN_VALUE
+label_instr12:
+    L.  6  13: RETURN_CONST 3
 
     """
         elif sys.version_info >= (3, 11):
@@ -214,7 +208,36 @@ label_instr13:
 
         # without line numbers
         enum_repr = "<Compare.EQ: 2>"
-        if sys.version_info >= (3, 11):
+        if sys.version_info >= (3, 12):
+            expected = textwrap.dedent(
+                f"""
+            block1:
+                RESUME 0
+                LOAD_FAST 'test'
+                LOAD_CONST 1
+                COMPARE_OP {enum_repr}
+                POP_JUMP_FORWARD_IF_FALSE <block3>
+                -> block2
+
+            block2:
+                RETURN_CONST 1
+
+            block3:
+                LOAD_FAST 'test'
+                LOAD_CONST 2
+                COMPARE_OP {enum_repr}
+                POP_JUMP_FORWARD_IF_FALSE <block5>
+                -> block4
+
+            block4:
+                RETURN_CONST 2
+
+            block5:
+                RETURN_CONST 3
+
+            """
+            )
+        elif sys.version_info >= (3, 11):
             expected = textwrap.dedent(
                 f"""
             block1:
@@ -280,7 +303,36 @@ label_instr13:
         self.check_dump_bytecode(code, expected.lstrip())
 
         # with line numbers
-        if sys.version_info >= (3, 11):
+        if sys.version_info >= (3, 12):
+            expected = textwrap.dedent(
+                f"""
+            block1:
+                L.  1   0: RESUME 0
+                L.  2   1: LOAD_FAST 'test'
+                        2: LOAD_CONST 1
+                        3: COMPARE_OP {enum_repr}
+                        4: POP_JUMP_FORWARD_IF_FALSE <block3>
+                -> block2
+
+            block2:
+                L.  3   0: RETURN_CONST 1
+
+            block3:
+                L.  4   0: LOAD_FAST 'test'
+                        1: LOAD_CONST 2
+                        2: COMPARE_OP {enum_repr}
+                        3: POP_JUMP_FORWARD_IF_FALSE <block5>
+                -> block4
+
+            block4:
+                L.  5   0: RETURN_CONST 2
+
+            block5:
+                L.  6   0: RETURN_CONST 3
+
+            """
+            )
+        elif sys.version_info >= (3, 11):
             expected = textwrap.dedent(
                 f"""
             block1:
@@ -358,7 +410,27 @@ label_instr13:
         code = code.to_concrete_bytecode()
 
         # without line numbers
-        if sys.version_info >= (3, 11):
+        if sys.version_info >= (3, 12):
+            # COMPARE_OP use the 4 lowest bits as a cache
+            expected = """
+  0    RESUME 0
+  2    LOAD_FAST 0
+  4    LOAD_CONST 1
+  6    COMPARE_OP 32
+  8    CACHE 0
+ 10    CACHE 0
+ 12    POP_JUMP_FORWARD_IF_FALSE 1
+ 14    RETURN_CONST 1
+ 16    LOAD_FAST 0
+ 18    LOAD_CONST 2
+ 20    COMPARE_OP 32
+ 22    CACHE 0
+ 24    CACHE 0
+ 26    POP_JUMP_FORWARD_IF_FALSE 1
+ 28    RETURN_CONST 2
+ 30    RETURN_CONST 3
+"""
+        elif sys.version_info >= (3, 11):
             expected = """
   0    RESUME 0
   2    LOAD_FAST 0
@@ -401,6 +473,25 @@ label_instr13:
 
         # with line numbers
         if sys.version_info >= (3, 11):
+            expected = """
+L.  1   0: RESUME 0
+L.  2   2: LOAD_FAST 0
+        4: LOAD_CONST 1
+        6: COMPARE_OP 32
+        8: CACHE 0
+       10: CACHE 0
+       12: POP_JUMP_FORWARD_IF_FALSE 1
+L.  3  14: RETURN_CONST 1
+L.  4  16: LOAD_FAST 0
+       18: LOAD_CONST 2
+       20: COMPARE_OP 32
+       22: CACHE 0
+       24: CACHE 0
+       26: POP_JUMP_FORWARD_IF_FALSE 1
+L.  5  28: RETURN_CONST 2
+L.  6  30: RETURN_CONST 3
+"""
+        elif sys.version_info >= (3, 11):
             expected = """
 L.  1   0: RESUME 0
 L.  2   2: LOAD_FAST 0
