@@ -256,9 +256,6 @@ else:
 
 # Stack effects that do not depend on the argument of the instruction
 STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
-    # PRECALL pops all arguments (as per its stack effect) and leaves
-    # the callable and either self or NULL
-    "CALL": (-2, 1),  # CALL pops the 2 above items and push the return
     "ROT_TWO": (-2, 2),
     "ROT_THREE": (-3, 3),
     "ROT_FOUR": (-4, 4),
@@ -279,7 +276,6 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     "IS_OP": (-2, 1),
     "CONTAINS_OP": (-2, 1),
     "IMPORT_NAME": (-2, 1),
-    "LOAD_ATTR": (-1, 1),
     "ASYNC_GEN_WRAP": (-1, 1),
     "PUSH_EXC_INFO": (-1, 2),
     # Pop TOS and push TOS.__aexit__ and result of TOS.__aenter__()
@@ -311,7 +307,6 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     # "STORE_SLICE" handled by dis.stack_effect
     "LOAD_FROM_DICT_OR_GLOBALS": (-1, 1),
     "LOAD_FROM_DICT_OR_DEREF": (-1, 1),
-    "LOAD_SUPER_ATTR": (-3, 1),
     "LOAD_INTRISIC_1": (-1, 1),
     "LOAD_INTRISIC_2": (-2, 1),
 }
@@ -320,6 +315,14 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
 DYNAMIC_STACK_EFFECTS: Dict[
     str, Callable[[int, Any, Optional[bool]], Tuple[int, int]]
 ] = {
+    # PRECALL pops all arguments (as per its stack effect) and leaves
+    # the callable and either self or NULL
+    # CALL pops the 2 above items and push the return
+    # (when PRECALL does not exist it pops more as encoded by the effect)
+    "CALL": lambda effect, arg, jump: (-2 - arg, 1),
+    # 3.12 changed the behavior of LOAD_ATTR
+    "LOAD_ATTR": lambda effect, arg, jump: (-1, 1 + effect),
+    "LOAD_SUPER_ATTR": lambda effect, arg, jump: (-3, 3 + effect),
     "SWAP": lambda effect, arg, jump: (-arg, arg),
     "COPY": lambda effect, arg, jump: (-arg, arg + effect),
     "ROT_N": lambda effect, arg, jump: (-arg, arg),
@@ -603,8 +606,13 @@ class BaseInstr(Generic[A]):
         if not self.require_arg():
             arg = None
         # 3.11 where LOAD_GLOBAL arg encode whether or we push a null
-        elif self.name == "LOAD_GLOBAL" and isinstance(self._arg, tuple):
+        # 3.12 does the same for LOAD_ATTR
+        elif self.name in BITFLAG_INSTRUCTIONS and isinstance(self._arg, tuple):
             assert len(self._arg) == 2
+            arg = self._arg[0]
+        # 3.12 does a similar trick for LOAD_SUPER_ATTR
+        elif self.name in BITFLAG2_INSTRUCTIONS and isinstance(self._arg, tuple):
+            assert len(self._arg) == 3
             arg = self._arg[0]
         elif not isinstance(self._arg, int) or self._opcode in _opcode.hasconst:
             # Argument is either a non-integer or an integer constant,

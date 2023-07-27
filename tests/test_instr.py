@@ -342,6 +342,8 @@ class InstrTests(TestCase):
                 self.assertEqual(jump, no_jump)
 
         for name, op in opcode.opmap.items():
+            if sys.version_info >= (3, 12) and op >= opcode.MIN_INSTRUMENTED_OPCODE:
+                continue
             print(name)
             with self.subTest(name):
                 # Use ConcreteInstr instead of Instr because it doesn't care
@@ -378,7 +380,10 @@ class InstrTests(TestCase):
 
         def f():
             def g():
-                return "value"
+                # Under Python 3.12+ we need a temporary var to be sure we use
+                # LOAD_CONST rather than RETURN_CONST
+                a = "value"
+                return a
 
             return g
 
@@ -398,7 +403,7 @@ class InstrTests(TestCase):
         self.assertIsNotNone(instr_load_code)
 
         g_code = Bytecode.from_code(instr_load_code.arg)
-        # UNder Python 3.11+ we the first instruction is not LOAD_CONST but RESUME
+        # Under Python 3.11+, the first instruction is not LOAD_CONST but RESUME
         for instr in g_code:
             if isinstance(each, Instr) and instr.name == "LOAD_CONST":
                 instr.arg = mutable_datum
