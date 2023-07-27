@@ -44,17 +44,17 @@ class DumpCodeTests(unittest.TestCase):
     LOAD_FAST 'test'
     LOAD_CONST 1
     COMPARE_OP {enum_repr}
-    POP_JUMP_IF_FALSE <label_instr7>
+    POP_JUMP_IF_FALSE <label_instr6>
     RETURN_CONST 1
 
-label_instr7:
+label_instr6:
     LOAD_FAST 'test'
     LOAD_CONST 2
     COMPARE_OP {enum_repr}
-    POP_JUMP_IF_FALSE <label_instr14>
+    POP_JUMP_IF_FALSE <label_instr12>
     RETURN_CONST 2
 
-label_instr14:
+label_instr12:
     RETURN_CONST 3
 
     """
@@ -216,7 +216,7 @@ label_instr13:
                 LOAD_FAST 'test'
                 LOAD_CONST 1
                 COMPARE_OP {enum_repr}
-                POP_JUMP_FORWARD_IF_FALSE <block3>
+                POP_JUMP_IF_FALSE <block3>
                 -> block2
 
             block2:
@@ -226,7 +226,7 @@ label_instr13:
                 LOAD_FAST 'test'
                 LOAD_CONST 2
                 COMPARE_OP {enum_repr}
-                POP_JUMP_FORWARD_IF_FALSE <block5>
+                POP_JUMP_IF_FALSE <block5>
                 -> block4
 
             block4:
@@ -311,7 +311,7 @@ label_instr13:
                 L.  2   1: LOAD_FAST 'test'
                         2: LOAD_CONST 1
                         3: COMPARE_OP {enum_repr}
-                        4: POP_JUMP_FORWARD_IF_FALSE <block3>
+                        4: POP_JUMP_IF_FALSE <block3>
                 -> block2
 
             block2:
@@ -321,7 +321,7 @@ label_instr13:
                 L.  4   0: LOAD_FAST 'test'
                         1: LOAD_CONST 2
                         2: COMPARE_OP {enum_repr}
-                        3: POP_JUMP_FORWARD_IF_FALSE <block5>
+                        3: POP_JUMP_IF_FALSE <block5>
                 -> block4
 
             block4:
@@ -418,17 +418,15 @@ label_instr13:
   4    LOAD_CONST 1
   6    COMPARE_OP 32
   8    CACHE 0
- 10    CACHE 0
- 12    POP_JUMP_FORWARD_IF_FALSE 1
- 14    RETURN_CONST 1
- 16    LOAD_FAST 0
- 18    LOAD_CONST 2
- 20    COMPARE_OP 32
- 22    CACHE 0
- 24    CACHE 0
- 26    POP_JUMP_FORWARD_IF_FALSE 1
- 28    RETURN_CONST 2
- 30    RETURN_CONST 3
+ 10    POP_JUMP_IF_FALSE 1
+ 12    RETURN_CONST 1
+ 14    LOAD_FAST 0
+ 16    LOAD_CONST 2
+ 18    COMPARE_OP 32
+ 20    CACHE 0
+ 22    POP_JUMP_IF_FALSE 1
+ 24    RETURN_CONST 2
+ 26    RETURN_CONST 3
 """
         elif sys.version_info >= (3, 11):
             expected = """
@@ -479,17 +477,15 @@ L.  2   2: LOAD_FAST 0
         4: LOAD_CONST 1
         6: COMPARE_OP 32
         8: CACHE 0
-       10: CACHE 0
-       12: POP_JUMP_FORWARD_IF_FALSE 1
-L.  3  14: RETURN_CONST 1
-L.  4  16: LOAD_FAST 0
-       18: LOAD_CONST 2
-       20: COMPARE_OP 32
-       22: CACHE 0
-       24: CACHE 0
-       26: POP_JUMP_FORWARD_IF_FALSE 1
-L.  5  28: RETURN_CONST 2
-L.  6  30: RETURN_CONST 3
+       10: POP_JUMP_IF_FALSE 1
+L.  3  12: RETURN_CONST 1
+L.  4  14: LOAD_FAST 0
+       16: LOAD_CONST 2
+       18: COMPARE_OP 32
+       20: CACHE 0
+       22: POP_JUMP_IF_FALSE 1
+L.  5  24: RETURN_CONST 2
+L.  6  26: RETURN_CONST 3
 """
         elif sys.version_info >= (3, 11):
             expected = """
