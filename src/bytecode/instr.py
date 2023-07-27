@@ -668,6 +668,7 @@ class BaseInstr(Generic[A]):
     def is_final(self) -> bool:
         if self._name in {
             "RETURN_VALUE",
+            "RETURN_CONST",
             "RAISE_VARARGS",
             "RERAISE",
             "BREAK_LOOP",
