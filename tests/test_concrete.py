@@ -313,6 +313,7 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 5)
         self.assertEqual(code.co_lnotab, b"\x04\xfd")
+        # XXX adjust for python 3.12 (lnotab deprecated)
 
     def test_extended_lnotab(self):
         # x = 7

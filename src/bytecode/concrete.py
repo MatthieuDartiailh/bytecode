@@ -1024,7 +1024,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                         name = self.freevars[c_arg - ncells]
                         arg = FreeVar(name)
                 elif c_instr.opcode in _opcode.hascompare:
-                    arg = Compare(c_arg)
+                    arg = Compare((c_arg >> 4) if sys.version_info >= (3, 12) else c_arg)
                 elif c_instr.opcode in INTRINSIC_1OP:
                     arg = Intrinsic1Op(c_arg)
                 elif c_instr.opcode in INTRINSIC_2OP:
@@ -1235,7 +1235,8 @@ class _ConvertBytecodeToConcrete:
                     arg = self.bytecode.freevars.index(arg.name)
             elif instr.opcode in _opcode.hascompare:
                 if isinstance(arg, Compare):
-                    arg = arg.value
+                    # In Python 3.12 the 4 lowest bits are used for caching
+                    arg = (arg.value << 4) if sys.version_info >= (3, 12) else arg.value
             elif instr.opcode in INTRINSIC:
                 if isinstance(arg, (Intrinsic1Op, Intrinsic2Op)):
                     arg = arg.value
