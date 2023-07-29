@@ -656,7 +656,7 @@ class BytecodeTests(TestCase):
         )
         # Under 3.12+ FOR_ITER does not pop the iterator on completion so this
         # does not fail a coarse stack effect computation.
-        if sys.version_info >= (3.12):
+        if sys.version_info >= (3, 12):
             self.skipTest("Irrelevant on 3.12+")
         with self.assertRaises(RuntimeError):
             # Use compute_stacksize since the code is so broken that conversion

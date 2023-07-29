@@ -106,6 +106,7 @@ def infer_flags(
             "STORE_DEREF",
             "DELETE_DEREF",
             "LOAD_CLASSDEREF",
+            "LOAD_FROM_DICT_OR_DEREF",
         }
     ):
         flags |= CompilerFlags.NOFREE
