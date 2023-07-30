@@ -403,7 +403,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("COMPARE_OP", Compare.EQ, lineno=2),
                 Instr(
                     "POP_JUMP_BACKWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     label_loop_start,
                     lineno=2,
@@ -440,7 +440,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("COMPARE_OP", Compare.EQ, lineno=2),
                 Instr(
                     "POP_JUMP_BACKWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     blocks[1],
                     lineno=2,
@@ -870,7 +870,8 @@ class CFGStacksizeComputationTests(TestCase):
     def test_stack_size_with_dead_code(self):
         # Simply demonstrate more directly the previously mentioned issue.
         def test(*args):  # pragma: no cover
-            return 0
+            a = 0
+            return a
             try:
                 a = args[0]
             except IndexError:
