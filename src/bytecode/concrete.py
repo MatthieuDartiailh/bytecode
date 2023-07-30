@@ -1024,7 +1024,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                         name = self.freevars[c_arg - ncells]
                         arg = FreeVar(name)
                 elif c_instr.opcode in _opcode.hascompare:
-                    arg = Compare((c_arg >> 4) if sys.version_info >= (3, 12) else c_arg)
+                    arg = Compare(
+                        (c_arg >> 4) if sys.version_info >= (3, 12) else c_arg
+                    )
                 elif c_instr.opcode in INTRINSIC_1OP:
                     arg = Intrinsic1Op(c_arg)
                 elif c_instr.opcode in INTRINSIC_2OP:

@@ -470,7 +470,7 @@ label_instr13:
         self.check_dump_bytecode(code, expected.lstrip("\n"))
 
         # with line numbers
-        if sys.version_info >= (3, 11):
+        if sys.version_info >= (3, 12):
             expected = """
 L.  1   0: RESUME 0
 L.  2   2: LOAD_FAST 0

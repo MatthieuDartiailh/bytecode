@@ -319,7 +319,10 @@ DYNAMIC_STACK_EFFECTS: Dict[
     # the callable and either self or NULL
     # CALL pops the 2 above items and push the return
     # (when PRECALL does not exist it pops more as encoded by the effect)
-    "CALL": lambda effect, arg, jump: (-2 - arg, 1),
+    "CALL": lambda effect, arg, jump: (
+        -2 - arg if sys.version_info >= (3, 12) else -2,
+        1,
+    ),
     # 3.12 changed the behavior of LOAD_ATTR
     "LOAD_ATTR": lambda effect, arg, jump: (-1, 1 + effect),
     "LOAD_SUPER_ATTR": lambda effect, arg, jump: (-3, 3 + effect),
