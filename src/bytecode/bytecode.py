@@ -63,7 +63,7 @@ class BaseBytecode:
         self.freevars = list(bytecode.freevars)
 
     def __eq__(self, other: Any) -> bool:
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
 
         if self.argcount != other.argcount:

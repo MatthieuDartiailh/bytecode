@@ -639,7 +639,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         return instructions
 
     def __eq__(self, other: Any) -> bool:
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
 
         if self.argnames != other.argnames:

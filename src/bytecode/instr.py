@@ -203,7 +203,7 @@ class _Variable:
         self.name: str = name
 
     def __eq__(self, other: Any) -> bool:
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
         return self.name == other.name
 
@@ -707,7 +707,7 @@ class BaseInstr(Generic[A]):
             return "<%s location=%s>" % (self._name, self._location)
 
     def __eq__(self, other: Any) -> bool:
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
         return self._cmp_key() == other._cmp_key()
 
