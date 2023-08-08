@@ -667,6 +667,7 @@ class BytecodeTests(TestCase):
         from . import exception_handling_cases as ehc
 
         for f in ehc.TEST_CASES:
+            print(f.__name__)
             with self.subTest(f.__name__):
                 origin = f.__code__
                 bytecode = Bytecode.from_code(
