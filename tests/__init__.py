@@ -163,7 +163,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(code1.co_firstlineno, code2.co_firstlineno)
         self.assertSequenceEqual(code1.co_cellvars, code2.co_cellvars)
         self.assertSequenceEqual(code1.co_freevars, code2.co_freevars)
-        self.assertSequenceEqual(code1.co_varnames, code2.co_varnames)
+        self.assertSetEqual(set(code1.co_varnames), set(code2.co_varnames))
         if sys.version_info >= (3, 11):
             self.assertSequenceEqual(code1.co_exceptiontable, code2.co_exceptiontable)
             # We do not compare linetables because CPython does not always optimize
@@ -180,7 +180,18 @@ class TestCase(unittest.TestCase):
             self.assertSequenceEqual(
                 list(dis.findlinestarts(code1)), list(dis.findlinestarts(code2))
             )
-        if sys.version_info >= (3, 9):
+
+        # If names have been re-ordered compared the output of dis.instructions
+        if sys.version_info >= (3, 12) and (
+            code1.co_names != code2.co_names or code1.co_varnames != code2.co_varnames
+        ):
+            instrs1 = list(dis.get_instructions(code1))
+            instrs2 = list(dis.get_instructions(code2))
+            self.assertEqual(len(instrs1), len(instrs2))
+            for i1, i2 in zip(instrs1, instrs2):
+                self.assertEqual(i1.opcode, i2.opcode)
+                self.assertEqual(i1.argval, i2.argval)
+        elif sys.version_info >= (3, 9):
             self.assertSequenceEqual(code1.co_code, code2.co_code)
         # On Python 3.8 it happens that fast storage index vary in a roundtrip
         else:
