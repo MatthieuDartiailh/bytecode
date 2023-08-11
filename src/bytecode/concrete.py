@@ -1243,22 +1243,7 @@ class _ConvertBytecodeToConcrete:
                     # In Python 3.12 the 4 lowest bits are used for caching
                     # See compare_masks in compile.c
                     if sys.version_info >= (3, 12):
-                        match arg:
-                            case Compare.EQ:
-                                mask = 8
-                            case Compare.NE:
-                                mask = 1 + 2 + 4
-                            case Compare.LT:
-                                mask = 2
-                            case Compare.LE:
-                                mask = 2 + 8
-                            case Compare.GT:
-                                mask = 4
-                            case Compare.GE:
-                                mask = 4 + 8
-                            case _:
-                                mask = 0
-                        arg = mask + (arg.value << 4)
+                        arg = arg._get_mask() + (arg.value << 4)
                     else:
                         arg = arg.value
             elif instr.opcode in INTRINSIC:

@@ -56,6 +56,23 @@ class Compare(enum.IntEnum):
         IS_NOT = 9
         EXC_MATCH = 10
 
+    if sys.version_info >= (3, 12):
+        def _get_mask(self):
+            if self == Compare.EQ:
+                return 8
+            elif self == Compare.NE:
+                return 1 + 2 + 4
+            elif self == Compare.LT:
+                return 2
+            elif self == Compare.LE:
+                return 2 + 8
+            elif self == Compare.GT:
+                return 4
+            elif self == Compare.GE:
+                return 4 + 8
+            else:
+                return
+
 
 # Used for BINARY_OP under Python 3.11+
 @enum.unique
