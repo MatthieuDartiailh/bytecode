@@ -134,7 +134,7 @@ class ConcreteInstr(BaseInstr[int]):
 
     def get_jump_target(self, instr_offset: int) -> Optional[int]:
         s = (self._size // 2) if OFFSET_AS_INSTRUCTION else self._size
-        if sys.version_info >= (3, 12) and self._name == "SEND":
+        if sys.version_info >= (3, 12) and self._name in ("FOR_ITER", "SEND"):
             return instr_offset + s + self._arg + 1
         if self.is_forward_rel_jump():
             return instr_offset + s + self._arg
@@ -1320,9 +1320,9 @@ class _ConvertBytecodeToConcrete:
             target_offset = label_offsets[target_index]
 
             # FIXME use opcode
-            # Under 3.12+ SEND jump is increased to jump directly to SEND_END and skip
-            # CLEANUP_THROW
-            if sys.version_info >= (3, 12) and instr.name == "SEND":
+            # Under 3.12+, FOR_ITER, SEND jump is increased by 1 implicitely
+            # to skip over END_FOR, END_SEND see Python/instrumentation.c
+            if sys.version_info >= (3, 12) and instr.name in ("FOR_ITER", "SEND"):
                 target_offset -= 1
 
             if instr.is_forward_rel_jump():
