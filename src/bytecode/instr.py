@@ -57,6 +57,7 @@ class Compare(enum.IntEnum):
         EXC_MATCH = 10
 
     if sys.version_info >= (3, 12):
+
         def _get_mask(self):
             if self == Compare.EQ:
                 return 8
