@@ -26,6 +26,7 @@ BITFLAG_INSTRUCTIONS = (
     else ()
 )
 
+# FIXME use opcodes
 BITFLAG2_INSTRUCTIONS = ("LOAD_SUPER_ATTR") if sys.version_info >= (3, 12) else ()
 
 

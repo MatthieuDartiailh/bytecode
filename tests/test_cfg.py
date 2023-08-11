@@ -936,6 +936,10 @@ class CFGRoundTripTests(TestCase):
         from . import exception_handling_cases as ehc
 
         for f in ehc.TEST_CASES:
+            # 3.12 use one less exception table entry causing to optimize this case
+            # less than we could otherwise
+            if sys.version_info >= (3, 12) and f.__name__ == "try_except_finally":
+                continue
             print(f.__name__)
             with self.subTest(f.__name__):
                 origin = f.__code__
