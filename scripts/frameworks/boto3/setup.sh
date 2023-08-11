@@ -14,6 +14,7 @@ python$PY -m venv ${PREFIX}/.venv
 source ${PREFIX}/.venv/bin/activate
 
 # Install bytecode
+pip install setuptools wheel
 pip install -e .
 
 # Install dependencies
