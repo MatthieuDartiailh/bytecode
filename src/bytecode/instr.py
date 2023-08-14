@@ -71,8 +71,6 @@ class Compare(enum.IntEnum):
                 return 4
             elif self == Compare.GE:
                 return 4 + 8
-            else:
-                return
 
 
 # Used for BINARY_OP under Python 3.11+
@@ -708,16 +706,6 @@ class BaseInstr(Generic[A]):
         if self.is_uncond_jump():
             return True
         return False
-
-    if sys.version_info >= (3, 12):
-
-        def has_exception(self):
-            raise NotImplementedError("Only available on Python 3.12+")
-
-    else:
-
-        def has_exception(self):
-            return self._opcode in dis.hasexc
 
     def __repr__(self) -> str:
         if self._arg is not UNSET:

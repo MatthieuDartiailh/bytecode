@@ -13,9 +13,20 @@ from bytecode import (
     Label,
     SetLineno,
 )
-from bytecode.instr import InstrLocation, opcode_has_argument
+from bytecode.instr import (
+    InstrLocation,
+    opcode_has_argument,
+    BITFLAG_INSTRUCTIONS,
+    BITFLAG2_INSTRUCTIONS,
+    INTRINSIC_1OP,
+    INTRINSIC_2OP,
+    Intrinsic1Op,
+    Intrinsic2Op,
+)
 
 from . import TestCase
+
+# XXX  tests for location and lineno setter
 
 # Starting with Python 3.11 jump opcode have changed quite a bit. We define here
 # opcode useful to test for both Python < 3.11 and Python >= 3.11
@@ -177,6 +188,31 @@ class InstrTests(TestCase):
         # not HAVE_ARGUMENT
         self.assertRaises(ValueError, Instr, "NOP", 0)
         Instr("NOP")
+
+        # Instructions using a bitflag in their oparg
+        for name in BITFLAG_INSTRUCTIONS:
+            self.assertRaises(ValueError, Instr, name, "arg")
+            self.assertRaises(ValueError, Instr, name, ("arg",))
+            self.assertRaises(ValueError, Instr, name, ("", "arg"))
+            self.assertRaises(ValueError, Instr, name, (False, 1))
+            Instr(name, (True, "arg"))
+
+        # Instructions using 2 bitflag in their oparg
+        for name in BITFLAG2_INSTRUCTIONS:
+            self.assertRaises(ValueError, Instr, name, "arg")
+            self.assertRaises(ValueError, Instr, name, ("arg",))
+            self.assertRaises(ValueError, Instr, name, ("", True, "arg"))
+            self.assertRaises(ValueError, Instr, name, (True, "", "arg"))
+            self.assertRaises(ValueError, Instr, name, (False, True, 1))
+            Instr(name, (False, True, "arg"))
+
+        for name in INTRINSIC_1OP:
+            self.assertRaises(ValueError, Instr, name, 1)
+            Instr(name, Intrinsic1Op.INSTRINSIC_PRINT)
+
+        for name in INTRINSIC_2OP:
+            self.assertRaises(ValueError, Instr, name, 1)
+            Instr(name, Intrinsic2Op.INTRINSIC_PREP_RERAISE_STAR)
 
     def test_require_arg(self):
         i = Instr(CALL, 3)
