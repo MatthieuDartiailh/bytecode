@@ -354,6 +354,7 @@ The following classes are used to represent the argument of opcode listed in
 - STORE_DEREF
 - DELETE_DEREF
 - LOAD_CLASSDEREF
+- LOAD_FROM_DICT_OR_DEREF
 
 .. class:: CellVar
 

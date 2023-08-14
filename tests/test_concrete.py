@@ -20,7 +20,7 @@ from bytecode import (
     Label,
     SetLineno,
 )
-from bytecode.concrete import OFFSET_AS_INSTRUCTION
+from bytecode.concrete import OFFSET_AS_INSTRUCTION, ExceptionTableEntry
 
 from . import TestCase, get_code
 
@@ -177,6 +177,20 @@ class ConcreteBytecodeTests(TestCase):
         self.assertIn("ConcreteBytecode", r)
         self.assertIn("0", r)
 
+    def test_exception_table_repr(self):
+        t = ExceptionTableEntry(0, 1, 2, 3, True)
+        self.assertSequenceEqual(
+            repr(t),
+            (
+                "ExceptionTableEntry("
+                f"start_offset=0, "
+                f"stop_offset=1, "
+                f"target=2, "
+                f"stack_depth=3, "
+                f"push_lasti=True"
+            ),
+        )
+
     def test_eq(self):
         code = ConcreteBytecode()
         self.assertFalse(code == 1)
@@ -324,8 +338,9 @@ class ConcreteBytecodeTests(TestCase):
         expected = b"d\x00Z\x00d\x01Z\x01"
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 5)
+        if sys.version_info < (3, 12):
+            self.skipTest("lnotab is deprecated in Python 3.12+")
         self.assertEqual(code.co_lnotab, b"\x04\xfd")
-        # XXX adjust for python 3.12 (lnotab deprecated)
 
     def test_extended_lnotab(self):
         # x = 7
@@ -516,15 +531,21 @@ class ConcreteBytecodeTests(TestCase):
 
     # XXX adjust test for 3.12 in which load_classderef does not exist anymore
     def test_load_classderef(self):
-        if sys.version_info >= (3, 12):
-            self.skipTest("Opcode does not exist on Python 3.12+")
+        i_name = (
+            "LOAD_FROM_DICT_OR_DEREF"
+            if sys.version_info >= (3, 12)
+            else "LOAD_CLASSDEREF"
+        )
+        i_arg = 2 if sys.version_info >= (3, 11) else 1
         concrete = ConcreteBytecode()
+        concrete.varnames = ["a"]
         concrete.cellvars = ["__class__"]
         concrete.freevars = ["__class__"]
         concrete.extend(
             [
-                ConcreteInstr("LOAD_CLASSDEREF", 1, lineno=1),
-                ConcreteInstr("STORE_DEREF", 1, lineno=1),
+                ConcreteInstr("LOAD_FAST", 0, lineno=1),
+                ConcreteInstr(i_name, i_arg, lineno=1),
+                ConcreteInstr("STORE_DEREF", i_arg, lineno=1),
             ]
         )
 
@@ -534,7 +555,8 @@ class ConcreteBytecodeTests(TestCase):
         self.assertInstructionListEqual(
             list(bytecode),
             [
-                Instr("LOAD_CLASSDEREF", FreeVar("__class__"), lineno=1),
+                Instr("LOAD_FAST", "a", lineno=1),
+                Instr(i_name, FreeVar("__class__"), lineno=1),
                 Instr("STORE_DEREF", FreeVar("__class__"), lineno=1),
             ],
         )
@@ -545,8 +567,9 @@ class ConcreteBytecodeTests(TestCase):
         self.assertInstructionListEqual(
             list(concrete),
             [
-                ConcreteInstr("LOAD_CLASSDEREF", 1, lineno=1),
-                ConcreteInstr("STORE_DEREF", 1, lineno=1),
+                ConcreteInstr("LOAD_FAST", 1, lineno=1),
+                ConcreteInstr(i_name, i_arg, lineno=1),
+                ConcreteInstr("STORE_DEREF", i_arg, lineno=1),
             ],
         )
 
@@ -555,7 +578,16 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(code.co_cellvars, ("__class__",))
         self.assertEqual(
             code.co_code,
-            bytes([opcode.opmap["LOAD_CLASSDEREF"], 1, opcode.opmap["STORE_DEREF"], 1]),
+            bytes(
+                [
+                    opcode.opmap["LOAD_FAST"],
+                    0,
+                    opcode.opmap[i_name],
+                    i_arg,
+                    opcode.opmap["STORE_DEREF"],
+                    i_arg,
+                ]
+            ),
         )
 
     def test_explicit_stacksize(self):

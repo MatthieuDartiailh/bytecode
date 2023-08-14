@@ -950,7 +950,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # array.
         # As a consequence, the instruction argument can be either:
         # - < len(varnames): the name is shared an we can directly use
-        #   the index to access the name in celvars
+        #   the index to access the name in cellvars
         # - > len(varnames): the name is not shared and is offset by the
         #   number unshared varname.
         # Free vars are never shared and correspond to index larger than the
