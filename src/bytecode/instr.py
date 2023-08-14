@@ -26,9 +26,7 @@ BITFLAG_INSTRUCTIONS = (
     else ()
 )
 
-# FIXME use opcodes
-BITFLAG2_INSTRUCTIONS = ("LOAD_SUPER_ATTR") if sys.version_info >= (3, 12) else ()
-
+BITFLAG2_INSTRUCTIONS = ("LOAD_SUPER_ATTR",) if sys.version_info >= (3, 12) else ()
 
 # Intrinsic related opcodes
 INTRINSIC_1OP = (
@@ -734,7 +732,7 @@ class BaseInstr(Generic[A]):
         try:
             opcode = _opcode.opmap[name]
         except KeyError:
-            raise ValueError("invalid operation name")
+            raise ValueError(f"invalid operation name: {name}")
 
         self._check_arg(name, opcode, arg)
 

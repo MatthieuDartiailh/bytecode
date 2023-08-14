@@ -338,7 +338,7 @@ class ConcreteBytecodeTests(TestCase):
         expected = b"d\x00Z\x00d\x01Z\x01"
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 5)
-        if sys.version_info < (3, 12):
+        if sys.version_info >= (3, 12):
             self.skipTest("lnotab is deprecated in Python 3.12+")
         self.assertEqual(code.co_lnotab, b"\x04\xfd")
 
