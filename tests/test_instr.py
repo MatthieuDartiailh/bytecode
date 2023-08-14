@@ -206,11 +206,11 @@ class InstrTests(TestCase):
             self.assertRaises(TypeError, Instr, name, (False, True, 1))
             Instr(name, (False, True, "arg"))
 
-        for name in INTRINSIC_1OP:
+        for name in [opcode.opname[i] for i in INTRINSIC_1OP]:
             self.assertRaises(TypeError, Instr, name, 1)
             Instr(name, Intrinsic1Op.INSTRINSIC_PRINT)
 
-        for name in INTRINSIC_2OP:
+        for name in [opcode.opname[i] for i in INTRINSIC_2OP]:
             self.assertRaises(TypeError, Instr, name, 1)
             Instr(name, Intrinsic2Op.INTRINSIC_PREP_RERAISE_STAR)
 
