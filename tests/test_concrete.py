@@ -183,11 +183,11 @@ class ConcreteBytecodeTests(TestCase):
             repr(t),
             (
                 "ExceptionTableEntry("
-                f"start_offset=0, "
-                f"stop_offset=1, "
-                f"target=2, "
-                f"stack_depth=3, "
-                f"push_lasti=True"
+                "start_offset=0, "
+                "stop_offset=1, "
+                "target=2, "
+                "stack_depth=3, "
+                "push_lasti=True"
             ),
         )
 

@@ -191,27 +191,27 @@ class InstrTests(TestCase):
 
         # Instructions using a bitflag in their oparg
         for name in BITFLAG_INSTRUCTIONS:
-            self.assertRaises(ValueError, Instr, name, "arg")
-            self.assertRaises(ValueError, Instr, name, ("arg",))
-            self.assertRaises(ValueError, Instr, name, ("", "arg"))
-            self.assertRaises(ValueError, Instr, name, (False, 1))
+            self.assertRaises(TypeError, Instr, name, "arg")
+            self.assertRaises(TypeError, Instr, name, ("arg",))
+            self.assertRaises(TypeError, Instr, name, ("", "arg"))
+            self.assertRaises(TypeError, Instr, name, (False, 1))
             Instr(name, (True, "arg"))
 
         # Instructions using 2 bitflag in their oparg
         for name in BITFLAG2_INSTRUCTIONS:
-            self.assertRaises(ValueError, Instr, name, "arg")
-            self.assertRaises(ValueError, Instr, name, ("arg",))
-            self.assertRaises(ValueError, Instr, name, ("", True, "arg"))
-            self.assertRaises(ValueError, Instr, name, (True, "", "arg"))
-            self.assertRaises(ValueError, Instr, name, (False, True, 1))
+            self.assertRaises(TypeError, Instr, name, "arg")
+            self.assertRaises(TypeError, Instr, name, ("arg",))
+            self.assertRaises(TypeError, Instr, name, ("", True, "arg"))
+            self.assertRaises(TypeError, Instr, name, (True, "", "arg"))
+            self.assertRaises(TypeError, Instr, name, (False, True, 1))
             Instr(name, (False, True, "arg"))
 
         for name in INTRINSIC_1OP:
-            self.assertRaises(ValueError, Instr, name, 1)
+            self.assertRaises(TypeError, Instr, name, 1)
             Instr(name, Intrinsic1Op.INSTRINSIC_PRINT)
 
         for name in INTRINSIC_2OP:
-            self.assertRaises(ValueError, Instr, name, 1)
+            self.assertRaises(TypeError, Instr, name, 1)
             Instr(name, Intrinsic2Op.INTRINSIC_PREP_RERAISE_STAR)
 
     def test_require_arg(self):
