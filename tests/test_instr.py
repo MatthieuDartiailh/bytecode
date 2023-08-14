@@ -14,14 +14,14 @@ from bytecode import (
     SetLineno,
 )
 from bytecode.instr import (
-    InstrLocation,
-    opcode_has_argument,
-    BITFLAG_INSTRUCTIONS,
     BITFLAG2_INSTRUCTIONS,
+    BITFLAG_INSTRUCTIONS,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
+    InstrLocation,
     Intrinsic1Op,
     Intrinsic2Op,
+    opcode_has_argument,
 )
 
 from . import TestCase
