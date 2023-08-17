@@ -707,7 +707,8 @@ class BaseInstr(Generic[A]):
 
     def use_cache_opcodes(self) -> int:
         return (
-            dis._inline_cache_entries[self._opcode]
+            # Not supposed to be used but we need it
+            dis._inline_cache_entries[self._opcode]  # type: ignore
             if sys.version_info >= (3, 11)
             else 0
         )
