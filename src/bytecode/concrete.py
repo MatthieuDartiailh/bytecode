@@ -133,9 +133,14 @@ class ConcreteInstr(BaseInstr[int]):
         return (self._location, self._name, self._arg)
 
     def get_jump_target(self, instr_offset: int) -> Optional[int]:
-        s = (self._size // 2) if OFFSET_AS_INSTRUCTION else self._size
-        if sys.version_info >= (3, 12) and self._name in ("FOR_ITER", "SEND"):
-            return instr_offset + s + self._arg + 1
+        # When a jump arg is zero the jump always points to the first non-CACHE
+        # opcode following the jump. The passed in offset is the offset at
+        # which the jump opcode starts. So to compute the target, we add to it
+        # the instruction size (accounting for extended args) and the
+        # number of caches expected to follow the jump instruction.
+        s = (
+            (self._size // 2) if OFFSET_AS_INSTRUCTION else self._size
+        ) + self.use_cache_opcodes()
         if self.is_forward_rel_jump():
             return instr_offset + s + self._arg
         if self.is_backward_rel_jump():
@@ -1258,7 +1263,7 @@ class _ConvertBytecodeToConcrete:
 
             # If the instruction expect some cache
             if sys.version_info >= (3, 11):
-                self.required_caches = dis._inline_cache_entries[c_instr.opcode]
+                self.required_caches = c_instr.use_cache_opcodes()
                 self.seen_manual_cache = False
 
             self.instructions.append(c_instr)
