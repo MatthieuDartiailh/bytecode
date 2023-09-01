@@ -176,6 +176,14 @@ class ConcreteInstr(BaseInstr[int]):
         name = _opcode.opname[op]
         return cls(name, arg, lineno=lineno)
 
+    def use_cache_opcodes(self) -> int:
+        return (
+            # Not supposed to be used but we need it
+            dis._inline_cache_entries[self._opcode]  # type: ignore
+            if sys.version_info >= (3, 11)
+            else 0
+        )
+
 
 class ExceptionTableEntry:
     """Entry for a given line in the exception table.

@@ -705,14 +705,6 @@ class BaseInstr(Generic[A]):
             return True
         return False
 
-    def use_cache_opcodes(self) -> int:
-        return (
-            # Not supposed to be used but we need it
-            dis._inline_cache_entries[self._opcode]  # type: ignore
-            if sys.version_info >= (3, 11)
-            else 0
-        )
-
     def __repr__(self) -> str:
         if self._arg is not UNSET:
             return "<%s arg=%r location=%s>" % (self._name, self._arg, self._location)
