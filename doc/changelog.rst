@@ -1,7 +1,7 @@
 ChangeLog
 =========
 
-unreleased: Version 0.15.0
+2023-09-01: Version 0.15.0
 --------------------------
 
 New features:
