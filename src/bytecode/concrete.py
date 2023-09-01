@@ -1,7 +1,6 @@
 import dis
 import inspect
 import opcode as _opcode
-import stat
 import struct
 import sys
 import types
@@ -26,6 +25,11 @@ import bytecode as _bytecode
 from bytecode.flags import CompilerFlags
 from bytecode.instr import (
     _UNSET,
+    BITFLAG2_INSTRUCTIONS,
+    BITFLAG_INSTRUCTIONS,
+    INTRINSIC,
+    INTRINSIC_1OP,
+    INTRINSIC_2OP,
     PLACEHOLDER_LABEL,
     UNSET,
     BaseInstr,
@@ -35,12 +39,15 @@ from bytecode.instr import (
     Instr,
     InstrArg,
     InstrLocation,
+    Intrinsic1Op,
+    Intrinsic2Op,
     Label,
     SetLineno,
     TryBegin,
     TryEnd,
     _check_arg_int,
     const_key,
+    opcode_has_argument,
 )
 
 # - jumps use instruction
@@ -90,7 +97,7 @@ class ConcreteInstr(BaseInstr[int]):
         super().__init__(name, arg, lineno=lineno, location=location)
 
     def _check_arg(self, name: str, opcode: int, arg: int) -> None:
-        if opcode >= _opcode.HAVE_ARGUMENT:
+        if opcode_has_argument(opcode):
             if arg is UNSET:
                 raise ValueError("operation %s requires an argument" % name)
 
@@ -126,11 +133,17 @@ class ConcreteInstr(BaseInstr[int]):
         return (self._location, self._name, self._arg)
 
     def get_jump_target(self, instr_offset: int) -> Optional[int]:
+        # When a jump arg is zero the jump always points to the first non-CACHE
+        # opcode following the jump. The passed in offset is the offset at
+        # which the jump opcode starts. So to compute the target, we add to it
+        # the instruction size (accounting for extended args) and the
+        # number of caches expected to follow the jump instruction.
+        s = (
+            (self._size // 2) if OFFSET_AS_INSTRUCTION else self._size
+        ) + self.use_cache_opcodes()
         if self.is_forward_rel_jump():
-            s = (self._size // 2) if OFFSET_AS_INSTRUCTION else self._size
             return instr_offset + s + self._arg
         if self.is_backward_rel_jump():
-            s = (self._size // 2) if OFFSET_AS_INSTRUCTION else self._size
             return instr_offset + s - self._arg
         if self.is_abs_jump():
             return self._arg
@@ -156,12 +169,20 @@ class ConcreteInstr(BaseInstr[int]):
     def disassemble(cls: Type[T], lineno: Optional[int], code: bytes, offset: int) -> T:
         index = 2 * offset if OFFSET_AS_INSTRUCTION else offset
         op = code[index]
-        if op >= _opcode.HAVE_ARGUMENT:
+        if opcode_has_argument(op):
             arg = code[index + 1]
         else:
             arg = UNSET
         name = _opcode.opname[op]
         return cls(name, arg, lineno=lineno)
+
+    def use_cache_opcodes(self) -> int:
+        return (
+            # Not supposed to be used but we need it
+            dis._inline_cache_entries[self._opcode]  # type: ignore
+            if sys.version_info >= (3, 11)
+            else 0
+        )
 
 
 class ExceptionTableEntry:
@@ -306,7 +327,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 ConcreteInstr(
                     i.opname,
                     i.arg % 256 if i.arg is not None else UNSET,
-                    location=InstrLocation.from_positions(i.positions),
+                    location=InstrLocation.from_positions(i.positions)
+                    if i.positions
+                    else None,
                 )
                 for i in dis.get_instructions(code, show_caches=True)
             ]
@@ -940,7 +963,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # array.
         # As a consequence, the instruction argument can be either:
         # - < len(varnames): the name is shared an we can directly use
-        #   the index to access the name in celvars
+        #   the index to access the name in cellvars
         # - > len(varnames): the name is not shared and is offset by the
         #   number unshared varname.
         # Free vars are never shared and correspond to index larger than the
@@ -1003,8 +1026,10 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 elif c_instr.opcode in _opcode.haslocal:
                     arg = self.varnames[c_arg]
                 elif c_instr.opcode in _opcode.hasname:
-                    if sys.version_info >= (3, 11) and c_instr.name == "LOAD_GLOBAL":
+                    if c_instr.name in BITFLAG_INSTRUCTIONS:
                         arg = (bool(c_arg & 1), self.names[c_arg >> 1])
+                    elif c_instr.name in BITFLAG2_INSTRUCTIONS:
+                        arg = (bool(c_arg & 1), bool(c_arg & 2), self.names[c_arg >> 2])
                     else:
                         arg = self.names[c_arg]
                 elif c_instr.opcode in _opcode.hasfree:
@@ -1015,7 +1040,13 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                         name = self.freevars[c_arg - ncells]
                         arg = FreeVar(name)
                 elif c_instr.opcode in _opcode.hascompare:
-                    arg = Compare(c_arg)
+                    arg = Compare(
+                        (c_arg >> 4) if sys.version_info >= (3, 12) else c_arg
+                    )
+                elif c_instr.opcode in INTRINSIC_1OP:
+                    arg = Intrinsic1Op(c_arg)
+                elif c_instr.opcode in INTRINSIC_2OP:
+                    arg = Intrinsic2Op(c_arg)
                 else:
                     arg = c_arg
 
@@ -1190,7 +1221,7 @@ class _ConvertBytecodeToConcrete:
                 assert isinstance(arg, str)
                 arg = self.add(self.varnames, arg)
             elif instr.opcode in _opcode.hasname:
-                if sys.version_info >= (3, 11) and instr.name == "LOAD_GLOBAL":
+                if instr.name in BITFLAG_INSTRUCTIONS:
                     assert (
                         isinstance(arg, tuple)
                         and len(arg) == 2
@@ -1199,8 +1230,18 @@ class _ConvertBytecodeToConcrete:
                     ), arg
                     index = self.add(self.names, arg[1])
                     arg = int(arg[0]) + (index << 1)
+                elif instr.name in BITFLAG2_INSTRUCTIONS:
+                    assert (
+                        isinstance(arg, tuple)
+                        and len(arg) == 3
+                        and isinstance(arg[0], bool)
+                        and isinstance(arg[1], bool)
+                        and isinstance(arg[2], str)
+                    ), arg
+                    index = self.add(self.names, arg[2])
+                    arg = int(arg[0]) + 2 * int(arg[1]) + (index << 2)
                 else:
-                    assert isinstance(arg, str)
+                    assert isinstance(arg, str), f"Got {arg}, expected a str"
                     arg = self.add(self.names, arg)
             elif instr.opcode in _opcode.hasfree:
                 if isinstance(arg, CellVar):
@@ -1212,6 +1253,14 @@ class _ConvertBytecodeToConcrete:
                     arg = self.bytecode.freevars.index(arg.name)
             elif instr.opcode in _opcode.hascompare:
                 if isinstance(arg, Compare):
+                    # In Python 3.12 the 4 lowest bits are used for caching
+                    # See compare_masks in compile.c
+                    if sys.version_info >= (3, 12):
+                        arg = arg._get_mask() + (arg.value << 4)
+                    else:
+                        arg = arg.value
+            elif instr.opcode in INTRINSIC:
+                if isinstance(arg, (Intrinsic1Op, Intrinsic2Op)):
                     arg = arg.value
 
             # The above should have performed all the necessary conversion
@@ -1222,7 +1271,7 @@ class _ConvertBytecodeToConcrete:
 
             # If the instruction expect some cache
             if sys.version_info >= (3, 11):
-                self.required_caches = dis._inline_cache_entries[c_instr.opcode]
+                self.required_caches = c_instr.use_cache_opcodes()
                 self.seen_manual_cache = False
 
             self.instructions.append(c_instr)
@@ -1282,6 +1331,12 @@ class _ConvertBytecodeToConcrete:
         for index, label, instr in self.jumps:
             target_index = self.labels[label]
             target_offset = label_offsets[target_index]
+
+            # FIXME use opcode
+            # Under 3.12+, FOR_ITER, SEND jump is increased by 1 implicitely
+            # to skip over END_FOR, END_SEND see Python/instrumentation.c
+            if sys.version_info >= (3, 12) and instr.name in ("FOR_ITER", "SEND"):
+                target_offset -= 1
 
             if instr.is_forward_rel_jump():
                 instr_offset = label_offsets[index]

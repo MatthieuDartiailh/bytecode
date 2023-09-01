@@ -202,7 +202,7 @@ class BytecodeTests(TestCase):
                     Instr("RETURN_VALUE", lineno=4),
                 ],
             )
-        else:
+        elif sys.version_info < (3, 12):
             self.assertInstructionListEqual(
                 bytecode,
                 [
@@ -218,6 +218,22 @@ class BytecodeTests(TestCase):
                     Instr("STORE_NAME", "x", lineno=4),
                     Instr("LOAD_CONST", None, lineno=4),
                     Instr("RETURN_VALUE", lineno=4),
+                ],
+            )
+        else:
+            self.assertInstructionListEqual(
+                bytecode,
+                [
+                    Instr("RESUME", 0, lineno=0),
+                    Instr("LOAD_NAME", "test", lineno=1),
+                    Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
+                    Instr("LOAD_CONST", 1, lineno=2),
+                    Instr("STORE_NAME", "x", lineno=2),
+                    Instr("RETURN_CONST", None, lineno=2),
+                    label_else,
+                    Instr("LOAD_CONST", 2, lineno=4),
+                    Instr("STORE_NAME", "x", lineno=4),
+                    Instr("RETURN_CONST", None, lineno=4),
                 ],
             )
 
@@ -281,9 +297,15 @@ class BytecodeTests(TestCase):
                 Instr("STORE_FAST", "x", lineno=2),
                 Instr("LOAD_FAST", "x", lineno=3),
                 Instr("STORE_FAST", "y", lineno=3),
-                Instr("LOAD_CONST", None, lineno=3),
-                Instr("RETURN_VALUE", lineno=3),
-            ],
+            ]
+            + (
+                [Instr("RETURN_CONST", None, lineno=3)]
+                if sys.version_info >= (3, 12)
+                else [
+                    Instr("LOAD_CONST", None, lineno=3),
+                    Instr("RETURN_VALUE", lineno=3),
+                ]
+            ),
         )
 
     def test_setlineno(self):
@@ -333,6 +355,10 @@ class BytecodeTests(TestCase):
                 Instr("BINARY_OP", BinaryOp.ADD)
                 if sys.version_info >= (3, 11)
                 else Instr("BINARY_ADD"),
+            ]
+            # For 3.12+ we need a NULL before a CALL to a free function
+            + ([Instr("PUSH_NULL")] if sys.version_info >= (3, 12) else [])
+            + [
                 # On 3.11 we should have a pre-call
                 Instr("CALL" if sys.version_info >= (3, 11) else "CALL_FUNCTION", 1),
                 Instr("RETURN_VALUE"),
@@ -353,6 +379,9 @@ class BytecodeTests(TestCase):
             "UNARY_INVERT",
         )
         for opname in opnames:
+            # Replaced by an intrinsic in 3.12
+            if sys.version_info >= (3, 12) and opname == "UNARY_POSITIVE":
+                continue
             with self.subTest(opname):
                 code = Bytecode()
                 code.first_lineno = 1
@@ -368,6 +397,9 @@ class BytecodeTests(TestCase):
             "UNARY_INVERT",
         )
         for opname in opnames:
+            # Replaced by an intrinsic in 3.12
+            if sys.version_info >= (3, 12) and opname == "UNARY_POSITIVE":
+                continue
             with self.subTest(opname):
                 code = Bytecode()
                 code.first_lineno = 1
@@ -622,6 +654,10 @@ class BytecodeTests(TestCase):
                 lab2,
             ]
         )
+        # Under 3.12+ FOR_ITER does not pop the iterator on completion so this
+        # does not fail a coarse stack effect computation.
+        if sys.version_info >= (3, 12):
+            self.skipTest("Irrelevant on 3.12+")
         with self.assertRaises(RuntimeError):
             # Use compute_stacksize since the code is so broken that conversion
             # to from concrete is actually broken
@@ -631,6 +667,7 @@ class BytecodeTests(TestCase):
         from . import exception_handling_cases as ehc
 
         for f in ehc.TEST_CASES:
+            print(f.__name__)
             with self.subTest(f.__name__):
                 origin = f.__code__
                 bytecode = Bytecode.from_code(

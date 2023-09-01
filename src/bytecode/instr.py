@@ -16,6 +16,27 @@ import bytecode as _bytecode
 
 # --- Instruction argument tools and abstractions
 
+# Instructions relying on a bit to modify its behavior.
+# The lowest bit is used to encode custom behavior.
+BITFLAG_INSTRUCTIONS = (
+    ("LOAD_GLOBAL", "LOAD_ATTR")
+    if sys.version_info >= (3, 12)
+    else ("LOAD_GLOBAL",)
+    if sys.version_info >= (3, 11)
+    else ()
+)
+
+BITFLAG2_INSTRUCTIONS = ("LOAD_SUPER_ATTR",) if sys.version_info >= (3, 12) else ()
+
+# Intrinsic related opcodes
+INTRINSIC_1OP = (
+    (_opcode.opmap["CALL_INTRINSIC_1"],) if sys.version_info >= (3, 12) else ()
+)
+INTRINSIC_2OP = (
+    (_opcode.opmap["CALL_INTRINSIC_2"],) if sys.version_info >= (3, 12) else ()
+)
+INTRINSIC = INTRINSIC_1OP + INTRINSIC_2OP
+
 
 # Used for COMPARE_OP opcode argument
 @enum.unique
@@ -32,6 +53,22 @@ class Compare(enum.IntEnum):
         IS = 8
         IS_NOT = 9
         EXC_MATCH = 10
+
+    if sys.version_info >= (3, 12):
+
+        def _get_mask(self):
+            if self == Compare.EQ:
+                return 8
+            elif self == Compare.NE:
+                return 1 + 2 + 4
+            elif self == Compare.LT:
+                return 2
+            elif self == Compare.LE:
+                return 2 + 8
+            elif self == Compare.GT:
+                return 4
+            elif self == Compare.GE:
+                return 4 + 8
 
 
 # Used for BINARY_OP under Python 3.11+
@@ -63,6 +100,31 @@ class BinaryOp(enum.IntEnum):
     INPLACE_SUBTRACT = 23
     INPLACE_TRUE_DIVIDE = 24
     INPLACE_XOR = 25
+
+
+@enum.unique
+class Intrinsic1Op(enum.IntEnum):
+    INSTRINSIC_1_INVALID = 0
+    INSTRINSIC_PRINT = 1
+    INSTRINSIC_IMPORT_STAR = 2
+    INTRINSIC_STOPITERATION_ERROR = 3
+    INTRINSIC_ASYNC_GEN_WRAP = 4
+    INTRINSIC_UNARY_POSITIVE = 5
+    INTRINSIC_LIST_TO_TUPLE = 6
+    INTRINSIC_TYPEVAR = 7
+    INTRINSIC_PARAMSPEC = 8
+    INTRINSIC_TYPEVARTUPLE = 9
+    INTRINSIC_SUBSCRIPT_GENERIC = 10
+    INTRINSIC_TYPEALIAS = 11
+
+
+@enum.unique
+class Intrinsic2Op(enum.IntEnum):
+    INSTRINSIC_2_INVALID = 0
+    INTRINSIC_PREP_RERAISE_STAR = 1
+    INTRINSIC_TYPEVAR_WITH_BOUND = 2
+    INTRINSIC_TYPEVAR_WITH_CONSTRAINTS = 3
+    INTRINSIC_SET_FUNCTION_TYPE_PARAMS = 4
 
 
 # This make type checking happy but means it won't catch attempt to manipulate an unset
@@ -156,7 +218,7 @@ class _Variable:
         self.name: str = name
 
     def __eq__(self, other: Any) -> bool:
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
         return self.name == other.name
 
@@ -190,6 +252,17 @@ def _check_arg_int(arg: Any, name: str) -> TypeGuard[int]:
     return True
 
 
+if sys.version_info >= (3, 12):
+
+    def opcode_has_argument(opcode: int) -> bool:
+        return opcode in dis.hasarg
+
+else:
+
+    def opcode_has_argument(opcode: int) -> bool:
+        return opcode >= dis.HAVE_ARGUMENT
+
+
 # --- Instruction stack effect impact
 
 # We split the stack effect between the manipulations done on the stack before
@@ -198,9 +271,6 @@ def _check_arg_int(arg: Any, name: str) -> TypeGuard[int]:
 
 # Stack effects that do not depend on the argument of the instruction
 STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
-    # PRECALL pops all arguments (as per its stack effect) and leaves
-    # the callable and either self or NULL
-    "CALL": (-2, 1),  # CALL pops the 2 above items and push the return
     "ROT_TWO": (-2, 2),
     "ROT_THREE": (-3, 3),
     "ROT_FOUR": (-4, 4),
@@ -221,7 +291,6 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     "IS_OP": (-2, 1),
     "CONTAINS_OP": (-2, 1),
     "IMPORT_NAME": (-2, 1),
-    "LOAD_ATTR": (-1, 1),
     "ASYNC_GEN_WRAP": (-1, 1),
     "PUSH_EXC_INFO": (-1, 2),
     # Pop TOS and push TOS.__aexit__ and result of TOS.__aenter__()
@@ -248,12 +317,30 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
             if (o.startswith("BINARY_") or o.startswith("INPLACE_"))
         )
     },
+    # Python 3.12 changes not covered by dis.stack_effect
+    "BINARY_SLICE": (-3, 1),
+    # "STORE_SLICE" handled by dis.stack_effect
+    "LOAD_FROM_DICT_OR_GLOBALS": (-1, 1),
+    "LOAD_FROM_DICT_OR_DEREF": (-1, 1),
+    "LOAD_INTRISIC_1": (-1, 1),
+    "LOAD_INTRISIC_2": (-2, 1),
 }
 
 
 DYNAMIC_STACK_EFFECTS: Dict[
     str, Callable[[int, Any, Optional[bool]], Tuple[int, int]]
 ] = {
+    # PRECALL pops all arguments (as per its stack effect) and leaves
+    # the callable and either self or NULL
+    # CALL pops the 2 above items and push the return
+    # (when PRECALL does not exist it pops more as encoded by the effect)
+    "CALL": lambda effect, arg, jump: (
+        -2 - arg if sys.version_info >= (3, 12) else -2,
+        1,
+    ),
+    # 3.12 changed the behavior of LOAD_ATTR
+    "LOAD_ATTR": lambda effect, arg, jump: (-1, 1 + effect),
+    "LOAD_SUPER_ATTR": lambda effect, arg, jump: (-3, 3 + effect),
     "SWAP": lambda effect, arg, jump: (-arg, arg),
     "COPY": lambda effect, arg, jump: (-arg, arg + effect),
     "ROT_N": lambda effect, arg, jump: (-arg, arg),
@@ -463,7 +550,7 @@ class BaseInstr(Generic[A]):
 
     def require_arg(self) -> bool:
         """Does the instruction require an argument?"""
-        return self._opcode >= _opcode.HAVE_ARGUMENT
+        return opcode_has_argument(self._opcode)
 
     @property
     def name(self) -> str:
@@ -534,11 +621,16 @@ class BaseInstr(Generic[A]):
         self._location = location
 
     def stack_effect(self, jump: Optional[bool] = None) -> int:
-        if self._opcode < _opcode.HAVE_ARGUMENT:
+        if not self.require_arg():
             arg = None
         # 3.11 where LOAD_GLOBAL arg encode whether or we push a null
-        elif self.name == "LOAD_GLOBAL" and isinstance(self._arg, tuple):
+        # 3.12 does the same for LOAD_ATTR
+        elif self.name in BITFLAG_INSTRUCTIONS and isinstance(self._arg, tuple):
             assert len(self._arg) == 2
+            arg = self._arg[0]
+        # 3.12 does a similar trick for LOAD_SUPER_ATTR
+        elif self.name in BITFLAG2_INSTRUCTIONS and isinstance(self._arg, tuple):
+            assert len(self._arg) == 3
             arg = self._arg[0]
         elif not isinstance(self._arg, int) or self._opcode in _opcode.hasconst:
             # Argument is either a non-integer or an integer constant,
@@ -602,6 +694,7 @@ class BaseInstr(Generic[A]):
     def is_final(self) -> bool:
         if self._name in {
             "RETURN_VALUE",
+            "RETURN_CONST",
             "RAISE_VARARGS",
             "RERAISE",
             "BREAK_LOOP",
@@ -619,7 +712,7 @@ class BaseInstr(Generic[A]):
             return "<%s location=%s>" % (self._name, self._location)
 
     def __eq__(self, other: Any) -> bool:
-        if type(self) != type(other):
+        if type(self) is not type(other):
             return False
         return self._cmp_key() == other._cmp_key()
 
@@ -639,7 +732,7 @@ class BaseInstr(Generic[A]):
         try:
             opcode = _opcode.opmap[name]
         except KeyError:
-            raise ValueError("invalid operation name")
+            raise ValueError(f"invalid operation name: {name}")
 
         self._check_arg(name, opcode, arg)
 
@@ -661,7 +754,15 @@ class BaseInstr(Generic[A]):
 
 
 InstrArg = Union[
-    int, str, Label, CellVar, FreeVar, "_bytecode.BasicBlock", Compare, Tuple[bool, str]
+    int,
+    str,
+    Label,
+    CellVar,
+    FreeVar,
+    "_bytecode.BasicBlock",
+    Compare,
+    Tuple[bool, str],
+    Tuple[bool, bool, str],
 ]
 
 
@@ -681,7 +782,7 @@ class Instr(BaseInstr[InstrArg]):
                 "highlevel instruction can represent arbitrary argument without it"
             )
 
-        if opcode >= _opcode.HAVE_ARGUMENT:
+        if opcode_has_argument(opcode):
             if arg is UNSET:
                 raise ValueError("operation %s requires an argument" % name)
         else:
@@ -703,7 +804,7 @@ class Instr(BaseInstr[InstrArg]):
                 )
 
         elif opcode in _opcode.haslocal or opcode in _opcode.hasname:
-            if sys.version_info >= (3, 11) and name == "LOAD_GLOBAL":
+            if name in BITFLAG_INSTRUCTIONS:
                 if not (
                     isinstance(arg, tuple)
                     and len(arg) == 2
@@ -712,6 +813,19 @@ class Instr(BaseInstr[InstrArg]):
                 ):
                     raise TypeError(
                         "operation %s argument must be a tuple[bool, str], "
+                        "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
+                    )
+
+            elif name in BITFLAG2_INSTRUCTIONS:
+                if not (
+                    isinstance(arg, tuple)
+                    and len(arg) == 3
+                    and isinstance(arg[0], bool)
+                    and isinstance(arg[1], bool)
+                    and isinstance(arg[2], str)
+                ):
+                    raise TypeError(
+                        "operation %s argument must be a tuple[bool, bool, str], "
                         "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
                     )
 
@@ -738,5 +852,19 @@ class Instr(BaseInstr[InstrArg]):
                     "Compare, got %s" % (name, type(arg).__name__)
                 )
 
-        elif opcode >= _opcode.HAVE_ARGUMENT:
+        elif opcode in INTRINSIC_1OP:
+            if not isinstance(arg, Intrinsic1Op):
+                raise TypeError(
+                    "operation %s argument type must be "
+                    "Intrinsic1Op, got %s" % (name, type(arg).__name__)
+                )
+
+        elif opcode in INTRINSIC_2OP:
+            if not isinstance(arg, Intrinsic2Op):
+                raise TypeError(
+                    "operation %s argument type must be "
+                    "Intrinsic2Op, got %s" % (name, type(arg).__name__)
+                )
+
+        elif opcode_has_argument(opcode):
             _check_arg_int(arg, name)

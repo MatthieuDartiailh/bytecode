@@ -20,7 +20,7 @@ from bytecode import (
     Label,
     SetLineno,
 )
-from bytecode.concrete import OFFSET_AS_INSTRUCTION
+from bytecode.concrete import OFFSET_AS_INSTRUCTION, ExceptionTableEntry
 
 from . import TestCase, get_code
 
@@ -177,6 +177,20 @@ class ConcreteBytecodeTests(TestCase):
         self.assertIn("ConcreteBytecode", r)
         self.assertIn("0", r)
 
+    def test_exception_table_repr(self):
+        t = ExceptionTableEntry(0, 1, 2, 3, True)
+        self.assertSequenceEqual(
+            repr(t),
+            (
+                "ExceptionTableEntry("
+                "start_offset=0, "
+                "stop_offset=1, "
+                "target=2, "
+                "stack_depth=3, "
+                "push_lasti=True"
+            ),
+        )
+
     def test_eq(self):
         code = ConcreteBytecode()
         self.assertFalse(code == 1)
@@ -227,9 +241,15 @@ class ConcreteBytecodeTests(TestCase):
             + [
                 ConcreteInstr("LOAD_CONST", 0, lineno=1),
                 ConcreteInstr("STORE_NAME", 0, lineno=1),
-                ConcreteInstr("LOAD_CONST", 1, lineno=1),
-                ConcreteInstr("RETURN_VALUE", lineno=1),
-            ],
+            ]
+            + (
+                [ConcreteInstr("RETURN_CONST", 1, lineno=1)]
+                if sys.version_info >= (3, 12)
+                else [
+                    ConcreteInstr("LOAD_CONST", 1, lineno=1),
+                    ConcreteInstr("RETURN_VALUE", lineno=1),
+                ]
+            ),
         )
         # FIXME: test other attributes
 
@@ -274,9 +294,15 @@ class ConcreteBytecodeTests(TestCase):
                 SetLineno(fl + 5),
                 ConcreteInstr("LOAD_CONST", 3),
                 ConcreteInstr("STORE_FAST", 2),
-                ConcreteInstr("LOAD_CONST", 0),
-                ConcreteInstr("RETURN_VALUE"),
             ]
+            + (
+                [ConcreteInstr("RETURN_CONST", 0)]
+                if sys.version_info >= (3, 12)
+                else [
+                    ConcreteInstr("LOAD_CONST", 0),
+                    ConcreteInstr("RETURN_VALUE"),
+                ]
+            )
         )
 
         code = concrete.to_code()
@@ -312,6 +338,8 @@ class ConcreteBytecodeTests(TestCase):
         expected = b"d\x00Z\x00d\x01Z\x01"
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 5)
+        if sys.version_info >= (3, 12):
+            self.skipTest("lnotab is deprecated in Python 3.12+")
         self.assertEqual(code.co_lnotab, b"\x04\xfd")
 
     def test_extended_lnotab(self):
@@ -370,9 +398,15 @@ class ConcreteBytecodeTests(TestCase):
                 SetLineno(201),
                 ConcreteInstr("LOAD_CONST", 1),
                 ConcreteInstr("STORE_NAME", 1),
-                ConcreteInstr("LOAD_CONST", 2),
-                ConcreteInstr("RETURN_VALUE"),
             ]
+            + (
+                [ConcreteInstr("RETURN_CONST", 2)]
+                if sys.version_info >= (3, 12)
+                else [
+                    ConcreteInstr("LOAD_CONST", 2),
+                    ConcreteInstr("RETURN_VALUE"),
+                ]
+            )
         )
         concrete.consts = [None, 7, 8]
         concrete.names = ["x", "y"]
@@ -495,14 +529,23 @@ class ConcreteBytecodeTests(TestCase):
             ],
         )
 
+    # XXX adjust test for 3.12 in which load_classderef does not exist anymore
     def test_load_classderef(self):
+        i_name = (
+            "LOAD_FROM_DICT_OR_DEREF"
+            if sys.version_info >= (3, 12)
+            else "LOAD_CLASSDEREF"
+        )
+        i_arg = 2 if sys.version_info >= (3, 11) else 1
         concrete = ConcreteBytecode()
+        concrete.varnames = ["a"]
         concrete.cellvars = ["__class__"]
         concrete.freevars = ["__class__"]
         concrete.extend(
             [
-                ConcreteInstr("LOAD_CLASSDEREF", 1, lineno=1),
-                ConcreteInstr("STORE_DEREF", 1, lineno=1),
+                ConcreteInstr("LOAD_FAST", 0, lineno=1),
+                ConcreteInstr(i_name, i_arg, lineno=1),
+                ConcreteInstr("STORE_DEREF", i_arg, lineno=1),
             ]
         )
 
@@ -512,7 +555,8 @@ class ConcreteBytecodeTests(TestCase):
         self.assertInstructionListEqual(
             list(bytecode),
             [
-                Instr("LOAD_CLASSDEREF", FreeVar("__class__"), lineno=1),
+                Instr("LOAD_FAST", "a", lineno=1),
+                Instr(i_name, FreeVar("__class__"), lineno=1),
                 Instr("STORE_DEREF", FreeVar("__class__"), lineno=1),
             ],
         )
@@ -523,8 +567,9 @@ class ConcreteBytecodeTests(TestCase):
         self.assertInstructionListEqual(
             list(concrete),
             [
-                ConcreteInstr("LOAD_CLASSDEREF", 1, lineno=1),
-                ConcreteInstr("STORE_DEREF", 1, lineno=1),
+                ConcreteInstr("LOAD_FAST", 1, lineno=1),
+                ConcreteInstr(i_name, i_arg, lineno=1),
+                ConcreteInstr("STORE_DEREF", i_arg, lineno=1),
             ],
         )
 
@@ -533,7 +578,16 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(code.co_cellvars, ("__class__",))
         self.assertEqual(
             code.co_code,
-            bytes([opcode.opmap["LOAD_CLASSDEREF"], 1, opcode.opmap["STORE_DEREF"], 1]),
+            bytes(
+                [
+                    opcode.opmap["LOAD_FAST"],
+                    0,
+                    opcode.opmap[i_name],
+                    i_arg,
+                    opcode.opmap["STORE_DEREF"],
+                    i_arg,
+                ]
+            ),
         )
 
     def test_explicit_stacksize(self):
@@ -750,14 +804,23 @@ class ConcreteFromCodeTests(TestCase):
 
         self.assertSequenceEqual(concrete.names, names)
         self.assertSequenceEqual(concrete.consts, consts)
-        expected = first_instrs + [
-            ConcreteInstr("LOAD_CONST", 1 + const_offset, lineno=1),
-            ConcreteInstr("LOAD_CONST", 2 + const_offset, lineno=1),
-            ConcreteInstr("MAKE_FUNCTION", 4, lineno=1),
-            ConcreteInstr("STORE_NAME", name_offset, lineno=1),
-            ConcreteInstr("LOAD_CONST", 3 + const_offset, lineno=1),
-            ConcreteInstr("RETURN_VALUE", lineno=1),
-        ]
+        expected = (
+            first_instrs
+            + [
+                ConcreteInstr("LOAD_CONST", 1 + const_offset, lineno=1),
+                ConcreteInstr("LOAD_CONST", 2 + const_offset, lineno=1),
+                ConcreteInstr("MAKE_FUNCTION", 4, lineno=1),
+                ConcreteInstr("STORE_NAME", name_offset, lineno=1),
+            ]
+            + (
+                [ConcreteInstr("RETURN_CONST", 3 + const_offset, lineno=1)]
+                if sys.version_info >= (3, 12)
+                else [
+                    ConcreteInstr("LOAD_CONST", 3 + const_offset, lineno=1),
+                    ConcreteInstr("RETURN_VALUE", lineno=1),
+                ]
+            )
+        )
         self.assertInstructionListEqual(list(concrete), expected)
 
         # with EXTENDED_ARG
@@ -1288,7 +1351,7 @@ class BytecodeToConcreteTests(TestCase):
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     label,
                 ),
@@ -1308,7 +1371,7 @@ class BytecodeToConcreteTests(TestCase):
             ConcreteInstr("LOAD_NAME", 0, lineno=1),
             ConcreteInstr(
                 "POP_JUMP_FORWARD_IF_FALSE"
-                if sys.version_info >= (3, 11)
+                if (3, 12) > sys.version_info >= (3, 11)
                 else "POP_JUMP_IF_FALSE",
                 7 if OFFSET_AS_INSTRUCTION else 14,
                 lineno=1,
@@ -1463,7 +1526,7 @@ class BytecodeToConcreteTests(TestCase):
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     label_else,
                 ),
@@ -1484,7 +1547,7 @@ class BytecodeToConcreteTests(TestCase):
             ConcreteInstr("LOAD_NAME", 0, lineno=1),
             ConcreteInstr(
                 "POP_JUMP_FORWARD_IF_FALSE"
-                if sys.version_info >= (3, 11)
+                if (3, 12) > sys.version_info >= (3, 11)
                 else "POP_JUMP_IF_FALSE",
                 5 if OFFSET_AS_INSTRUCTION else 10,
                 lineno=1,
@@ -1615,7 +1678,7 @@ class BytecodeToConcreteTests(TestCase):
         if OFFSET_AS_INSTRUCTION:
             N *= 2
 
-        nop = "UNARY_POSITIVE"  # don't use NOP, dis.stack_effect will raise
+        nop = "UNARY_NEGATIVE"  # don't use NOP, dis.stack_effect will raise
 
         # The number of jumps will be equal to the number of labels.  The
         # number of passes of compute_jumps() required will be one greater

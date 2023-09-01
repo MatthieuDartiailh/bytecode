@@ -1,6 +1,25 @@
 ChangeLog
 =========
 
+unreleased: Version 0.15.0
+--------------------------
+
+New features:
+
+- Add support for Python 3.12 PR #122
+
+  Support for Python 3.12, comes with a number of changes reflecting changes in
+  CPython bytecode itself:
+
+  - handle the ability of ``LOAD_ATTR`` to replace ``LOAD_METHOD``
+    As a consequence the argument is now a ``tuple[bool, str]``
+  - similarly ``LOAD_SUPER_ATTR`` which uses the 2 lowest bits as flag takes
+    a ``tuple[bool, bool, str]`` as argument
+  - ``POP_JUMP_IF_*`` instructions are undirected in Python 3.12
+  - ``YIELD_VALUE`` now takes an argument
+  - Support for ``CALL_INSTRINSIC_1/2`` led to the addition of 2 new enums to
+    represent the argument
+
 2023-05-24: Version 0.14.2
 --------------------------
 

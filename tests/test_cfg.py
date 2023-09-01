@@ -34,15 +34,22 @@ def disassemble(
         # to make unit tests shorter
         block = blocks[-1]
         test = (
-            block[-2].name == "LOAD_CONST"
-            and block[-2].arg is None
-            and block[-1].name == "RETURN_VALUE"
+            (block[-1].name == "RETURN_CONST" and block[-1].arg is None)
+            if sys.version_info >= (3, 12)
+            else (
+                block[-2].name == "LOAD_CONST"
+                and block[-2].arg is None
+                and block[-1].name == "RETURN_VALUE"
+            )
         )
         if not test:
             raise ValueError(
                 "unable to find implicit RETURN_VALUE <None>: %s" % block[-2:]
             )
-        del block[-2:]
+        if sys.version_info >= (3, 12):
+            del block[-1]
+        else:
+            del block[-2:]
     return blocks
 
 
@@ -238,7 +245,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     blocks[2],
                     lineno=1,
@@ -271,7 +278,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     label,
                     lineno=1,
@@ -296,7 +303,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("UNARY_NOT"),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     label,
                 ),
@@ -314,7 +321,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("UNARY_NOT"),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     cfg[2],
                 ),
@@ -331,7 +338,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     label,
                     lineno=1,
@@ -358,7 +365,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     label2,
                     lineno=1,
@@ -396,7 +403,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("COMPARE_OP", Compare.EQ, lineno=2),
                 Instr(
                     "POP_JUMP_BACKWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     label_loop_start,
                     lineno=2,
@@ -433,7 +440,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("COMPARE_OP", Compare.EQ, lineno=2),
                 Instr(
                     "POP_JUMP_BACKWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     blocks[1],
                     lineno=2,
@@ -607,7 +614,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
                 Instr("LOAD_FAST", "x", lineno=4),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if sys.version_info >= (3, 11)
+                    if (3, 12) > sys.version_info >= (3, 11)
                     else "POP_JUMP_IF_FALSE",
                     block2,
                     lineno=4,
@@ -863,7 +870,8 @@ class CFGStacksizeComputationTests(TestCase):
     def test_stack_size_with_dead_code(self):
         # Simply demonstrate more directly the previously mentioned issue.
         def test(*args):  # pragma: no cover
-            return 0
+            a = 0
+            return a
             try:
                 a = args[0]
             except IndexError:
@@ -902,7 +910,7 @@ class CFGStacksizeComputationTests(TestCase):
                         Instr("LOAD_FAST", "x"),
                         Instr(
                             "POP_JUMP_FORWARD_IF_FALSE"
-                            if sys.version_info >= (3, 11)
+                            if (3, 12) > sys.version_info >= (3, 11)
                             else "POP_JUMP_IF_FALSE",
                             label_else,
                         ),
@@ -928,6 +936,10 @@ class CFGRoundTripTests(TestCase):
         from . import exception_handling_cases as ehc
 
         for f in ehc.TEST_CASES:
+            # 3.12 use one less exception table entry causing to optimize this case
+            # less than we could otherwise
+            if sys.version_info >= (3, 12) and f.__name__ == "try_except_finally":
+                continue
             print(f.__name__)
             with self.subTest(f.__name__):
                 origin = f.__code__

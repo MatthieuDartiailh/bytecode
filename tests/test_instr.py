@@ -13,15 +13,28 @@ from bytecode import (
     Label,
     SetLineno,
 )
-from bytecode.instr import InstrLocation
+from bytecode.instr import (
+    BITFLAG2_INSTRUCTIONS,
+    BITFLAG_INSTRUCTIONS,
+    INTRINSIC_1OP,
+    INTRINSIC_2OP,
+    InstrLocation,
+    Intrinsic1Op,
+    Intrinsic2Op,
+    opcode_has_argument,
+)
 
 from . import TestCase
+
+# XXX  tests for location and lineno setter
 
 # Starting with Python 3.11 jump opcode have changed quite a bit. We define here
 # opcode useful to test for both Python < 3.11 and Python >= 3.11
 UNCONDITIONAL_JUMP = "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE"
 CONDITIONAL_JUMP = (
-    "POP_JUMP_FORWARD_IF_TRUE" if sys.version_info >= (3, 11) else "POP_JUMP_IF_TRUE"
+    "POP_JUMP_FORWARD_IF_TRUE"
+    if (3, 12) > sys.version_info >= (3, 11)
+    else "POP_JUMP_IF_TRUE"
 )
 CALL = "CALL" if sys.version_info >= (3, 11) else "CALL_FUNCTION"
 
@@ -175,6 +188,31 @@ class InstrTests(TestCase):
         # not HAVE_ARGUMENT
         self.assertRaises(ValueError, Instr, "NOP", 0)
         Instr("NOP")
+
+        # Instructions using a bitflag in their oparg
+        for name in BITFLAG_INSTRUCTIONS:
+            self.assertRaises(TypeError, Instr, name, "arg")
+            self.assertRaises(TypeError, Instr, name, ("arg",))
+            self.assertRaises(TypeError, Instr, name, ("", "arg"))
+            self.assertRaises(TypeError, Instr, name, (False, 1))
+            Instr(name, (True, "arg"))
+
+        # Instructions using 2 bitflag in their oparg
+        for name in BITFLAG2_INSTRUCTIONS:
+            self.assertRaises(TypeError, Instr, name, "arg")
+            self.assertRaises(TypeError, Instr, name, ("arg",))
+            self.assertRaises(TypeError, Instr, name, ("", True, "arg"))
+            self.assertRaises(TypeError, Instr, name, (True, "", "arg"))
+            self.assertRaises(TypeError, Instr, name, (False, True, 1))
+            Instr(name, (False, True, "arg"))
+
+        for name in [opcode.opname[i] for i in INTRINSIC_1OP]:
+            self.assertRaises(TypeError, Instr, name, 1)
+            Instr(name, Intrinsic1Op.INSTRINSIC_PRINT)
+
+        for name in [opcode.opname[i] for i in INTRINSIC_2OP]:
+            self.assertRaises(TypeError, Instr, name, 1)
+            Instr(name, Intrinsic2Op.INTRINSIC_PREP_RERAISE_STAR)
 
     def test_require_arg(self):
         i = Instr(CALL, 3)
@@ -342,12 +380,14 @@ class InstrTests(TestCase):
                 self.assertEqual(jump, no_jump)
 
         for name, op in opcode.opmap.items():
+            if sys.version_info >= (3, 12) and op >= opcode.MIN_INSTRUMENTED_OPCODE:
+                continue
             print(name)
             with self.subTest(name):
                 # Use ConcreteInstr instead of Instr because it doesn't care
                 # what kind of argument it is constructed with.
                 # The 0 handles the CACHE case
-                if 0 < op < opcode.HAVE_ARGUMENT:
+                if not opcode_has_argument(op) and op != 0:
                     check(ConcreteInstr(name))
                 else:
                     for arg in range(256):
@@ -378,7 +418,10 @@ class InstrTests(TestCase):
 
         def f():
             def g():
-                return "value"
+                # Under Python 3.12+ we need a temporary var to be sure we use
+                # LOAD_CONST rather than RETURN_CONST
+                a = "value"
+                return a
 
             return g
 
@@ -398,7 +441,7 @@ class InstrTests(TestCase):
         self.assertIsNotNone(instr_load_code)
 
         g_code = Bytecode.from_code(instr_load_code.arg)
-        # UNder Python 3.11+ we the first instruction is not LOAD_CONST but RESUME
+        # Under Python 3.11+, the first instruction is not LOAD_CONST but RESUME
         for instr in g_code:
             if isinstance(each, Instr) and instr.name == "LOAD_CONST":
                 instr.arg = mutable_datum

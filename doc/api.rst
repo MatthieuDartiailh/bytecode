@@ -269,6 +269,10 @@ ConcreteInstr
 
       Assemble the instruction to a bytecode string.
 
+   .. method:: use_cache_opcodes() -> int
+
+      Number of cache opcodes that should follow the instruction.
+
 
 Compare
 -------
@@ -342,6 +346,37 @@ Binary operation
    ``BinaryOp.INPLACE_XOR`` (``25``): ``x ^= y``
 
 
+Intrinsic operations
+--------------------
+
+.. class:: Intrinsic1Op
+
+   Enum for the argument of the ``CALL_INSTRINSIC_1`` instruction (3.12+).
+
+   ``INSTRINSIC_1_INVALID``
+   ``INSTRINSIC_PRINT``
+   ``INSTRINSIC_IMPORT_STAR``
+   ``INTRINSIC_STOPITERATION_ERROR``
+   ``INTRINSIC_ASYNC_GEN_WRAP``
+   ``INTRINSIC_UNARY_POSITIVE``
+   ``INTRINSIC_LIST_TO_TUPLE``
+   ``INTRINSIC_TYPEVAR``
+   ``INTRINSIC_PARAMSPEC``
+   ``INTRINSIC_TYPEVARTUPLE``
+   ``INTRINSIC_SUBSCRIPT_GENERIC``
+   ``INTRINSIC_TYPEALIAS``
+
+.. class:: Intrinsic2Op
+
+   Enum for the argument of the ``CALL_INSTRINSIC_2`` instruction (3.12+).
+
+   ``INSTRINSIC_2_INVALID``
+   ``INTRINSIC_PREP_RERAISE_STAR``
+   ``INTRINSIC_TYPEVAR_WITH_BOUND``
+   ``INTRINSIC_TYPEVAR_WITH_CONSTRAINTS``
+   ``INTRINSIC_SET_FUNCTION_TYPE_PARAMS``
+
+
 CellVar and FreeVar
 -------------------
 
@@ -354,6 +389,7 @@ The following classes are used to represent the argument of opcode listed in
 - STORE_DEREF
 - DELETE_DEREF
 - LOAD_CLASSDEREF
+- LOAD_FROM_DICT_OR_DEREF
 
 .. class:: CellVar
 

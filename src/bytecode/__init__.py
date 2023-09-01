@@ -39,6 +39,8 @@ from bytecode.instr import (  # noqa
     Compare,
     FreeVar,
     Instr,
+    Intrinsic1Op,
+    Intrinsic2Op,
     Label,
     SetLineno,
     TryBegin,

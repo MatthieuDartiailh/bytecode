@@ -1,3 +1,4 @@
+import opcode
 import sys
 from enum import IntFlag
 from typing import Optional, Union
@@ -98,16 +99,7 @@ def infer_flags(
         flags |= CompilerFlags.OPTIMIZED
 
     # Check for free variables
-    if not (
-        instr_names
-        & {
-            "LOAD_CLOSURE",
-            "LOAD_DEREF",
-            "STORE_DEREF",
-            "DELETE_DEREF",
-            "LOAD_CLASSDEREF",
-        }
-    ):
+    if not (instr_names & {opcode.opname[i] for i in opcode.hasfree}):
         flags |= CompilerFlags.NOFREE
 
     # Copy flags for which we cannot infer the right value
