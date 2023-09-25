@@ -191,7 +191,6 @@ class InstrTests(TestCase):
 
         # Instructions using a bitflag in their oparg
         for name in BITFLAG_INSTRUCTIONS:
-            self.assertRaises(TypeError, Instr, name, "arg")
             self.assertRaises(TypeError, Instr, name, ("arg",))
             self.assertRaises(TypeError, Instr, name, ("", "arg"))
             self.assertRaises(TypeError, Instr, name, (False, 1))
@@ -449,6 +448,26 @@ class InstrTests(TestCase):
         f.__code__ = f_code.to_code()
 
         self.assertIs(f()(), mutable_datum)
+
+    def test_load_method(self):
+        from bytecode import Bytecode, Instr
+
+        class Foo:
+            def bar(self):
+                return 42
+
+        foo = Foo()
+
+        abs_code = Bytecode(
+            [
+                Instr("LOAD_CONST", foo),
+                Instr("LOAD_METHOD", "bar"),
+                Instr("BUILD_TUPLE", 2),
+                Instr("RETURN_VALUE"),
+            ]
+        )
+
+        self.assertEqual(eval(abs_code.to_code()), (Foo.bar, foo))
 
 
 class CompareTests(TestCase):

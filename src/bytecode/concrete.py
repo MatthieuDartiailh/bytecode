@@ -1143,6 +1143,17 @@ class _ConvertBytecodeToConcrete:
         free_instrs: List[int] = []
 
         for instr in self.bytecode:
+            if sys.version_info >= (3, 12) and isinstance(instr, Instr):
+                if instr.name == "LOAD_METHOD":
+                    # The LOAD_METHOD opcode has become a pseudo-instruction in
+                    # Python 3.12
+                    instr = Instr(
+                        "LOAD_ATTR",
+                        (True, instr.arg),
+                        lineno=instr.lineno,
+                        location=instr.location,
+                    )
+
             # Enforce proper use of CACHE opcode on Python 3.11+ by checking we get the
             # number we expect or directly generate the needed ones.
             if isinstance(instr, Instr) and instr.name == "CACHE":

@@ -805,6 +805,9 @@ class Instr(BaseInstr[InstrArg]):
 
         elif opcode in _opcode.haslocal or opcode in _opcode.hasname:
             if name in BITFLAG_INSTRUCTIONS:
+                if isinstance(arg, str):
+                    # Assume the bitflag is not set
+                    arg = (False, arg)
                 if not (
                     isinstance(arg, tuple)
                     and len(arg) == 2
