@@ -208,7 +208,7 @@ class InstrTests(TestCase):
 
         for name in [opcode.opname[i] for i in INTRINSIC_1OP]:
             self.assertRaises(TypeError, Instr, name, 1)
-            Instr(name, Intrinsic1Op.INSTRINSIC_PRINT)
+            Instr(name, Intrinsic1Op.INTRINSIC_PRINT)
 
         for name in [opcode.opname[i] for i in INTRINSIC_2OP]:
             self.assertRaises(TypeError, Instr, name, 1)
