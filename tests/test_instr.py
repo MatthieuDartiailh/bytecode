@@ -138,6 +138,12 @@ class InstrTests(TestCase):
         self.assertIn("arg", r)
         self.assertIn("_x_", r)
 
+    def test_reject_pseudo_opcode(self):
+        if sys.version_info >= (3, 12):
+            with self.assertRaises(ValueError) as e:
+                Instr("LOAD_METHOD", "x")
+            self.assertIn("is an instrumented or pseudo opcode", str(e.exception))
+
     def test_invalid_arg(self):
         label = Label()
         block = BasicBlock()

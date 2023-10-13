@@ -14,7 +14,9 @@ except ImportError:
 
 import bytecode as _bytecode
 
-# --- Instruction argument tools and abstractions
+# --- Instruction argument tools and
+
+MIN_INSTRUMENTED_OPCODE = getattr(_opcode, "MIN_INSTRUMENTED_OPCODE", 256)
 
 # Instructions relying on a bit to modify its behavior.
 # The lowest bit is used to encode custom behavior.
@@ -733,6 +735,12 @@ class BaseInstr(Generic[A]):
             opcode = _opcode.opmap[name]
         except KeyError:
             raise ValueError(f"invalid operation name: {name}")
+
+        if opcode >= MIN_INSTRUMENTED_OPCODE:
+            raise ValueError(
+                f"operation {name} is an instrumented or pseudo opcode. "
+                "Only base opcodes are supported"
+            )
 
         self._check_arg(name, opcode, arg)
 
