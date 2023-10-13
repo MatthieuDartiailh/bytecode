@@ -529,7 +529,6 @@ class ConcreteBytecodeTests(TestCase):
             ],
         )
 
-    # XXX adjust test for 3.12 in which load_classderef does not exist anymore
     def test_load_classderef(self):
         i_name = (
             "LOAD_FROM_DICT_OR_DEREF"
@@ -681,6 +680,11 @@ class ConcreteBytecodeTests(TestCase):
             ]
         )
         self.assertInstructionListEqual(concrete, concrete.copy())
+
+    def test_encode_varint(self):
+        self.assertListEqual(list(ConcreteBytecode._encode_varint(0)), [0])
+        self.assertListEqual(list(ConcreteBytecode._encode_varint(0, True)), [128])
+        self.assertListEqual(list(ConcreteBytecode._encode_varint(64, False)), [65, 0])
 
 
 class ConcreteFromCodeTests(TestCase):
