@@ -1,6 +1,14 @@
 ChangeLog
 =========
 
+2023-10-13: Version 0.15.1
+--------------------------
+
+Bugfixes:
+
+- Correct spelling of "INTRINSIC" in several places; this affected
+  some ops in Python 3.12.  PR #131
+
 2023-09-01: Version 0.15.0
 --------------------------
 
@@ -17,7 +25,7 @@ New features:
     a ``tuple[bool, bool, str]`` as argument
   - ``POP_JUMP_IF_*`` instructions are undirected in Python 3.12
   - ``YIELD_VALUE`` now takes an argument
-  - Support for ``CALL_INSTRINSIC_1/2`` led to the addition of 2 new enums to
+  - Support for ``CALL_INTRINSIC_1/2`` led to the addition of 2 new enums to
     represent the argument
 
 2023-05-24: Version 0.14.2

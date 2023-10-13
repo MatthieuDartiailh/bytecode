@@ -351,11 +351,11 @@ Intrinsic operations
 
 .. class:: Intrinsic1Op
 
-   Enum for the argument of the ``CALL_INSTRINSIC_1`` instruction (3.12+).
+   Enum for the argument of the ``CALL_INTRINSIC_1`` instruction (3.12+).
 
-   ``INSTRINSIC_1_INVALID``
-   ``INSTRINSIC_PRINT``
-   ``INSTRINSIC_IMPORT_STAR``
+   ``INTRINSIC_1_INVALID``
+   ``INTRINSIC_PRINT``
+   ``INTRINSIC_IMPORT_STAR``
    ``INTRINSIC_STOPITERATION_ERROR``
    ``INTRINSIC_ASYNC_GEN_WRAP``
    ``INTRINSIC_UNARY_POSITIVE``
@@ -368,9 +368,9 @@ Intrinsic operations
 
 .. class:: Intrinsic2Op
 
-   Enum for the argument of the ``CALL_INSTRINSIC_2`` instruction (3.12+).
+   Enum for the argument of the ``CALL_INTRINSIC_2`` instruction (3.12+).
 
-   ``INSTRINSIC_2_INVALID``
+   ``INTRINSIC_2_INVALID``
    ``INTRINSIC_PREP_RERAISE_STAR``
    ``INTRINSIC_TYPEVAR_WITH_BOUND``
    ``INTRINSIC_TYPEVAR_WITH_CONSTRAINTS``
