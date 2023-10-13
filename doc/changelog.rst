@@ -1,6 +1,14 @@
 ChangeLog
 =========
 
+2023-10-13: Version 0.15.1
+--------------------------
+
+Bugfixes:
+
+- Correct spelling of "INTRINSIC" in several places; this affected
+  some ops in Python 3.12.  PR #131
+
 2023-09-01: Version 0.15.0
 --------------------------
 
