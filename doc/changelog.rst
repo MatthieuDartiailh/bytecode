@@ -6,6 +6,7 @@ ChangeLog
 
 Bugfixes:
 
+- Disallow creating an instruction targeting a pseudo/instrumented opcode PR #133
 - Fixes encoding of 0 as a varint PR #132
 - Correct spelling of "INTRINSIC" in several places; this affected
   some ops in Python 3.12.  PR #131
