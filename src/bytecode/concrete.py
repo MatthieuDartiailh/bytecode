@@ -818,9 +818,10 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         while value:
             temp.append(value & 63 | (64 if temp else 0))
             value >>= 6
+        temp = temp or [0]
         if set_begin_marker:
             temp[-1] |= 128
-        return reversed(temp or [0])
+        return reversed(temp)
 
     def _assemble_exception_table(self) -> bytes:
         table = bytearray()
