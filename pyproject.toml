@@ -73,9 +73,9 @@ __version__ = "{version}"
   [tool.ruff.mccabe]
     max-complexity = 42
 
-  [tool.pytest.ini_options]
-    minversion = "6.0"
-
 [tool.mypy]
   follow_imports = "normal"
   strict_optional = true
+
+[tool.pytest.ini_options]
+  minversion = "6.0"
