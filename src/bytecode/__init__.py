@@ -183,7 +183,7 @@ def format_bytecode(
         for block_index, block in enumerate(bytecode, 1):
             cfg_labels[id(block)] = "block%s" % block_index
 
-        for block in bytecode[:1]:
+        for block in bytecode:
             buffer.write("%s:\n" % cfg_labels[id(block)])
             seen_instr = False
             for index, instr in enumerate(block):
