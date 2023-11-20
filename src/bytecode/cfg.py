@@ -478,7 +478,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         try:
             return self._block_index[id(block)]
         except KeyError:
-            raise ValueError("the block is not part of this bytecode")
+            raise ValueError(f"the block {block} is not part of this bytecode")  # noqa
 
     def _add_block(self, block: BasicBlock) -> None:
         block_index = len(self._blocks)
@@ -678,8 +678,8 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         block = self._blocks[index]
         del self._blocks[index]
         del self._block_index[id(block)]
-        for index in range(index, len(self)):
-            block = self._blocks[index]
+        for i in range(index, len(self)):
+            block = self._blocks[i]
             self._block_index[id(block)] -= 1
 
     def split_block(self, block: BasicBlock, index: int) -> BasicBlock:

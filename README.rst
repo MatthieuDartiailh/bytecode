@@ -18,9 +18,9 @@ bytecode
    :alt: Code coverage of bytecode on codecov.io
    :target: https://codecov.io/github/MatthieuDartiailh/bytecode
 
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
-   :alt: Code formatted using Black
-   :target: https://github.com/psf/black
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+    :target: https://github.com/astral-sh/ruff
+    :alt: Ruff
 
 ``bytecode`` is a Python module to generate and modify bytecode.
 

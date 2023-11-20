@@ -335,9 +335,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             ]
         else:
             if sys.version_info >= (3, 10):
-                line_starts = dict(
-                    (offset, lineno) for offset, _, lineno in code.co_lines()
-                )
+                line_starts = {offset: lineno for offset, _, lineno in code.co_lines()}
             else:
                 line_starts = dict(dis.findlinestarts(code))
 
@@ -528,7 +526,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         else:
             old_dlineno = old_lineno - first_lineno
 
-        for offset, i_size, lineno, location in iter_in:
+        # i_size is used after we exit the loop
+        for offset, i_size, lineno, location in iter_in:  # noqa
             if location is not None:
                 dlineno = (
                     location.lineno - old_lineno
@@ -1313,7 +1312,7 @@ class _ConvertBytecodeToConcrete:
         label_offsets = []
         instruction_offsets = []
         offset = 0
-        for index, instr in enumerate(self.instructions):
+        for instr in self.instructions:
             label_offsets.append(offset)
             # If an instruction uses extended args, those appear before the instruction
             # causing the instruction to appear at offset that accounts for extended
@@ -1399,13 +1398,14 @@ class _ConvertBytecodeToConcrete:
         self.varnames.extend(self.bytecode.argnames)
 
         self.concrete_instructions()
-        for pas in range(0, compute_jumps_passes):
+        for _ in range(0, compute_jumps_passes):
             modified = self.compute_jumps()
             if not modified:
                 break
         else:
             raise RuntimeError(
-                "compute_jumps() failed to converge after" " %d passes" % (pas + 1)
+                "compute_jumps() failed to converge after"
+                " %d passes" % (compute_jumps_passes)
             )
 
         concrete = ConcreteBytecode(

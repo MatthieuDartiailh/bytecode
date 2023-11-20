@@ -20,8 +20,7 @@ from bytecode import (
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
 
-from . import TestCase
-from . import disassemble as _disassemble
+from . import TestCase, disassemble as _disassemble
 
 
 def disassemble(
@@ -785,7 +784,7 @@ class CFGStacksizeComputationTests(TestCase):
             try:
                 return args[0]
             finally:
-                return 2
+                return 2  # noqa
 
         self.check_stack_size(test)
 
@@ -822,7 +821,7 @@ class CFGStacksizeComputationTests(TestCase):
                 pass
             except Exception:
                 try:
-                    assert False
+                    raise RuntimeError
                 except Exception:
                     return 2
                 finally:

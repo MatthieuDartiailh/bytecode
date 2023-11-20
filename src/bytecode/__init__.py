@@ -16,7 +16,7 @@ from io import StringIO
 from typing import List, Union
 
 # import needed to use it in bytecode.py
-from bytecode.bytecode import (  # noqa
+from bytecode.bytecode import (
     BaseBytecode,
     Bytecode,
     _BaseBytecodeList,
@@ -24,15 +24,18 @@ from bytecode.bytecode import (  # noqa
 )
 
 # import needed to use it in bytecode.py
-from bytecode.cfg import BasicBlock, ControlFlowGraph  # noqa
+from bytecode.cfg import BasicBlock, ControlFlowGraph
 
 # import needed to use it in bytecode.py
-from bytecode.concrete import _ConvertBytecodeToConcrete  # noqa
-from bytecode.concrete import ConcreteBytecode, ConcreteInstr
+from bytecode.concrete import (
+    ConcreteBytecode,
+    ConcreteInstr,
+    _ConvertBytecodeToConcrete,
+)
 from bytecode.flags import CompilerFlags
 
 # import needed to use it in bytecode.py
-from bytecode.instr import (  # noqa
+from bytecode.instr import (
     UNSET,
     BinaryOp,
     CellVar,
@@ -180,7 +183,7 @@ def format_bytecode(
         for block_index, block in enumerate(bytecode, 1):
             cfg_labels[id(block)] = "block%s" % block_index
 
-        for block_index, block in enumerate(bytecode, 1):
+        for block in bytecode:
             buffer.write("%s:\n" % cfg_labels[id(block)])
             seen_instr = False
             for index, instr in enumerate(block):

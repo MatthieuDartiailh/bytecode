@@ -4,9 +4,9 @@ import textwrap
 import types
 import unittest
 
-from bytecode import BasicBlock  # noqa
 from bytecode import (
     UNSET,
+    BasicBlock,
     Bytecode,
     ConcreteBytecode,
     ConcreteInstr,

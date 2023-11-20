@@ -734,7 +734,7 @@ class BaseInstr(Generic[A]):
         try:
             opcode = _opcode.opmap[name]
         except KeyError:
-            raise ValueError(f"invalid operation name: {name}")
+            raise ValueError(f"invalid operation name: {name}")  # noqa
 
         if opcode >= MIN_INSTRUMENTED_OPCODE:
             raise ValueError(
