@@ -731,7 +731,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
     @staticmethod
     def _remove_extended_args(
-        instructions: MutableSequence[Union[SetLineno, ConcreteInstr]]
+        instructions: MutableSequence[Union[SetLineno, ConcreteInstr]],
     ) -> None:
         # replace jump targets with blocks
         # HINT : in some cases Python generate useless EXTENDED_ARG opcode
