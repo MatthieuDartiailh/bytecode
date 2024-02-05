@@ -13,7 +13,6 @@ on:
       - "src/**"
       - "doc/**"
       - pyproject.toml
-      - setup.py
 
 jobs:
   docs:

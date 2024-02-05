@@ -12,7 +12,6 @@ on:
       - "src/**"
       - "tests/frameworks/*"
       - pyproject.toml
-      - setup.py
       - tox.ini
 
 jobs:

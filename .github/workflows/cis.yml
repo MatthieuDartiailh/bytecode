@@ -13,7 +13,6 @@ on:
       - "src/**"
       - "tests/*"
       - pyproject.toml
-      - setup.py
       - tox.ini
 
 jobs:
