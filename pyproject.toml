@@ -61,17 +61,19 @@ __version__ = "{version}"
 
 [tool.ruff]
   src = ["src"]
-  select = ["B", "C", "E", "F", "W", "B9", "I", "C90", "RUF"]
   extend-exclude = ["tests/instruments/hardware/nifpga/scope_based"]
-  extend-ignore = ["E203", "E266", "E501", "F403", "F401", "RUF012"]
   line-length = 88
 
-  [tool.ruff.isort]
-    combine-as-imports = true
-    extra-standard-library = ["opcode"]
+  [tool.ruff.lint]
+    select = ["B", "C", "E", "F", "W", "B9", "I", "C90", "RUF"]
+    extend-ignore = ["E203", "E266", "E501", "F403", "F401", "RUF012"]
 
-  [tool.ruff.mccabe]
-    max-complexity = 42
+    [tool.ruff.lint.isort]
+      combine-as-imports = true
+      extra-standard-library = ["opcode"]
+
+    [tool.ruff.lint.mccabe]
+      max-complexity = 42
 
 [tool.mypy]
   follow_imports = "normal"

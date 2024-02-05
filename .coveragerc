@@ -1,7 +1,5 @@
 [run]
 branch = True
-omit =
-    setup.py
 
 [paths]
 source =
