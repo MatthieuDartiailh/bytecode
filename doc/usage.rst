@@ -22,9 +22,9 @@ Example using abstract bytecode to execute ``print('Hello World!')``::
 
     from bytecode import Instr, Bytecode
 
-    bytecode = Bytecode([Instr("LOAD_NAME", 'print'),
+    bytecode = Bytecode([Instr("LOAD_GLOBAL", (True, 'print')),
                          Instr("LOAD_CONST", 'Hello World!'),
-                         Instr("CALL_FUNCTION", 1),
+                         Instr("CALL", 1),
                          Instr("POP_TOP"),
                          Instr("LOAD_CONST", None),
                          Instr("RETURN_VALUE")])
@@ -46,9 +46,9 @@ Example using concrete bytecode to execute ``print('Hello World!')``::
     bytecode = ConcreteBytecode()
     bytecode.names = ['print']
     bytecode.consts = ['Hello World!', None]
-    bytecode.extend([ConcreteInstr("LOAD_NAME", 0),
+    bytecode.extend([ConcreteInstr("LOAD_GLOBAL", 1),
                      ConcreteInstr("LOAD_CONST", 0),
-                     ConcreteInstr("CALL_FUNCTION", 1),
+                     ConcreteInstr("CALL", 1),
                      ConcreteInstr("POP_TOP"),
                      ConcreteInstr("LOAD_CONST", 1),
                      ConcreteInstr("RETURN_VALUE")])
@@ -110,14 +110,15 @@ Bytecode of ``for x in (1, 2, 3): print(x)``:
                     loop_start,
                         Instr("FOR_ITER", loop_exit),
                         Instr("STORE_NAME", "x"),
-                        Instr("LOAD_NAME", "print"),
+                        Instr("LOAD_GLOBAL", (True, "print")),
                         Instr("LOAD_NAME", "x"),
-                        Instr("CALL_FUNCTION", 1),
+                        Instr("CALL", 1),
                         Instr("POP_TOP"),
-                        Instr("JUMP_ABSOLUTE", loop_start),
+                        Instr("JUMP_BACKWARD", loop_start),
                     # Python 3.8 removed the need to manually manage blocks in loops
                     # This is now handled internally by the interpreter
                     loop_exit,
+                        Instr("END_FOR"),
                         Instr("LOAD_CONST", None),
                         Instr("RETURN_VALUE"),
                 ]
@@ -146,7 +147,7 @@ Bytecode of the Python code ``print('yes' if test else 'no')``::
 
     label_else = Label()
     label_print = Label()
-    bytecode = Bytecode([Instr('LOAD_NAME', 'print'),
+    bytecode = Bytecode([Instr('LOAD_GLOBAL', (True, 'print')),
                          Instr('LOAD_NAME', 'test'),
                          Instr('POP_JUMP_IF_FALSE', label_else),
                              Instr('LOAD_CONST', 'yes'),
@@ -154,7 +155,7 @@ Bytecode of the Python code ``print('yes' if test else 'no')``::
                          label_else,
                              Instr('LOAD_CONST', 'no'),
                          label_print,
-                             Instr('CALL_FUNCTION', 1),
+                             Instr('CALL', 1),
                          Instr('LOAD_CONST', None),
                          Instr('RETURN_VALUE')])
     code = bytecode.to_code()

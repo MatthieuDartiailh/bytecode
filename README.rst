@@ -43,9 +43,9 @@ Example executing ``print('Hello World!')``:
 
     from bytecode import Instr, Bytecode
 
-    bytecode = Bytecode([Instr("LOAD_NAME", 'print'),
+    bytecode = Bytecode([Instr("LOAD_GLOBAL", (True, 'print')),
                          Instr("LOAD_CONST", 'Hello World!'),
-                         Instr("CALL_FUNCTION", 1),
+                         Instr("CALL", 1),
                          Instr("POP_TOP"),
                          Instr("LOAD_CONST", None),
                          Instr("RETURN_VALUE")])
