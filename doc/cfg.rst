@@ -22,7 +22,7 @@ Dump the control flow graph of the :ref:`conditional jump example
     label_print = Label()
     bytecode = Bytecode([Instr('LOAD_GLOBAL', (True, 'print')),
                          Instr('LOAD_NAME', 'test'),
-                        Instr('POP_JUMP_IF_FALSE', label_else),
+                         Instr('POP_JUMP_IF_FALSE', label_else),
                              Instr('LOAD_CONST', 'yes'),
                              Instr('JUMP_FORWARD', label_print),
                          label_else,
