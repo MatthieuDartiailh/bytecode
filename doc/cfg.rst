@@ -20,15 +20,15 @@ Dump the control flow graph of the :ref:`conditional jump example
 
     label_else = Label()
     label_print = Label()
-    bytecode = Bytecode([Instr('LOAD_NAME', 'print'),
+    bytecode = Bytecode([Instr('LOAD_GLOBAL', (True, 'print')),
                          Instr('LOAD_NAME', 'test'),
-                         Instr('POP_JUMP_IF_FALSE', label_else),
+                        Instr('POP_JUMP_IF_FALSE', label_else),
                              Instr('LOAD_CONST', 'yes'),
                              Instr('JUMP_FORWARD', label_print),
                          label_else,
                              Instr('LOAD_CONST', 'no'),
                          label_print,
-                             Instr('CALL_FUNCTION', 1),
+                             Instr('CALL', 1),
                          Instr('LOAD_CONST', None),
                          Instr('RETURN_VALUE')])
 
@@ -38,7 +38,7 @@ Dump the control flow graph of the :ref:`conditional jump example
 Output::
 
     block1:
-        LOAD_NAME 'print'
+        LOAD_GLOBAL (True, 'print')
         LOAD_NAME 'test'
         POP_JUMP_IF_FALSE <block3>
         -> block2
@@ -52,7 +52,7 @@ Output::
         -> block4
 
     block4:
-        CALL_FUNCTION 1
+        CALL 1
         LOAD_CONST None
         RETURN_VALUE
 
@@ -107,7 +107,7 @@ Example of a ``display_blocks()`` function::
 
     label_else = Label()
     label_print = Label()
-    bytecode = Bytecode([Instr('LOAD_NAME', 'print'),
+    bytecode = Bytecode([Instr('LOAD_GLOBAL', (True, 'print')),
                          Instr('LOAD_NAME', 'test'),
                          Instr('POP_JUMP_IF_FALSE', label_else),
                              Instr('LOAD_CONST', 'yes'),
@@ -115,7 +115,7 @@ Example of a ``display_blocks()`` function::
                          label_else,
                              Instr('LOAD_CONST', 'no'),
                          label_print,
-                             Instr('CALL_FUNCTION', 1),
+                             Instr('CALL', 1),
                          Instr('LOAD_CONST', None),
                          Instr('RETURN_VALUE')])
 
@@ -125,7 +125,7 @@ Example of a ``display_blocks()`` function::
 Output::
 
     Block #1
-        LOAD_NAME 'print'
+        LOAD_GLOBAL (True, 'print')
         LOAD_NAME 'test'
         POP_JUMP_IF_FALSE <block #3>
         => <block #2>
@@ -139,7 +139,7 @@ Output::
         => <block #4>
 
     Block #4
-        CALL_FUNCTION 1
+        CALL 1
         LOAD_CONST None
         RETURN_VALUE
 
@@ -193,7 +193,7 @@ Example to a recursive ``display_block()`` function::
 
     label_else = Label()
     label_print = Label()
-    bytecode = Bytecode([Instr('LOAD_NAME', 'print'),
+    bytecode = Bytecode([Instr('LOAD_GLOBAL', (True, 'print')),
                          Instr('LOAD_NAME', 'test'),
                          Instr('POP_JUMP_IF_FALSE', label_else),
                              Instr('LOAD_CONST', 'yes'),
@@ -201,7 +201,7 @@ Example to a recursive ``display_block()`` function::
                          label_else,
                              Instr('LOAD_CONST', 'no'),
                          label_print,
-                             Instr('CALL_FUNCTION', 1),
+                             Instr('CALL', 1),
                          Instr('LOAD_CONST', None),
                          Instr('RETURN_VALUE')])
 
@@ -211,7 +211,7 @@ Example to a recursive ``display_block()`` function::
 Output::
 
     Block #1
-        LOAD_NAME 'print'
+        LOAD_GLOBAL (True, 'print')
         LOAD_NAME 'test'
         POP_JUMP_IF_FALSE <block #3>
         => <block #2>
@@ -221,7 +221,7 @@ Output::
         JUMP_FORWARD <block #4>
 
     Block #4
-        CALL_FUNCTION 1
+        CALL 1
         LOAD_CONST None
         RETURN_VALUE
 
