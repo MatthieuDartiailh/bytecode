@@ -50,7 +50,7 @@ jobs:
             toxenv: py310
           - python-version: "3.11"
             toxenv: py311
-          - python-version: "3.12-dev"
+          - python-version: "3.12"
             toxenv: py312
     steps:
       - uses: actions/checkout@v4
