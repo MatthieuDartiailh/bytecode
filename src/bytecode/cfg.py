@@ -78,12 +78,10 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
     @overload
     def __getitem__(
         self, index: SupportsIndex
-    ) -> Union[Instr, SetLineno, TryBegin, TryEnd]:
-        ...
+    ) -> Union[Instr, SetLineno, TryBegin, TryEnd]: ...
 
     @overload
-    def __getitem__(self: T, index: slice) -> T:
-        ...
+    def __getitem__(self: T, index: slice) -> T: ...
 
     def __getitem__(self, index):
         value = super().__getitem__(index)
@@ -660,12 +658,10 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         return iter(self._blocks)
 
     @overload
-    def __getitem__(self, index: Union[int, BasicBlock]) -> BasicBlock:
-        ...
+    def __getitem__(self, index: Union[int, BasicBlock]) -> BasicBlock: ...
 
     @overload
-    def __getitem__(self: U, index: slice) -> U:
-        ...
+    def __getitem__(self: U, index: slice) -> U: ...
 
     def __getitem__(self, index):
         if isinstance(index, BasicBlock):

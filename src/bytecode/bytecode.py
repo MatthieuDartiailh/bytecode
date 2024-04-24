@@ -120,12 +120,10 @@ class _BaseBytecodeList(BaseBytecode, list, Generic[U]):
     """List subclass providing type stable slicing and copying."""
 
     @overload
-    def __getitem__(self, index: SupportsIndex) -> U:
-        ...
+    def __getitem__(self, index: SupportsIndex) -> U: ...
 
     @overload
-    def __getitem__(self: T, index: slice) -> T:
-        ...
+    def __getitem__(self: T, index: slice) -> T: ...
 
     def __getitem__(self, index):
         value = super().__getitem__(index)
