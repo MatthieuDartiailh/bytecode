@@ -712,6 +712,64 @@ class BytecodeTests(TestCase):
                 while callable(f := f()):
                     pass
 
+    def test_empty_try_block(self):
+        if sys.version_info < (3, 11):
+            self.skipTest("Exception tables were introduced in 3.11")
+
+        import bytecode as b
+
+        def foo():
+            return 42
+
+        code = Bytecode.from_code(foo.__code__)
+
+        try_begin = b.TryBegin(Label(), push_lasti=True)
+        code[1:1] = [try_begin, b.TryEnd(try_begin), try_begin.target]
+
+        foo.__code__ = code.to_code()
+
+        # Test that the function is still good
+        self.assertEqual(foo(), 42)
+
+        # Test that we can re-decompile the code
+        code = Bytecode.from_code(foo.__code__)
+        foo.__code__ = code.to_code()
+
+        # Test that the function is still good
+        self.assertEqual(foo(), 42)
+
+        # Do another round trip
+        Bytecode.from_code(foo.__code__).to_code()
+
+    def test_try_block_around_extended_arg(self):
+        if sys.version_info < (3, 11):
+            self.skipTest("Exception tables were introduced in 3.11")
+
+        import bytecode as b
+
+        def foo():
+            return 42
+
+        bc = Bytecode.from_code(foo.__code__)
+
+        try_begin = b.TryBegin(Label(), push_lasti=True)
+        bc[1:1] = [
+            try_begin,
+            Instr("JUMP_FORWARD", try_begin.target),
+            b.TryEnd(try_begin),
+            *(Instr("NOP") for _ in range(400)),
+            try_begin.target,
+        ]
+
+        foo.__code__ = bc.to_code()
+
+        self.assertEqual(foo(), 42)
+
+        # Do another round trip
+        foo.__code__ = Bytecode.from_code(foo.__code__).to_code()
+
+        self.assertEqual(foo(), 42)
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover
