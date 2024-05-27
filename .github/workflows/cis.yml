@@ -52,6 +52,8 @@ jobs:
             toxenv: py311
           - python-version: "3.12"
             toxenv: py312
+          - python-version: "3.13-dev"
+            toxenv: py313
     steps:
       - uses: actions/checkout@v4
       - name: Get history and tags for SCM versioning to work
