@@ -181,7 +181,7 @@ class ConcreteInstr(BaseInstr[int]):
         return (
             # Not supposed to be used but we need it
             dis._inline_cache_entries[self._opcode]  # type: ignore
-            if PY311
+            if PY311 and self._opcode in dis._inline_cache_entries
             else 0
         )
 
