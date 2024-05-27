@@ -13,7 +13,7 @@ except ImportError:
     from typing_extensions import TypeGuard  # type: ignore
 
 import bytecode as _bytecode
-from bytecode.utils import PY312, PY311, PY313
+from bytecode.utils import PY311, PY312, PY313
 
 # --- Instruction argument tools and
 

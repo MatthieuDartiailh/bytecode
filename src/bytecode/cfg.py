@@ -23,7 +23,7 @@ import bytecode as _bytecode
 from bytecode.concrete import ConcreteInstr
 from bytecode.flags import CompilerFlags
 from bytecode.instr import UNSET, Instr, Label, SetLineno, TryBegin, TryEnd
-from bytecode.utils import PY311, PY310
+from bytecode.utils import PY310, PY311
 
 T = TypeVar("T", bound="BasicBlock")
 U = TypeVar("U", bound="ControlFlowGraph")
