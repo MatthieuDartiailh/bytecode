@@ -39,6 +39,9 @@ INTRINSIC_2OP = (
 )
 INTRINSIC = INTRINSIC_1OP + INTRINSIC_2OP
 
+HASJABS = () if sys.version_info >= (3, 13) else _opcode.hasjabs
+HASJREL = _opcode.hasjump if sys.version_info >= (3, 13) else _opcode.hasjrel
+
 
 # Used for COMPARE_OP opcode argument
 @enum.unique
@@ -59,18 +62,27 @@ class Compare(enum.IntEnum):
     if sys.version_info >= (3, 12):
 
         def _get_mask(self):
-            if self == Compare.EQ:
+            v = self & 0b1111
+            if v == Compare.EQ:
                 return 8
-            elif self == Compare.NE:
+            elif v == Compare.NE:
                 return 1 + 2 + 4
-            elif self == Compare.LT:
+            elif v == Compare.LT:
                 return 2
-            elif self == Compare.LE:
+            elif v == Compare.LE:
                 return 2 + 8
-            elif self == Compare.GT:
+            elif v == Compare.GT:
                 return 4
-            elif self == Compare.GE:
+            elif v == Compare.GE:
                 return 4 + 8
+
+    if sys.version_info >= (3, 13):
+        LT_CAST = 0 + 16
+        LE_CAST = 1 + 16
+        EQ_CAST = 2 + 16
+        NE_CAST = 3 + 16
+        GT_CAST = 4 + 16
+        GE_CAST = 5 + 16
 
 
 # Used for BINARY_OP under Python 3.11+
@@ -326,6 +338,10 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     "LOAD_FROM_DICT_OR_DEREF": (-1, 1),
     "LOAD_INTRISIC_1": (-1, 1),
     "LOAD_INTRISIC_2": (-2, 1),
+    "SET_FUNCTION_ATTRIBUTE": (-2, 1),  # new in 3.13
+    "CONVERT_VALUE": (-1, 1),  # new in 3.13
+    "FORMAT_SIMPLE": (-1, 1),  # new in 3.13
+    "FORMAT_SPEC": (-2, 1),  # new in 3.13
 }
 
 
@@ -340,6 +356,8 @@ DYNAMIC_STACK_EFFECTS: Dict[
         -2 - arg if sys.version_info >= (3, 12) else -2,
         1,
     ),
+    # 3.13 only
+    "CALL_KW": lambda effect, arg, jump: (-2 - arg, 1),
     # 3.12 changed the behavior of LOAD_ATTR
     "LOAD_ATTR": lambda effect, arg, jump: (-1, 1 + effect),
     "LOAD_SUPER_ATTR": lambda effect, arg, jump: (-3, 3 + effect),
@@ -683,15 +701,15 @@ class BaseInstr(Generic[A]):
 
     def is_abs_jump(self) -> bool:
         """Is an absolute jump."""
-        return self._opcode in _opcode.hasjabs
+        return self._opcode in HASJABS
 
     def is_forward_rel_jump(self) -> bool:
         """Is a forward relative jump."""
-        return self._opcode in _opcode.hasjrel and "BACKWARD" not in self._name
+        return self._opcode in HASJREL and "BACKWARD" not in self._name
 
     def is_backward_rel_jump(self) -> bool:
         """Is a backward relative jump."""
-        return self._opcode in _opcode.hasjrel and "BACKWARD" in self._name
+        return self._opcode in HASJREL and "BACKWARD" in self._name
 
     def is_final(self) -> bool:
         if self._name in {
