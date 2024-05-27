@@ -1046,7 +1046,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                         arg = FreeVar(name)
                 elif c_instr.opcode in _opcode.hascompare:
                     arg = Compare(
-                        (c_arg >> 4) if sys.version_info >= (3, 12) else c_arg
+                        (c_arg >> 5) + (c_arg & 16) << 4
+                        if sys.version_info >= (3, 13)
+                        else ((c_arg >> 4) if sys.version_info >= (3, 12) else c_arg)
                     )
                 elif c_instr.opcode in INTRINSIC_1OP:
                     arg = Intrinsic1Op(c_arg)
@@ -1273,9 +1275,17 @@ class _ConvertBytecodeToConcrete:
                     arg = self.bytecode.freevars.index(arg.name)
             elif instr.opcode in _opcode.hascompare:
                 if isinstance(arg, Compare):
+                    # In Python 3.13 the 4 lowest bits are used for caching
+                    # and the 5th one indicate a cast to bool
+                    if sys.version_info >= (3, 13):
+                        arg = (
+                            arg._get_mask()
+                            + ((arg.value & 0b1111) << 4)
+                            + (arg.value & 16)
+                        )
                     # In Python 3.12 the 4 lowest bits are used for caching
                     # See compare_masks in compile.c
-                    if sys.version_info >= (3, 12):
+                    elif sys.version_info >= (3, 12):
                         arg = arg._get_mask() + (arg.value << 4)
                     else:
                         arg = arg.value
