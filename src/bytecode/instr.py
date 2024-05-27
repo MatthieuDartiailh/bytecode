@@ -13,6 +13,7 @@ except ImportError:
     from typing_extensions import TypeGuard  # type: ignore
 
 import bytecode as _bytecode
+from bytecode.utils import PY312, PY311, PY313
 
 # --- Instruction argument tools and
 
@@ -21,26 +22,18 @@ MIN_INSTRUMENTED_OPCODE = getattr(_opcode, "MIN_INSTRUMENTED_OPCODE", 256)
 # Instructions relying on a bit to modify its behavior.
 # The lowest bit is used to encode custom behavior.
 BITFLAG_INSTRUCTIONS = (
-    ("LOAD_GLOBAL", "LOAD_ATTR")
-    if sys.version_info >= (3, 12)
-    else ("LOAD_GLOBAL",)
-    if sys.version_info >= (3, 11)
-    else ()
+    ("LOAD_GLOBAL", "LOAD_ATTR") if PY312 else ("LOAD_GLOBAL",) if PY311 else ()
 )
 
-BITFLAG2_INSTRUCTIONS = ("LOAD_SUPER_ATTR",) if sys.version_info >= (3, 12) else ()
+BITFLAG2_INSTRUCTIONS = ("LOAD_SUPER_ATTR",) if PY312 else ()
 
 # Intrinsic related opcodes
-INTRINSIC_1OP = (
-    (_opcode.opmap["CALL_INTRINSIC_1"],) if sys.version_info >= (3, 12) else ()
-)
-INTRINSIC_2OP = (
-    (_opcode.opmap["CALL_INTRINSIC_2"],) if sys.version_info >= (3, 12) else ()
-)
+INTRINSIC_1OP = (_opcode.opmap["CALL_INTRINSIC_1"],) if PY312 else ()
+INTRINSIC_2OP = (_opcode.opmap["CALL_INTRINSIC_2"],) if PY312 else ()
 INTRINSIC = INTRINSIC_1OP + INTRINSIC_2OP
 
-HASJABS = () if sys.version_info >= (3, 13) else _opcode.hasjabs
-HASJREL = _opcode.hasjump if sys.version_info >= (3, 13) else _opcode.hasjrel
+HASJABS = () if PY313 else _opcode.hasjabs
+HASJREL = _opcode.hasjump if PY313 else _opcode.hasjrel
 
 
 # Used for COMPARE_OP opcode argument
@@ -59,7 +52,7 @@ class Compare(enum.IntEnum):
         IS_NOT = 9
         EXC_MATCH = 10
 
-    if sys.version_info >= (3, 12):
+    if PY312:
 
         def _get_mask(self):
             v = self & 0b1111
@@ -76,7 +69,7 @@ class Compare(enum.IntEnum):
             elif v == Compare.GE:
                 return 4 + 8
 
-    if sys.version_info >= (3, 13):
+    if PY313:
         LT_CAST = 0 + 16
         LE_CAST = 1 + 16
         EQ_CAST = 2 + 16
@@ -266,7 +259,7 @@ def _check_arg_int(arg: Any, name: str) -> TypeGuard[int]:
     return True
 
 
-if sys.version_info >= (3, 12):
+if PY312:
 
     def opcode_has_argument(opcode: int) -> bool:
         return opcode in dis.hasarg
@@ -313,12 +306,12 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     "IMPORT_FROM": (-1, 2),
     "COPY_DICT_WITHOUT_KEYS": (-2, 2),
     # Call a function at position 7 (4 3.11+) on the stack and push the return value
-    "WITH_EXCEPT_START": (-4, 5) if sys.version_info >= (3, 11) else (-7, 8),
+    "WITH_EXCEPT_START": (-4, 5) if PY311 else (-7, 8),
     # Starting with Python 3.11 MATCH_CLASS does not push a boolean anymore
-    "MATCH_CLASS": (-3, 1 if sys.version_info >= (3, 11) else 2),
+    "MATCH_CLASS": (-3, 1 if PY311 else 2),
     "MATCH_MAPPING": (-1, 2),
     "MATCH_SEQUENCE": (-1, 2),
-    "MATCH_KEYS": (-2, 3 if sys.version_info >= (3, 11) else 4),
+    "MATCH_KEYS": (-2, 3 if PY311 else 4),
     "CHECK_EXC_MATCH": (-2, 2),  # (TOS1, TOS) -> (TOS1, bool)
     "CHECK_EG_MATCH": (-2, 2),  # (TOS, TOS1) -> non-matched, matched or TOS1, None)
     "PREP_RERAISE_STAR": (-2, 1),  # (TOS1, TOS) -> new exception group)
@@ -353,7 +346,7 @@ DYNAMIC_STACK_EFFECTS: Dict[
     # CALL pops the 2 above items and push the return
     # (when PRECALL does not exist it pops more as encoded by the effect)
     "CALL": lambda effect, arg, jump: (
-        -2 - arg if sys.version_info >= (3, 12) else -2,
+        -2 - arg if PY312 else -2,
         1,
     ),
     # 3.13 only
@@ -440,7 +433,7 @@ class InstrLocation:
         object.__setattr__(self, "col_offset", col_offset)
         object.__setattr__(self, "end_col_offset", end_col_offset)
         # In Python 3.11 0 is a valid lineno for some instructions (RESUME for example)
-        _check_location(lineno, "lineno", 0 if sys.version_info >= (3, 11) else 1)
+        _check_location(lineno, "lineno", 0 if PY311 else 1)
         _check_location(end_lineno, "end_lineno", 1)
         _check_location(col_offset, "col_offset", 0)
         _check_location(end_col_offset, "end_col_offset", 0)
@@ -490,7 +483,7 @@ class SetLineno:
 
     def __init__(self, lineno: int) -> None:
         # In Python 3.11 0 is a valid lineno for some instructions (RESUME for example)
-        _check_location(lineno, "lineno", 0 if sys.version_info >= (3, 11) else 1)
+        _check_location(lineno, "lineno", 0 if PY311 else 1)
         self._lineno: int = lineno
 
     @property

@@ -23,6 +23,7 @@ import bytecode as _bytecode
 from bytecode.concrete import ConcreteInstr
 from bytecode.flags import CompilerFlags
 from bytecode.instr import UNSET, Instr, Label, SetLineno, TryBegin, TryEnd
+from bytecode.utils import PY311, PY310
 
 T = TypeVar("T", bound="BasicBlock")
 U = TypeVar("U", bound="ControlFlowGraph")
@@ -443,7 +444,7 @@ class _StackSizeComputer:
     def _is_stacksize_computation_relevant(
         self, block_id: int, fingerprint: Tuple[int, Optional[bool]]
     ) -> bool:
-        if sys.version_info >= (3, 11):
+        if PY311:
             # The computation is relevant if the block was not visited previously
             # with the same starting size and exception handler status than the
             # one in use
@@ -519,7 +520,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         # Starting with Python 3.10, generator and coroutines start with one object
         # on the stack (None, anything is an error).
         initial_stack_size = 0
-        if sys.version_info >= (3, 10) and self.flags & (
+        if PY310 and self.flags & (
             CompilerFlags.GENERATOR
             | CompilerFlags.COROUTINE
             | CompilerFlags.ASYNC_GENERATOR
