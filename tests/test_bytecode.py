@@ -742,6 +742,14 @@ class BytecodeTests(TestCase):
         Bytecode.from_code(foo.__code__).to_code()
 
     def test_try_block_around_extended_arg(self):
+        """Test that we can handle small try blocks around opcodes that require
+        extended arguments.
+
+        We wrap a jump instruction between a TryBegin and TryEnd, and ensure
+        that the jump target is further away as to require an extended argument
+        for the branching instruction. We then test that we can compile and
+        de-compile the code object without issues.
+        """
         if sys.version_info < (3, 11):
             self.skipTest("Exception tables were introduced in 3.11")
 
