@@ -178,12 +178,16 @@ class ConcreteInstr(BaseInstr[int]):
         return cls(name, arg, lineno=lineno)
 
     def use_cache_opcodes(self) -> int:
-        return (
-            # Not supposed to be used but we need it
-            dis._inline_cache_entries[self._opcode]  # type: ignore
-            if PY313 and self._opcode in dis._inline_cache_entries
-            else (dis._inline_cache_entries[self._opcode] if PY311 else 0)
-        )
+        if sys.version_info >= (3, 13):
+            return (
+                dis._inline_cache_entries[self._opcode]
+                if self._opcode in dis._inline_cache_entries
+                else 0
+            )
+        elif sys.version_info >= (3, 11):
+            return dis._inline_cache_entries[self._opcode]  # type: ignore
+        else:
+            return 0
 
 
 class ExceptionTableEntry:
@@ -873,7 +877,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         )
         nlocals = len(self.varnames)
 
-        if PY311:
+        if sys.version_info >= (3, 11):
             return types.CodeType(
                 self.argcount,
                 self.posonlyargcount,

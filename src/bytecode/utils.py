@@ -1,6 +1,7 @@
 import sys
+from typing import Final
 
-PY310 = sys.version_info >= (3, 10)
-PY311 = sys.version_info >= (3, 11)
-PY312 = sys.version_info >= (3, 12)
-PY313 = sys.version_info >= (3, 13)
+PY310: Final[bool] = sys.version_info >= (3, 10)
+PY311: Final[bool] = sys.version_info >= (3, 11)
+PY312: Final[bool] = sys.version_info >= (3, 12)
+PY313: Final[bool] = sys.version_info >= (3, 13)

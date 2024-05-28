@@ -33,7 +33,10 @@ INTRINSIC_2OP = (_opcode.opmap["CALL_INTRINSIC_2"],) if PY312 else ()
 INTRINSIC = INTRINSIC_1OP + INTRINSIC_2OP
 
 HASJABS = () if PY313 else _opcode.hasjabs
-HASJREL = _opcode.hasjump if PY313 else _opcode.hasjrel
+if sys.version_info >= (3, 13):
+    HASJREL = _opcode.hasjump
+else:
+    HASJREL = _opcode.hasjrel
 
 
 # Used for COMPARE_OP opcode argument
@@ -137,7 +140,7 @@ class Intrinsic2Op(enum.IntEnum):
 # This make type checking happy but means it won't catch attempt to manipulate an unset
 # statically. We would need guard on object attribute narrowed down through methods
 class _UNSET(int):
-    instance = None
+    instance: Optional["_UNSET"] = None
 
     def __new__(cls):
         if cls.instance is None:
@@ -259,7 +262,7 @@ def _check_arg_int(arg: Any, name: str) -> TypeGuard[int]:
     return True
 
 
-if PY312:
+if sys.version_info >= (3, 12):
 
     def opcode_has_argument(opcode: int) -> bool:
         return opcode in dis.hasarg
