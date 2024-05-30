@@ -989,14 +989,19 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             # Handle TryBegin pseudo instructions
             if offset in ex_start:
                 entry = ex_start[offset]
-                tb_instr = TryBegin(
-                    Label(),
-                    entry.push_lasti,
-                    entry.stack_depth if conserve_exception_block_stackdepth else UNSET,
-                )
-                # Per entry store the pseudo instruction associated
-                tb_instrs[entry] = tb_instr
-                instructions.append(tb_instr)
+                # Check if the try begin was already created by an entry
+                # with a end offset less or equal to the start offset.
+                if entry not in tb_instrs:
+                    tb_instr = TryBegin(
+                        Label(),
+                        entry.push_lasti,
+                        entry.stack_depth
+                        if conserve_exception_block_stackdepth
+                        else UNSET,
+                    )
+                    # Per entry store the pseudo instruction associated
+                    tb_instrs[entry] = tb_instr
+                    instructions.append(tb_instr)
 
             jump_target = c_instr.get_jump_target(offset)
             size = c_instr.size
@@ -1063,7 +1068,22 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             if current_instr_offset in ex_end:
                 entries = ex_end[current_instr_offset]
                 for entry in reversed(entries):
-                    instructions.append(TryEnd(tb_instrs[entry]))
+                    try:
+                        instructions.append(TryEnd(tb_instrs[entry]))
+                    except KeyError:
+                        # The end offset is behind the start offset, so we
+                        # need to create
+                        tb_instr = TryBegin(
+                            Label(),
+                            entry.push_lasti,
+                            entry.stack_depth
+                            if conserve_exception_block_stackdepth
+                            else UNSET,
+                        )
+                        # Per entry store the pseudo instruction associated
+                        tb_instrs[entry] = tb_instr
+                        instructions.append(tb_instr)
+                        instructions.append(TryEnd(tb_instr))
 
         # Replace jump targets with labels
         for index, jump_target in jumps:
