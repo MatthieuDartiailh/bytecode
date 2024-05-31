@@ -49,11 +49,12 @@ from bytecode.instr import (
     const_key,
     opcode_has_argument,
 )
+from bytecode.utils import PY310, PY311, PY312, PY313
 
 # - jumps use instruction
 # - lineno use bytes (dis.findlinestarts(code))
 # - dis displays bytes
-OFFSET_AS_INSTRUCTION = sys.version_info >= (3, 10)
+OFFSET_AS_INSTRUCTION = PY310
 
 
 def _set_docstring(code: _bytecode.BaseBytecode, consts: Sequence) -> None:
@@ -177,12 +178,16 @@ class ConcreteInstr(BaseInstr[int]):
         return cls(name, arg, lineno=lineno)
 
     def use_cache_opcodes(self) -> int:
-        return (
-            # Not supposed to be used but we need it
-            dis._inline_cache_entries[self._opcode]  # type: ignore
-            if sys.version_info >= (3, 11)
-            else 0
-        )
+        if sys.version_info >= (3, 13):
+            return (
+                dis._inline_cache_entries[self._opcode]
+                if self._opcode in dis._inline_cache_entries
+                else 0
+            )
+        elif sys.version_info >= (3, 11):
+            return dis._inline_cache_entries[self._opcode]  # type: ignore
+        else:
+            return 0
 
 
 class ExceptionTableEntry:
@@ -320,7 +325,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         instructions: MutableSequence[Union[SetLineno, ConcreteInstr]]
         # For Python 3.11+ we use dis to extract the detailed location information at
         # reduced maintenance cost.
-        if sys.version_info >= (3, 11):
+        if PY311:
             instructions = [
                 # dis.get_instructions automatically handle extended arg which
                 # we do not want, so we fold back arguments to be between 0 and 255
@@ -334,7 +339,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 for i in dis.get_instructions(code, show_caches=True)
             ]
         else:
-            if sys.version_info >= (3, 10):
+            if PY310:
                 line_starts = {offset: lineno for offset, _, lineno in code.co_lines()}
             else:
                 line_starts = dict(dis.findlinestarts(code))
@@ -377,7 +382,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         bytecode.freevars = list(code.co_freevars)
         bytecode.cellvars = list(code.co_cellvars)
         _set_docstring(bytecode, code.co_consts)
-        if sys.version_info >= (3, 11):
+        if PY311:
             bytecode.exception_table = bytecode._parse_exception_table(
                 code.co_exceptiontable
             )
@@ -792,7 +797,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
     def _parse_exception_table(
         self, exception_table: bytes
     ) -> List[ExceptionTableEntry]:
-        assert sys.version_info >= (3, 11)
+        assert PY311
         table = []
         iterator = iter(exception_table)
         try:
@@ -848,9 +853,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
     ) -> types.CodeType:
         # Prevent reconverting the concrete bytecode to bytecode and cfg to do the
         # calculation if we need to do it.
-        if stacksize is None or (
-            sys.version_info >= (3, 11) and compute_exception_stack_depths
-        ):
+        if stacksize is None or (PY311 and compute_exception_stack_depths):
             cfg = _bytecode.ControlFlowGraph.from_bytecode(self.to_bytecode())
             stacksize = cfg.compute_stacksize(
                 check_pre_and_post=check_pre_and_post,
@@ -865,10 +868,10 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         lnotab = (
             self._assemble_locations(self.first_lineno, linenos)
-            if sys.version_info >= (3, 11)
+            if PY311
             else (
                 self._assemble_linestable(self.first_lineno, linenos)
-                if sys.version_info >= (3, 10)
+                if PY310
                 else self._assemble_lnotab(self.first_lineno, linenos)
             )
         )
@@ -969,7 +972,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # Free vars are never shared and correspond to index larger than the
         # largest cell var.
         # See PyCode_NewWithPosOnlyArgs
-        if sys.version_info >= (3, 11):
+        if PY311:
             cells_lookup = self.varnames + [
                 n for n in self.cellvars if n not in self.varnames
             ]
@@ -1046,7 +1049,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                         arg = FreeVar(name)
                 elif c_instr.opcode in _opcode.hascompare:
                     arg = Compare(
-                        (c_arg >> 4) if sys.version_info >= (3, 12) else c_arg
+                        (c_arg >> 5) + (c_arg & 16) << 4
+                        if PY313
+                        else ((c_arg >> 4) if PY312 else c_arg)
                     )
                 elif c_instr.opcode in INTRINSIC_1OP:
                     arg = Intrinsic1Op(c_arg)
@@ -1273,9 +1278,17 @@ class _ConvertBytecodeToConcrete:
                     arg = self.bytecode.freevars.index(arg.name)
             elif instr.opcode in _opcode.hascompare:
                 if isinstance(arg, Compare):
+                    # In Python 3.13 the 4 lowest bits are used for caching
+                    # and the 5th one indicate a cast to bool
+                    if PY313:
+                        arg = (
+                            arg._get_mask()
+                            + ((arg.value & 0b1111) << 4)
+                            + (arg.value & 16)
+                        )
                     # In Python 3.12 the 4 lowest bits are used for caching
                     # See compare_masks in compile.c
-                    if sys.version_info >= (3, 12):
+                    elif PY312:
                         arg = arg._get_mask() + (arg.value << 4)
                     else:
                         arg = arg.value
@@ -1290,7 +1303,7 @@ class _ConvertBytecodeToConcrete:
                 self.jumps.append((len(self.instructions), label, c_instr))
 
             # If the instruction expect some cache
-            if sys.version_info >= (3, 11):
+            if PY311:
                 self.required_caches = c_instr.use_cache_opcodes()
                 self.seen_manual_cache = False
 
@@ -1300,7 +1313,7 @@ class _ConvertBytecodeToConcrete:
         # names and update the arg argument of instructions using cell vars.
         # We also track by how much to offset free vars which are stored in a
         # contiguous array after the cell vars
-        if sys.version_info >= (3, 11):
+        if PY311:
             # Map naive cell index to shared index
             shared_name_indexes: Dict[int, int] = {}
             n_shared = 0
@@ -1355,7 +1368,7 @@ class _ConvertBytecodeToConcrete:
             # FIXME use opcode
             # Under 3.12+, FOR_ITER, SEND jump is increased by 1 implicitely
             # to skip over END_FOR, END_SEND see Python/instrumentation.c
-            if sys.version_info >= (3, 12) and instr.name in ("FOR_ITER", "SEND"):
+            if PY312 and instr.name in ("FOR_ITER", "SEND"):
                 target_offset -= 1
 
             if instr.is_forward_rel_jump():
@@ -1403,7 +1416,7 @@ class _ConvertBytecodeToConcrete:
         compute_jumps_passes: Optional[int] = None,
         compute_exception_stack_depths: bool = True,
     ) -> ConcreteBytecode:
-        if sys.version_info >= (3, 11) and compute_exception_stack_depths:
+        if PY311 and compute_exception_stack_depths:
             cfg = _bytecode.ControlFlowGraph.from_bytecode(self.bytecode)
             cfg.compute_stacksize(compute_exception_stack_depths=True)
             self.bytecode = cfg.to_bytecode()
