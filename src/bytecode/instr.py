@@ -338,6 +338,7 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     "CONVERT_VALUE": (-1, 1),  # new in 3.13
     "FORMAT_SIMPLE": (-1, 1),  # new in 3.13
     "FORMAT_SPEC": (-2, 1),  # new in 3.13
+    "TO_BOOL": (-1, 1),  # new in 3.13
 }
 
 
