@@ -1049,7 +1049,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                         arg = FreeVar(name)
                 elif c_instr.opcode in _opcode.hascompare:
                     arg = Compare(
-                        (c_arg >> 5) + (c_arg & 16) << 4
+                        (c_arg >> 5) + ((1 << 4) if (c_arg & 16) else 0)
                         if PY313
                         else ((c_arg >> 4) if PY312 else c_arg)
                     )
