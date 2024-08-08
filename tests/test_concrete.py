@@ -60,7 +60,7 @@ class ConcreteInstrTests(TestCase):
     def test_attr(self):
         instr = ConcreteInstr("LOAD_CONST", 5, lineno=12)
         self.assertEqual(instr.name, "LOAD_CONST")
-        self.assertEqual(instr.opcode, 100)
+        self.assertEqual(instr.opcode, opcode.opmap["LOAD_CONST"])
         self.assertEqual(instr.arg, 5)
         self.assertEqual(instr.lineno, 12)
         self.assertEqual(instr.size, 2)
@@ -90,14 +90,14 @@ class ConcreteInstrTests(TestCase):
         # operator name
         instr.name = "LOAD_FAST"
         self.assertEqual(instr.name, "LOAD_FAST")
-        self.assertEqual(instr.opcode, 124)
+        self.assertEqual(instr.opcode, opcode.opmap["LOAD_FAST"])
         self.assertRaises(TypeError, setattr, instr, "name", 3)
         self.assertRaises(ValueError, setattr, instr, "name", "xxx")
 
         # operator code
-        instr.opcode = 100
+        instr.opcode = opcode.opmap["LOAD_CONST"]
         self.assertEqual(instr.name, "LOAD_CONST")
-        self.assertEqual(instr.opcode, 100)
+        self.assertEqual(instr.opcode, opcode.opmap["LOAD_CONST"])
         self.assertRaises(ValueError, setattr, instr, "opcode", -12)
         self.assertRaises(TypeError, setattr, instr, "opcode", "abc")
 
@@ -129,35 +129,57 @@ class ConcreteInstrTests(TestCase):
         self.assertEqual(ConcreteInstr("LOAD_CONST", 0x1234ABCD).size, 8)
 
     def test_disassemble(self):
-        code = b"\t\x00d\x03"
+        code = bytes((opcode.opmap["NOP"], 0, opcode.opmap["LOAD_CONST"], 3))
         instr = ConcreteInstr.disassemble(1, code, 0)
         self.assertEqual(instr, ConcreteInstr("NOP", lineno=1))
 
         instr = ConcreteInstr.disassemble(2, code, 1 if OFFSET_AS_INSTRUCTION else 2)
         self.assertEqual(instr, ConcreteInstr("LOAD_CONST", 3, lineno=2))
 
-        code = b"\x90\x12\x904\x90\xabd\xcd"
+        code = bytes(
+            (
+                opcode.EXTENDED_ARG,
+                0x12,
+                opcode.EXTENDED_ARG,
+                0x34,
+                opcode.EXTENDED_ARG,
+                0xAB,
+                instr.opcode,
+                0xCD,
+            )
+        )
 
         instr = ConcreteInstr.disassemble(3, code, 0)
         self.assertEqual(instr, ConcreteInstr("EXTENDED_ARG", 0x12, lineno=3))
 
     def test_assemble(self):
         instr = ConcreteInstr("NOP")
-        self.assertEqual(instr.assemble(), b"\t\x00")
+        self.assertEqual(instr.assemble(), bytes((instr.opcode, 0)))
 
         instr = ConcreteInstr("LOAD_CONST", 3)
-        self.assertEqual(instr.assemble(), b"d\x03")
+        self.assertEqual(instr.assemble(), bytes((instr.opcode, 3)))
 
         instr = ConcreteInstr("LOAD_CONST", 0x1234ABCD)
         self.assertEqual(
             instr.assemble(),
-            (b"\x90\x12\x904\x90\xabd\xcd"),
+            bytes(
+                (
+                    opcode.EXTENDED_ARG,
+                    0x12,
+                    opcode.EXTENDED_ARG,
+                    0x34,
+                    opcode.EXTENDED_ARG,
+                    0xAB,
+                    instr.opcode,
+                    0xCD,
+                )
+            ),
         )
 
         instr = ConcreteInstr("LOAD_CONST", 3, extended_args=1)
         self.assertEqual(
             instr.assemble(),
-            (b"\x90\x00d\x03"),
+            bytes((opcode.EXTENDED_ARG, 0, instr.opcode, 3)),
         )
 
     def test_get_jump_target(self):
@@ -335,7 +357,18 @@ class ConcreteBytecodeTests(TestCase):
         concrete.first_lineno = 5
 
         code = concrete.to_code()
-        expected = b"d\x00Z\x00d\x01Z\x01"
+        expected = bytes(
+            (
+                opcode.opmap["LOAD_CONST"],
+                0,
+                opcode.opmap["STORE_NAME"],
+                0,
+                opcode.opmap["LOAD_CONST"],
+                1,
+                opcode.opmap["STORE_NAME"],
+                1,
+            )
+        )
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 5)
         if sys.version_info >= (3, 12):
@@ -363,7 +396,18 @@ class ConcreteBytecodeTests(TestCase):
         concrete.first_lineno = 1
 
         code = concrete.to_code()
-        expected = b"d\x00Z\x00d\x01Z\x01"
+        expected = bytes(
+            (
+                opcode.opmap["LOAD_CONST"],
+                0,
+                opcode.opmap["STORE_NAME"],
+                0,
+                opcode.opmap["LOAD_CONST"],
+                1,
+                opcode.opmap["STORE_NAME"],
+                1,
+            )
+        )
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 1)
         if sys.version_info >= (3, 11):
