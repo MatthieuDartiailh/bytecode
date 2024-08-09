@@ -21,11 +21,15 @@ MIN_INSTRUMENTED_OPCODE = getattr(_opcode, "MIN_INSTRUMENTED_OPCODE", 256)
 
 # Instructions relying on a bit to modify its behavior.
 # The lowest bit is used to encode custom behavior.
-BITFLAG_INSTRUCTIONS = (
-    ("LOAD_GLOBAL", "LOAD_ATTR") if PY312 else ("LOAD_GLOBAL",) if PY311 else ()
+BITFLAG_OPCODES = (
+    (_opcode.opmap["LOAD_GLOBAL"], _opcode.opmap["LOAD_ATTR"])
+    if PY312
+    else (_opcode.opmap["LOAD_GLOBAL"],)
+    if PY311
+    else ()
 )
 
-BITFLAG2_INSTRUCTIONS = ("LOAD_SUPER_ATTR",) if PY312 else ()
+BITFLAG2_OPCODES = (_opcode.opmap["LOAD_SUPER_ATTR"],) if PY312 else ()
 
 # Intrinsic related opcodes
 INTRINSIC_1OP = (_opcode.opmap["CALL_INTRINSIC_1"],) if PY312 else ()
@@ -37,6 +41,15 @@ if sys.version_info >= (3, 13):
     HASJREL = _opcode.hasjump
 else:
     HASJREL = _opcode.hasjrel
+
+#: Opcodes taking 2 arguments (highest 4 bits and lowest 4 bits)
+DUAL_ARG_OPCODES = ()
+if PY313:
+    DUAL_ARG_OPCODES = (
+        _opcode.opmap["LOAD_FAST_LOAD_FAST"],
+        _opcode.opmap["STORE_FAST_LOAD_FAST"],
+        _opcode.opmap["STORE_FAST_STORE_FAST"],
+    )
 
 
 # Used for COMPARE_OP opcode argument
@@ -354,7 +367,7 @@ DYNAMIC_STACK_EFFECTS: Dict[
         1,
     ),
     # 3.13 only
-    "CALL_KW": lambda effect, arg, jump: (-2 - arg, 1),
+    "CALL_KW": lambda effect, arg, jump: (-3 - arg, 1),
     # 3.12 changed the behavior of LOAD_ATTR
     "LOAD_ATTR": lambda effect, arg, jump: (-1, 1 + effect),
     "LOAD_SUPER_ATTR": lambda effect, arg, jump: (-3, 3 + effect),
@@ -642,11 +655,11 @@ class BaseInstr(Generic[A]):
             arg = None
         # 3.11 where LOAD_GLOBAL arg encode whether or we push a null
         # 3.12 does the same for LOAD_ATTR
-        elif self.name in BITFLAG_INSTRUCTIONS and isinstance(self._arg, tuple):
+        elif self._opcode in BITFLAG_OPCODES and isinstance(self._arg, tuple):
             assert len(self._arg) == 2
             arg = self._arg[0]
         # 3.12 does a similar trick for LOAD_SUPER_ATTR
-        elif self.name in BITFLAG2_INSTRUCTIONS and isinstance(self._arg, tuple):
+        elif self._opcode in BITFLAG2_OPCODES and isinstance(self._arg, tuple):
             assert len(self._arg) == 3
             arg = self._arg[0]
         elif not isinstance(self._arg, int) or self._opcode in _opcode.hasconst:
@@ -827,7 +840,7 @@ class Instr(BaseInstr[InstrArg]):
                 )
 
         elif opcode in _opcode.haslocal or opcode in _opcode.hasname:
-            if name in BITFLAG_INSTRUCTIONS:
+            if opcode in BITFLAG_OPCODES:
                 if not (
                     isinstance(arg, tuple)
                     and len(arg) == 2
@@ -839,7 +852,7 @@ class Instr(BaseInstr[InstrArg]):
                         "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
                     )
 
-            elif name in BITFLAG2_INSTRUCTIONS:
+            elif opcode in BITFLAG2_OPCODES:
                 if not (
                     isinstance(arg, tuple)
                     and len(arg) == 3
@@ -849,6 +862,18 @@ class Instr(BaseInstr[InstrArg]):
                 ):
                     raise TypeError(
                         "operation %s argument must be a tuple[bool, bool, str], "
+                        "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
+                    )
+
+            elif opcode in DUAL_ARG_OPCODES:
+                if not (
+                    isinstance(arg, tuple)
+                    and len(arg) == 2
+                    and isinstance(arg[0], str)
+                    and isinstance(arg[1], str)
+                ):
+                    raise TypeError(
+                        "operation %s argument must be a tuple[str, str], "
                         "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
                     )
 

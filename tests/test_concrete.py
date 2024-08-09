@@ -857,7 +857,14 @@ class ConcreteFromCodeTests(TestCase):
             + [
                 ConcreteInstr("LOAD_CONST", 1 + const_offset, lineno=1),
                 ConcreteInstr("LOAD_CONST", 2 + const_offset, lineno=1),
-                ConcreteInstr("MAKE_FUNCTION", 4, lineno=1),
+                *(
+                    [
+                        ConcreteInstr("MAKE_FUNCTION", lineno=1),
+                        ConcreteInstr("SET_FUNCTION_ATTRIBUTE", 4, lineno=1),
+                    ]
+                    if PY313
+                    else [ConcreteInstr("MAKE_FUNCTION", 4, lineno=1)]
+                ),
                 ConcreteInstr("STORE_NAME", name_offset, lineno=1),
             ]
             + (
@@ -903,7 +910,20 @@ class ConcreteFromCodeTests(TestCase):
         constants[0x000129] = "Arbitrary String"
         # EXTENDED_ARG 0x01, NOP 0xFF, EXTENDED_ARG 0x01,
         # LOAD_CONST 0x29, RETURN_VALUE 0x00
-        codestring = bytes([0x90, 0x01, 0x09, 0xFF, 0x90, 0x01, 0x64, 0x29, 0x53, 0x00])
+        codestring = bytes(
+            [
+                opcode.EXTENDED_ARG,
+                0x01,
+                opcode.opmap["NOP"],
+                0xFF,
+                opcode.EXTENDED_ARG,
+                0x01,
+                opcode.opmap["LOAD_CONST"],
+                0x29,
+                opcode.opmap["RETURN_VALUE"],
+                0x00,
+            ]
+        )
         codetype_list = [
             0,
             0,

@@ -25,8 +25,9 @@ import bytecode as _bytecode
 from bytecode.flags import CompilerFlags
 from bytecode.instr import (
     _UNSET,
-    BITFLAG2_INSTRUCTIONS,
-    BITFLAG_INSTRUCTIONS,
+    BITFLAG2_OPCODES,
+    BITFLAG_OPCODES,
+    DUAL_ARG_OPCODES,
     INTRINSIC,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
@@ -962,6 +963,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         labels = {}
         tb_instrs: Dict[ExceptionTableEntry, TryBegin] = {}
         offset = 0
+
         # In Python 3.11+ cell and varnames can be shared and are indexed in a single
         # array.
         # As a consequence, the instruction argument can be either:
@@ -1026,36 +1028,40 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             # We may need to insert a TryEnd after a CACHE so we need to run the
             # through the last block.
             else:
+                opcode = c_instr._opcode
                 arg: InstrArg
                 c_arg = c_instr.arg
                 # FIXME: better error reporting
-                if c_instr.opcode in _opcode.hasconst:
+                if opcode in _opcode.hasconst:
                     arg = self.consts[c_arg]
-                elif c_instr.opcode in _opcode.haslocal:
-                    arg = self.varnames[c_arg]
-                elif c_instr.opcode in _opcode.hasname:
-                    if c_instr.name in BITFLAG_INSTRUCTIONS:
+                elif opcode in _opcode.haslocal:
+                    if opcode in DUAL_ARG_OPCODES:
+                        arg = (locals_lookup[c_arg >> 4], locals_lookup[c_arg & 15])
+                    else:
+                        arg = locals_lookup[c_arg]
+                elif opcode in _opcode.hasname:
+                    if opcode in BITFLAG_OPCODES:
                         arg = (bool(c_arg & 1), self.names[c_arg >> 1])
-                    elif c_instr.name in BITFLAG2_INSTRUCTIONS:
+                    elif opcode in BITFLAG2_OPCODES:
                         arg = (bool(c_arg & 1), bool(c_arg & 2), self.names[c_arg >> 2])
                     else:
                         arg = self.names[c_arg]
-                elif c_instr.opcode in _opcode.hasfree:
+                elif opcode in _opcode.hasfree:
                     if c_arg < ncells:
                         name = cells_lookup[c_arg]
                         arg = CellVar(name)
                     else:
                         name = self.freevars[c_arg - ncells]
                         arg = FreeVar(name)
-                elif c_instr.opcode in _opcode.hascompare:
+                elif opcode in _opcode.hascompare:
                     arg = Compare(
                         (c_arg >> 5) + ((1 << 4) if (c_arg & 16) else 0)
                         if PY313
                         else ((c_arg >> 4) if PY312 else c_arg)
                     )
-                elif c_instr.opcode in INTRINSIC_1OP:
+                elif opcode in INTRINSIC_1OP:
                     arg = Intrinsic1Op(c_arg)
-                elif c_instr.opcode in INTRINSIC_2OP:
+                elif opcode in INTRINSIC_2OP:
                     arg = Intrinsic2Op(c_arg)
                 else:
                     arg = c_arg
@@ -1233,6 +1239,7 @@ class _ConvertBytecodeToConcrete:
             elif instr.lineno is UNSET:
                 instr.lineno = lineno
 
+            opcode = instr._opcode
             arg = instr.arg
             is_jump = False
             if isinstance(arg, Label):
@@ -1240,13 +1247,24 @@ class _ConvertBytecodeToConcrete:
                 # fake value, real value is set in compute_jumps()
                 arg = 0
                 is_jump = True
-            elif instr.opcode in _opcode.hasconst:
+            elif opcode in _opcode.hasconst:
                 arg = self.add_const(arg)
-            elif instr.opcode in _opcode.haslocal:
-                assert isinstance(arg, str)
-                arg = self.add(self.varnames, arg)
-            elif instr.opcode in _opcode.hasname:
-                if instr.name in BITFLAG_INSTRUCTIONS:
+            elif opcode in _opcode.haslocal:
+                if opcode in DUAL_ARG_OPCODES:
+                    assert (
+                        isinstance(arg, tuple)
+                        and len(arg) == 2
+                        and isinstance(arg[0], str)
+                        and isinstance(arg[1], str)
+                    )
+                    arg = (self.add(self.varnames, arg[0]) << 4) + self.add(
+                        self.varnames, arg[1]
+                    )
+                else:
+                    assert isinstance(arg, str)
+                    arg = self.add(self.varnames, arg)
+            elif opcode in _opcode.hasname:
+                if opcode in BITFLAG_OPCODES:
                     assert (
                         isinstance(arg, tuple)
                         and len(arg) == 2
@@ -1255,7 +1273,7 @@ class _ConvertBytecodeToConcrete:
                     ), arg
                     index = self.add(self.names, arg[1])
                     arg = int(arg[0]) + (index << 1)
-                elif instr.name in BITFLAG2_INSTRUCTIONS:
+                elif opcode in BITFLAG2_OPCODES:
                     assert (
                         isinstance(arg, tuple)
                         and len(arg) == 3
@@ -1268,7 +1286,7 @@ class _ConvertBytecodeToConcrete:
                 else:
                     assert isinstance(arg, str), f"Got {arg}, expected a str"
                     arg = self.add(self.names, arg)
-            elif instr.opcode in _opcode.hasfree:
+            elif opcode in _opcode.hasfree:
                 if isinstance(arg, CellVar):
                     cell_instrs.append(len(self.instructions))
                     arg = self.bytecode.cellvars.index(arg.name)
@@ -1276,7 +1294,7 @@ class _ConvertBytecodeToConcrete:
                     assert isinstance(arg, FreeVar)
                     free_instrs.append(len(self.instructions))
                     arg = self.bytecode.freevars.index(arg.name)
-            elif instr.opcode in _opcode.hascompare:
+            elif opcode in _opcode.hascompare:
                 if isinstance(arg, Compare):
                     # In Python 3.13 the 4 lowest bits are used for caching
                     # and the 5th one indicate a cast to bool
@@ -1292,7 +1310,7 @@ class _ConvertBytecodeToConcrete:
                         arg = arg._get_mask() + (arg.value << 4)
                     else:
                         arg = arg.value
-            elif instr.opcode in INTRINSIC:
+            elif opcode in INTRINSIC:
                 if isinstance(arg, (Intrinsic1Op, Intrinsic2Op)):
                     arg = arg.value
 

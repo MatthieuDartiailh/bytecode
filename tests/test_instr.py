@@ -14,8 +14,9 @@ from bytecode import (
     SetLineno,
 )
 from bytecode.instr import (
-    BITFLAG2_INSTRUCTIONS,
-    BITFLAG_INSTRUCTIONS,
+    BITFLAG2_OPCODES,
+    BITFLAG_OPCODES,
+    DUAL_ARG_OPCODES,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
     InstrLocation,
@@ -196,7 +197,7 @@ class InstrTests(TestCase):
         Instr("NOP")
 
         # Instructions using a bitflag in their oparg
-        for name in BITFLAG_INSTRUCTIONS:
+        for name in (opcode.opname[op] for op in BITFLAG_OPCODES):
             self.assertRaises(TypeError, Instr, name, "arg")
             self.assertRaises(TypeError, Instr, name, ("arg",))
             self.assertRaises(TypeError, Instr, name, ("", "arg"))
@@ -204,13 +205,20 @@ class InstrTests(TestCase):
             Instr(name, (True, "arg"))
 
         # Instructions using 2 bitflag in their oparg
-        for name in BITFLAG2_INSTRUCTIONS:
+        for name in (opcode.opname[op] for op in BITFLAG2_OPCODES):
             self.assertRaises(TypeError, Instr, name, "arg")
             self.assertRaises(TypeError, Instr, name, ("arg",))
             self.assertRaises(TypeError, Instr, name, ("", True, "arg"))
             self.assertRaises(TypeError, Instr, name, (True, "", "arg"))
             self.assertRaises(TypeError, Instr, name, (False, True, 1))
             Instr(name, (False, True, "arg"))
+
+        # Instructions packing 2 args in their oparg
+        for name in (opcode.opname[op] for op in DUAL_ARG_OPCODES):
+            self.assertRaises(TypeError, Instr, name, "arg")
+            self.assertRaises(TypeError, Instr, name, ("arg",))
+            self.assertRaises(TypeError, Instr, name, ("", True))
+            Instr(name, ("arg1", "arg2"))
 
         for name in [opcode.opname[i] for i in INTRINSIC_1OP]:
             self.assertRaises(TypeError, Instr, name, 1)
@@ -229,7 +237,7 @@ class InstrTests(TestCase):
     def test_attr(self):
         instr = Instr("LOAD_CONST", 3, lineno=5)
         self.assertEqual(instr.name, "LOAD_CONST")
-        self.assertEqual(instr.opcode, 100)
+        self.assertEqual(instr.opcode, opcode.opmap["LOAD_CONST"])
         self.assertEqual(instr.arg, 3)
         self.assertEqual(instr.lineno, 5)
 
