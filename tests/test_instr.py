@@ -474,18 +474,22 @@ class CompareTests(TestCase):
 
         params = zip(iter(Compare), (True, True, False, True, False, False))
         for cmp, expected in params:
-            with self.subTest(cmp):
-                bcode = Bytecode(
-                    ([Instr("RESUME", 0)] if sys.version_info >= (3, 11) else [])
-                    + [
-                        Instr("LOAD_CONST", 24),
-                        Instr("LOAD_CONST", 42),
-                        Instr("COMPARE_OP", cmp),
-                        Instr("RETURN_VALUE"),
-                    ]
-                )
-                f.__code__ = bcode.to_code()
-                self.assertIs(f(), expected)
+            for cast in (False, True):
+                with self.subTest(cmp):
+                    operation = Compare(cmp + (16 if cast else 0))
+                    print(f"Subtest: {operation.name}")
+                    bcode = Bytecode(
+                        ([Instr("RESUME", 0)] if sys.version_info >= (3, 11) else [])
+                        + [
+                            Instr("LOAD_CONST", 24),
+                            Instr("LOAD_CONST", 42),
+                            Instr("COMPARE_OP", operation),
+                            Instr("RETURN_VALUE"),
+                        ]
+                    )
+                    bcode.update_flags()
+                    f.__code__ = bcode.to_code()
+                    self.assertIs(f(), expected)
 
 
 if __name__ == "__main__":

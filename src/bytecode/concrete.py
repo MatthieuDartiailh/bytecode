@@ -1301,7 +1301,7 @@ class _ConvertBytecodeToConcrete:
                     if PY313:
                         arg = (
                             arg._get_mask()
-                            + ((arg.value & 0b1111) << 4)
+                            + ((arg.value & 0b1111) << 5)
                             + (arg.value & 16)
                         )
                     # In Python 3.12 the 4 lowest bits are used for caching
