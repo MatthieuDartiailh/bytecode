@@ -181,8 +181,8 @@ class ConcreteInstr(BaseInstr[int]):
     def use_cache_opcodes(self) -> int:
         if sys.version_info >= (3, 13):
             return (
-                dis._inline_cache_entries[self._opcode]
-                if self._opcode in dis._inline_cache_entries
+                dis._inline_cache_entries[self._name]
+                if self._name in dis._inline_cache_entries
                 else 0
             )
         elif sys.version_info >= (3, 11):
