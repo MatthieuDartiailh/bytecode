@@ -327,18 +327,20 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # For Python 3.11+ we use dis to extract the detailed location information at
         # reduced maintenance cost.
         if PY311:
-            instructions = [
+            instructions = []
+            for i in dis.get_instructions(code, show_caches=True):
+                loc = InstrLocation.from_positions(i.positions) if i.positions else None
                 # dis.get_instructions automatically handle extended arg which
                 # we do not want, so we fold back arguments to be between 0 and 255
-                ConcreteInstr(
-                    i.opname,
-                    i.arg % 256 if i.arg is not None else UNSET,
-                    location=InstrLocation.from_positions(i.positions)
-                    if i.positions
-                    else None,
+                instructions.append(
+                    ConcreteInstr(
+                        i.opname,
+                        i.arg % 256 if i.arg is not None else UNSET,
+                        location=loc,
+                    )
                 )
-                for i in dis.get_instructions(code, show_caches=True)
-            ]
+                for _ in (i.cache_info or ()) if PY313 else ():
+                    instructions.append(ConcreteInstr("CACHE", 0, location=loc))
         else:
             if PY310:
                 line_starts = {offset: lineno for offset, _, lineno in code.co_lines()}
