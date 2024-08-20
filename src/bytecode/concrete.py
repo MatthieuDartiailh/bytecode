@@ -1391,8 +1391,7 @@ class _ConvertBytecodeToConcrete:
         # needed if a label is at the end
         label_offsets.append(offset)
 
-        # FIXME may need some extra check to validate jump forward vs jump backward
-        # fix argument of jump instructions: resolve labels
+        # Fix argument of jump instructions: resolve labels
         modified = False
         for index, label, instr in self.jumps:
             target_index = self.labels[label]
@@ -1404,13 +1403,14 @@ class _ConvertBytecodeToConcrete:
             if PY312 and instr.name in ("FOR_ITER", "SEND"):
                 target_offset -= 1
 
+            # For jump using cache opcodes, an argument of 0 jumps to the
+            # first non cache instructions right after the jump instruction
+            instr_offset = label_offsets[index] + instr.use_cache_opcodes()
             if instr.is_forward_rel_jump():
-                instr_offset = label_offsets[index]
                 target_offset -= instr_offset + (
                     instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size
                 )
             elif instr.is_backward_rel_jump():
-                instr_offset = label_offsets[index]
                 target_offset = (
                     instr_offset
                     + (instr.size // 2 if OFFSET_AS_INSTRUCTION else instr.size)
