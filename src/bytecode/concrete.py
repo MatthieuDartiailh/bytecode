@@ -1399,12 +1399,6 @@ class _ConvertBytecodeToConcrete:
             target_index = self.labels[label]
             target_offset = label_offsets[target_index]
 
-            # FIXME use opcode
-            # Under 3.12+, FOR_ITER, SEND jump is increased by 1 implicitely
-            # to skip over END_FOR, END_SEND see Python/instrumentation.c
-            if PY312 and instr.name in ("FOR_ITER", "SEND"):
-                target_offset -= 1
-
             # For jump using cache opcodes, an argument of 0 jumps to the
             # first non cache instructions right after the jump instruction
             instr_offset = label_offsets[index] + instr.use_cache_opcodes()
