@@ -340,8 +340,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                     )
                 )
                 # cache_info only exist on 3.13+
-                for _ in (i.cache_info or ()) if PY313 else ():  # type: ignore
-                    instructions.append(ConcreteInstr("CACHE", 0, location=loc))
+                for _, size, _ in (i.cache_info or ()) if PY313 else ():  # type: ignore
+                    for _ in range(size):
+                        instructions.append(ConcreteInstr("CACHE", 0, location=loc))
         else:
             if PY310:
                 line_starts = {offset: lineno for offset, _, lineno in code.co_lines()}
