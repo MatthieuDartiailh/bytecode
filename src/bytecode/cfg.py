@@ -23,7 +23,7 @@ import bytecode as _bytecode
 from bytecode.concrete import ConcreteInstr
 from bytecode.flags import CompilerFlags
 from bytecode.instr import UNSET, Instr, Label, SetLineno, TryBegin, TryEnd
-from bytecode.utils import PY310, PY311
+from bytecode.utils import PY310, PY311, PY313
 
 T = TypeVar("T", bound="BasicBlock")
 U = TypeVar("U", bound="ControlFlowGraph")
@@ -520,10 +520,15 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         # Starting with Python 3.10, generator and coroutines start with one object
         # on the stack (None, anything is an error).
         initial_stack_size = 0
-        if PY310 and self.flags & (
-            CompilerFlags.GENERATOR
-            | CompilerFlags.COROUTINE
-            | CompilerFlags.ASYNC_GENERATOR
+        if (
+            not PY313  # under 3.13+ RETURN_GENERATOR make this explicit
+            and PY310
+            and self.flags
+            & (
+                CompilerFlags.GENERATOR
+                | CompilerFlags.COROUTINE
+                | CompilerFlags.ASYNC_GENERATOR
+            )
         ):
             initial_stack_size = 1
 
