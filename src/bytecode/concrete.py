@@ -339,7 +339,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                         location=loc,
                     )
                 )
-                for _ in (i.cache_info or ()) if PY313 else ():
+                # cache_info only exist on 3.13+
+                for _ in (i.cache_info or ()) if PY313 else ():  # type: ignore
                     instructions.append(ConcreteInstr("CACHE", 0, location=loc))
         else:
             if PY310:
@@ -986,6 +987,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             cells_lookup = [CellVar(n) for n in self.cellvars]
 
         # In Python 3.13+ LOAD_FAST can be used to retrieve cell values
+        locals_lookup: Sequence[Union[str, CellVar]]
         if PY313:
             locals_lookup = cells_lookup
         else:
