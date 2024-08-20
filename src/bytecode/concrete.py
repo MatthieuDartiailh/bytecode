@@ -978,12 +978,18 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # See PyCode_NewWithPosOnlyArgs
         if PY311:
             cells_lookup = self.varnames + [
-                n for n in self.cellvars if n not in self.varnames
+                CellVar(n) for n in self.cellvars if n not in self.varnames
             ]
             ncells = len(cells_lookup)
         else:
             ncells = len(self.cellvars)
-            cells_lookup = self.cellvars
+            cells_lookup = [CellVar(n) for n in self.cellvars]
+
+        # In Python 3.13+ LOAD_FAST can be used to retrieve cell values
+        if PY313:
+            locals_lookup = cells_lookup
+        else:
+            locals_lookup = self.varnames
 
         for lineno, c_instr in self._normalize_lineno(
             c_instructions, self.first_lineno
@@ -1050,8 +1056,12 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                         arg = self.names[c_arg]
                 elif opcode in _opcode.hasfree:
                     if c_arg < ncells:
-                        name = cells_lookup[c_arg]
-                        arg = CellVar(name)
+                        n_or_cell = cells_lookup[c_arg]
+                        arg = (
+                            n_or_cell
+                            if isinstance(n_or_cell, CellVar)
+                            else CellVar(n_or_cell)
+                        )
                     else:
                         name = self.freevars[c_arg - ncells]
                         arg = FreeVar(name)
@@ -1262,6 +1272,9 @@ class _ConvertBytecodeToConcrete:
                     arg = (self.add(self.varnames, arg[0]) << 4) + self.add(
                         self.varnames, arg[1]
                     )
+                elif PY313 and isinstance(arg, CellVar):
+                    cell_instrs.append(len(self.instructions))
+                    arg = self.bytecode.cellvars.index(arg.name)
                 else:
                     assert isinstance(arg, str)
                     arg = self.add(self.varnames, arg)

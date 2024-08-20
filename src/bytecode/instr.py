@@ -869,13 +869,17 @@ class Instr(BaseInstr[InstrArg]):
                 if not (
                     isinstance(arg, tuple)
                     and len(arg) == 2
-                    and isinstance(arg[0], str)
-                    and isinstance(arg[1], str)
+                    and isinstance(arg[0], (str, CellVar))
+                    and isinstance(arg[1], (str, CellVar))
                 ):
                     raise TypeError(
                         "operation %s argument must be a tuple[str, str], "
                         "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
                     )
+
+            elif PY313 and opcode in _opcode.haslocal and isinstance(arg, CellVar):
+                # Cell vars can be accessed using locals in Python 3.13+
+                pass
 
             elif not isinstance(arg, str):
                 raise TypeError(
