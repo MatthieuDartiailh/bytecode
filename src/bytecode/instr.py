@@ -43,7 +43,7 @@ else:
     HASJREL = _opcode.hasjrel
 
 #: Opcodes taking 2 arguments (highest 4 bits and lowest 4 bits)
-DUAL_ARG_OPCODES: tuple[int, ...] = ()
+DUAL_ARG_OPCODES: Tuple[int, ...] = ()
 if PY313:
     DUAL_ARG_OPCODES = (
         _opcode.opmap["LOAD_FAST_LOAD_FAST"],

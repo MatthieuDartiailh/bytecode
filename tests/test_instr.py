@@ -24,6 +24,7 @@ from bytecode.instr import (
     Intrinsic2Op,
     opcode_has_argument,
 )
+from bytecode.utils import PY311, PY313
 
 from . import TestCase
 
@@ -31,13 +32,13 @@ from . import TestCase
 
 # Starting with Python 3.11 jump opcode have changed quite a bit. We define here
 # opcode useful to test for both Python < 3.11 and Python >= 3.11
-UNCONDITIONAL_JUMP = "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE"
+UNCONDITIONAL_JUMP = "JUMP_FORWARD" if PY311 else "JUMP_ABSOLUTE"
 CONDITIONAL_JUMP = (
     "POP_JUMP_FORWARD_IF_TRUE"
     if (3, 12) > sys.version_info >= (3, 11)
     else "POP_JUMP_IF_TRUE"
 )
-CALL = "CALL" if sys.version_info >= (3, 11) else "CALL_FUNCTION"
+CALL = "CALL" if PY311 else "CALL_FUNCTION"
 
 
 class SetLinenoTests(TestCase):
@@ -474,7 +475,7 @@ class CompareTests(TestCase):
 
         params = zip(iter(Compare), (True, True, False, True, False, False))
         for cmp, expected in params:
-            for cast in (False, True):
+            for cast in (False, True) if PY313 else (False,):
                 with self.subTest(cmp):
                     operation = Compare(cmp + (16 if cast else 0))
                     print(f"Subtest: {operation.name}")

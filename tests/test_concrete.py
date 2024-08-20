@@ -21,6 +21,7 @@ from bytecode import (
     SetLineno,
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION, ExceptionTableEntry
+from bytecode.utils import PY313
 
 from . import TestCase, get_code
 

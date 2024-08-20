@@ -952,8 +952,8 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         # TryEnd/TryBegin pair which share the same target.
         # In each case, we store the value found in the CFG and the value
         # inserted in the bytecode.
-        last_try_begin: tuple[TryBegin, TryBegin] | None = None
-        last_try_end: tuple[TryEnd, TryEnd] | None = None
+        last_try_begin: Tuple[TryBegin, TryBegin] | None = None
+        last_try_end: Tuple[TryEnd, TryEnd] | None = None
 
         for block in self:
             if id(block) in used_blocks:
