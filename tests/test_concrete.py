@@ -652,7 +652,7 @@ class ConcreteBytecodeTests(TestCase):
         # Then with something bogus.  We probably don't want to advertise this
         # in the documentation.  If this fails then decide if it's for good
         # reason, and remove if so.
-        explicit_stacksize = 0
+        explicit_stacksize = code_obj.co_stacksize - 1
         new_code_obj = concrete.to_code(
             stacksize=explicit_stacksize, compute_exception_stack_depths=False
         )
@@ -1445,6 +1445,7 @@ class BytecodeToConcreteTests(TestCase):
                 7 if OFFSET_AS_INSTRUCTION else 14,
                 lineno=1,
             ),
+            *([ConcreteInstr("CACHE")] if PY313 else []),
             ConcreteInstr("LOAD_CONST", 0, lineno=2),
             ConcreteInstr("STORE_NAME", 1, lineno=2),
             ConcreteInstr("JUMP_FORWARD", 2 if OFFSET_AS_INSTRUCTION else 4, lineno=2),
@@ -1559,8 +1560,6 @@ class BytecodeToConcreteTests(TestCase):
         )
 
     def test_extended_jump(self):
-        NOP = bytes((opcode.opmap["NOP"], 0))
-
         # code using jumps > 0xffff to test extended arg
         nb_nop = 2**16 if OFFSET_AS_INSTRUCTION else 2**15
         # The length of the jump is independent of the number of instruction
@@ -1577,9 +1576,22 @@ class BytecodeToConcreteTests(TestCase):
         )
 
         code_obj = code.to_code()
-        # We use 2 extended args (0x90) out of the maximum 3 which are allowed
-        i_code = opcode.opmap["JUMP_FORWARD"].to_bytes(1, "little")
-        expected = b"\x90\x01\x90\x00" + i_code + b"\x00" + NOP * nb_nop + b"d\x00S\x00"
+        # We use 2 extended args out of the maximum 3 which are allowed
+        expected = bytes(
+            (
+                opcode.EXTENDED_ARG,
+                1,
+                opcode.EXTENDED_ARG,
+                0,
+                opcode.opmap["JUMP_FORWARD"],
+                0,
+                *([opcode.opmap["NOP"], 0] * nb_nop),
+                opcode.opmap["LOAD_CONST"],
+                0,
+                opcode.opmap["RETURN_VALUE"],
+                0,
+            )
+        )
         self.assertSequenceEqual(code_obj.co_code, expected)
 
     def test_jumps(self):
@@ -1621,6 +1633,7 @@ class BytecodeToConcreteTests(TestCase):
                 5 if OFFSET_AS_INSTRUCTION else 10,
                 lineno=1,
             ),
+            *([ConcreteInstr("CACHE")] if PY313 else []),
             ConcreteInstr("LOAD_CONST", 0, lineno=2),
             ConcreteInstr("STORE_NAME", 1, lineno=2),
             ConcreteInstr("JUMP_FORWARD", 2 if OFFSET_AS_INSTRUCTION else 4, lineno=2),

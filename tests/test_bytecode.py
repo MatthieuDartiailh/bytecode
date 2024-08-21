@@ -8,6 +8,7 @@ import unittest
 
 from bytecode import Bytecode, ConcreteInstr, FreeVar, Instr, Label, SetLineno
 from bytecode.instr import BinaryOp
+from bytecode.utils import PY313
 
 from . import TestCase, get_code
 
@@ -422,7 +423,9 @@ class BytecodeTests(TestCase):
                 code.first_lineno = 1
                 code.extend([Instr(opname)])
                 co = code.to_code(check_pre_and_post=False)
-                self.assertEqual(co.co_stacksize, 0)
+                # In 3.13 the code object constructor fixes the stacksize for us...
+                if not PY313:
+                    self.assertEqual(co.co_stacksize, 0)
 
     def test_negative_size_binary(self):
         operations = (
