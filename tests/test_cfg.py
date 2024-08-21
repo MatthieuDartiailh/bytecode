@@ -20,7 +20,7 @@ from bytecode import (
     dump_bytecode,
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
-from bytecode.utils import PY313, PY311
+from bytecode.utils import PY311, PY313
 
 from . import TestCase, disassemble as _disassemble
 
