@@ -1,5 +1,6 @@
 import dis
 import inspect
+import itertools
 import opcode as _opcode
 import struct
 import sys
@@ -1188,7 +1189,9 @@ class _ConvertBytecodeToConcrete:
         cell_instrs: List[int] = []
         free_instrs: List[int] = []
 
-        for instr in self.bytecode:
+        # We use None as a sentinel to ensure caches for the last instruction are
+        # properly generated.
+        for instr in itertools.chain(self.bytecode, [None]):
             # Enforce proper use of CACHE opcode on Python 3.11+ by checking we get the
             # number we expect or directly generate the needed ones.
             if isinstance(instr, Instr) and instr.name == "CACHE":
@@ -1213,9 +1216,12 @@ class _ConvertBytecodeToConcrete:
                     self.seen_manual_cache = False
                 else:
                     raise RuntimeError(
-                        "Found some manual opcode but less than expected. "
+                        "Found some manual CACHE opcode but less than expected. "
                         f"Missing {self.required_caches} CACHE opcodes."
                     )
+
+            if instr is None:
+                continue
 
             if isinstance(instr, Label):
                 self.labels[instr] = len(self.instructions)
