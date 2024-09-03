@@ -726,7 +726,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             location = location or InstrLocation(new_lineno, None, None, None)
 
             # Group together instruction with equivalent locations
-            if old_location.lineno and old_location == location:
+            if old_location.lineno is not None and old_location == location:
                 size += i_size
                 continue
 
