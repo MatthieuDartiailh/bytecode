@@ -722,8 +722,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         # We track the last set lineno to be able to compute deltas
         for _, i_size, new_lineno, location in iter_in:
-            # Infer the line if location is None
-            location = location or InstrLocation(new_lineno, None, None, None)
+            # Infer the location if location is None
+            location = location or old_location
 
             # Group together instruction with equivalent locations
             if old_location.lineno is not None and old_location == location:
@@ -1183,7 +1183,7 @@ class _ConvertBytecodeToConcrete:
         return index
 
     def concrete_instructions(self) -> None:
-        lineno = self.bytecode.first_lineno
+        location = InstrLocation(self.bytecode.first_lineno, None, None, None)
         # Track instruction (index) using cell vars and free vars to be able to update
         # the index used once all the names are known.
         cell_instrs: List[int] = []
@@ -1228,7 +1228,7 @@ class _ConvertBytecodeToConcrete:
                 continue
 
             if isinstance(instr, SetLineno):
-                lineno = instr.lineno
+                location = InstrLocation(instr.lineno, None, None, None)
                 continue
 
             if isinstance(instr, TryBegin):
@@ -1255,10 +1255,10 @@ class _ConvertBytecodeToConcrete:
 
             assert isinstance(instr, Instr)
 
-            if instr.lineno is not UNSET and instr.lineno is not None:
-                lineno = instr.lineno
-            elif instr.lineno is UNSET:
-                instr.lineno = lineno
+            if instr.location is not UNSET and instr.location is not None:
+                location = instr.location
+            elif instr.location is UNSET:
+                instr.location = location
 
             opcode = instr._opcode
             arg = instr.arg
