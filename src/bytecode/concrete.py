@@ -1257,8 +1257,6 @@ class _ConvertBytecodeToConcrete:
 
             if instr.location is not UNSET and instr.location is not None:
                 location = instr.location
-            elif instr.location is UNSET:
-                instr.location = location
 
             opcode = instr._opcode
             arg = instr.arg
@@ -1340,7 +1338,7 @@ class _ConvertBytecodeToConcrete:
 
             # The above should have performed all the necessary conversion
             assert isinstance(arg, int)
-            c_instr = ConcreteInstr(instr.name, arg, location=instr.location)
+            c_instr = ConcreteInstr(instr.name, arg, location=location)
             if is_jump:
                 self.jumps.append((len(self.instructions), label, c_instr))
 
