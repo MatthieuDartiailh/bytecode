@@ -7,7 +7,7 @@ import types
 import unittest
 
 from bytecode import Bytecode, ConcreteInstr, FreeVar, Instr, Label, SetLineno
-from bytecode.instr import BinaryOp
+from bytecode.instr import BinaryOp, InstrLocation
 from bytecode.utils import PY313
 
 from . import TestCase, get_code
@@ -351,12 +351,24 @@ class BytecodeTests(TestCase):
         self.assertListEqual(
             list(concrete),
             [
-                ConcreteInstr("LOAD_CONST", 0, lineno=3),
-                ConcreteInstr("STORE_NAME", 0, lineno=3),
-                ConcreteInstr("LOAD_CONST", 1, lineno=4),
-                ConcreteInstr("STORE_NAME", 1, lineno=4),
-                ConcreteInstr("LOAD_CONST", 2, lineno=5),
-                ConcreteInstr("STORE_NAME", 2, lineno=5),
+                ConcreteInstr(
+                    "LOAD_CONST", 0, location=InstrLocation(3, None, None, None)
+                ),
+                ConcreteInstr(
+                    "STORE_NAME", 0, location=InstrLocation(3, None, None, None)
+                ),
+                ConcreteInstr(
+                    "LOAD_CONST", 1, location=InstrLocation(4, None, None, None)
+                ),
+                ConcreteInstr(
+                    "STORE_NAME", 1, location=InstrLocation(4, None, None, None)
+                ),
+                ConcreteInstr(
+                    "LOAD_CONST", 2, location=InstrLocation(5, None, None, None)
+                ),
+                ConcreteInstr(
+                    "STORE_NAME", 2, location=InstrLocation(5, None, None, None)
+                ),
             ],
         )
 
