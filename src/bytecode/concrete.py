@@ -721,7 +721,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         lineno = first_lineno
 
         # We track the last set lineno to be able to compute deltas
-        for _, i_size, new_lineno, location in iter_in:
+        for _, i_size, _, location in iter_in:
             # Infer the location if location is None
             location = location or old_location
 
