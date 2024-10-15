@@ -14,8 +14,9 @@ from bytecode import (
     SetLineno,
 )
 from bytecode.instr import (
-    BITFLAG2_INSTRUCTIONS,
-    BITFLAG_INSTRUCTIONS,
+    BITFLAG2_OPCODES,
+    BITFLAG_OPCODES,
+    DUAL_ARG_OPCODES,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
     InstrLocation,
@@ -23,6 +24,7 @@ from bytecode.instr import (
     Intrinsic2Op,
     opcode_has_argument,
 )
+from bytecode.utils import PY311, PY313
 
 from . import TestCase
 
@@ -30,13 +32,13 @@ from . import TestCase
 
 # Starting with Python 3.11 jump opcode have changed quite a bit. We define here
 # opcode useful to test for both Python < 3.11 and Python >= 3.11
-UNCONDITIONAL_JUMP = "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE"
+UNCONDITIONAL_JUMP = "JUMP_FORWARD" if PY311 else "JUMP_ABSOLUTE"
 CONDITIONAL_JUMP = (
     "POP_JUMP_FORWARD_IF_TRUE"
     if (3, 12) > sys.version_info >= (3, 11)
     else "POP_JUMP_IF_TRUE"
 )
-CALL = "CALL" if sys.version_info >= (3, 11) else "CALL_FUNCTION"
+CALL = "CALL" if PY311 else "CALL_FUNCTION"
 
 
 class SetLinenoTests(TestCase):
@@ -196,7 +198,7 @@ class InstrTests(TestCase):
         Instr("NOP")
 
         # Instructions using a bitflag in their oparg
-        for name in BITFLAG_INSTRUCTIONS:
+        for name in (opcode.opname[op] for op in BITFLAG_OPCODES):
             self.assertRaises(TypeError, Instr, name, "arg")
             self.assertRaises(TypeError, Instr, name, ("arg",))
             self.assertRaises(TypeError, Instr, name, ("", "arg"))
@@ -204,13 +206,20 @@ class InstrTests(TestCase):
             Instr(name, (True, "arg"))
 
         # Instructions using 2 bitflag in their oparg
-        for name in BITFLAG2_INSTRUCTIONS:
+        for name in (opcode.opname[op] for op in BITFLAG2_OPCODES):
             self.assertRaises(TypeError, Instr, name, "arg")
             self.assertRaises(TypeError, Instr, name, ("arg",))
             self.assertRaises(TypeError, Instr, name, ("", True, "arg"))
             self.assertRaises(TypeError, Instr, name, (True, "", "arg"))
             self.assertRaises(TypeError, Instr, name, (False, True, 1))
             Instr(name, (False, True, "arg"))
+
+        # Instructions packing 2 args in their oparg
+        for name in (opcode.opname[op] for op in DUAL_ARG_OPCODES):
+            self.assertRaises(TypeError, Instr, name, "arg")
+            self.assertRaises(TypeError, Instr, name, ("arg",))
+            self.assertRaises(TypeError, Instr, name, ("", True))
+            Instr(name, ("arg1", "arg2"))
 
         for name in [opcode.opname[i] for i in INTRINSIC_1OP]:
             self.assertRaises(TypeError, Instr, name, 1)
@@ -229,7 +238,7 @@ class InstrTests(TestCase):
     def test_attr(self):
         instr = Instr("LOAD_CONST", 3, lineno=5)
         self.assertEqual(instr.name, "LOAD_CONST")
-        self.assertEqual(instr.opcode, 100)
+        self.assertEqual(instr.opcode, opcode.opmap["LOAD_CONST"])
         self.assertEqual(instr.arg, 3)
         self.assertEqual(instr.lineno, 5)
 
@@ -466,18 +475,22 @@ class CompareTests(TestCase):
 
         params = zip(iter(Compare), (True, True, False, True, False, False))
         for cmp, expected in params:
-            with self.subTest(cmp):
-                bcode = Bytecode(
-                    ([Instr("RESUME", 0)] if sys.version_info >= (3, 11) else [])
-                    + [
-                        Instr("LOAD_CONST", 24),
-                        Instr("LOAD_CONST", 42),
-                        Instr("COMPARE_OP", cmp),
-                        Instr("RETURN_VALUE"),
-                    ]
-                )
-                f.__code__ = bcode.to_code()
-                self.assertIs(f(), expected)
+            for cast in (False, True) if PY313 else (False,):
+                with self.subTest(cmp):
+                    operation = Compare(cmp + (16 if cast else 0))
+                    print(f"Subtest: {operation.name}")
+                    bcode = Bytecode(
+                        ([Instr("RESUME", 0)] if sys.version_info >= (3, 11) else [])
+                        + [
+                            Instr("LOAD_CONST", 24),
+                            Instr("LOAD_CONST", 42),
+                            Instr("COMPARE_OP", operation),
+                            Instr("RETURN_VALUE"),
+                        ]
+                    )
+                    bcode.update_flags()
+                    f.__code__ = bcode.to_code()
+                    self.assertIs(f(), expected)
 
 
 if __name__ == "__main__":

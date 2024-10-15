@@ -28,6 +28,7 @@ from bytecode.instr import (
     TryBegin,
     TryEnd,
 )
+from bytecode.utils import PY311
 
 
 class BaseBytecode:
@@ -120,12 +121,10 @@ class _BaseBytecodeList(BaseBytecode, list, Generic[U]):
     """List subclass providing type stable slicing and copying."""
 
     @overload
-    def __getitem__(self, index: SupportsIndex) -> U:
-        ...
+    def __getitem__(self, index: SupportsIndex) -> U: ...
 
     @overload
-    def __getitem__(self: T, index: slice) -> T:
-        ...
+    def __getitem__(self: T, index: slice) -> T: ...
 
     def __getitem__(self, index):
         value = super().__getitem__(index)
@@ -299,9 +298,7 @@ class Bytecode(
     ) -> types.CodeType:
         # Prevent reconverting the concrete bytecode to bytecode and cfg to do the
         # calculation if we need to do it.
-        if stacksize is None or (
-            sys.version_info >= (3, 11) and compute_exception_stack_depths
-        ):
+        if stacksize is None or (PY311 and compute_exception_stack_depths):
             cfg = _bytecode.ControlFlowGraph.from_bytecode(self)
             stacksize = cfg.compute_stacksize(
                 check_pre_and_post=check_pre_and_post,

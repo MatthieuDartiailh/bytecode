@@ -7,7 +7,8 @@ import types
 import unittest
 
 from bytecode import Bytecode, ConcreteInstr, FreeVar, Instr, Label, SetLineno
-from bytecode.instr import BinaryOp
+from bytecode.instr import BinaryOp, InstrLocation
+from bytecode.utils import PY313
 
 from . import TestCase, get_code
 
@@ -220,12 +221,29 @@ class BytecodeTests(TestCase):
                     Instr("RETURN_VALUE", lineno=4),
                 ],
             )
+        elif sys.version_info < (3, 13):
+            self.assertInstructionListEqual(
+                bytecode,
+                [
+                    Instr("RESUME", 0, lineno=0),
+                    Instr("LOAD_NAME", "test", lineno=1),
+                    Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
+                    Instr("LOAD_CONST", 1, lineno=2),
+                    Instr("STORE_NAME", "x", lineno=2),
+                    Instr("RETURN_CONST", None, lineno=2),
+                    label_else,
+                    Instr("LOAD_CONST", 2, lineno=4),
+                    Instr("STORE_NAME", "x", lineno=4),
+                    Instr("RETURN_CONST", None, lineno=4),
+                ],
+            )
         else:
             self.assertInstructionListEqual(
                 bytecode,
                 [
                     Instr("RESUME", 0, lineno=0),
                     Instr("LOAD_NAME", "test", lineno=1),
+                    Instr("TO_BOOL", lineno=1),
                     Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
                     Instr("LOAD_CONST", 1, lineno=2),
                     Instr("STORE_NAME", "x", lineno=2),
@@ -333,12 +351,24 @@ class BytecodeTests(TestCase):
         self.assertListEqual(
             list(concrete),
             [
-                ConcreteInstr("LOAD_CONST", 0, lineno=3),
-                ConcreteInstr("STORE_NAME", 0, lineno=3),
-                ConcreteInstr("LOAD_CONST", 1, lineno=4),
-                ConcreteInstr("STORE_NAME", 1, lineno=4),
-                ConcreteInstr("LOAD_CONST", 2, lineno=5),
-                ConcreteInstr("STORE_NAME", 2, lineno=5),
+                ConcreteInstr(
+                    "LOAD_CONST", 0, location=InstrLocation(3, None, None, None)
+                ),
+                ConcreteInstr(
+                    "STORE_NAME", 0, location=InstrLocation(3, None, None, None)
+                ),
+                ConcreteInstr(
+                    "LOAD_CONST", 1, location=InstrLocation(4, None, None, None)
+                ),
+                ConcreteInstr(
+                    "STORE_NAME", 1, location=InstrLocation(4, None, None, None)
+                ),
+                ConcreteInstr(
+                    "LOAD_CONST", 2, location=InstrLocation(5, None, None, None)
+                ),
+                ConcreteInstr(
+                    "STORE_NAME", 2, location=InstrLocation(5, None, None, None)
+                ),
             ],
         )
 
@@ -405,7 +435,9 @@ class BytecodeTests(TestCase):
                 code.first_lineno = 1
                 code.extend([Instr(opname)])
                 co = code.to_code(check_pre_and_post=False)
-                self.assertEqual(co.co_stacksize, 0)
+                # In 3.13 the code object constructor fixes the stacksize for us...
+                if not PY313:
+                    self.assertEqual(co.co_stacksize, 0)
 
     def test_negative_size_binary(self):
         operations = (
@@ -711,6 +743,72 @@ class BytecodeTests(TestCase):
                 f.__code__ = recompile_code_and_inner(origin)
                 while callable(f := f()):
                     pass
+
+    def test_empty_try_block(self):
+        if sys.version_info < (3, 11):
+            self.skipTest("Exception tables were introduced in 3.11")
+
+        import bytecode as b
+
+        def foo():
+            return 42
+
+        code = Bytecode.from_code(foo.__code__)
+
+        try_begin = b.TryBegin(Label(), push_lasti=True)
+        code[1:1] = [try_begin, b.TryEnd(try_begin), try_begin.target]
+
+        foo.__code__ = code.to_code()
+
+        # Test that the function is still good
+        self.assertEqual(foo(), 42)
+
+        # Test that we can re-decompile the code
+        code = Bytecode.from_code(foo.__code__)
+        foo.__code__ = code.to_code()
+
+        # Test that the function is still good
+        self.assertEqual(foo(), 42)
+
+        # Do another round trip
+        Bytecode.from_code(foo.__code__).to_code()
+
+    def test_try_block_around_extended_arg(self):
+        """Test that we can handle small try blocks around opcodes that require
+        extended arguments.
+
+        We wrap a jump instruction between a TryBegin and TryEnd, and ensure
+        that the jump target is further away as to require an extended argument
+        for the branching instruction. We then test that we can compile and
+        de-compile the code object without issues.
+        """
+        if sys.version_info < (3, 11):
+            self.skipTest("Exception tables were introduced in 3.11")
+
+        import bytecode as b
+
+        def foo():
+            return 42
+
+        bc = Bytecode.from_code(foo.__code__)
+
+        try_begin = b.TryBegin(Label(), push_lasti=True)
+        bc[1:1] = [
+            try_begin,
+            Instr("JUMP_FORWARD", try_begin.target),
+            b.TryEnd(try_begin),
+            *(Instr("NOP") for _ in range(400)),
+            try_begin.target,
+        ]
+
+        foo.__code__ = bc.to_code()
+
+        self.assertEqual(foo(), 42)
+
+        # Do another round trip
+        foo.__code__ = Bytecode.from_code(foo.__code__).to_code()
+
+        self.assertEqual(foo(), 42)
 
 
 if __name__ == "__main__":
