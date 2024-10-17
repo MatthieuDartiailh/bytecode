@@ -12,6 +12,32 @@ from bytecode import Bytecode, ControlFlowGraph
 _original_exec = exec
 
 
+def dump_last_traceback_frame(exc, file=None):
+    tb = exc.__traceback__
+    # Get the last frame. This is where we expect the most useful debugging
+    # information to be
+    while tb.tb_next is not None:
+        tb = tb.tb_next
+
+    # Inspect the locals
+    _locals = tb.tb_frame.f_locals
+    if w := max(len(_) for _ in _locals) + 2 if _locals else 0 > 0:
+        print(title := " Locals from last frame ".center(w * 2, "="), file=file)
+        for name, value in _locals.items():
+            print(f"{name:>{w}} = {value}", file=file)
+        print("=" * len(title), file=file)
+
+
+class BytecodeError(Exception):
+    def __init__(self, message, code, exc=None):
+        stream = io.StringIO()
+        print(message, file=stream)
+        if exc is not None:
+            dump_last_traceback_frame(exc, file=stream)
+        dis.dis(code, file=stream, depth=0, show_caches=True)
+        super().__init__(stream.getvalue())
+
+
 class ModuleCodeCollector(BaseModuleWatchdog):
     def __init__(self):
         super().__init__()
@@ -36,7 +62,11 @@ class ModuleCodeCollector(BaseModuleWatchdog):
             start = time()
 
             abstract_code = Bytecode.from_code(code)
+        except Exception as e:
+            msg = f"Failed to convert {code} from {_module} into abstract code"
+            raise BytecodeError(msg, code, e) from e
 
+        try:
             for instr in abstract_code:
                 try:
                     if isinstance(instr.arg, CodeType):
@@ -58,10 +88,9 @@ class ModuleCodeCollector(BaseModuleWatchdog):
             self.count += 1
 
             return recompiled_code
-        except Exception:
-            print(f"Failed to recompile {code} from {_module}")
-            dis.dis(code)
-            raise
+        except Exception as e:
+            msg = f"Failed to recompile {code} from {_module}"
+            raise BytecodeError(msg, code, e) from e
 
     def after_import(self, _module: ModuleType) -> None:
         pass
