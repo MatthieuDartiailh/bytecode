@@ -799,7 +799,7 @@ InstrArg = Union[
     Compare,
     Tuple[bool, str],
     Tuple[bool, bool, str],
-    Tuple[Union[str, CellVar], Union[str, CellVar]],
+    Tuple[Union[str, CellVar, FreeVar], Union[str, CellVar, FreeVar]],
 ]
 
 
