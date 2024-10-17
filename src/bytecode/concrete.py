@@ -989,9 +989,11 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             cells_lookup = [CellVar(n) for n in self.cellvars]
 
         # In Python 3.13+ LOAD_FAST can be used to retrieve cell values
-        locals_lookup: Sequence[Union[str, CellVar]]
+        locals_lookup: Sequence[Union[str, CellVar, FreeVar]]
         if PY313:
-            locals_lookup = cells_lookup
+            locals_lookup = cells_lookup + [
+                FreeVar(n) for n in self.freevars if n not in self.varnames
+            ]
         else:
             locals_lookup = self.varnames
 
@@ -1282,6 +1284,9 @@ class _ConvertBytecodeToConcrete:
                 elif PY313 and isinstance(arg, CellVar):
                     cell_instrs.append(len(self.instructions))
                     arg = self.bytecode.cellvars.index(arg.name)
+                elif PY313 and isinstance(arg, FreeVar):
+                    free_instrs.append(len(self.instructions))
+                    arg = self.bytecode.freevars.index(arg.name)
                 else:
                     assert isinstance(arg, str)
                     arg = self.add(self.varnames, arg)
