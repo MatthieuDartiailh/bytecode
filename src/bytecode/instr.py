@@ -878,7 +878,11 @@ class Instr(BaseInstr[InstrArg]):
                         "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
                     )
 
-            elif PY313 and opcode in _opcode.haslocal and isinstance(arg, CellVar):
+            elif (
+                PY313
+                and opcode in _opcode.haslocal
+                and isinstance(arg, (CellVar, FreeVar))
+            ):
                 # Cell vars can be accessed using locals in Python 3.13+
                 pass
 
