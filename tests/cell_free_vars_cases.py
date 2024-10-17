@@ -56,6 +56,20 @@ def class_super():
     return B().f
 
 
+def test_freevar():
+    class Foo:
+        r = 0
+
+        @classmethod
+        def bar(cls, k):
+            class Snafu(k):
+                def do_debug(self, arg):
+                    cls.r += 1
+                    return super().d(arg)
+
+            return Snafu
+
+
 # NOTE this is not really a cell var case but it ensures proper
 # placements of CACHE vs labels
 _localedirs = {}
@@ -76,6 +90,7 @@ TEST_CASES = [
     class_super,
     class_loadderef,
     bindtextdomain,
+    test_freevar,
 ]
 
 if __name__ == "__main__":

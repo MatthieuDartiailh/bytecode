@@ -111,7 +111,7 @@ def infer_flags(
     )
 
     sure_generator = instr_names & {"YIELD_VALUE"}
-    maybe_generator = instr_names & {"YIELD_VALUE", "YIELD_FROM"}
+    maybe_generator = instr_names & {"YIELD_VALUE", "YIELD_FROM", "RETURN_GENERATOR"}
 
     sure_async = instr_names & {
         "GET_AWAITABLE",

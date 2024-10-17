@@ -18,6 +18,7 @@
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
   ]
   dependencies = ["typing_extensions;python_version<'3.10'"]
@@ -25,14 +26,14 @@
 
 
   [project.urls]
-    homepage = "https://github.com/MatthieuDartiailh/bytecode"
+    homepage      = "https://github.com/MatthieuDartiailh/bytecode"
     documentation = "https://bytecode.readthedocs.io/en/latest/"
-    repository = "https://github.com/MatthieuDartiailh/bytecode"
-    changelog = "https://github.com/MatthieuDartiailh/bytecode/blob/main/doc/changelog.rst"
+    repository    = "https://github.com/MatthieuDartiailh/bytecode"
+    changelog     = "https://github.com/MatthieuDartiailh/bytecode/blob/main/doc/changelog.rst"
 
 
 [build-system]
-  requires = ["setuptools>=61.2", "wheel", "setuptools_scm[toml]>=3.4.3"]
+  requires      = ["setuptools>=61.2", "wheel", "setuptools_scm[toml]>=3.4.3"]
   build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
@@ -60,23 +61,23 @@ __version__ = "{version}"
 """
 
 [tool.ruff]
-  src = ["src"]
+  src            = ["src"]
   extend-exclude = ["tests/instruments/hardware/nifpga/scope_based"]
-  line-length = 88
+  line-length    = 88
 
   [tool.ruff.lint]
-    select = ["B", "C", "E", "F", "W", "B9", "I", "C90", "RUF"]
+    select        = ["B", "C", "E", "F", "W", "B9", "I", "C90", "RUF"]
     extend-ignore = ["E203", "E266", "E501", "F403", "F401", "RUF012"]
 
     [tool.ruff.lint.isort]
-      combine-as-imports = true
+      combine-as-imports     = true
       extra-standard-library = ["opcode"]
 
     [tool.ruff.lint.mccabe]
       max-complexity = 42
 
 [tool.mypy]
-  follow_imports = "normal"
+  follow_imports  = "normal"
   strict_optional = true
 
 [tool.pytest.ini_options]
