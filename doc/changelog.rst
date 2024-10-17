@@ -6,7 +6,7 @@ ChangeLog
 
 Bugfixes:
 
-- Ensure the correct management of TryBegin blocks in CFGs. PR #1xx
+- Ensure the correct management of TryBegin blocks in CFGs. PR #147
 
 2024-05-28: Version 0.15.2
 --------------------------
