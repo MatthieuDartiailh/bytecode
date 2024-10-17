@@ -1191,6 +1191,16 @@ class _ConvertBytecodeToConcrete:
         cell_instrs: List[int] = []
         free_instrs: List[int] = []
 
+        # On 3.13+, try to use small indexes for names used in dual arg opcode
+        # to improve the chances to be able to use them (since we cannot use
+        # only the 15 first names.
+        if PY313:
+            for instr in self.bytecode:
+                if isinstance(instr, Instr) and instr._opcode in DUAL_ARG_OPCODES:
+                    assert isinstance(instr.arg, tuple)
+                    for arg in instr.arg:
+                        self.add(self.varnames, arg)
+
         # We use None as a sentinel to ensure caches for the last instruction are
         # properly generated.
         for instr in itertools.chain(self.bytecode, [None]):
@@ -1260,6 +1270,7 @@ class _ConvertBytecodeToConcrete:
             if instr.location is not UNSET and instr.location is not None:
                 location = instr.location
 
+            instr_name = instr.name
             opcode = instr._opcode
             arg = instr.arg
             is_jump = False
@@ -1278,9 +1289,18 @@ class _ConvertBytecodeToConcrete:
                         and isinstance(arg[0], str)
                         and isinstance(arg[1], str)
                     )
-                    arg = (self.add(self.varnames, arg[0]) << 4) + self.add(
-                        self.varnames, arg[1]
-                    )
+                    arg1_index = self.add(self.varnames, arg[0])
+                    arg2_index = self.add(self.varnames, arg[1])
+                    if arg1_index > 16 or arg2_index > 16:
+                        parts = instr.name.split("_")
+                        n1 = "_".join(parts[:2])
+                        n2 = "_".join(parts[2:])
+                        c_instr = ConcreteInstr(n1, arg1_index, location=location)
+                        self.instructions.append(c_instr)
+                        instr_name = n2
+                        arg = arg2_index
+                    else:
+                        arg = (arg1_index << 4) + arg2_index
                 elif PY313 and isinstance(arg, CellVar):
                     cell_instrs.append(len(self.instructions))
                     arg = self.bytecode.cellvars.index(arg.name)
@@ -1343,7 +1363,7 @@ class _ConvertBytecodeToConcrete:
 
             # The above should have performed all the necessary conversion
             assert isinstance(arg, int)
-            c_instr = ConcreteInstr(instr.name, arg, location=location)
+            c_instr = ConcreteInstr(instr_name, arg, location=location)
             if is_jump:
                 self.jumps.append((len(self.instructions), label, c_instr))
 
