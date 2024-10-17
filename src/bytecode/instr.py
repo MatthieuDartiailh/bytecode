@@ -883,7 +883,7 @@ class Instr(BaseInstr[InstrArg]):
                 and opcode in _opcode.haslocal
                 and isinstance(arg, (CellVar, FreeVar))
             ):
-                # Cell vars can be accessed using locals in Python 3.13+
+                # Cell and free vars can be accessed using locals in Python 3.13+
                 pass
 
             elif not isinstance(arg, str):
