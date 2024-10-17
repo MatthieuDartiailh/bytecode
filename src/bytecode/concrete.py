@@ -182,8 +182,8 @@ class ConcreteInstr(BaseInstr[int]):
     def use_cache_opcodes(self) -> int:
         if sys.version_info >= (3, 13):
             return (
-                dis._inline_cache_entries[self._name]
-                if self._name in dis._inline_cache_entries
+                dis._inline_cache_entries[self._name]  # type: ignore[attr-defined]
+                if self._name in dis._inline_cache_entries  # type: ignore[attr-defined]
                 else 0
             )
         elif sys.version_info >= (3, 11):
@@ -1195,11 +1195,12 @@ class _ConvertBytecodeToConcrete:
         # to improve the chances to be able to use them (since we cannot use
         # only the 15 first names.
         if PY313:
-            for instr in self.bytecode:
-                if isinstance(instr, Instr) and instr._opcode in DUAL_ARG_OPCODES:
-                    assert isinstance(instr.arg, tuple)
-                    for arg in instr.arg:
-                        self.add(self.varnames, arg)
+            for binstr in self.bytecode:
+                if isinstance(binstr, Instr) and binstr._opcode in DUAL_ARG_OPCODES:
+                    assert isinstance(binstr.arg, tuple)
+                    for parg in binstr.arg:
+                        assert isinstance(parg, str)
+                        self.add(self.varnames, parg)
 
         # We use None as a sentinel to ensure caches for the last instruction are
         # properly generated.
@@ -1277,10 +1278,10 @@ class _ConvertBytecodeToConcrete:
             if isinstance(arg, Label):
                 label = arg
                 # fake value, real value is set in compute_jumps()
-                arg = 0
+                c_arg = 0
                 is_jump = True
             elif opcode in _opcode.hasconst:
-                arg = self.add_const(arg)
+                c_arg = self.add_const(arg)
             elif opcode in _opcode.haslocal:
                 if opcode in DUAL_ARG_OPCODES:
                     assert (
@@ -1298,18 +1299,18 @@ class _ConvertBytecodeToConcrete:
                         c_instr = ConcreteInstr(n1, arg1_index, location=location)
                         self.instructions.append(c_instr)
                         instr_name = n2
-                        arg = arg2_index
+                        c_arg = arg2_index
                     else:
-                        arg = (arg1_index << 4) + arg2_index
+                        c_arg = (arg1_index << 4) + arg2_index
                 elif PY313 and isinstance(arg, CellVar):
                     cell_instrs.append(len(self.instructions))
-                    arg = self.bytecode.cellvars.index(arg.name)
+                    c_arg = self.bytecode.cellvars.index(arg.name)
                 elif PY313 and isinstance(arg, FreeVar):
                     free_instrs.append(len(self.instructions))
-                    arg = self.bytecode.freevars.index(arg.name)
+                    c_arg = self.bytecode.freevars.index(arg.name)
                 else:
                     assert isinstance(arg, str)
-                    arg = self.add(self.varnames, arg)
+                    c_arg = self.add(self.varnames, arg)
             elif opcode in _opcode.hasname:
                 if opcode in BITFLAG_OPCODES:
                     assert (
@@ -1319,7 +1320,7 @@ class _ConvertBytecodeToConcrete:
                         and isinstance(arg[1], str)
                     ), arg
                     index = self.add(self.names, arg[1])
-                    arg = int(arg[0]) + (index << 1)
+                    c_arg = int(arg[0]) + (index << 1)
                 elif opcode in BITFLAG2_OPCODES:
                     assert (
                         isinstance(arg, tuple)
@@ -1329,24 +1330,24 @@ class _ConvertBytecodeToConcrete:
                         and isinstance(arg[2], str)
                     ), arg
                     index = self.add(self.names, arg[2])
-                    arg = int(arg[0]) + 2 * int(arg[1]) + (index << 2)
+                    c_arg = int(arg[0]) + 2 * int(arg[1]) + (index << 2)
                 else:
                     assert isinstance(arg, str), f"Got {arg}, expected a str"
-                    arg = self.add(self.names, arg)
+                    c_arg = self.add(self.names, arg)
             elif opcode in _opcode.hasfree:
                 if isinstance(arg, CellVar):
                     cell_instrs.append(len(self.instructions))
-                    arg = self.bytecode.cellvars.index(arg.name)
+                    c_arg = self.bytecode.cellvars.index(arg.name)
                 else:
                     assert isinstance(arg, FreeVar)
                     free_instrs.append(len(self.instructions))
-                    arg = self.bytecode.freevars.index(arg.name)
+                    c_arg = self.bytecode.freevars.index(arg.name)
             elif opcode in _opcode.hascompare:
                 if isinstance(arg, Compare):
                     # In Python 3.13 the 4 lowest bits are used for caching
                     # and the 5th one indicate a cast to bool
                     if PY313:
-                        arg = (
+                        c_arg = (
                             arg._get_mask()
                             + ((arg.value & 0b1111) << 5)
                             + (arg.value & 16)
@@ -1354,16 +1355,16 @@ class _ConvertBytecodeToConcrete:
                     # In Python 3.12 the 4 lowest bits are used for caching
                     # See compare_masks in compile.c
                     elif PY312:
-                        arg = arg._get_mask() + (arg.value << 4)
+                        c_arg = arg._get_mask() + (arg.value << 4)
                     else:
-                        arg = arg.value
+                        c_arg = arg.value
             elif opcode in INTRINSIC:
                 if isinstance(arg, (Intrinsic1Op, Intrinsic2Op)):
-                    arg = arg.value
+                    c_arg = arg.value
 
             # The above should have performed all the necessary conversion
             assert isinstance(arg, int)
-            c_instr = ConcreteInstr(instr_name, arg, location=location)
+            c_instr = ConcreteInstr(instr_name, c_arg, location=location)
             if is_jump:
                 self.jumps.append((len(self.instructions), label, c_instr))
 
