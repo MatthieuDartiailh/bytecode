@@ -1361,9 +1361,11 @@ class _ConvertBytecodeToConcrete:
             elif opcode in INTRINSIC:
                 if isinstance(arg, (Intrinsic1Op, Intrinsic2Op)):
                     c_arg = arg.value
+            else:
+                assert isinstance(arg, int)
+                c_arg = arg
 
             # The above should have performed all the necessary conversion
-            assert isinstance(arg, int)
             c_instr = ConcreteInstr(instr_name, c_arg, location=location)
             if is_jump:
                 self.jumps.append((len(self.instructions), label, c_instr))
