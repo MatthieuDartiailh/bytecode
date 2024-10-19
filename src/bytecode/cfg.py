@@ -358,12 +358,13 @@ class _StackSizeComputer:
                 if instr.is_uncond_jump():
                     # Check for TryEnd after the final instruction which is possible
                     # TryEnd being only pseudo instructions
-                    if te := self.block.get_trailing_try_end(i):
-                        if self._current_try_begin is None:
-                            self._current_try_begin = te.entry
-                        else:
-                            # TryBegin cannot be nested
-                            assert te.entry is self._current_try_begin, (te.entry, self._current_try_begin)
+                    if self._current_try_begin is not None and (
+                        te := self.block.get_trailing_try_end(i)
+                    ):
+                        assert te.entry is self._current_try_begin, (
+                            te.entry,
+                            self._current_try_begin,
+                        )
 
                         assert isinstance(te.entry.target, BasicBlock)
                         yield from self._compute_exception_handler_stack_usage(
