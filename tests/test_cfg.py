@@ -3,6 +3,7 @@ import asyncio
 import contextlib
 import inspect
 import io
+import opcode
 import sys
 import textwrap
 import types
@@ -19,6 +20,7 @@ from bytecode import (
     dump_bytecode,
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
+from bytecode.utils import PY311, PY313
 
 from . import TestCase, disassemble as _disassemble
 
@@ -611,6 +613,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         block0.extend(
             [
                 Instr("LOAD_FAST", "x", lineno=4),
+                *([Instr("TO_BOOL", lineno=4)] if PY313 else []),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
                     if (3, 12) > sys.version_info >= (3, 11)
@@ -632,7 +635,38 @@ class BytecodeBlocksFunctionalTests(TestCase):
             ]
         )
 
-        if sys.version_info >= (3, 11):
+        if PY313:
+            expected = bytes(
+                (
+                    opcode.opmap["LOAD_FAST"],
+                    5,
+                    opcode.opmap["TO_BOOL"],
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    opcode.opmap["POP_JUMP_IF_FALSE"],
+                    2,
+                    0,
+                    0,
+                    opcode.opmap["LOAD_FAST"],
+                    0,
+                    opcode.opmap["STORE_FAST"],
+                    5,
+                    opcode.opmap["LOAD_CONST"],
+                    1,
+                    opcode.opmap["STORE_FAST"],
+                    5,
+                    opcode.opmap["LOAD_FAST"],
+                    5,
+                    opcode.opmap["RETURN_VALUE"],
+                    0,
+                )
+            )
+        elif PY311:
             # jump is relative not absolute
             expected = (
                 b"|\x05" b"r\x02" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"

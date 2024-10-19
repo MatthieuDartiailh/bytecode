@@ -1,6 +1,13 @@
 ChangeLog
 =========
 
+2024-05-28: Version 0.15.3
+--------------------------
+
+Bugfixes:
+
+- Ensure the correct management of TryBegin blocks in CFGs. PR #1xx
+
 2024-05-28: Version 0.15.2
 --------------------------
 

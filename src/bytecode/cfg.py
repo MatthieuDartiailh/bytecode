@@ -23,6 +23,7 @@ import bytecode as _bytecode
 from bytecode.concrete import ConcreteInstr
 from bytecode.flags import CompilerFlags
 from bytecode.instr import UNSET, Instr, Label, SetLineno, TryBegin, TryEnd
+from bytecode.utils import PY310, PY311, PY313
 
 T = TypeVar("T", bound="BasicBlock")
 U = TypeVar("U", bound="ControlFlowGraph")
@@ -357,9 +358,13 @@ class _StackSizeComputer:
                 if instr.is_uncond_jump():
                     # Check for TryEnd after the final instruction which is possible
                     # TryEnd being only pseudo instructions
-                    if te := self.block.get_trailing_try_end(i):
-                        # TryBegin cannot be nested
-                        assert te.entry is self._current_try_begin
+                    if self._current_try_begin is not None and (
+                        te := self.block.get_trailing_try_end(i)
+                    ):
+                        assert te.entry is self._current_try_begin, (
+                            te.entry,
+                            self._current_try_begin,
+                        )
 
                         assert isinstance(te.entry.target, BasicBlock)
                         yield from self._compute_exception_handler_stack_usage(
@@ -443,7 +448,7 @@ class _StackSizeComputer:
     def _is_stacksize_computation_relevant(
         self, block_id: int, fingerprint: Tuple[int, Optional[bool]]
     ) -> bool:
-        if sys.version_info >= (3, 11):
+        if PY311:
             # The computation is relevant if the block was not visited previously
             # with the same starting size and exception handler status than the
             # one in use
@@ -519,10 +524,15 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         # Starting with Python 3.10, generator and coroutines start with one object
         # on the stack (None, anything is an error).
         initial_stack_size = 0
-        if sys.version_info >= (3, 10) and self.flags & (
-            CompilerFlags.GENERATOR
-            | CompilerFlags.COROUTINE
-            | CompilerFlags.ASYNC_GENERATOR
+        if (
+            not PY313  # under 3.13+ RETURN_GENERATOR make this explicit
+            and PY310
+            and self.flags
+            & (
+                CompilerFlags.GENERATOR
+                | CompilerFlags.COROUTINE
+                | CompilerFlags.ASYNC_GENERATOR
+            )
         ):
             initial_stack_size = 1
 
@@ -951,8 +961,8 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         # TryEnd/TryBegin pair which share the same target.
         # In each case, we store the value found in the CFG and the value
         # inserted in the bytecode.
-        last_try_begin: tuple[TryBegin, TryBegin] | None = None
-        last_try_end: tuple[TryEnd, TryEnd] | None = None
+        last_try_begin: Tuple[TryBegin, TryBegin] | None = None
+        last_try_end: Tuple[TryEnd, TryEnd] | None = None
 
         for block in self:
             if id(block) in used_blocks:
