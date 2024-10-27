@@ -358,10 +358,13 @@ class _StackSizeComputer:
                 if instr.is_uncond_jump():
                     # Check for TryEnd after the final instruction which is possible
                     # TryEnd being only pseudo instructions
-                    if te := self.block.get_trailing_try_end(i):
-                        # TryBegin cannot be nested
-                        assert te.entry is self._current_try_begin
-
+                    # TryBegin cannot be nested so a TryEnd should always match the
+                    # current try begin. However inside the CFG some blocks may
+                    # start with a TryEnd relevant only when reaching this block
+                    # through a particular jump. So we are lenient here.
+                    if (
+                        te := self.block.get_trailing_try_end(i)
+                    ) and te.entry is self._current_try_begin:
                         assert isinstance(te.entry.target, BasicBlock)
                         yield from self._compute_exception_handler_stack_usage(
                             te.entry.target,
