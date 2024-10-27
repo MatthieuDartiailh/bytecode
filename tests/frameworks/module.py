@@ -118,7 +118,7 @@ class _ImportHookChainedLoader:
         self.call_back(module)
 
 
-class BaseModuleWatchdog(abc.ABC):
+class BaseModuleWatchdog:
     """Base module watchdog.
 
     Invokes ``after_import`` every time a new module is imported.
