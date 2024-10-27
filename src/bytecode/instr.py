@@ -44,12 +44,18 @@ else:
 
 #: Opcodes taking 2 arguments (highest 4 bits and lowest 4 bits)
 DUAL_ARG_OPCODES: Tuple[int, ...] = ()
+DUAL_ARG_OPCODES_SINGLE_OPS: dict[int, tuple[str, str]] = {}
 if PY313:
     DUAL_ARG_OPCODES = (
         _opcode.opmap["LOAD_FAST_LOAD_FAST"],
         _opcode.opmap["STORE_FAST_LOAD_FAST"],
         _opcode.opmap["STORE_FAST_STORE_FAST"],
     )
+    DUAL_ARG_OPCODES_SINGLE_OPS = {
+        _opcode.opmap["LOAD_FAST_LOAD_FAST"]: ("LOAD_FAST", "LOAD_FAST"),
+        _opcode.opmap["STORE_FAST_LOAD_FAST"]: ("STORE_FAST", "LOAD_FAST"),
+        _opcode.opmap["STORE_FAST_STORE_FAST"]: ("STORE_FAST", "STORE_FAST"),
+    }
 
 
 # Used for COMPARE_OP opcode argument

@@ -1830,6 +1830,25 @@ class BytecodeToConcreteTests(TestCase):
 
     # FIXME test more cases for line encoding in particular with extended args
 
+    @unittest.skipIf(sys.version_info < (3, 13), "Apply only to 3.13+")
+    def test_handling_dual_opcodes(self):
+        code = Bytecode()
+        code.extend(
+            [
+                Instr("LOAD_FAST_LOAD_FAST", ("a", "b"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("c", "d"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("e", "f"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("g", "h"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("i", "j"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("k", "l"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("m", "n"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("o", "p"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("q", "r"), lineno=1),
+            ]
+        )
+        concrete = code.to_concrete_bytecode()
+        assert len(concrete) == 10
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover

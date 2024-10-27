@@ -29,6 +29,7 @@ from bytecode.instr import (
     BITFLAG2_OPCODES,
     BITFLAG_OPCODES,
     DUAL_ARG_OPCODES,
+    DUAL_ARG_OPCODES_SINGLE_OPS,
     INTRINSIC,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
@@ -1293,9 +1294,7 @@ class _ConvertBytecodeToConcrete:
                     arg1_index = self.add(self.varnames, arg[0])
                     arg2_index = self.add(self.varnames, arg[1])
                     if arg1_index > 16 or arg2_index > 16:
-                        parts = instr.name.split("_")
-                        n1 = "_".join(parts[:2])
-                        n2 = "_".join(parts[2:])
+                        n1, n2 = DUAL_ARG_OPCODES_SINGLE_OPS[opcode]
                         c_instr = ConcreteInstr(n1, arg1_index, location=location)
                         self.instructions.append(c_instr)
                         instr_name = n2
