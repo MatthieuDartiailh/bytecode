@@ -7,7 +7,7 @@ from types import CodeType, ModuleType
 
 from module import BaseModuleWatchdog  # type: ignore
 
-from bytecode import Bytecode, ControlFlowGraph
+from bytecode import Bytecode, ControlFlowGraph, Instr
 
 _original_exec = exec
 
@@ -68,11 +68,8 @@ class ModuleCodeCollector(BaseModuleWatchdog):
 
         try:
             for instr in abstract_code:
-                try:
-                    if isinstance(instr.arg, CodeType):
-                        instr.arg = self.transform(instr.arg, _module, root=False)
-                except AttributeError:
-                    pass
+                if isinstance(instr, Instr) and isinstance(instr.arg, CodeType):
+                    instr.arg = self.transform(instr.arg, _module, root=False)
 
             cfg = ControlFlowGraph.from_bytecode(abstract_code)
 
@@ -114,7 +111,7 @@ class ModuleCodeCollector(BaseModuleWatchdog):
         try:
             import _pytest.assertion.rewrite as par
 
-            par.exec = _original_exec
+            par.exec = _original_exec  # type: ignore
         except ImportError:
             pass
 

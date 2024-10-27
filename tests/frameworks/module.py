@@ -1,7 +1,7 @@
 import abc
 import sys
 import typing as t
-from importlib._bootstrap import _init_module_attrs
+from importlib._bootstrap import _init_module_attrs  # type: ignore
 from importlib.abc import Loader
 from importlib.machinery import ModuleSpec
 from importlib.util import find_spec
