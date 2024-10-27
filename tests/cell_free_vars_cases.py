@@ -72,7 +72,7 @@ def test_freevar():
 
 # NOTE this is not really a cell var case but it ensures proper
 # placements of CACHE vs labels
-_localedirs = {}
+_localedirs: dict = {}
 _default_localedir = ""
 
 
