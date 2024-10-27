@@ -21,6 +21,7 @@ from bytecode import (
     SetLineno,
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION, ExceptionTableEntry
+from bytecode.utils import PY313
 
 from . import TestCase, get_code
 
@@ -60,7 +61,7 @@ class ConcreteInstrTests(TestCase):
     def test_attr(self):
         instr = ConcreteInstr("LOAD_CONST", 5, lineno=12)
         self.assertEqual(instr.name, "LOAD_CONST")
-        self.assertEqual(instr.opcode, 100)
+        self.assertEqual(instr.opcode, opcode.opmap["LOAD_CONST"])
         self.assertEqual(instr.arg, 5)
         self.assertEqual(instr.lineno, 12)
         self.assertEqual(instr.size, 2)
@@ -90,14 +91,14 @@ class ConcreteInstrTests(TestCase):
         # operator name
         instr.name = "LOAD_FAST"
         self.assertEqual(instr.name, "LOAD_FAST")
-        self.assertEqual(instr.opcode, 124)
+        self.assertEqual(instr.opcode, opcode.opmap["LOAD_FAST"])
         self.assertRaises(TypeError, setattr, instr, "name", 3)
         self.assertRaises(ValueError, setattr, instr, "name", "xxx")
 
         # operator code
-        instr.opcode = 100
+        instr.opcode = opcode.opmap["LOAD_CONST"]
         self.assertEqual(instr.name, "LOAD_CONST")
-        self.assertEqual(instr.opcode, 100)
+        self.assertEqual(instr.opcode, opcode.opmap["LOAD_CONST"])
         self.assertRaises(ValueError, setattr, instr, "opcode", -12)
         self.assertRaises(TypeError, setattr, instr, "opcode", "abc")
 
@@ -129,35 +130,57 @@ class ConcreteInstrTests(TestCase):
         self.assertEqual(ConcreteInstr("LOAD_CONST", 0x1234ABCD).size, 8)
 
     def test_disassemble(self):
-        code = b"\t\x00d\x03"
+        code = bytes((opcode.opmap["NOP"], 0, opcode.opmap["LOAD_CONST"], 3))
         instr = ConcreteInstr.disassemble(1, code, 0)
         self.assertEqual(instr, ConcreteInstr("NOP", lineno=1))
 
         instr = ConcreteInstr.disassemble(2, code, 1 if OFFSET_AS_INSTRUCTION else 2)
         self.assertEqual(instr, ConcreteInstr("LOAD_CONST", 3, lineno=2))
 
-        code = b"\x90\x12\x904\x90\xabd\xcd"
+        code = bytes(
+            (
+                opcode.EXTENDED_ARG,
+                0x12,
+                opcode.EXTENDED_ARG,
+                0x34,
+                opcode.EXTENDED_ARG,
+                0xAB,
+                instr.opcode,
+                0xCD,
+            )
+        )
 
         instr = ConcreteInstr.disassemble(3, code, 0)
         self.assertEqual(instr, ConcreteInstr("EXTENDED_ARG", 0x12, lineno=3))
 
     def test_assemble(self):
         instr = ConcreteInstr("NOP")
-        self.assertEqual(instr.assemble(), b"\t\x00")
+        self.assertEqual(instr.assemble(), bytes((instr.opcode, 0)))
 
         instr = ConcreteInstr("LOAD_CONST", 3)
-        self.assertEqual(instr.assemble(), b"d\x03")
+        self.assertEqual(instr.assemble(), bytes((instr.opcode, 3)))
 
         instr = ConcreteInstr("LOAD_CONST", 0x1234ABCD)
         self.assertEqual(
             instr.assemble(),
-            (b"\x90\x12\x904\x90\xabd\xcd"),
+            bytes(
+                (
+                    opcode.EXTENDED_ARG,
+                    0x12,
+                    opcode.EXTENDED_ARG,
+                    0x34,
+                    opcode.EXTENDED_ARG,
+                    0xAB,
+                    instr.opcode,
+                    0xCD,
+                )
+            ),
         )
 
         instr = ConcreteInstr("LOAD_CONST", 3, extended_args=1)
         self.assertEqual(
             instr.assemble(),
-            (b"\x90\x00d\x03"),
+            bytes((opcode.EXTENDED_ARG, 0, instr.opcode, 3)),
         )
 
     def test_get_jump_target(self):
@@ -335,7 +358,18 @@ class ConcreteBytecodeTests(TestCase):
         concrete.first_lineno = 5
 
         code = concrete.to_code()
-        expected = b"d\x00Z\x00d\x01Z\x01"
+        expected = bytes(
+            (
+                opcode.opmap["LOAD_CONST"],
+                0,
+                opcode.opmap["STORE_NAME"],
+                0,
+                opcode.opmap["LOAD_CONST"],
+                1,
+                opcode.opmap["STORE_NAME"],
+                1,
+            )
+        )
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 5)
         if sys.version_info >= (3, 12):
@@ -363,7 +397,18 @@ class ConcreteBytecodeTests(TestCase):
         concrete.first_lineno = 1
 
         code = concrete.to_code()
-        expected = b"d\x00Z\x00d\x01Z\x01"
+        expected = bytes(
+            (
+                opcode.opmap["LOAD_CONST"],
+                0,
+                opcode.opmap["STORE_NAME"],
+                0,
+                opcode.opmap["LOAD_CONST"],
+                1,
+                opcode.opmap["STORE_NAME"],
+                1,
+            )
+        )
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 1)
         if sys.version_info >= (3, 11):
@@ -607,7 +652,7 @@ class ConcreteBytecodeTests(TestCase):
         # Then with something bogus.  We probably don't want to advertise this
         # in the documentation.  If this fails then decide if it's for good
         # reason, and remove if so.
-        explicit_stacksize = 0
+        explicit_stacksize = code_obj.co_stacksize - 1
         new_code_obj = concrete.to_code(
             stacksize=explicit_stacksize, compute_exception_stack_depths=False
         )
@@ -813,7 +858,14 @@ class ConcreteFromCodeTests(TestCase):
             + [
                 ConcreteInstr("LOAD_CONST", 1 + const_offset, lineno=1),
                 ConcreteInstr("LOAD_CONST", 2 + const_offset, lineno=1),
-                ConcreteInstr("MAKE_FUNCTION", 4, lineno=1),
+                *(
+                    [
+                        ConcreteInstr("MAKE_FUNCTION", lineno=1),
+                        ConcreteInstr("SET_FUNCTION_ATTRIBUTE", 4, lineno=1),
+                    ]
+                    if PY313
+                    else [ConcreteInstr("MAKE_FUNCTION", 4, lineno=1)]
+                ),
                 ConcreteInstr("STORE_NAME", name_offset, lineno=1),
             ]
             + (
@@ -859,7 +911,20 @@ class ConcreteFromCodeTests(TestCase):
         constants[0x000129] = "Arbitrary String"
         # EXTENDED_ARG 0x01, NOP 0xFF, EXTENDED_ARG 0x01,
         # LOAD_CONST 0x29, RETURN_VALUE 0x00
-        codestring = bytes([0x90, 0x01, 0x09, 0xFF, 0x90, 0x01, 0x64, 0x29, 0x53, 0x00])
+        codestring = bytes(
+            [
+                opcode.EXTENDED_ARG,
+                0x01,
+                opcode.opmap["NOP"],
+                0xFF,
+                opcode.EXTENDED_ARG,
+                0x01,
+                opcode.opmap["LOAD_CONST"],
+                0x29,
+                opcode.opmap["RETURN_VALUE"],
+                0x00,
+            ]
+        )
         codetype_list = [
             0,
             0,
@@ -1380,6 +1445,7 @@ class BytecodeToConcreteTests(TestCase):
                 7 if OFFSET_AS_INSTRUCTION else 14,
                 lineno=1,
             ),
+            *([ConcreteInstr("CACHE")] if PY313 else []),
             ConcreteInstr("LOAD_CONST", 0, lineno=2),
             ConcreteInstr("STORE_NAME", 1, lineno=2),
             ConcreteInstr("JUMP_FORWARD", 2 if OFFSET_AS_INSTRUCTION else 4, lineno=2),
@@ -1494,8 +1560,6 @@ class BytecodeToConcreteTests(TestCase):
         )
 
     def test_extended_jump(self):
-        NOP = bytes((opcode.opmap["NOP"], 0))
-
         # code using jumps > 0xffff to test extended arg
         nb_nop = 2**16 if OFFSET_AS_INSTRUCTION else 2**15
         # The length of the jump is independent of the number of instruction
@@ -1512,9 +1576,22 @@ class BytecodeToConcreteTests(TestCase):
         )
 
         code_obj = code.to_code()
-        # We use 2 extended args (0x90) out of the maximum 3 which are allowed
-        i_code = opcode.opmap["JUMP_FORWARD"].to_bytes(1, "little")
-        expected = b"\x90\x01\x90\x00" + i_code + b"\x00" + NOP * nb_nop + b"d\x00S\x00"
+        # We use 2 extended args out of the maximum 3 which are allowed
+        expected = bytes(
+            (
+                opcode.EXTENDED_ARG,
+                1,
+                opcode.EXTENDED_ARG,
+                0,
+                opcode.opmap["JUMP_FORWARD"],
+                0,
+                *([opcode.opmap["NOP"], 0] * nb_nop),
+                opcode.opmap["LOAD_CONST"],
+                0,
+                opcode.opmap["RETURN_VALUE"],
+                0,
+            )
+        )
         self.assertSequenceEqual(code_obj.co_code, expected)
 
     def test_jumps(self):
@@ -1556,6 +1633,7 @@ class BytecodeToConcreteTests(TestCase):
                 5 if OFFSET_AS_INSTRUCTION else 10,
                 lineno=1,
             ),
+            *([ConcreteInstr("CACHE")] if PY313 else []),
             ConcreteInstr("LOAD_CONST", 0, lineno=2),
             ConcreteInstr("STORE_NAME", 1, lineno=2),
             ConcreteInstr("JUMP_FORWARD", 2 if OFFSET_AS_INSTRUCTION else 4, lineno=2),
@@ -1751,6 +1829,25 @@ class BytecodeToConcreteTests(TestCase):
         self.assertEqual(f(), (obj1, obj2, obj3, obj4))
 
     # FIXME test more cases for line encoding in particular with extended args
+
+    @unittest.skipIf(sys.version_info < (3, 13), "Apply only to 3.13+")
+    def test_handling_dual_opcodes(self):
+        code = Bytecode()
+        code.extend(
+            [
+                Instr("LOAD_FAST_LOAD_FAST", ("a", "b"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("c", "d"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("e", "f"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("g", "h"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("i", "j"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("k", "l"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("m", "n"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("o", "p"), lineno=1),
+                Instr("LOAD_FAST_LOAD_FAST", ("q", "r"), lineno=1),
+            ]
+        )
+        concrete = code.to_concrete_bytecode()
+        assert len(concrete) == 10
 
 
 if __name__ == "__main__":

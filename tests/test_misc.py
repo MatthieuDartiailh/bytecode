@@ -8,6 +8,7 @@ import unittest
 import bytecode
 from bytecode import BasicBlock, Bytecode, ControlFlowGraph, Instr, Label
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
+from bytecode.utils import PY313
 
 from . import disassemble
 
@@ -37,7 +38,7 @@ class DumpCodeTests(unittest.TestCase):
         code = disassemble(source, function=True)
 
         # without line numbers
-        enum_repr = "<Compare.EQ: 2>"
+        enum_repr = "<Compare.EQ_CAST: 18>" if PY313 else "<Compare.EQ: 2>"
         if sys.version_info >= (3, 12):
             expected = f"""
     RESUME 0
@@ -207,7 +208,7 @@ label_instr13:
         code = ControlFlowGraph.from_bytecode(code)
 
         # without line numbers
-        enum_repr = "<Compare.EQ: 2>"
+        enum_repr = "<Compare.EQ_CAST: 18>" if PY313 else "<Compare.EQ: 2>"
         if sys.version_info >= (3, 12):
             expected = textwrap.dedent(
                 f"""
@@ -410,7 +411,28 @@ label_instr13:
         code = code.to_concrete_bytecode()
 
         # without line numbers
-        if sys.version_info >= (3, 12):
+        if sys.version_info >= (3, 13):
+            # COMPARE_OP use the 4 lowest bits as a cache
+            expected = """
+  0    RESUME 0
+  2    LOAD_FAST 0
+  4    LOAD_CONST 1
+  6    COMPARE_OP 88
+  8    CACHE 0
+ 10    POP_JUMP_IF_FALSE 1
+ 12    CACHE 0
+ 14    RETURN_CONST 1
+ 16    LOAD_FAST 0
+ 18    LOAD_CONST 2
+ 20    COMPARE_OP 88
+ 22    CACHE 0
+ 24    POP_JUMP_IF_FALSE 1
+ 26    CACHE 0
+ 28    RETURN_CONST 2
+ 30    RETURN_CONST 3
+"""
+
+        elif sys.version_info >= (3, 12):
             # COMPARE_OP use the 4 lowest bits as a cache
             expected = """
   0    RESUME 0
@@ -470,7 +492,26 @@ label_instr13:
         self.check_dump_bytecode(code, expected.lstrip("\n"))
 
         # with line numbers
-        if sys.version_info >= (3, 12):
+        if sys.version_info >= (3, 13):
+            expected = """
+L.  1   0: RESUME 0
+L.  2   2: LOAD_FAST 0
+        4: LOAD_CONST 1
+        6: COMPARE_OP 88
+        8: CACHE 0
+       10: POP_JUMP_IF_FALSE 1
+       12: CACHE 0
+L.  3  14: RETURN_CONST 1
+L.  4  16: LOAD_FAST 0
+       18: LOAD_CONST 2
+       20: COMPARE_OP 88
+       22: CACHE 0
+       24: POP_JUMP_IF_FALSE 1
+       26: CACHE 0
+L.  5  28: RETURN_CONST 2
+L.  6  30: RETURN_CONST 3
+"""
+        elif sys.version_info >= (3, 12):
             expected = """
 L.  1   0: RESUME 0
 L.  2   2: LOAD_FAST 0

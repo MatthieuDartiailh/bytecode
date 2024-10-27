@@ -13,6 +13,7 @@ except ImportError:
     from typing_extensions import TypeGuard  # type: ignore
 
 import bytecode as _bytecode
+from bytecode.utils import PY311, PY312, PY313
 
 # --- Instruction argument tools and
 
@@ -20,24 +21,41 @@ MIN_INSTRUMENTED_OPCODE = getattr(_opcode, "MIN_INSTRUMENTED_OPCODE", 256)
 
 # Instructions relying on a bit to modify its behavior.
 # The lowest bit is used to encode custom behavior.
-BITFLAG_INSTRUCTIONS = (
-    ("LOAD_GLOBAL", "LOAD_ATTR")
-    if sys.version_info >= (3, 12)
-    else ("LOAD_GLOBAL",)
-    if sys.version_info >= (3, 11)
+BITFLAG_OPCODES = (
+    (_opcode.opmap["LOAD_GLOBAL"], _opcode.opmap["LOAD_ATTR"])
+    if PY312
+    else (_opcode.opmap["LOAD_GLOBAL"],)
+    if PY311
     else ()
 )
 
-BITFLAG2_INSTRUCTIONS = ("LOAD_SUPER_ATTR",) if sys.version_info >= (3, 12) else ()
+BITFLAG2_OPCODES = (_opcode.opmap["LOAD_SUPER_ATTR"],) if PY312 else ()
 
 # Intrinsic related opcodes
-INTRINSIC_1OP = (
-    (_opcode.opmap["CALL_INTRINSIC_1"],) if sys.version_info >= (3, 12) else ()
-)
-INTRINSIC_2OP = (
-    (_opcode.opmap["CALL_INTRINSIC_2"],) if sys.version_info >= (3, 12) else ()
-)
+INTRINSIC_1OP = (_opcode.opmap["CALL_INTRINSIC_1"],) if PY312 else ()
+INTRINSIC_2OP = (_opcode.opmap["CALL_INTRINSIC_2"],) if PY312 else ()
 INTRINSIC = INTRINSIC_1OP + INTRINSIC_2OP
+
+HASJABS = () if PY313 else _opcode.hasjabs
+if sys.version_info >= (3, 13):
+    HASJREL = _opcode.hasjump
+else:
+    HASJREL = _opcode.hasjrel
+
+#: Opcodes taking 2 arguments (highest 4 bits and lowest 4 bits)
+DUAL_ARG_OPCODES: Tuple[int, ...] = ()
+DUAL_ARG_OPCODES_SINGLE_OPS: Dict[int, Tuple[str, str]] = {}
+if PY313:
+    DUAL_ARG_OPCODES = (
+        _opcode.opmap["LOAD_FAST_LOAD_FAST"],
+        _opcode.opmap["STORE_FAST_LOAD_FAST"],
+        _opcode.opmap["STORE_FAST_STORE_FAST"],
+    )
+    DUAL_ARG_OPCODES_SINGLE_OPS = {
+        _opcode.opmap["LOAD_FAST_LOAD_FAST"]: ("LOAD_FAST", "LOAD_FAST"),
+        _opcode.opmap["STORE_FAST_LOAD_FAST"]: ("STORE_FAST", "LOAD_FAST"),
+        _opcode.opmap["STORE_FAST_STORE_FAST"]: ("STORE_FAST", "STORE_FAST"),
+    }
 
 
 # Used for COMPARE_OP opcode argument
@@ -56,21 +74,30 @@ class Compare(enum.IntEnum):
         IS_NOT = 9
         EXC_MATCH = 10
 
-    if sys.version_info >= (3, 12):
+    if PY312:
 
         def _get_mask(self):
-            if self == Compare.EQ:
+            v = self & 0b1111
+            if v == Compare.EQ:
                 return 8
-            elif self == Compare.NE:
+            elif v == Compare.NE:
                 return 1 + 2 + 4
-            elif self == Compare.LT:
+            elif v == Compare.LT:
                 return 2
-            elif self == Compare.LE:
+            elif v == Compare.LE:
                 return 2 + 8
-            elif self == Compare.GT:
+            elif v == Compare.GT:
                 return 4
-            elif self == Compare.GE:
+            elif v == Compare.GE:
                 return 4 + 8
+
+    if PY313:
+        LT_CAST = 0 + 16
+        LE_CAST = 1 + 16
+        EQ_CAST = 2 + 16
+        NE_CAST = 3 + 16
+        GT_CAST = 4 + 16
+        GE_CAST = 5 + 16
 
 
 # Used for BINARY_OP under Python 3.11+
@@ -132,7 +159,7 @@ class Intrinsic2Op(enum.IntEnum):
 # This make type checking happy but means it won't catch attempt to manipulate an unset
 # statically. We would need guard on object attribute narrowed down through methods
 class _UNSET(int):
-    instance = None
+    instance: Optional["_UNSET"] = None
 
     def __new__(cls):
         if cls.instance is None:
@@ -301,12 +328,12 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     "IMPORT_FROM": (-1, 2),
     "COPY_DICT_WITHOUT_KEYS": (-2, 2),
     # Call a function at position 7 (4 3.11+) on the stack and push the return value
-    "WITH_EXCEPT_START": (-4, 5) if sys.version_info >= (3, 11) else (-7, 8),
+    "WITH_EXCEPT_START": (-4, 5) if PY311 else (-7, 8),
     # Starting with Python 3.11 MATCH_CLASS does not push a boolean anymore
-    "MATCH_CLASS": (-3, 1 if sys.version_info >= (3, 11) else 2),
+    "MATCH_CLASS": (-3, 1 if PY311 else 2),
     "MATCH_MAPPING": (-1, 2),
     "MATCH_SEQUENCE": (-1, 2),
-    "MATCH_KEYS": (-2, 3 if sys.version_info >= (3, 11) else 4),
+    "MATCH_KEYS": (-2, 3 if PY311 else 4),
     "CHECK_EXC_MATCH": (-2, 2),  # (TOS1, TOS) -> (TOS1, bool)
     "CHECK_EG_MATCH": (-2, 2),  # (TOS, TOS1) -> non-matched, matched or TOS1, None)
     "PREP_RERAISE_STAR": (-2, 1),  # (TOS1, TOS) -> new exception group)
@@ -326,6 +353,11 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     "LOAD_FROM_DICT_OR_DEREF": (-1, 1),
     "LOAD_INTRISIC_1": (-1, 1),
     "LOAD_INTRISIC_2": (-2, 1),
+    "SET_FUNCTION_ATTRIBUTE": (-2, 1),  # new in 3.13
+    "CONVERT_VALUE": (-1, 1),  # new in 3.13
+    "FORMAT_SIMPLE": (-1, 1),  # new in 3.13
+    "FORMAT_SPEC": (-2, 1),  # new in 3.13
+    "TO_BOOL": (-1, 1),  # new in 3.13
 }
 
 
@@ -337,9 +369,11 @@ DYNAMIC_STACK_EFFECTS: Dict[
     # CALL pops the 2 above items and push the return
     # (when PRECALL does not exist it pops more as encoded by the effect)
     "CALL": lambda effect, arg, jump: (
-        -2 - arg if sys.version_info >= (3, 12) else -2,
+        -2 - arg if PY312 else -2,
         1,
     ),
+    # 3.13 only
+    "CALL_KW": lambda effect, arg, jump: (-3 - arg, 1),
     # 3.12 changed the behavior of LOAD_ATTR
     "LOAD_ATTR": lambda effect, arg, jump: (-1, 1 + effect),
     "LOAD_SUPER_ATTR": lambda effect, arg, jump: (-3, 3 + effect),
@@ -422,7 +456,7 @@ class InstrLocation:
         object.__setattr__(self, "col_offset", col_offset)
         object.__setattr__(self, "end_col_offset", end_col_offset)
         # In Python 3.11 0 is a valid lineno for some instructions (RESUME for example)
-        _check_location(lineno, "lineno", 0 if sys.version_info >= (3, 11) else 1)
+        _check_location(lineno, "lineno", 0 if PY311 else 1)
         _check_location(end_lineno, "end_lineno", 1)
         _check_location(col_offset, "col_offset", 0)
         _check_location(end_col_offset, "end_col_offset", 0)
@@ -472,7 +506,7 @@ class SetLineno:
 
     def __init__(self, lineno: int) -> None:
         # In Python 3.11 0 is a valid lineno for some instructions (RESUME for example)
-        _check_location(lineno, "lineno", 0 if sys.version_info >= (3, 11) else 1)
+        _check_location(lineno, "lineno", 0 if PY311 else 1)
         self._lineno: int = lineno
 
     @property
@@ -627,11 +661,11 @@ class BaseInstr(Generic[A]):
             arg = None
         # 3.11 where LOAD_GLOBAL arg encode whether or we push a null
         # 3.12 does the same for LOAD_ATTR
-        elif self.name in BITFLAG_INSTRUCTIONS and isinstance(self._arg, tuple):
+        elif self._opcode in BITFLAG_OPCODES and isinstance(self._arg, tuple):
             assert len(self._arg) == 2
             arg = self._arg[0]
         # 3.12 does a similar trick for LOAD_SUPER_ATTR
-        elif self.name in BITFLAG2_INSTRUCTIONS and isinstance(self._arg, tuple):
+        elif self._opcode in BITFLAG2_OPCODES and isinstance(self._arg, tuple):
             assert len(self._arg) == 3
             arg = self._arg[0]
         elif not isinstance(self._arg, int) or self._opcode in _opcode.hasconst:
@@ -683,15 +717,15 @@ class BaseInstr(Generic[A]):
 
     def is_abs_jump(self) -> bool:
         """Is an absolute jump."""
-        return self._opcode in _opcode.hasjabs
+        return self._opcode in HASJABS
 
     def is_forward_rel_jump(self) -> bool:
         """Is a forward relative jump."""
-        return self._opcode in _opcode.hasjrel and "BACKWARD" not in self._name
+        return self._opcode in HASJREL and "BACKWARD" not in self._name
 
     def is_backward_rel_jump(self) -> bool:
         """Is a backward relative jump."""
-        return self._opcode in _opcode.hasjrel and "BACKWARD" in self._name
+        return self._opcode in HASJREL and "BACKWARD" in self._name
 
     def is_final(self) -> bool:
         if self._name in {
@@ -771,6 +805,7 @@ InstrArg = Union[
     Compare,
     Tuple[bool, str],
     Tuple[bool, bool, str],
+    Tuple[Union[str, CellVar, FreeVar], Union[str, CellVar, FreeVar]],
 ]
 
 
@@ -812,7 +847,7 @@ class Instr(BaseInstr[InstrArg]):
                 )
 
         elif opcode in _opcode.haslocal or opcode in _opcode.hasname:
-            if name in BITFLAG_INSTRUCTIONS:
+            if opcode in BITFLAG_OPCODES:
                 if not (
                     isinstance(arg, tuple)
                     and len(arg) == 2
@@ -824,7 +859,7 @@ class Instr(BaseInstr[InstrArg]):
                         "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
                     )
 
-            elif name in BITFLAG2_INSTRUCTIONS:
+            elif opcode in BITFLAG2_OPCODES:
                 if not (
                     isinstance(arg, tuple)
                     and len(arg) == 3
@@ -836,6 +871,26 @@ class Instr(BaseInstr[InstrArg]):
                         "operation %s argument must be a tuple[bool, bool, str], "
                         "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
                     )
+
+            elif opcode in DUAL_ARG_OPCODES:
+                if not (
+                    isinstance(arg, tuple)
+                    and len(arg) == 2
+                    and isinstance(arg[0], (str, CellVar))
+                    and isinstance(arg[1], (str, CellVar))
+                ):
+                    raise TypeError(
+                        "operation %s argument must be a tuple[str, str], "
+                        "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
+                    )
+
+            elif (
+                PY313
+                and opcode in _opcode.haslocal
+                and isinstance(arg, (CellVar, FreeVar))
+            ):
+                # Cell and free vars can be accessed using locals in Python 3.13+
+                pass
 
             elif not isinstance(arg, str):
                 raise TypeError(

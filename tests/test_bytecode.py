@@ -7,7 +7,8 @@ import types
 import unittest
 
 from bytecode import Bytecode, ConcreteInstr, FreeVar, Instr, Label, SetLineno
-from bytecode.instr import BinaryOp
+from bytecode.instr import BinaryOp, InstrLocation
+from bytecode.utils import PY313
 
 from . import TestCase, get_code
 
@@ -220,12 +221,29 @@ class BytecodeTests(TestCase):
                     Instr("RETURN_VALUE", lineno=4),
                 ],
             )
+        elif sys.version_info < (3, 13):
+            self.assertInstructionListEqual(
+                bytecode,
+                [
+                    Instr("RESUME", 0, lineno=0),
+                    Instr("LOAD_NAME", "test", lineno=1),
+                    Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
+                    Instr("LOAD_CONST", 1, lineno=2),
+                    Instr("STORE_NAME", "x", lineno=2),
+                    Instr("RETURN_CONST", None, lineno=2),
+                    label_else,
+                    Instr("LOAD_CONST", 2, lineno=4),
+                    Instr("STORE_NAME", "x", lineno=4),
+                    Instr("RETURN_CONST", None, lineno=4),
+                ],
+            )
         else:
             self.assertInstructionListEqual(
                 bytecode,
                 [
                     Instr("RESUME", 0, lineno=0),
                     Instr("LOAD_NAME", "test", lineno=1),
+                    Instr("TO_BOOL", lineno=1),
                     Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
                     Instr("LOAD_CONST", 1, lineno=2),
                     Instr("STORE_NAME", "x", lineno=2),
@@ -333,12 +351,24 @@ class BytecodeTests(TestCase):
         self.assertListEqual(
             list(concrete),
             [
-                ConcreteInstr("LOAD_CONST", 0, lineno=3),
-                ConcreteInstr("STORE_NAME", 0, lineno=3),
-                ConcreteInstr("LOAD_CONST", 1, lineno=4),
-                ConcreteInstr("STORE_NAME", 1, lineno=4),
-                ConcreteInstr("LOAD_CONST", 2, lineno=5),
-                ConcreteInstr("STORE_NAME", 2, lineno=5),
+                ConcreteInstr(
+                    "LOAD_CONST", 0, location=InstrLocation(3, None, None, None)
+                ),
+                ConcreteInstr(
+                    "STORE_NAME", 0, location=InstrLocation(3, None, None, None)
+                ),
+                ConcreteInstr(
+                    "LOAD_CONST", 1, location=InstrLocation(4, None, None, None)
+                ),
+                ConcreteInstr(
+                    "STORE_NAME", 1, location=InstrLocation(4, None, None, None)
+                ),
+                ConcreteInstr(
+                    "LOAD_CONST", 2, location=InstrLocation(5, None, None, None)
+                ),
+                ConcreteInstr(
+                    "STORE_NAME", 2, location=InstrLocation(5, None, None, None)
+                ),
             ],
         )
 
@@ -405,7 +435,9 @@ class BytecodeTests(TestCase):
                 code.first_lineno = 1
                 code.extend([Instr(opname)])
                 co = code.to_code(check_pre_and_post=False)
-                self.assertEqual(co.co_stacksize, 0)
+                # In 3.13 the code object constructor fixes the stacksize for us...
+                if not PY313:
+                    self.assertEqual(co.co_stacksize, 0)
 
     def test_negative_size_binary(self):
         operations = (
