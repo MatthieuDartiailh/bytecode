@@ -1,11 +1,25 @@
 ChangeLog
 =========
 
-2024-05-28: Version 0.15.2
+
+2024-10-28: Version 0.16.0
 --------------------------
+
+New features:
+
+- Add support for Python 3.13 PR #146
+
+  Support for Python 3.13, comes with a number of changes reflecting changes in
+  CPython bytecode itself:
+
+  - handle the ability of comparison to cast with new enum variants:
+    LT_CAST, LE_CAST, etc
+  - allow LOAD_FAST to access free and cell vars
 
 Bugfixes:
 
+- Properly handle TryEnd with no matching TryBegin in stack size computation on
+  the CFG  PR #149
 - Ensure that empty or small (one-instruction) try blocks are handled without
   problems when compiling and de-compiling abstract code for CPython 3.11 and
   later. PR #145
