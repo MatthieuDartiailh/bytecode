@@ -83,7 +83,7 @@ class ConcreteInstr(BaseInstr[int]):
     # For ConcreteInstr the argument is always an integer
     _arg: int
 
-    __slots__ = ("_size", "_extended_args")
+    __slots__ = ("_extended_args", "_size")
 
     def __init__(
         self,
@@ -221,7 +221,7 @@ class ExceptionTableEntry:
     #: before the exception itself (which is pushed as a single value)).
     push_lasti: bool
 
-    __slots__ = ("start_offset", "stop_offset", "target", "stack_depth", "push_lasti")
+    __slots__ = ("push_lasti", "stack_depth", "start_offset", "stop_offset", "target")
 
     def __init__(
         self,
