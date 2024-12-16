@@ -1,14 +1,14 @@
 __all__ = [
-    "Label",
-    "Instr",
-    "SetLineno",
-    "Bytecode",
-    "ConcreteInstr",
-    "ConcreteBytecode",
-    "ControlFlowGraph",
-    "CompilerFlags",
-    "Compare",
     "BinaryOp",
+    "Bytecode",
+    "Compare",
+    "CompilerFlags",
+    "ConcreteBytecode",
+    "ConcreteInstr",
+    "ControlFlowGraph",
+    "Instr",
+    "Label",
+    "SetLineno",
     "__version__",
 ]
 

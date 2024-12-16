@@ -441,7 +441,7 @@ class InstrLocation:
     #: End column offset at which the instruction corresponds (Python 3.11+ only)
     end_col_offset: Optional[int]
 
-    __slots__ = ["lineno", "end_lineno", "col_offset", "end_col_offset"]
+    __slots__ = ["col_offset", "end_col_offset", "end_lineno", "lineno"]
 
     def __init__(
         self,
@@ -523,7 +523,7 @@ class SetLineno:
 
 
 class TryBegin:
-    __slots__ = ("target", "push_lasti", "stack_depth")
+    __slots__ = ("push_lasti", "stack_depth", "target")
 
     def __init__(
         self,
@@ -556,7 +556,7 @@ A = TypeVar("A", bound=object)
 class BaseInstr(Generic[A]):
     """Abstract instruction."""
 
-    __slots__ = ("_name", "_opcode", "_arg", "_location")
+    __slots__ = ("_arg", "_location", "_name", "_opcode")
 
     # Work around an issue with the default value of arg
     def __init__(
