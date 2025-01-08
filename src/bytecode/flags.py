@@ -42,6 +42,34 @@ class CompilerFlags(IntFlag):
         FUTURE_ANNOTATIONS = 0x1000000
 
 
+def ignored_instruction(i) -> bool:
+    return isinstance(
+        i,
+        (
+            _bytecode.SetLineno,
+            _bytecode.Label,
+            _bytecode.TryBegin,
+            _bytecode.TryEnd,
+        ),
+    )
+
+
+def is_generator(instructions) -> bool:
+    # Look for a YIELD_VALUE that is not for an await
+    found_yield = False
+    for i in instructions:
+        if ignored_instruction(i):
+            continue
+        if found_yield:
+            if i.name == "RESUME" and i.arg & 3 == 3:
+                found_yield = False  # yield was for an await
+                continue
+            break
+        if i.name == "YIELD_VALUE":
+            found_yield = True
+    return found_yield
+
+
 def infer_flags(
     bytecode: Union[
         "_bytecode.Bytecode", "_bytecode.ConcreteBytecode", "_bytecode.ControlFlowGraph"
@@ -80,19 +108,7 @@ def infer_flags(
         if isinstance(bytecode, _bytecode.ControlFlowGraph)
         else bytecode
     )
-    instr_names = {
-        i.name
-        for i in instructions
-        if not isinstance(
-            i,
-            (
-                _bytecode.SetLineno,
-                _bytecode.Label,
-                _bytecode.TryBegin,
-                _bytecode.TryEnd,
-            ),
-        )
-    }
+    instr_names = {i.name for i in instructions if not ignored_instruction(i)}
 
     # Identify optimized code
     if not (instr_names & {"STORE_NAME", "LOAD_NAME", "DELETE_NAME"}):
@@ -110,7 +126,6 @@ def infer_flags(
         | CompilerFlags.NESTED
     )
 
-    sure_generator = instr_names & {"YIELD_VALUE"}
     maybe_generator = instr_names & {"YIELD_VALUE", "YIELD_FROM", "RETURN_GENERATOR"}
 
     sure_async = instr_names & {
@@ -126,6 +141,7 @@ def infer_flags(
     # If performing inference or forcing an async behavior, first inspect
     # the flags since this is the only way to identify iterable coroutines
     if is_async in (None, True):
+        sure_generator = is_generator(instructions)
         if bytecode.flags & CompilerFlags.COROUTINE:
             if sure_generator:
                 flags |= CompilerFlags.ASYNC_GENERATOR
