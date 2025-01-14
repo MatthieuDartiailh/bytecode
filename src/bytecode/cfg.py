@@ -58,7 +58,7 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
                     isinstance(self[i], Instr) for i in range(index, len(self))
                 ):
                     raise ValueError(
-                        "Only the last instruction of a basic " "block can be a jump"
+                        "Only the last instruction of a basic block can be a jump"
                     )
 
                 if not isinstance(instr.arg, BasicBlock):

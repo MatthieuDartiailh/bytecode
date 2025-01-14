@@ -668,18 +668,12 @@ class BytecodeBlocksFunctionalTests(TestCase):
             )
         elif PY311:
             # jump is relative not absolute
-            expected = (
-                b"|\x05" b"r\x02" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
-            )
+            expected = b"|\x05r\x02|\x00}\x05d\x01}\x05|\x05S\x00"
         elif OFFSET_AS_INSTRUCTION:
             # The argument of the jump is divided by 2
-            expected = (
-                b"|\x05" b"r\x04" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
-            )
+            expected = b"|\x05r\x04|\x00}\x05d\x01}\x05|\x05S\x00"
         else:
-            expected = (
-                b"|\x05" b"r\x08" b"|\x00" b"}\x05" b"d\x01" b"}\x05" b"|\x05" b"S\x00"
-            )
+            expected = b"|\x05r\x08|\x00}\x05d\x01}\x05|\x05S\x00"
 
         code = bytecode.to_code()
         self.assertEqual(code.co_consts, (None, 3))
