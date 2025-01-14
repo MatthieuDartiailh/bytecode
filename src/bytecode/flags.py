@@ -57,15 +57,10 @@ ASYNC_OPCODES = (
 YIELD_VALUE_OPCODE = _opcode.opmap["YIELD_VALUE"]
 GENERATOR_LIKE_OPCODES = (
     *((_opcode.opmap["YIELD_FROM"],) if not PY311 else ()),  # Removed in 3.11+
-    _opcode.opmap["RETURN_GENERATOR"],
+    *((_opcode.opmap["RETURN_GENERATOR"],) if PY311 else ()),  # Added in 3.11+
 )
 
 
-# XXX
-# - rely on cell/free vars presence for NOFREE due to 3.13 allowing those in
-#   places reserved to locals before
-# - inspect RESUME following YIELD_VALUE to determine if we are dealing with a
-#   generator on 3.11+
 def infer_flags(
     bytecode: Union[
         "_bytecode.Bytecode", "_bytecode.ConcreteBytecode", "_bytecode.ControlFlowGraph"
