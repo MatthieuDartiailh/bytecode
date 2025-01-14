@@ -111,7 +111,10 @@ class FlagsTests(unittest.TestCase):
                     # NOTE: as far as I can tell NOFREE is not used by CPython anymore
                     # it shows up nowhere in the interpreter logic and only exist in
                     # dis and inspect...
-                    self.assertEqual(existing, b.flags & ~CompilerFlags.NOFREE)
+                    self.assertEqual(
+                        existing & ~CompilerFlags.NOFREE,
+                        b.flags & ~CompilerFlags.NOFREE,
+                    )
 
     def test_async_gen_no_flag_is_async_None(self):
         # Test inference in the absence of any flag set on the bytecode
@@ -138,7 +141,9 @@ class FlagsTests(unittest.TestCase):
         for i, r, expected in (
             ("YIELD_VALUE", 1, CompilerFlags.ASYNC_GENERATOR),
             ("YIELD_VALUE", 2, CompilerFlags.ASYNC_GENERATOR),
-            ("YIELD_VALUE", 3, CompilerFlags.COROUTINE),
+            # YIELD_VALUE is used for normal await flow in Py 3.11+ when followed
+            # by a RESUME whose lowest two bits are set to 3
+            *((("YIELD_VALUE", 3, CompilerFlags.COROUTINE),) if PY311 else ()),
             ("YIELD_FROM", 0, CompilerFlags.COROUTINE),
         ):
             with self.subTest(i):
@@ -164,7 +169,9 @@ class FlagsTests(unittest.TestCase):
         for i, r, expected in (
             ("YIELD_VALUE", 1, CompilerFlags.ASYNC_GENERATOR),
             ("YIELD_VALUE", 2, CompilerFlags.ASYNC_GENERATOR),
-            ("YIELD_VALUE", 3, CompilerFlags.COROUTINE),
+            # YIELD_VALUE is used for normal await flow in Py 3.11+ when followed
+            # by a RESUME whose lowest two bits are set to 3
+            *((("YIELD_VALUE", 3, CompilerFlags.COROUTINE),) if PY311 else ()),
             ("YIELD_FROM", 0, CompilerFlags.COROUTINE),
         ):
             with self.subTest(i):
