@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import unittest
+from copy import copy
 
 from bytecode import (
     Bytecode,
@@ -12,9 +13,50 @@ from bytecode import (
 from bytecode.flags import infer_flags
 from bytecode.instr import UNSET, FreeVar, Instr
 
-# Py 3.11
-# - new opcodes could modify inference:
-#   - SEND, ASYNC_GEN_WRAP, RETURN_GENERATOR,
+
+def trivial():
+    pass
+
+
+def _fact(a):
+    def inner():
+        return a
+
+    return inner
+
+
+hasfree = _fact(1)
+
+
+def gen():
+    yield 1
+
+
+async def trivial_async():
+    pass
+
+
+async def async_await(a):
+    await a
+
+
+async def async_with_comprehension():
+    return [await i for i in range(10)]
+
+
+async def async_generator():
+    yield 1
+
+
+FLAG_INFERENCE_TEST_CASES = [
+    trivial,
+    hasfree,
+    gen,
+    trivial_async,
+    async_await,
+    async_with_comprehension,
+    async_generator,
+]
 
 
 class FlagsTests(unittest.TestCase):
@@ -57,6 +99,18 @@ class FlagsTests(unittest.TestCase):
         code.update_flags()
         self.assertFalse(bool(code.flags & CompilerFlags.OPTIMIZED))
         self.assertFalse(bool(code.flags & CompilerFlags.NOFREE))
+
+    def test_function_rountrip(self):
+        for f in FLAG_INFERENCE_TEST_CASES:
+            for cls in (Bytecode, ConcreteBytecode):
+                with self.subTest(f"Testing {f.__name__} with {cls}"):
+                    b = cls.from_code(f.__code__)
+                    existing = copy(b.flags)
+                    b.update_flags()
+                    # NOTE: as far as I can tell NOFREE is not used by CPython anymore
+                    # it shows up nowhere in the interpreter logic and only exist in
+                    # dis and inspect...
+                    self.assertEqual(existing, b.flags & ~CompilerFlags.NOFREE)
 
     def test_async_gen_no_flag_is_async_None(self):
         # Test inference in the absence of any flag set on the bytecode
