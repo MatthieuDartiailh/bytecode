@@ -107,7 +107,6 @@ def infer_flags(
     known_generator = False
     possible_generator = False
     instr_iter = iter(instructions)
-    print()
     for instr in instr_iter:
         if isinstance(
             instr,
