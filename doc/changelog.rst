@@ -1,6 +1,13 @@
 ChangeLog
 =========
 
+unreleased: Version 0.16.1
+--------------------------
+
+Bugfixes:
+
+- fix flag inference for async code PR #157
+
 
 2024-10-28: Version 0.16.0
 --------------------------

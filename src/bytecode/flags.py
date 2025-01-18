@@ -1,10 +1,12 @@
-import opcode
-import sys
+import opcode as _opcode
 from enum import IntFlag
 from typing import Optional, Union
 
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
+
+from .instr import DUAL_ARG_OPCODES, CellVar, FreeVar
+from .utils import PY311, PY312, PY313
 
 
 class CompilerFlags(IntFlag):
@@ -32,14 +34,31 @@ class CompilerFlags(IntFlag):
     # Generator defined in an async def function
     ASYNC_GENERATOR = 0x00200
 
-    # __future__ flags
-    # future flags changed in Python 3.9
-    if sys.version_info < (3, 9):
-        FUTURE_GENERATOR_STOP = 0x80000
-        FUTURE_ANNOTATIONS = 0x100000
-    else:
-        FUTURE_GENERATOR_STOP = 0x800000
-        FUTURE_ANNOTATIONS = 0x1000000
+    FUTURE_GENERATOR_STOP = 0x800000
+    FUTURE_ANNOTATIONS = 0x1000000
+
+
+UNOPTIMIZED_OPCODES = (
+    _opcode.opmap["STORE_NAME"],
+    _opcode.opmap["LOAD_NAME"],
+    _opcode.opmap["DELETE_NAME"],
+)
+
+ASYNC_OPCODES = (
+    _opcode.opmap["GET_AWAITABLE"],
+    _opcode.opmap["GET_AITER"],
+    _opcode.opmap["GET_ANEXT"],
+    _opcode.opmap["BEFORE_ASYNC_WITH"],
+    *((_opcode.opmap["SETUP_ASYNC_WITH"],) if not PY311 else ()),  # Removed in 3.11+
+    _opcode.opmap["END_ASYNC_FOR"],
+    *((_opcode.opmap["ASYNC_GEN_WRAP"],) if PY311 and not PY312 else ()),  # New in 3.11
+)
+
+YIELD_VALUE_OPCODE = _opcode.opmap["YIELD_VALUE"]
+GENERATOR_LIKE_OPCODES = (
+    *((_opcode.opmap["YIELD_FROM"],) if not PY311 else ()),  # Removed in 3.11+
+    *((_opcode.opmap["RETURN_GENERATOR"],) if PY311 else ()),  # Added in 3.11+
+)
 
 
 def infer_flags(
@@ -70,8 +89,7 @@ def infer_flags(
         (_bytecode.Bytecode, _bytecode.ConcreteBytecode, _bytecode.ControlFlowGraph),
     ):
         msg = (
-            "Expected a Bytecode, ConcreteBytecode or ControlFlowGraph "
-            "instance not %s"
+            "Expected a Bytecode, ConcreteBytecode or ControlFlowGraph instance not %s"
         )
         raise ValueError(msg % bytecode)
 
@@ -80,26 +98,73 @@ def infer_flags(
         if isinstance(bytecode, _bytecode.ControlFlowGraph)
         else bytecode
     )
-    instr_names = {
-        i.name
-        for i in instructions
-        if not isinstance(
-            i,
+
+    # Iterate over the instructions and inspect the arguments
+    is_concrete = isinstance(bytecode, _bytecode.ConcreteBytecode)
+    optimized = True
+    has_free = False if not is_concrete else bytecode.cellvars and bytecode.freevars
+    known_async = False
+    known_generator = False
+    possible_generator = False
+    instr_iter = iter(instructions)
+    for instr in instr_iter:
+        if isinstance(
+            instr,
             (
                 _bytecode.SetLineno,
                 _bytecode.Label,
                 _bytecode.TryBegin,
                 _bytecode.TryEnd,
             ),
-        )
-    }
+        ):
+            continue
+        opcode = instr.opcode
+        if opcode in UNOPTIMIZED_OPCODES:
+            optimized = False
+        elif opcode in ASYNC_OPCODES:
+            known_async = True
+        elif opcode == YIELD_VALUE_OPCODE:
+            if PY311:
+                while isinstance(
+                    ni := next(instr_iter),
+                    (
+                        _bytecode.SetLineno,
+                        _bytecode.Label,
+                        _bytecode.TryBegin,
+                        _bytecode.TryEnd,
+                    ),
+                ):
+                    pass
+                assert ni.name == "RESUME"
+                if (ni.arg & 3) != 3:
+                    known_generator = True
+                else:
+                    known_async = True
+            else:
+                known_generator = True
+        elif opcode in GENERATOR_LIKE_OPCODES:
+            possible_generator = True
+        elif opcode in _opcode.hasfree:
+            has_free = True
+        elif (
+            not is_concrete
+            and opcode in DUAL_ARG_OPCODES
+            and (isinstance(instr.arg[0], CellVar) or isinstance(instr.arg[1], CellVar))
+        ):
+            has_free = True
+        elif (
+            PY313
+            and opcode in _opcode.haslocal
+            and isinstance(instr.arg, (CellVar, FreeVar))
+        ):
+            has_free = True
 
     # Identify optimized code
-    if not (instr_names & {"STORE_NAME", "LOAD_NAME", "DELETE_NAME"}):
+    if optimized:
         flags |= CompilerFlags.OPTIMIZED
 
     # Check for free variables
-    if not (instr_names & {opcode.opname[i] for i in opcode.hasfree}):
+    if not has_free:
         flags |= CompilerFlags.NOFREE
 
     # Copy flags for which we cannot infer the right value
@@ -110,29 +175,19 @@ def infer_flags(
         | CompilerFlags.NESTED
     )
 
-    sure_generator = instr_names & {"YIELD_VALUE"}
-    maybe_generator = instr_names & {"YIELD_VALUE", "YIELD_FROM", "RETURN_GENERATOR"}
-
-    sure_async = instr_names & {
-        "GET_AWAITABLE",
-        "GET_AITER",
-        "GET_ANEXT",
-        "BEFORE_ASYNC_WITH",
-        "SETUP_ASYNC_WITH",
-        "END_ASYNC_FOR",
-        "ASYNC_GEN_WRAP",  # New in 3.11
-    }
-
     # If performing inference or forcing an async behavior, first inspect
     # the flags since this is the only way to identify iterable coroutines
     if is_async in (None, True):
-        if bytecode.flags & CompilerFlags.COROUTINE:
-            if sure_generator:
+        if (
+            bytecode.flags & CompilerFlags.COROUTINE
+            or bytecode.flags & CompilerFlags.ASYNC_GENERATOR
+        ):
+            if known_generator:
                 flags |= CompilerFlags.ASYNC_GENERATOR
             else:
                 flags |= CompilerFlags.COROUTINE
         elif bytecode.flags & CompilerFlags.ITERABLE_COROUTINE:
-            if sure_async:
+            if known_async:
                 msg = (
                     "The ITERABLE_COROUTINE flag is set but bytecode that"
                     "can only be used in async functions have been "
@@ -141,25 +196,20 @@ def infer_flags(
                 )
                 raise ValueError(msg)
             flags |= CompilerFlags.ITERABLE_COROUTINE
-        elif bytecode.flags & CompilerFlags.ASYNC_GENERATOR:
-            if not sure_generator:
-                flags |= CompilerFlags.COROUTINE
-            else:
-                flags |= CompilerFlags.ASYNC_GENERATOR
 
         # If the code was not asynchronous before determine if it should now be
         # asynchronous based on the opcode and the is_async argument.
         else:
-            if sure_async:
+            if known_async:
                 # YIELD_FROM is not allowed in async generator
-                if sure_generator:
+                if known_generator:
                     flags |= CompilerFlags.ASYNC_GENERATOR
                 else:
                     flags |= CompilerFlags.COROUTINE
 
-            elif maybe_generator:
+            elif known_generator or possible_generator:
                 if is_async:
-                    if sure_generator:
+                    if known_generator:
                         flags |= CompilerFlags.ASYNC_GENERATOR
                     else:
                         flags |= CompilerFlags.COROUTINE
@@ -172,14 +222,14 @@ def infer_flags(
     # If the code should not be asynchronous, check first it is possible and
     # next set the GENERATOR flag if relevant
     else:
-        if sure_async:
+        if known_async:
             raise ValueError(
                 "The is_async argument is False but bytecodes "
                 "that can only be used in async functions have "
                 "been detected."
             )
 
-        if maybe_generator:
+        if known_generator or possible_generator:
             flags |= CompilerFlags.GENERATOR
 
     flags |= bytecode.flags & CompilerFlags.FUTURE_GENERATOR_STOP

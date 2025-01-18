@@ -269,13 +269,12 @@ class FreeVar(_Variable):
 def _check_arg_int(arg: Any, name: str) -> TypeGuard[int]:
     if not isinstance(arg, int):
         raise TypeError(
-            "operation %s argument must be an int, "
-            "got %s" % (name, type(arg).__name__)
+            "operation %s argument must be an int, got %s" % (name, type(arg).__name__)
         )
 
     if not (0 <= arg <= 2147483647):
         raise ValueError(
-            "operation %s argument must be in " "the range 0..2,147,483,647" % name
+            "operation %s argument must be in the range 0..2,147,483,647" % name
         )
 
     return True
@@ -900,13 +899,9 @@ class Instr(BaseInstr[InstrArg]):
 
         elif opcode in _opcode.hasconst:
             if isinstance(arg, Label):
-                raise ValueError(
-                    "label argument cannot be used " "in %s operation" % name
-                )
+                raise ValueError("label argument cannot be used in %s operation" % name)
             if isinstance(arg, _bytecode.BasicBlock):
-                raise ValueError(
-                    "block argument cannot be used " "in %s operation" % name
-                )
+                raise ValueError("block argument cannot be used in %s operation" % name)
 
         elif opcode in _opcode.hascompare:
             if not isinstance(arg, Compare):
