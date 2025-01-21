@@ -1,7 +1,7 @@
 ChangeLog
 =========
 
-unreleased: Version 0.16.1
+2025-01-21: Version 0.16.1
 --------------------------
 
 Bugfixes:
