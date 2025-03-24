@@ -336,15 +336,8 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     "CHECK_EXC_MATCH": (-2, 2),  # (TOS1, TOS) -> (TOS1, bool)
     "CHECK_EG_MATCH": (-2, 2),  # (TOS, TOS1) -> non-matched, matched or TOS1, None)
     "PREP_RERAISE_STAR": (-2, 1),  # (TOS1, TOS) -> new exception group)
-    **{k: (-1, 1) for k in (o for o in _opcode.opmap if (o.startswith("UNARY_")))},
-    **{
-        k: (-2, 1)
-        for k in (
-            o
-            for o in _opcode.opmap
-            if (o.startswith("BINARY_") or o.startswith("INPLACE_"))
-        )
-    },
+    **dict.fromkeys((o for o in _opcode.opmap if o.startswith("UNARY_")), (-1, 1)),
+    **dict.fromkeys((o for o in _opcode.opmap if o.startswith("BINARY_") or o.startswith("INPLACE_")), (-2, 1)),
     # Python 3.12 changes not covered by dis.stack_effect
     "BINARY_SLICE": (-3, 1),
     # "STORE_SLICE" handled by dis.stack_effect
