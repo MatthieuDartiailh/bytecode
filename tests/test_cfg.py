@@ -712,6 +712,20 @@ class BytecodeBlocksFunctionalTests(TestCase):
         other_block = BasicBlock()
         self.assertRaises(ValueError, blocks.get_block_index, other_block)
 
+    def test_get_dead_blocks(self):
+        def condition():
+            pass
+
+        def test():
+            if condition():
+                print("1")
+            else:
+                print("2")
+
+        bytecode = Bytecode.from_code(test.__code__)
+        cfg = ControlFlowGraph.from_bytecode(bytecode)
+        assert len(cfg.get_dead_blocks()) == 0
+
 
 class CFGStacksizeComputationTests(TestCase):
     def check_stack_size(self, func):

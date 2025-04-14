@@ -731,12 +731,18 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             if id(block) in seen_block_ids:
                 continue
             seen_block_ids.add(id(block))
+            fall_through = True
             for i in block:
-                if isinstance(i, Instr) and isinstance(i.arg, BasicBlock):
-                    stack.append(i.arg)
+                if isinstance(i, Instr):
+                    if isinstance(i.arg, BasicBlock):
+                        stack.append(i.arg)
+                    if i.is_final():
+                        fall_through = False
                 elif isinstance(i, TryBegin):
                     assert isinstance(i.target, BasicBlock)
                     stack.append(i.target)
+            if fall_through and block.next_block:
+                stack.append(block.next_block)
 
         return [b for b in self if id(b) not in seen_block_ids]
 
