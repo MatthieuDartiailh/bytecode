@@ -1,6 +1,14 @@
 ChangeLog
 =========
 
+2025-04-14: Version 0.16.2
+--------------------------
+
+Bugfixes:
+
+- fix ControlFlowGraph dead block detection by accounting for fall-through
+  edges. PR #161
+
 2025-01-21: Version 0.16.1
 --------------------------
 
