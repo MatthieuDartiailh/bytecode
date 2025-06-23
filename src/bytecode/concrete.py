@@ -26,6 +26,8 @@ import bytecode as _bytecode
 from bytecode.flags import CompilerFlags
 from bytecode.instr import (
     _UNSET,
+    BinaryOp,
+    BINARY_OPS,
     BITFLAG2_OPCODES,
     BITFLAG_OPCODES,
     COMMON_CONSTANT_OPS,
@@ -1086,6 +1088,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                     arg = Intrinsic1Op(c_arg)
                 elif opcode in INTRINSIC_2OP:
                     arg = Intrinsic2Op(c_arg)
+                elif opcode in BINARY_OPS:
+                    arg = BinaryOp(c_arg)
                 elif opcode in COMMON_CONSTANT_OPS:
                     arg = CommonConstants(c_arg)
                 elif opcode in SPECIAL_OPS:
