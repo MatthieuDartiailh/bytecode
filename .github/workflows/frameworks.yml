@@ -31,7 +31,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}-dev
+          python-version: ${{ matrix.python-version }}
 
       - name: Setup
         run: bash scripts/frameworks/boto3/setup.sh /tmp/boto3 ${{ matrix.python-version }}
