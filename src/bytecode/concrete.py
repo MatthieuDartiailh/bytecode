@@ -26,7 +26,6 @@ import bytecode as _bytecode
 from bytecode.flags import CompilerFlags
 from bytecode.instr import (
     _UNSET,
-    BinaryOp,
     BINARY_OPS,
     BITFLAG2_OPCODES,
     BITFLAG_OPCODES,
@@ -40,6 +39,7 @@ from bytecode.instr import (
     SPECIAL_OPS,
     UNSET,
     BaseInstr,
+    BinaryOp,
     CellVar,
     CommonConstants,
     Compare,
