@@ -6,7 +6,7 @@ from typing import Optional, Union
 import bytecode as _bytecode
 
 from .instr import DUAL_ARG_OPCODES, CellVar, FreeVar
-from .utils import PY311, PY312, PY313
+from .utils import PY311, PY312, PY313, PY314
 
 
 class CompilerFlags(IntFlag):
@@ -48,7 +48,7 @@ ASYNC_OPCODES = (
     _opcode.opmap["GET_AWAITABLE"],
     _opcode.opmap["GET_AITER"],
     _opcode.opmap["GET_ANEXT"],
-    _opcode.opmap["BEFORE_ASYNC_WITH"],
+    *((_opcode.opmap["BEFORE_ASYNC_WITH"],) if not PY314 else ()),  # Removed in 3.14+
     *((_opcode.opmap["SETUP_ASYNC_WITH"],) if not PY311 else ()),  # Removed in 3.11+
     _opcode.opmap["END_ASYNC_FOR"],
     *((_opcode.opmap["ASYNC_GEN_WRAP"],) if PY311 and not PY312 else ()),  # New in 3.11
