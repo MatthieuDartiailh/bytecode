@@ -193,26 +193,25 @@ class FormatValue(enum.IntEnum):
     ASCII = 3
 
 
-if PY314:
+@enum.unique
+class SpecialMethod(enum.IntEnum):
+    """Special method names used with LOAD_SPECIAL"""
 
-    @enum.unique
-    class SpecialMethod(enum.IntEnum):
-        """Special method names used with LOAD_SPECIAL"""
+    __ENTER__ = 0
+    __EXIT__ = 1
+    __AENTER__ = 2
+    __AEXIT__ = 3
 
-        __ENTER__ = 0
-        __EXIT__ = 1
-        __AENTER__ = 2
-        __AEXIT__ = 3
 
-    @enum.unique
-    class CommonConstants(enum.IntEnum):
-        """Common constants names used with LOAD_COMMON_CONSTANT"""
+@enum.unique
+class CommonConstants(enum.IntEnum):
+    """Common constants names used with LOAD_COMMON_CONSTANT"""
 
-        ASSERTION_ERROR = 0
-        NOT_IMPLEMENTED_ERROR = 1
-        BUILTIN_TUPLE = 2
-        BUILTIN_ALL = 3
-        BUILTIN_ANY = 4
+    ASSERTION_ERROR = 0
+    NOT_IMPLEMENTED_ERROR = 1
+    BUILTIN_TUPLE = 2
+    BUILTIN_ALL = 3
+    BUILTIN_ANY = 4
 
 
 # This make type checking happy but means it won't catch attempt to manipulate an unset
