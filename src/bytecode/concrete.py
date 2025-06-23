@@ -28,15 +28,18 @@ from bytecode.instr import (
     _UNSET,
     BITFLAG2_OPCODES,
     BITFLAG_OPCODES,
+    COMMON_CONSTANT_OPS,
     DUAL_ARG_OPCODES,
     DUAL_ARG_OPCODES_SINGLE_OPS,
     INTRINSIC,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
     PLACEHOLDER_LABEL,
+    SPECIAL_OPS,
     UNSET,
     BaseInstr,
     CellVar,
+    CommonConstants,
     Compare,
     FreeVar,
     Instr,
@@ -46,6 +49,7 @@ from bytecode.instr import (
     Intrinsic2Op,
     Label,
     SetLineno,
+    SpecialMethod,
     TryBegin,
     TryEnd,
     _check_arg_int,
@@ -1082,6 +1086,10 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                     arg = Intrinsic1Op(c_arg)
                 elif opcode in INTRINSIC_2OP:
                     arg = Intrinsic2Op(c_arg)
+                elif opcode in COMMON_CONSTANT_OPS:
+                    arg = CommonConstants(c_arg)
+                elif opcode in SPECIAL_OPS:
+                    arg = SpecialMethod(c_arg)
                 else:
                     arg = c_arg
 
