@@ -13,7 +13,7 @@ except ImportError:
     from typing_extensions import TypeGuard  # type: ignore
 
 import bytecode as _bytecode
-from bytecode.utils import PY311, PY312, PY313
+from bytecode.utils import PY311, PY312, PY313, PY314
 
 # --- Instruction argument tools and
 
@@ -31,10 +31,33 @@ BITFLAG_OPCODES = (
 
 BITFLAG2_OPCODES = (_opcode.opmap["LOAD_SUPER_ATTR"],) if PY312 else ()
 
+# Binary op opcode which has a dedicated arg
+BINARY_OPS = (_opcode.opmap["BINARY_OP"],) if PY311 else ()
+
 # Intrinsic related opcodes
 INTRINSIC_1OP = (_opcode.opmap["CALL_INTRINSIC_1"],) if PY312 else ()
 INTRINSIC_2OP = (_opcode.opmap["CALL_INTRINSIC_2"],) if PY312 else ()
 INTRINSIC = INTRINSIC_1OP + INTRINSIC_2OP
+
+# Small integer related opcode
+SMALL_INT_OPS = (_opcode.opmap["LOAD_SMALL_INT"],) if PY314 else ()
+
+# Special method loading related opcodes
+SPECIAL_OPS = (_opcode.opmap["LOAD_SPECIAL"],) if PY314 else ()
+
+# Common constant loading related opcodes
+COMMON_CONSTANT_OPS = (_opcode.opmap["LOAD_COMMON_CONSTANT"],) if PY314 else ()
+
+# Value formatting related opcodes (only handle CONVERT_VALUE and BUILD_INTERPOLATION)
+# XXX BUILD_INTERPOLATION in 314 need a bit shift and has 2 args
+FORMAT_VALUE_OPS = (
+    (
+        _opcode.opmap["CONVERT_VALUE"],
+        _opcode.opmap["BUILD_INTERPOLATION"],
+    )
+    if PY314
+    else ((_opcode.opmap["CONVERT_VALUE"],) if PY313 else ())
+)
 
 HASJABS = () if PY313 else _opcode.hasjabs
 if sys.version_info >= (3, 13):
@@ -51,6 +74,11 @@ if PY313:
         _opcode.opmap["STORE_FAST_LOAD_FAST"],
         _opcode.opmap["STORE_FAST_STORE_FAST"],
     )
+    if PY314:
+        DUAL_ARG_OPCODES = (
+            *DUAL_ARG_OPCODES,
+            _opcode.opmap["LOAD_FAST_BORROW_LOAD_FAST_BORROW"],
+        )
     DUAL_ARG_OPCODES_SINGLE_OPS = {
         _opcode.opmap["LOAD_FAST_LOAD_FAST"]: ("LOAD_FAST", "LOAD_FAST"),
         _opcode.opmap["STORE_FAST_LOAD_FAST"]: ("STORE_FAST", "LOAD_FAST"),
@@ -129,6 +157,8 @@ class BinaryOp(enum.IntEnum):
     INPLACE_SUBTRACT = 23
     INPLACE_TRUE_DIVIDE = 24
     INPLACE_XOR = 25
+    if PY314:
+        SUBSCR = 26
 
 
 @enum.unique
@@ -154,6 +184,35 @@ class Intrinsic2Op(enum.IntEnum):
     INTRINSIC_TYPEVAR_WITH_BOUND = 2
     INTRINSIC_TYPEVAR_WITH_CONSTRAINTS = 3
     INTRINSIC_SET_FUNCTION_TYPE_PARAMS = 4
+
+
+@enum.unique
+class FormatValue(enum.IntEnum):
+    STR = 1
+    REPR = 2
+    ASCII = 3
+
+
+if PY314:
+
+    @enum.unique
+    class SpecialMethod(enum.IntEnum):
+        """Special method names used with LOAD_SPECIAL"""
+
+        __ENTER__ = 0
+        __EXIT__ = 1
+        __AENTER__ = 2
+        __AEXIT__ = 3
+
+    @enum.unique
+    class CommonConstants(enum.IntEnum):
+        """Common constants names used with LOAD_COMMON_CONSTANT"""
+
+        ASSERTION_ERROR = 0
+        NOT_IMPLEMENTED_ERROR = 1
+        BUILTIN_TUPLE = 2
+        BUILTIN_ALL = 3
+        BUILTIN_ANY = 4
 
 
 # This make type checking happy but means it won't catch attempt to manipulate an unset
@@ -357,6 +416,7 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     "FORMAT_SIMPLE": (-1, 1),  # new in 3.13
     "FORMAT_SPEC": (-2, 1),  # new in 3.13
     "TO_BOOL": (-1, 1),  # new in 3.13
+    "BUILD_TEMPLATE": (-2, 1),  # new in 3.14
 }
 
 
@@ -385,6 +445,7 @@ DYNAMIC_STACK_EFFECTS: Dict[
     "FORMAT_VALUE": lambda effect, arg, jump: (effect - 1, 1),
     # FOR_ITER needs TOS to be an iterator, hence a prerequisite of 1 on the stack
     "FOR_ITER": lambda effect, arg, jump: (effect, 0) if jump else (-1, 2),
+    "BUILD_INTERPOLATION": lambda effect, arg, jump: (-(2 + (arg & 1)), 1),
     **{
         # Instr(UNPACK_* , n) pops 1 and pushes n
         k: lambda effect, arg, jump: (-1, effect + 1)
@@ -910,6 +971,28 @@ class Instr(BaseInstr[InstrArg]):
                     "Compare, got %s" % (name, type(arg).__name__)
                 )
 
+        elif opcode in BINARY_OPS:
+            if not isinstance(arg, BinaryOp):
+                raise TypeError(
+                    "operation %s argument type must be "
+                    "BinaryOp, got %s" % (name, type(arg).__name__)
+                )
+
+        # We do not enforce constant immortality since which constants are
+        # immortal may differ between recompilation and execution.
+
+        elif opcode in SMALL_INT_OPS:
+            if not isinstance(arg, int):
+                raise TypeError(
+                    "operation %s argument type must be "
+                    "int, got %s" % (name, type(arg).__name__)
+                )
+            if arg < 0 or arg > 255:
+                raise ValueError(
+                    "operation %s argument type must be an "
+                    "int between 0 and 255, got %s" % (name, arg)
+                )
+
         elif opcode in INTRINSIC_1OP:
             if not isinstance(arg, Intrinsic1Op):
                 raise TypeError(
@@ -923,6 +1006,21 @@ class Instr(BaseInstr[InstrArg]):
                     "operation %s argument type must be "
                     "Intrinsic2Op, got %s" % (name, type(arg).__name__)
                 )
+
+        elif opcode in SPECIAL_OPS:
+            if not isinstance(arg, SpecialMethod):
+                raise TypeError(
+                    "operation %s argument type must be "
+                    "SpecialMethod, got %s" % (name, type(arg).__name__)
+                )
+        elif opcode in COMMON_CONSTANT_OPS:
+            if not isinstance(arg, CommonConstants):
+                raise TypeError(
+                    "operation %s argument type must be "
+                    "CommonConstants, got %s" % (name, type(arg).__name__)
+                )
+
+        # XXX format value handling
 
         elif opcode_has_argument(opcode):
             _check_arg_int(arg, name)
