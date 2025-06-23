@@ -2,7 +2,7 @@
   name = "bytecode"
   description = "Python module to generate and modify bytecode"
   readme = "README.rst"
-  requires-python = ">=3.8"
+  requires-python = ">=3.9"
   license = { file = "COPYING" }
   authors = [{ name = "Victor Stinner", email = "victor.stinner@gmail.com" }]
   maintainers = [{ name = "Matthieu C. Dartiailh", email = "m.dartiailh@gmail.com" }]
@@ -13,12 +13,12 @@
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
   ]
   dependencies = ["typing_extensions;python_version<'3.10'"]
