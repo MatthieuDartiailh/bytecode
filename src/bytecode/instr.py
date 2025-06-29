@@ -22,11 +22,17 @@ MIN_INSTRUMENTED_OPCODE = getattr(_opcode, "MIN_INSTRUMENTED_OPCODE", 256)
 # Instructions relying on a bit to modify its behavior.
 # The lowest bit is used to encode custom behavior.
 BITFLAG_OPCODES = (
-    (_opcode.opmap["LOAD_GLOBAL"], _opcode.opmap["LOAD_ATTR"])
-    if PY312
-    else (_opcode.opmap["LOAD_GLOBAL"],)
-    if PY311
-    else ()
+    (
+        _opcode.opmap["BUILD_INTERPOLATION"],
+        _opcode.opmap["LOAD_GLOBAL"],
+        _opcode.opmap["LOAD_ATTR"],
+    )
+    if PY314
+    else (
+        (_opcode.opmap["LOAD_GLOBAL"], _opcode.opmap["LOAD_ATTR"])
+        if PY312
+        else ((_opcode.opmap["LOAD_GLOBAL"],) if PY311 else ())
+    )
 )
 
 BITFLAG2_OPCODES = (_opcode.opmap["LOAD_SUPER_ATTR"],) if PY312 else ()
@@ -49,7 +55,6 @@ SPECIAL_OPS = (_opcode.opmap["LOAD_SPECIAL"],) if PY314 else ()
 COMMON_CONSTANT_OPS = (_opcode.opmap["LOAD_COMMON_CONSTANT"],) if PY314 else ()
 
 # Value formatting related opcodes (only handle CONVERT_VALUE and BUILD_INTERPOLATION)
-# XXX BUILD_INTERPOLATION in 314 need a bit shift and has 2 args
 FORMAT_VALUE_OPS = (
     (
         _opcode.opmap["CONVERT_VALUE"],
@@ -197,10 +202,10 @@ class FormatValue(enum.IntEnum):
 class SpecialMethod(enum.IntEnum):
     """Special method names used with LOAD_SPECIAL"""
 
-    __ENTER__ = 0
-    __EXIT__ = 1
-    __AENTER__ = 2
-    __AEXIT__ = 3
+    ENTER = 0
+    EXIT = 1
+    AENTER = 2
+    AEXIT = 3
 
 
 @enum.unique
@@ -720,6 +725,7 @@ class BaseInstr(Generic[A]):
             arg = None
         # 3.11 where LOAD_GLOBAL arg encode whether or we push a null
         # 3.12 does the same for LOAD_ATTR
+        # 3.14 does this for BUILD_INTERPOLATION
         elif self._opcode in BITFLAG_OPCODES and isinstance(self._arg, tuple):
             assert len(self._arg) == 2
             arg = self._arg[0]
@@ -914,7 +920,7 @@ class Instr(BaseInstr[InstrArg]):
                     and isinstance(arg[1], str)
                 ):
                     raise TypeError(
-                        "operation %s argument must be a tuple[bool, str], "
+                        "operation %s argument must be a tuple[bool, str | FormatValue], "
                         "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
                     )
 
@@ -1019,7 +1025,23 @@ class Instr(BaseInstr[InstrArg]):
                     "CommonConstants, got %s" % (name, type(arg).__name__)
                 )
 
-        # XXX format value handling
+        elif opcode in FORMAT_VALUE_OPS:
+            if opcode in BITFLAG_OPCODES:
+                if not (
+                    isinstance(arg, tuple)
+                    and len(arg) == 2
+                    and isinstance(arg[0], bool)
+                    and isinstance(arg[1], FormatValue)
+                ):
+                    raise TypeError(
+                        "operation %s argument must be a tuple[bool, FormatValue], "
+                        "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
+                    )
+            elif not isinstance(arg, FormatValue):
+                raise TypeError(
+                    "operation %s argument must be a FormatValue] "
+                    "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
+                )
 
         elif opcode_has_argument(opcode):
             _check_arg_int(arg, name)
