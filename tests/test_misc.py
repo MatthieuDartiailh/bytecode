@@ -434,7 +434,7 @@ label_instr13:
                 -> block2
 
             block2:
-                L.  3   1: RETURN_CONST 1
+                L.  3   0: RETURN_CONST 1
 
             block3:
                 L.  4   0: LOAD_FAST 'test'
@@ -444,7 +444,7 @@ label_instr13:
                 -> block4
 
             block4:
-                L.  5   1: RETURN_CONST 2
+                L.  5   0: RETURN_CONST 2
 
             block5:
                 L.  6   0: RETURN_CONST 3
