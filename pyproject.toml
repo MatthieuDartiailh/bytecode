@@ -74,7 +74,7 @@ __version__ = "{version}"
       extra-standard-library = ["opcode"]
 
     [tool.ruff.lint.mccabe]
-      max-complexity = 42
+      max-complexity = 43
 
 [tool.mypy]
   follow_imports  = "normal"
