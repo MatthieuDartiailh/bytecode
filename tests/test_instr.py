@@ -17,14 +17,16 @@ from bytecode.instr import (
     BITFLAG2_OPCODES,
     BITFLAG_OPCODES,
     DUAL_ARG_OPCODES,
+    FORMAT_VALUE_OPS,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
+    FormatValue,
     InstrLocation,
     Intrinsic1Op,
     Intrinsic2Op,
     opcode_has_argument,
 )
-from bytecode.utils import PY311, PY313
+from bytecode.utils import PY311, PY312, PY313, PY314
 
 from . import TestCase
 
@@ -141,7 +143,11 @@ class InstrTests(TestCase):
         self.assertIn("_x_", r)
 
     def test_reject_pseudo_opcode(self):
-        if sys.version_info >= (3, 12):
+        if PY314:
+            with self.assertRaises(ValueError) as e:
+                Instr("INSTRUMENTED_END_FOR", "x")
+            self.assertIn("is an instrumented or pseudo opcode", str(e.exception))
+        elif PY312:
             with self.assertRaises(ValueError) as e:
                 Instr("LOAD_METHOD", "x")
             self.assertIn("is an instrumented or pseudo opcode", str(e.exception))
@@ -160,9 +166,9 @@ class InstrTests(TestCase):
         Instr(UNCONDITIONAL_JUMP, block)
 
         # hasfree
-        self.assertRaises(TypeError, Instr, "LOAD_DEREF", "x")
-        Instr("LOAD_DEREF", CellVar("x"))
-        Instr("LOAD_DEREF", FreeVar("x"))
+        self.assertRaises(TypeError, Instr, "STORE_DEREF", "x")
+        Instr("STORE_DEREF", CellVar("x"))
+        Instr("STORE_DEREF", FreeVar("x"))
 
         # haslocal
         self.assertRaises(TypeError, Instr, "LOAD_FAST", 1)
@@ -203,7 +209,10 @@ class InstrTests(TestCase):
             self.assertRaises(TypeError, Instr, name, ("arg",))
             self.assertRaises(TypeError, Instr, name, ("", "arg"))
             self.assertRaises(TypeError, Instr, name, (False, 1))
-            Instr(name, (True, "arg"))
+            if opcode.opmap[name] in FORMAT_VALUE_OPS:
+                Instr(name, (True, FormatValue.ASCII))
+            else:
+                Instr(name, (True, "arg"))
 
         # Instructions using 2 bitflag in their oparg
         for name in (opcode.opname[op] for op in BITFLAG2_OPCODES):

@@ -8,7 +8,7 @@ import unittest
 
 from bytecode import Bytecode, ConcreteInstr, FreeVar, Instr, Label, SetLineno
 from bytecode.instr import BinaryOp, InstrLocation
-from bytecode.utils import PY313
+from bytecode.utils import PY310, PY311, PY312, PY313, PY314
 
 from . import TestCase, get_code
 
@@ -168,42 +168,60 @@ class BytecodeTests(TestCase):
         bytecode = Bytecode.from_code(code)
         label_else = Label()
         label_exit = Label()
-        if sys.version_info < (3, 10):
-            self.assertEqual(
+        if PY314:
+            self.assertInstructionListEqual(
                 bytecode,
                 [
+                    Instr("RESUME", 0, lineno=0),
                     Instr("LOAD_NAME", "test", lineno=1),
+                    Instr("TO_BOOL", lineno=1),
                     Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
-                    Instr("LOAD_CONST", 1, lineno=2),
-                    Instr("STORE_NAME", "x", lineno=2),
-                    Instr("JUMP_FORWARD", label_exit, lineno=2),
-                    label_else,
-                    Instr("LOAD_CONST", 2, lineno=4),
-                    Instr("STORE_NAME", "x", lineno=4),
-                    label_exit,
-                    Instr("LOAD_CONST", None, lineno=4),
-                    Instr("RETURN_VALUE", lineno=4),
-                ],
-            )
-        # Control flow handling appears to have changed under Python 3.10
-        elif sys.version_info < (3, 11):
-            self.assertEqual(
-                bytecode,
-                [
-                    Instr("LOAD_NAME", "test", lineno=1),
-                    Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
-                    Instr("LOAD_CONST", 1, lineno=2),
+                    Instr("NOT_TAKEN", lineno=1),
+                    Instr("LOAD_SMALL_INT", 1, lineno=2),
                     Instr("STORE_NAME", "x", lineno=2),
                     Instr("LOAD_CONST", None, lineno=2),
                     Instr("RETURN_VALUE", lineno=2),
                     label_else,
-                    Instr("LOAD_CONST", 2, lineno=4),
+                    Instr("LOAD_SMALL_INT", 2, lineno=4),
                     Instr("STORE_NAME", "x", lineno=4),
                     Instr("LOAD_CONST", None, lineno=4),
                     Instr("RETURN_VALUE", lineno=4),
                 ],
             )
-        elif sys.version_info < (3, 12):
+        elif PY313:
+            self.assertInstructionListEqual(
+                bytecode,
+                [
+                    Instr("RESUME", 0, lineno=0),
+                    Instr("LOAD_NAME", "test", lineno=1),
+                    Instr("TO_BOOL", lineno=1),
+                    Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
+                    Instr("LOAD_CONST", 1, lineno=2),
+                    Instr("STORE_NAME", "x", lineno=2),
+                    Instr("RETURN_CONST", None, lineno=2),
+                    label_else,
+                    Instr("LOAD_CONST", 2, lineno=4),
+                    Instr("STORE_NAME", "x", lineno=4),
+                    Instr("RETURN_CONST", None, lineno=4),
+                ],
+            )
+        elif PY312:
+            self.assertInstructionListEqual(
+                bytecode,
+                [
+                    Instr("RESUME", 0, lineno=0),
+                    Instr("LOAD_NAME", "test", lineno=1),
+                    Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
+                    Instr("LOAD_CONST", 1, lineno=2),
+                    Instr("STORE_NAME", "x", lineno=2),
+                    Instr("RETURN_CONST", None, lineno=2),
+                    label_else,
+                    Instr("LOAD_CONST", 2, lineno=4),
+                    Instr("STORE_NAME", "x", lineno=4),
+                    Instr("RETURN_CONST", None, lineno=4),
+                ],
+            )
+        elif PY311:
             self.assertInstructionListEqual(
                 bytecode,
                 [
@@ -221,37 +239,40 @@ class BytecodeTests(TestCase):
                     Instr("RETURN_VALUE", lineno=4),
                 ],
             )
-        elif sys.version_info < (3, 13):
-            self.assertInstructionListEqual(
+        elif PY310:
+            # Control flow handling appears to have changed under Python 3.10
+            self.assertEqual(
                 bytecode,
                 [
-                    Instr("RESUME", 0, lineno=0),
                     Instr("LOAD_NAME", "test", lineno=1),
                     Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
                     Instr("LOAD_CONST", 1, lineno=2),
                     Instr("STORE_NAME", "x", lineno=2),
-                    Instr("RETURN_CONST", None, lineno=2),
+                    Instr("LOAD_CONST", None, lineno=2),
+                    Instr("RETURN_VALUE", lineno=2),
                     label_else,
                     Instr("LOAD_CONST", 2, lineno=4),
                     Instr("STORE_NAME", "x", lineno=4),
-                    Instr("RETURN_CONST", None, lineno=4),
+                    Instr("LOAD_CONST", None, lineno=4),
+                    Instr("RETURN_VALUE", lineno=4),
                 ],
             )
+
         else:
-            self.assertInstructionListEqual(
+            self.assertEqual(
                 bytecode,
                 [
-                    Instr("RESUME", 0, lineno=0),
                     Instr("LOAD_NAME", "test", lineno=1),
-                    Instr("TO_BOOL", lineno=1),
                     Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
                     Instr("LOAD_CONST", 1, lineno=2),
                     Instr("STORE_NAME", "x", lineno=2),
-                    Instr("RETURN_CONST", None, lineno=2),
+                    Instr("JUMP_FORWARD", label_exit, lineno=2),
                     label_else,
                     Instr("LOAD_CONST", 2, lineno=4),
                     Instr("STORE_NAME", "x", lineno=4),
-                    Instr("RETURN_CONST", None, lineno=4),
+                    label_exit,
+                    Instr("LOAD_CONST", None, lineno=4),
+                    Instr("RETURN_VALUE", lineno=4),
                 ],
             )
 
@@ -307,22 +328,31 @@ class BytecodeTests(TestCase):
                 [
                     Instr("RESUME", 0, lineno=1),
                 ]
-                if sys.version_info >= (3, 11)
+                if PY311
                 else []
             )
             + [
-                Instr("LOAD_CONST", 33, lineno=2),
+                Instr("LOAD_SMALL_INT", 33, lineno=2)
+                if PY314
+                else Instr("LOAD_CONST", 33, lineno=2),
                 Instr("STORE_FAST", "x", lineno=2),
                 Instr("LOAD_FAST", "x", lineno=3),
                 Instr("STORE_FAST", "y", lineno=3),
             ]
             + (
-                [Instr("RETURN_CONST", None, lineno=3)]
-                if sys.version_info >= (3, 12)
-                else [
+                [
                     Instr("LOAD_CONST", None, lineno=3),
                     Instr("RETURN_VALUE", lineno=3),
                 ]
+                if PY314
+                else (
+                    [Instr("RETURN_CONST", None, lineno=3)]
+                    if PY312
+                    else [
+                        Instr("LOAD_CONST", None, lineno=3),
+                        Instr("RETURN_VALUE", lineno=3),
+                    ]
+                )
             ),
         )
 
@@ -334,37 +364,43 @@ class BytecodeTests(TestCase):
         code.first_lineno = 3
         code.extend(
             [
-                Instr("LOAD_CONST", 7),
+                Instr("LOAD_SMALL_INT" if PY314 else "LOAD_CONST", 7),
                 Instr("STORE_NAME", "x"),
                 SetLineno(4),
-                Instr("LOAD_CONST", 8),
+                Instr("LOAD_SMALL_INT" if PY314 else "LOAD_CONST", 8),
                 Instr("STORE_NAME", "y"),
                 SetLineno(5),
-                Instr("LOAD_CONST", 9),
+                Instr("LOAD_SMALL_INT" if PY314 else "LOAD_CONST", 9),
                 Instr("STORE_NAME", "z"),
             ]
         )
 
         concrete = code.to_concrete_bytecode()
-        self.assertEqual(concrete.consts, [7, 8, 9])
+        self.assertEqual(concrete.consts, [] if PY314 else [7, 8, 9])
         self.assertEqual(concrete.names, ["x", "y", "z"])
         self.assertListEqual(
             list(concrete),
             [
                 ConcreteInstr(
-                    "LOAD_CONST", 0, location=InstrLocation(3, None, None, None)
+                    "LOAD_SMALL_INT" if PY314 else "LOAD_CONST",
+                    7 if PY314 else 0,
+                    location=InstrLocation(3, None, None, None),
                 ),
                 ConcreteInstr(
                     "STORE_NAME", 0, location=InstrLocation(3, None, None, None)
                 ),
                 ConcreteInstr(
-                    "LOAD_CONST", 1, location=InstrLocation(4, None, None, None)
+                    "LOAD_SMALL_INT" if PY314 else "LOAD_CONST",
+                    8 if PY314 else 1,
+                    location=InstrLocation(4, None, None, None),
                 ),
                 ConcreteInstr(
                     "STORE_NAME", 1, location=InstrLocation(4, None, None, None)
                 ),
                 ConcreteInstr(
-                    "LOAD_CONST", 2, location=InstrLocation(5, None, None, None)
+                    "LOAD_SMALL_INT" if PY314 else "LOAD_CONST",
+                    9 if PY314 else 2,
+                    location=InstrLocation(5, None, None, None),
                 ),
                 ConcreteInstr(
                     "STORE_NAME", 2, location=InstrLocation(5, None, None, None)
@@ -379,18 +415,14 @@ class BytecodeTests(TestCase):
             [
                 Instr("LOAD_NAME", "print"),
                 Instr("LOAD_CONST", "%s"),
-                Instr(
-                    "LOAD_GLOBAL", (False, "a") if sys.version_info >= (3, 11) else "a"
-                ),
-                Instr("BINARY_OP", BinaryOp.ADD)
-                if sys.version_info >= (3, 11)
-                else Instr("BINARY_ADD"),
+                Instr("LOAD_GLOBAL", (False, "a") if PY311 else "a"),
+                Instr("BINARY_OP", BinaryOp.ADD) if PY311 else Instr("BINARY_ADD"),
             ]
             # For 3.12+ we need a NULL before a CALL to a free function
-            + ([Instr("PUSH_NULL")] if sys.version_info >= (3, 12) else [])
+            + ([Instr("PUSH_NULL")] if PY312 else [])
             + [
                 # On 3.11 we should have a pre-call
-                Instr("CALL" if sys.version_info >= (3, 11) else "CALL_FUNCTION", 1),
+                Instr("CALL" if PY311 else "CALL_FUNCTION", 1),
                 Instr("RETURN_VALUE"),
             ]
         )
@@ -455,7 +487,7 @@ class BytecodeTests(TestCase):
             "XOR",
             "OR",
         )
-        if sys.version_info >= (3, 11):
+        if PY311:
             operations += ("REMAINDER",)
         else:
             operations += ("MODULO",)
@@ -468,8 +500,8 @@ class BytecodeTests(TestCase):
                 with self.subTest(op):
                     code = Bytecode()
                     code.first_lineno = 1
-                    if sys.version_info >= (3, 11):
-                        if op == "SUBSCR":
+                    if PY311:
+                        if op == "SUBSCR" and not PY314:
                             i = Instr("BINARY_SUBSCR")
                         else:
                             i = Instr("BINARY_OP", getattr(BinaryOp, op))
@@ -511,8 +543,8 @@ class BytecodeTests(TestCase):
                 with self.subTest(op):
                     code = Bytecode()
                     code.first_lineno = 1
-                    if sys.version_info >= (3, 11):
-                        if op == "SUBSCR":
+                    if PY311:
+                        if op == "SUBSCR" and not PY314:
                             i = Instr("BINARY_SUBSCR")
                         else:
                             i = Instr("BINARY_OP", getattr(BinaryOp, op))
@@ -580,14 +612,14 @@ class BytecodeTests(TestCase):
     def test_negative_size_build_const_map(self):
         code = Bytecode()
         code.first_lineno = 1
-        code.extend([Instr("LOAD_CONST", ("a",)), Instr("BUILD_CONST_KEY_MAP", 1)])
+        code.extend([Instr("LOAD_CONST", ("a",)), Instr("BUILD_MAP", 1)])
         with self.assertRaises(RuntimeError):
             code.compute_stacksize()
 
     def test_negative_size_build_const_map_with_disable_check_of_pre_and_post(self):
         code = Bytecode()
         code.first_lineno = 1
-        code.extend([Instr("LOAD_CONST", ("a",)), Instr("BUILD_CONST_KEY_MAP", 1)])
+        code.extend([Instr("LOAD_CONST", ("a",)), Instr("BUILD_MAP", 1)])
         co = code.to_code(check_pre_and_post=False)
         self.assertEqual(co.co_stacksize, 1)
 
@@ -688,7 +720,7 @@ class BytecodeTests(TestCase):
         )
         # Under 3.12+ FOR_ITER does not pop the iterator on completion so this
         # does not fail a coarse stack effect computation.
-        if sys.version_info >= (3, 12):
+        if PY312:
             self.skipTest("Irrelevant on 3.12+")
         with self.assertRaises(RuntimeError):
             # Use compute_stacksize since the code is so broken that conversion
@@ -713,7 +745,7 @@ class BytecodeTests(TestCase):
                 self.assertCodeObjectEqual(origin, as_code)
                 if inspect.iscoroutinefunction(f):
                     # contextlib.nullcontext support async context only in 3.10+
-                    if sys.version_info >= (3, 10):
+                    if PY310:
                         asyncio.run(f())
                 else:
                     f()
@@ -745,7 +777,7 @@ class BytecodeTests(TestCase):
                     pass
 
     def test_empty_try_block(self):
-        if sys.version_info < (3, 11):
+        if not PY311:
             self.skipTest("Exception tables were introduced in 3.11")
 
         import bytecode as b
