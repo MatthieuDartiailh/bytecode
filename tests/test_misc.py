@@ -388,7 +388,7 @@ label_instr13:
         self.check_dump_bytecode(code, expected.lstrip())
 
         # with line numbers
-        if PY312:
+        if PY314:
             expected = textwrap.dedent(
                 f"""
             block1:
@@ -419,6 +419,35 @@ label_instr13:
             block5:
                 L.  6   0: LOAD_SMALL_INT 3
                         1: RETURN_VALUE
+
+            """
+            )
+        elif PY312:
+            expected = textwrap.dedent(
+                f"""
+            block1:
+                L.  1   0: RESUME 0
+                L.  2   1: LOAD_FAST 'test'
+                        2: LOAD_CONST 1
+                        3: COMPARE_OP {enum_repr}
+                        4: POP_JUMP_IF_FALSE <block3>
+                -> block2
+
+            block2:
+                L.  3   1: RETURN_CONST 1
+
+            block3:
+                L.  4   0: LOAD_FAST 'test'
+                        1: LOAD_CONST 2
+                        2: COMPARE_OP {enum_repr}
+                        3: POP_JUMP_IF_FALSE <block5>
+                -> block4
+
+            block4:
+                L.  5   1: RETURN_CONST 2
+
+            block5:
+                L.  6   0: RETURN_CONST 3
 
             """
             )
