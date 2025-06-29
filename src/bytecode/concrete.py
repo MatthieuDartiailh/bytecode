@@ -1066,9 +1066,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                     if opcode in BITFLAG_OPCODES:
                         arg = (
                             bool(c_arg & 1),
-                            FormatValue(c_arg >> 1)
-                            if opcode in FORMAT_VALUE_OPS
-                            else self.names[c_arg >> 1],
+                            self.names[c_arg >> 1],
                         )
                     elif opcode in BITFLAG2_OPCODES:
                         arg = (bool(c_arg & 1), bool(c_arg & 2), self.names[c_arg >> 2])
@@ -1101,6 +1099,14 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                     arg = CommonConstants(c_arg)
                 elif opcode in SPECIAL_OPS:
                     arg = SpecialMethod(c_arg)
+                elif opcode in FORMAT_VALUE_OPS:
+                    if opcode in BITFLAG_OPCODES:
+                        arg = (
+                            bool(c_arg & 1),
+                            FormatValue(c_arg >> 1),
+                        )
+                    else:
+                        arg = FormatValue(c_arg)
                 else:
                     arg = c_arg
 

@@ -868,8 +868,15 @@ InstrArg = Union[
     FreeVar,
     "_bytecode.BasicBlock",
     Compare,
+    FormatValue,
+    BinaryOp,
+    Intrinsic1Op,
+    Intrinsic2Op,
+    CommonConstants,
+    SpecialMethod,
     Tuple[bool, str],
     Tuple[bool, bool, str],
+    Tuple[bool, FormatValue],
     Tuple[Union[str, CellVar, FreeVar], Union[str, CellVar, FreeVar]],
 ]
 
