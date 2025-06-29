@@ -32,6 +32,7 @@ from bytecode.instr import (
     COMMON_CONSTANT_OPS,
     DUAL_ARG_OPCODES,
     DUAL_ARG_OPCODES_SINGLE_OPS,
+    FORMAT_VALUE_OPS,
     INTRINSIC,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
@@ -43,6 +44,7 @@ from bytecode.instr import (
     CellVar,
     CommonConstants,
     Compare,
+    FormatValue,
     FreeVar,
     Instr,
     InstrArg,
@@ -1062,7 +1064,12 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                         arg = locals_lookup[c_arg]
                 elif opcode in _opcode.hasname:
                     if opcode in BITFLAG_OPCODES:
-                        arg = (bool(c_arg & 1), self.names[c_arg >> 1])
+                        arg = (
+                            bool(c_arg & 1),
+                            FormatValue(c_arg >> 1)
+                            if opcode in FORMAT_VALUE_OPS
+                            else self.names[c_arg >> 1],
+                        )
                     elif opcode in BITFLAG2_OPCODES:
                         arg = (bool(c_arg & 1), bool(c_arg & 2), self.names[c_arg >> 2])
                     else:
@@ -1328,9 +1335,13 @@ class _ConvertBytecodeToConcrete:
                         isinstance(arg, tuple)
                         and len(arg) == 2
                         and isinstance(arg[0], bool)
-                        and isinstance(arg[1], str)
                     ), arg
-                    index = self.add(self.names, arg[1])
+                    if isinstance(arg[1], str):
+                        index = self.add(self.names, arg[1])
+                    elif isinstance(arg, FormatValue):
+                        index = int(arg)
+                    else:
+                        assert False, arg  # noqa
                     c_arg = int(arg[0]) + (index << 1)
                 elif opcode in BITFLAG2_OPCODES:
                     assert (
