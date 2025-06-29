@@ -39,7 +39,7 @@ class DumpCodeTests(unittest.TestCase):
 
         # without line numbers
         enum_repr = "<Compare.EQ_CAST: 18>" if PY313 else "<Compare.EQ: 2>"
-        if PY312:
+        if PY314:
             expected = f"""
     RESUME 0
     LOAD_FAST_BORROW 'test'
