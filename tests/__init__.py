@@ -181,16 +181,21 @@ class TestCase(unittest.TestCase):
                 list(dis.findlinestarts(code1)), list(dis.findlinestarts(code2))
             )
 
-        # If names have been re-ordered compared the output of dis.instructions
+        # If names or consts have been re-ordered compared the output of dis.instructions
         if sys.version_info >= (3, 12) and (
-            code1.co_names != code2.co_names or code1.co_varnames != code2.co_varnames
+            code1.co_consts != code2.co_consts
+            or code1.co_names != code2.co_names
+            or code1.co_varnames != code2.co_varnames
         ):
             instrs1 = list(dis.get_instructions(code1))
             instrs2 = list(dis.get_instructions(code2))
             self.assertEqual(len(instrs1), len(instrs2))
             for i1, i2 in zip(instrs1, instrs2):
                 self.assertEqual(i1.opcode, i2.opcode)
-                self.assertEqual(i1.argval, i2.argval)
+                if isinstance(i1.argval, types.CodeType):
+                    pass
+                else:
+                    self.assertEqual(i1.argval, i2.argval)
         elif sys.version_info >= (3, 9):
             self.assertSequenceEqual(code1.co_code, code2.co_code)
         # On Python 3.8 it happens that fast storage index vary in a roundtrip
