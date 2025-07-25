@@ -6,6 +6,7 @@ import unittest
 from bytecode import (
     UNSET,
     BasicBlock,
+    BinaryOp,
     CellVar,
     Compare,
     FreeVar,
@@ -20,10 +21,12 @@ from bytecode.instr import (
     FORMAT_VALUE_OPS,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
+    CommonConstants,
     FormatValue,
     InstrLocation,
     Intrinsic1Op,
     Intrinsic2Op,
+    SpecialMethod,
     opcode_has_argument,
 )
 from bytecode.utils import PY311, PY312, PY313, PY314
@@ -155,6 +158,41 @@ class InstrTests(TestCase):
     def test_invalid_arg(self):
         label = Label()
         block = BasicBlock()
+
+        if PY314:
+            Instr("BINARY_OP", BinaryOp.SUBSCR)
+            self.assertRaises(TypeError, Instr, "BINARY_OP", BinaryOp.SUBSCR.value)
+
+            Instr("LOAD_SPECIAL", SpecialMethod.EXIT)
+            self.assertRaises(
+                TypeError, Instr, "LOAD_SPECIAL", SpecialMethod.EXIT.value
+            )
+
+            Instr("LOAD_COMMON_CONSTANT", CommonConstants.BUILTIN_ALL)
+            self.assertRaises(
+                TypeError,
+                Instr,
+                "LOAD_COMMON_CONSTANT",
+                CommonConstants.BUILTIN_ALL.value,
+            )
+
+            Instr("LOAD_SMALL_INT", 1)
+            self.assertRaises(ValueError, Instr, "LOAD_SMALL_INT", 256)
+
+            Instr("CONVERT_VALUE", FormatValue.STR)
+            self.assertRaises(TypeError, Instr, "CONVERT_VALUE", FormatValue.STR.value)
+
+            Instr("CONVERT_VALUE", FormatValue.STR)
+            self.assertRaises(TypeError, Instr, "CONVERT_VALUE", FormatValue.STR.value)
+
+            Instr("BUILD_INTERPOLATION", (True, FormatValue.STR))
+            Instr("BUILD_INTERPOLATION", (False, FormatValue.STR))
+            self.assertRaises(
+                TypeError, Instr, "BUILD_INTERPOLATION", True, FormatValue.STR
+            )
+            self.assertRaises(
+                TypeError, Instr, "BUILD_INTERPOLATION", False, FormatValue.STR
+            )
 
         # EXTENDED_ARG
         self.assertRaises(ValueError, Instr, "EXTENDED_ARG", 0)
