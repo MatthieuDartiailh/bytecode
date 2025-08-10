@@ -72,6 +72,11 @@ jobs:
     if: github.event_name == 'push'
     needs: [build_wheel, build_sdist]
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/kiwisolver
+    permissions:
+      id-token: write
     steps:
       - name: Download all the dists
         uses: actions/download-artifact@v5.0.0
@@ -81,11 +86,6 @@ jobs:
           merge-multiple: true
 
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.pypi_password }}
-          # To test:
-          # repository_url: https://test.pypi.org/legacy/
 
   github-release:
     name: >-
@@ -107,9 +107,8 @@ jobs:
         path: dist
         merge-multiple: true
     - name: Sign the dists with Sigstore
-      uses: sigstore/gh-action-sigstore-python@v2.1.0
+      uses: sigstore/gh-action-sigstore-python@v3.0.1
       with:
-        password: ${{ secrets.pypi_password }}
         inputs: >-
           ./dist/*.tar.gz
           ./dist/*.whl
