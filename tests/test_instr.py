@@ -15,12 +15,16 @@ from bytecode import (
     SetLineno,
 )
 from bytecode.instr import (
+    BINARY_OPS,
     BITFLAG2_OPCODES,
     BITFLAG_OPCODES,
+    COMMON_CONSTANT_OPS,
     DUAL_ARG_OPCODES,
     FORMAT_VALUE_OPS,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
+    SMALL_INT_OPS,
+    SPECIAL_OPS,
     CommonConstants,
     FormatValue,
     InstrLocation,
@@ -159,15 +163,23 @@ class InstrTests(TestCase):
         label = Label()
         block = BasicBlock()
 
-        if PY314:
-            Instr("BINARY_OP", BinaryOp.SUBSCR)
-            self.assertRaises(TypeError, Instr, "BINARY_OP", BinaryOp.SUBSCR.value)
+        for name in (opcode.opname[op] for op in BINARY_OPS):
+            assert name == "BINARY_OP", f"expected BINARY_OP but got {name=}"
+            if PY314:
+                Instr(name, BinaryOp.SUBSCR)
+                self.assertRaises(TypeError, Instr, name, BinaryOp.SUBSCR.value)
 
+        for name in (opcode.opname[op] for op in SPECIAL_OPS):
+            assert name == "LOAD_SPECIAL", f"expected LOAD_SPECIAL but got {name=}"
             Instr("LOAD_SPECIAL", SpecialMethod.EXIT)
             self.assertRaises(
                 TypeError, Instr, "LOAD_SPECIAL", SpecialMethod.EXIT.value
             )
 
+        for name in (opcode.opname[op] for op in COMMON_CONSTANT_OPS):
+            assert (
+                name == "LOAD_COMMON_CONSTANT"
+            ), f"expected LOAD_COMMON_CONSTANT but got {name=}"
             Instr("LOAD_COMMON_CONSTANT", CommonConstants.BUILTIN_ALL)
             self.assertRaises(
                 TypeError,
@@ -176,23 +188,26 @@ class InstrTests(TestCase):
                 CommonConstants.BUILTIN_ALL.value,
             )
 
+        for name in (opcode.opname[op] for op in SMALL_INT_OPS):
+            assert name == "LOAD_SMALL_INT", f"expected LOAD_SMALL_INT but got {name=}"
             Instr("LOAD_SMALL_INT", 1)
             self.assertRaises(ValueError, Instr, "LOAD_SMALL_INT", 256)
 
-            Instr("CONVERT_VALUE", FormatValue.STR)
-            self.assertRaises(TypeError, Instr, "CONVERT_VALUE", FormatValue.STR.value)
-
-            Instr("CONVERT_VALUE", FormatValue.STR)
-            self.assertRaises(TypeError, Instr, "CONVERT_VALUE", FormatValue.STR.value)
-
-            Instr("BUILD_INTERPOLATION", (True, FormatValue.STR))
-            Instr("BUILD_INTERPOLATION", (False, FormatValue.STR))
-            self.assertRaises(
-                TypeError, Instr, "BUILD_INTERPOLATION", True, FormatValue.STR
-            )
-            self.assertRaises(
-                TypeError, Instr, "BUILD_INTERPOLATION", False, FormatValue.STR
-            )
+        for name in (opcode.opname[op] for op in FORMAT_VALUE_OPS):
+            if name == "CONVERT_VALUE":
+                Instr(name, FormatValue.STR)
+                self.assertRaises(TypeError, Instr, name, FormatValue.STR.value)
+                Instr(name, FormatValue.STR)
+                self.assertRaises(TypeError, Instr, name, FormatValue.STR.value)
+            elif name == "BUILD_INTERPOLATION":
+                Instr(name, (True, FormatValue.STR))
+                Instr(name, (False, FormatValue.STR))
+                self.assertRaises(TypeError, Instr, name, True, FormatValue.STR)
+                self.assertRaises(TypeError, Instr, name, False, FormatValue.STR)
+            else:
+                raise ValueError(
+                    f"expected CONVERT_VALUE or BUILD_INTERPOLATION but got {name=}"
+                )
 
         # EXTENDED_ARG
         self.assertRaises(ValueError, Instr, "EXTENDED_ARG", 0)
