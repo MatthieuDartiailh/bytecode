@@ -215,14 +215,14 @@ def try_except_in_else():
 
 def try_finally_in_else():
     try:
-        a = 1
+        a = "a"
     except ValueError as e:
         return
     else:
         try:
             pass
         finally:
-            a = 1
+            a = "a"
 
 
 def try_except_in_finally():
@@ -264,55 +264,55 @@ def try_except_group():
 
 
 def with_no_store():
-    with contextlib.nullcontext(1):
-        a = 1
+    with contextlib.nullcontext("1"):
+        a = "1"
     return a
 
 
 def with_store():
-    with contextlib.nullcontext(1) as b:
-        a = 1
+    with contextlib.nullcontext("1") as b:
+        a = "1"
     return a
 
 
 def try_with():
     try:
-        with contextlib.nullcontext(1):
-            a = 1
+        with contextlib.nullcontext("1"):
+            a = "1"
     except Exception:
-        return min(1, 2)
+        return min("1", "2")
 
     return a
 
 
 def with_try():
-    with contextlib.nullcontext(1):
+    with contextlib.nullcontext("1"):
         try:
-            b = 1
+            b = "1"
         except Exception:
-            return min(1, 2)
+            return min("1", "2")
 
     return b
 
 
 async def async_with_no_store():
     async with contextlib.nullcontext():
-        a = 1
+        a = "1"
     return a
 
 
 async def async_with_store():
     async with contextlib.nullcontext() as b:
-        a = 1
+        a = "1"
     return a
 
 
 async def try_async_with():
     try:
         async with contextlib.nullcontext(1):
-            a = 1
+            a = "1"
     except Exception:
-        return min(1, 2)
+        return min("1", "2")
 
     return a
 
@@ -320,9 +320,9 @@ async def try_async_with():
 async def async_with_try():
     async with contextlib.nullcontext(1):
         try:
-            b = 1
+            b = "1"
         except Exception:
-            return min(1, 2)
+            return min(1.0, 2.0)
 
     return b
 

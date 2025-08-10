@@ -6,6 +6,7 @@ import unittest
 from bytecode import (
     UNSET,
     BasicBlock,
+    BinaryOp,
     CellVar,
     Compare,
     FreeVar,
@@ -14,17 +15,25 @@ from bytecode import (
     SetLineno,
 )
 from bytecode.instr import (
+    BINARY_OPS,
     BITFLAG2_OPCODES,
     BITFLAG_OPCODES,
+    COMMON_CONSTANT_OPS,
     DUAL_ARG_OPCODES,
+    FORMAT_VALUE_OPS,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
+    SMALL_INT_OPS,
+    SPECIAL_OPS,
+    CommonConstants,
+    FormatValue,
     InstrLocation,
     Intrinsic1Op,
     Intrinsic2Op,
+    SpecialMethod,
     opcode_has_argument,
 )
-from bytecode.utils import PY311, PY313
+from bytecode.utils import PY311, PY312, PY313, PY314
 
 from . import TestCase
 
@@ -141,7 +150,11 @@ class InstrTests(TestCase):
         self.assertIn("_x_", r)
 
     def test_reject_pseudo_opcode(self):
-        if sys.version_info >= (3, 12):
+        if PY314:
+            with self.assertRaises(ValueError) as e:
+                Instr("INSTRUMENTED_END_FOR", "x")
+            self.assertIn("is an instrumented or pseudo opcode", str(e.exception))
+        elif PY312:
             with self.assertRaises(ValueError) as e:
                 Instr("LOAD_METHOD", "x")
             self.assertIn("is an instrumented or pseudo opcode", str(e.exception))
@@ -149,6 +162,52 @@ class InstrTests(TestCase):
     def test_invalid_arg(self):
         label = Label()
         block = BasicBlock()
+
+        for name in (opcode.opname[op] for op in BINARY_OPS):
+            assert name == "BINARY_OP", f"expected BINARY_OP but got {name=}"
+            if PY314:
+                Instr(name, BinaryOp.SUBSCR)
+                self.assertRaises(TypeError, Instr, name, BinaryOp.SUBSCR.value)
+
+        for name in (opcode.opname[op] for op in SPECIAL_OPS):
+            assert name == "LOAD_SPECIAL", f"expected LOAD_SPECIAL but got {name=}"
+            Instr("LOAD_SPECIAL", SpecialMethod.EXIT)
+            self.assertRaises(
+                TypeError, Instr, "LOAD_SPECIAL", SpecialMethod.EXIT.value
+            )
+
+        for name in (opcode.opname[op] for op in COMMON_CONSTANT_OPS):
+            assert (
+                name == "LOAD_COMMON_CONSTANT"
+            ), f"expected LOAD_COMMON_CONSTANT but got {name=}"
+            Instr("LOAD_COMMON_CONSTANT", CommonConstants.BUILTIN_ALL)
+            self.assertRaises(
+                TypeError,
+                Instr,
+                "LOAD_COMMON_CONSTANT",
+                CommonConstants.BUILTIN_ALL.value,
+            )
+
+        for name in (opcode.opname[op] for op in SMALL_INT_OPS):
+            assert name == "LOAD_SMALL_INT", f"expected LOAD_SMALL_INT but got {name=}"
+            Instr("LOAD_SMALL_INT", 1)
+            self.assertRaises(ValueError, Instr, "LOAD_SMALL_INT", 256)
+
+        for name in (opcode.opname[op] for op in FORMAT_VALUE_OPS):
+            if name == "CONVERT_VALUE":
+                Instr(name, FormatValue.STR)
+                self.assertRaises(TypeError, Instr, name, FormatValue.STR.value)
+                Instr(name, FormatValue.STR)
+                self.assertRaises(TypeError, Instr, name, FormatValue.STR.value)
+            elif name == "BUILD_INTERPOLATION":
+                Instr(name, (True, FormatValue.STR))
+                Instr(name, (False, FormatValue.STR))
+                self.assertRaises(TypeError, Instr, name, True, FormatValue.STR)
+                self.assertRaises(TypeError, Instr, name, False, FormatValue.STR)
+            else:
+                raise ValueError(
+                    f"expected CONVERT_VALUE or BUILD_INTERPOLATION but got {name=}"
+                )
 
         # EXTENDED_ARG
         self.assertRaises(ValueError, Instr, "EXTENDED_ARG", 0)
@@ -160,9 +219,9 @@ class InstrTests(TestCase):
         Instr(UNCONDITIONAL_JUMP, block)
 
         # hasfree
-        self.assertRaises(TypeError, Instr, "LOAD_DEREF", "x")
-        Instr("LOAD_DEREF", CellVar("x"))
-        Instr("LOAD_DEREF", FreeVar("x"))
+        self.assertRaises(TypeError, Instr, "STORE_DEREF", "x")
+        Instr("STORE_DEREF", CellVar("x"))
+        Instr("STORE_DEREF", FreeVar("x"))
 
         # haslocal
         self.assertRaises(TypeError, Instr, "LOAD_FAST", 1)
@@ -203,7 +262,10 @@ class InstrTests(TestCase):
             self.assertRaises(TypeError, Instr, name, ("arg",))
             self.assertRaises(TypeError, Instr, name, ("", "arg"))
             self.assertRaises(TypeError, Instr, name, (False, 1))
-            Instr(name, (True, "arg"))
+            if opcode.opmap[name] in FORMAT_VALUE_OPS:
+                Instr(name, (True, FormatValue.ASCII))
+            else:
+                Instr(name, (True, "arg"))
 
         # Instructions using 2 bitflag in their oparg
         for name in (opcode.opname[op] for op in BITFLAG2_OPCODES):
