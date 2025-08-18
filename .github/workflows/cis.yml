@@ -20,7 +20,7 @@ jobs:
     name: Lint code
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -55,7 +55,7 @@ jobs:
           - python-version: "3.13"
             toxenv: py313
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Get history and tags for SCM versioning to work
         run: |
           git fetch --prune --unshallow
