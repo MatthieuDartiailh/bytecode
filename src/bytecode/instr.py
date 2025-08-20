@@ -985,10 +985,13 @@ class Instr(BaseInstr[InstrArg]):
 
         elif opcode in BINARY_OPS:
             if not isinstance(arg, BinaryOp):
-                raise TypeError(
-                    "operation %s argument type must be "
-                    "BinaryOp, got %s" % (name, type(arg).__name__)
-                )
+                try:
+                    arg = BinaryOp(arg)
+                except Exception as e:
+                    raise TypeError(
+                        "operation %s argument type must be "
+                        "coercible to BinaryOp, got %s" % (name, type(arg).__name__)
+                    ) from e
 
         # We do not enforce constant immortality since which constants are
         # immortal may differ between recompilation and execution.

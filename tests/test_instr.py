@@ -167,7 +167,8 @@ class InstrTests(TestCase):
             assert name == "BINARY_OP", f"expected BINARY_OP but got {name=}"
             if PY314:
                 Instr(name, BinaryOp.SUBSCR)
-                self.assertRaises(TypeError, Instr, name, BinaryOp.SUBSCR.value)
+                Instr(name, BinaryOp.SUBSCR.value)
+                self.assertRaises(TypeError, Instr, name, "")
 
         for name in (opcode.opname[op] for op in SPECIAL_OPS):
             assert name == "LOAD_SPECIAL", f"expected LOAD_SPECIAL but got {name=}"
