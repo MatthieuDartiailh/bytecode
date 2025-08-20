@@ -37,7 +37,7 @@ from bytecode.utils import PY311, PY312, PY313, PY314
 
 from . import TestCase
 
-# XXX  tests for location and lineno setter
+# FIXME  tests for location and lineno setter
 
 # Starting with Python 3.11 jump opcode have changed quite a bit. We define here
 # opcode useful to test for both Python < 3.11 and Python >= 3.11
@@ -177,9 +177,9 @@ class InstrTests(TestCase):
             )
 
         for name in (opcode.opname[op] for op in COMMON_CONSTANT_OPS):
-            assert (
-                name == "LOAD_COMMON_CONSTANT"
-            ), f"expected LOAD_COMMON_CONSTANT but got {name=}"
+            assert name == "LOAD_COMMON_CONSTANT", (
+                f"expected LOAD_COMMON_CONSTANT but got {name=}"
+            )
             Instr("LOAD_COMMON_CONSTANT", CommonConstants.BUILTIN_ALL)
             self.assertRaises(
                 TypeError,

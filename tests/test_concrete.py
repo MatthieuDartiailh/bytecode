@@ -1391,7 +1391,7 @@ class ConcreteFromCodeTests(TestCase):
         bytecode = ConcreteBytecode.from_code(test.__code__, extended_arg=True)
         bytecode.to_code()
 
-    # XXX add tests for linenumbers which are None
+    # FIXME add tests for linenumbers which are None
 
     def test_packing_lines(self):
         import dis

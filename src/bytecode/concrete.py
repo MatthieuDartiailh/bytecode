@@ -1168,7 +1168,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
 
 class _ConvertBytecodeToConcrete:
-    # XXX document attributes
+    # FIXME document attributes
 
     #: Default number of passes of compute_jumps() before giving up.  Refer to
     #: assemble_jump_offsets() in compile.c for background.
