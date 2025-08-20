@@ -7,7 +7,7 @@ import types
 import unittest
 
 from bytecode import Bytecode, ConcreteInstr, FreeVar, Instr, Label, SetLineno
-from bytecode.instr import BinaryOp, InstrLocation
+from bytecode.instr import BinaryOp, FormatValue, InstrLocation
 from bytecode.utils import PY310, PY311, PY312, PY313, PY314
 
 from . import TestCase, get_code
@@ -353,6 +353,41 @@ class BytecodeTests(TestCase):
                         Instr("RETURN_VALUE", lineno=3),
                     ]
                 )
+            ),
+        )
+
+    def test_from_code_str_format(self):
+        code = get_code(
+            """
+            def func(a):
+                return f"{a!r}"
+        """,
+            function=True,
+        )
+        code = Bytecode.from_code(code)
+        self.assertInstructionListEqual(
+            code,
+            (
+                [
+                    Instr("RESUME", 0, lineno=1),
+                ]
+                if PY311
+                else []
+            )
+            + (
+                [
+                    Instr("LOAD_FAST_BORROW", "a", lineno=2)
+                    if PY314
+                    else Instr("LOAD_FAST", "a", lineno=2),
+                    Instr("CONVERT_VALUE", FormatValue.REPR, lineno=2),
+                    Instr("RETURN_VALUE", lineno=2),
+                ]
+                if PY313
+                else [
+                    Instr("LOAD_FAST", "a", lineno=2),
+                    Instr("FORMAT_VALUE", 2, lineno=2),
+                    Instr("RETURN_VALUE", lineno=2),
+                ]
             ),
         )
 
