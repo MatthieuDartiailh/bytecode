@@ -890,7 +890,7 @@ class Instr(BaseInstr[InstrArg]):
             arg = const_key(arg)
         return (self._location, self._name, arg)
 
-    def _check_arg(self, name: str, opcode: int, arg: InstrArg) -> None:
+    def _check_arg(self, name: str, opcode: int, arg: InstrArg) -> None:  # noqa: C901
         if name == "EXTENDED_ARG":
             raise ValueError(
                 "only concrete instruction can contain EXTENDED_ARG, "
@@ -993,10 +993,11 @@ class Instr(BaseInstr[InstrArg]):
                             "operation %s argument type must be "
                             "coercible to BinaryOp, got %s" % (name, type(arg).__name__)
                         ) from e
-                raise TypeError(
-                    "operation %s argument type must be "
-                    "BinaryOp, got %s" % (name, type(arg).__name__)
-                )
+                else:
+                    raise TypeError(
+                        "operation %s argument type must be "
+                        "BinaryOp, got %s" % (name, type(arg).__name__)
+                    )
 
         # We do not enforce constant immortality since which constants are
         # immortal may differ between recompilation and execution.
