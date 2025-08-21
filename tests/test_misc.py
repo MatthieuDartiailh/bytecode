@@ -8,7 +8,7 @@ import unittest
 import bytecode
 from bytecode import BasicBlock, Bytecode, ControlFlowGraph, Instr, Label
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
-from bytecode.utils import PY313
+from bytecode.utils import PY311, PY312, PY313, PY314
 
 from . import disassemble
 
@@ -39,7 +39,32 @@ class DumpCodeTests(unittest.TestCase):
 
         # without line numbers
         enum_repr = "<Compare.EQ_CAST: 18>" if PY313 else "<Compare.EQ: 2>"
-        if sys.version_info >= (3, 12):
+        if PY314:
+            expected = f"""
+    RESUME 0
+    LOAD_FAST_BORROW 'test'
+    LOAD_SMALL_INT 1
+    COMPARE_OP {enum_repr}
+    POP_JUMP_IF_FALSE <label_instr8>
+    NOT_TAKEN
+    LOAD_SMALL_INT 1
+    RETURN_VALUE
+
+label_instr8:
+    LOAD_FAST_BORROW 'test'
+    LOAD_SMALL_INT 2
+    COMPARE_OP {enum_repr}
+    POP_JUMP_IF_FALSE <label_instr16>
+    NOT_TAKEN
+    LOAD_SMALL_INT 2
+    RETURN_VALUE
+
+label_instr16:
+    LOAD_SMALL_INT 3
+    RETURN_VALUE
+
+    """
+        elif PY312:
             expected = f"""
     RESUME 0
     LOAD_FAST 'test'
@@ -59,7 +84,7 @@ label_instr12:
     RETURN_CONST 3
 
     """
-        elif sys.version_info >= (3, 11):
+        elif PY311:
             expected = f"""
     RESUME 0
     LOAD_FAST 'test'
@@ -107,7 +132,32 @@ label_instr13:
         self.check_dump_bytecode(code, expected[1:].rstrip(" "))
 
         # with line numbers
-        if sys.version_info >= (3, 12):
+        if PY314:
+            expected = f"""
+    L.  1   0: RESUME 0
+    L.  2   1: LOAD_FAST_BORROW 'test'
+            2: LOAD_SMALL_INT 1
+            3: COMPARE_OP {enum_repr}
+            4: POP_JUMP_IF_FALSE <label_instr8>
+            5: NOT_TAKEN
+    L.  3   6: LOAD_SMALL_INT 1
+            7: RETURN_VALUE
+
+label_instr8:
+    L.  4   9: LOAD_FAST_BORROW 'test'
+           10: LOAD_SMALL_INT 2
+           11: COMPARE_OP {enum_repr}
+           12: POP_JUMP_IF_FALSE <label_instr16>
+           13: NOT_TAKEN
+    L.  5  14: LOAD_SMALL_INT 2
+           15: RETURN_VALUE
+
+label_instr16:
+    L.  6  17: LOAD_SMALL_INT 3
+           18: RETURN_VALUE
+
+    """
+        elif PY312:
             expected = f"""
     L.  1   0: RESUME 0
     L.  2   1: LOAD_FAST 'test'
@@ -127,7 +177,7 @@ label_instr12:
     L.  6  13: RETURN_CONST 3
 
     """
-        elif sys.version_info >= (3, 11):
+        elif PY311:
             expected = f"""
     L.  1   0: RESUME 0
     L.  2   1: LOAD_FAST 'test'
@@ -209,7 +259,41 @@ label_instr13:
 
         # without line numbers
         enum_repr = "<Compare.EQ_CAST: 18>" if PY313 else "<Compare.EQ: 2>"
-        if sys.version_info >= (3, 12):
+        if PY314:
+            expected = textwrap.dedent(
+                f"""
+            block1:
+                RESUME 0
+                LOAD_FAST_BORROW 'test'
+                LOAD_SMALL_INT 1
+                COMPARE_OP {enum_repr}
+                POP_JUMP_IF_FALSE <block3>
+                -> block2
+
+            block2:
+                NOT_TAKEN
+                LOAD_SMALL_INT 1
+                RETURN_VALUE
+
+            block3:
+                LOAD_FAST_BORROW 'test'
+                LOAD_SMALL_INT 2
+                COMPARE_OP {enum_repr}
+                POP_JUMP_IF_FALSE <block5>
+                -> block4
+
+            block4:
+                NOT_TAKEN
+                LOAD_SMALL_INT 2
+                RETURN_VALUE
+
+            block5:
+                LOAD_SMALL_INT 3
+                RETURN_VALUE
+
+            """
+            )
+        elif PY312:
             expected = textwrap.dedent(
                 f"""
             block1:
@@ -238,7 +322,7 @@ label_instr13:
 
             """
             )
-        elif sys.version_info >= (3, 11):
+        elif PY311:
             expected = textwrap.dedent(
                 f"""
             block1:
@@ -304,7 +388,41 @@ label_instr13:
         self.check_dump_bytecode(code, expected.lstrip())
 
         # with line numbers
-        if sys.version_info >= (3, 12):
+        if PY314:
+            expected = textwrap.dedent(
+                f"""
+            block1:
+                L.  1   0: RESUME 0
+                L.  2   1: LOAD_FAST_BORROW 'test'
+                        2: LOAD_SMALL_INT 1
+                        3: COMPARE_OP {enum_repr}
+                        4: POP_JUMP_IF_FALSE <block3>
+                -> block2
+
+            block2:
+                        0: NOT_TAKEN
+                L.  3   1: LOAD_SMALL_INT 1
+                        2: RETURN_VALUE
+
+            block3:
+                L.  4   0: LOAD_FAST_BORROW 'test'
+                        1: LOAD_SMALL_INT 2
+                        2: COMPARE_OP {enum_repr}
+                        3: POP_JUMP_IF_FALSE <block5>
+                -> block4
+
+            block4:
+                        0: NOT_TAKEN
+                L.  5   1: LOAD_SMALL_INT 2
+                        2: RETURN_VALUE
+
+            block5:
+                L.  6   0: LOAD_SMALL_INT 3
+                        1: RETURN_VALUE
+
+            """
+            )
+        elif PY312:
             expected = textwrap.dedent(
                 f"""
             block1:
@@ -333,7 +451,7 @@ label_instr13:
 
             """
             )
-        elif sys.version_info >= (3, 11):
+        elif PY311:
             expected = textwrap.dedent(
                 f"""
             block1:
@@ -411,7 +529,32 @@ label_instr13:
         code = code.to_concrete_bytecode()
 
         # without line numbers
-        if sys.version_info >= (3, 13):
+        if PY314:
+            # COMPARE_OP use the 4 lowest bits as a cache
+            expected = """
+  0    RESUME 0
+  2    LOAD_FAST_BORROW 0
+  4    LOAD_SMALL_INT 1
+  6    COMPARE_OP 88
+  8    CACHE 0
+ 10    POP_JUMP_IF_FALSE 3
+ 12    CACHE 0
+ 14    NOT_TAKEN
+ 16    LOAD_SMALL_INT 1
+ 18    RETURN_VALUE
+ 20    LOAD_FAST_BORROW 0
+ 22    LOAD_SMALL_INT 2
+ 24    COMPARE_OP 88
+ 26    CACHE 0
+ 28    POP_JUMP_IF_FALSE 3
+ 30    CACHE 0
+ 32    NOT_TAKEN
+ 34    LOAD_SMALL_INT 2
+ 36    RETURN_VALUE
+ 38    LOAD_SMALL_INT 3
+ 40    RETURN_VALUE
+"""
+        elif PY313:
             # COMPARE_OP use the 4 lowest bits as a cache
             expected = """
   0    RESUME 0
@@ -432,7 +575,7 @@ label_instr13:
  30    RETURN_CONST 3
 """
 
-        elif sys.version_info >= (3, 12):
+        elif PY312:
             # COMPARE_OP use the 4 lowest bits as a cache
             expected = """
   0    RESUME 0
@@ -450,7 +593,7 @@ label_instr13:
  24    RETURN_CONST 2
  26    RETURN_CONST 3
 """
-        elif sys.version_info >= (3, 11):
+        elif PY311:
             expected = """
   0    RESUME 0
   2    LOAD_FAST 0
@@ -492,7 +635,31 @@ label_instr13:
         self.check_dump_bytecode(code, expected.lstrip("\n"))
 
         # with line numbers
-        if sys.version_info >= (3, 13):
+        if PY314:
+            expected = """
+L.  1   0: RESUME 0
+L.  2   2: LOAD_FAST_BORROW 0
+        4: LOAD_SMALL_INT 1
+        6: COMPARE_OP 88
+        8: CACHE 0
+       10: POP_JUMP_IF_FALSE 3
+       12: CACHE 0
+       14: NOT_TAKEN
+L.  3  16: LOAD_SMALL_INT 1
+       18: RETURN_VALUE
+L.  4  20: LOAD_FAST_BORROW 0
+       22: LOAD_SMALL_INT 2
+       24: COMPARE_OP 88
+       26: CACHE 0
+       28: POP_JUMP_IF_FALSE 3
+       30: CACHE 0
+       32: NOT_TAKEN
+L.  5  34: LOAD_SMALL_INT 2
+       36: RETURN_VALUE
+L.  6  38: LOAD_SMALL_INT 3
+       40: RETURN_VALUE
+"""
+        elif PY313:
             expected = """
 L.  1   0: RESUME 0
 L.  2   2: LOAD_FAST 0
@@ -511,7 +678,7 @@ L.  4  16: LOAD_FAST 0
 L.  5  28: RETURN_CONST 2
 L.  6  30: RETURN_CONST 3
 """
-        elif sys.version_info >= (3, 12):
+        elif PY312:
             expected = """
 L.  1   0: RESUME 0
 L.  2   2: LOAD_FAST 0
@@ -528,7 +695,7 @@ L.  4  14: LOAD_FAST 0
 L.  5  24: RETURN_CONST 2
 L.  6  26: RETURN_CONST 3
 """
-        elif sys.version_info >= (3, 11):
+        elif PY311:
             expected = """
 L.  1   0: RESUME 0
 L.  2   2: LOAD_FAST 0

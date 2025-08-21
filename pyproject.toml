@@ -2,7 +2,7 @@
   name = "bytecode"
   description = "Python module to generate and modify bytecode"
   readme = "README.rst"
-  requires-python = ">=3.8"
+  requires-python = ">=3.9"
   license = { file = "COPYING" }
   authors = [{ name = "Victor Stinner", email = "victor.stinner@gmail.com" }]
   maintainers = [{ name = "Matthieu C. Dartiailh", email = "m.dartiailh@gmail.com" }]
@@ -13,12 +13,12 @@
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
   ]
   dependencies = ["typing_extensions;python_version<'3.10'"]
@@ -35,6 +35,18 @@
 [build-system]
   requires      = ["setuptools>=61.2", "wheel", "setuptools_scm[toml]>=3.4.3"]
   build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+  dev = [
+    "mypy>=1.16.1",
+    "pytest>=8",
+    "pytest-cov>=6",
+    "ruff>=0.12.0",
+  ]
+  test = [
+    "pytest>=8",
+    "pytest-cov",
+  ]
 
 [tool.setuptools_scm]
   write_to = "src/bytecode/version.py"
@@ -74,7 +86,7 @@ __version__ = "{version}"
       extra-standard-library = ["opcode"]
 
     [tool.ruff.lint.mccabe]
-      max-complexity = 42
+      max-complexity = 43
 
 [tool.mypy]
   follow_imports  = "normal"

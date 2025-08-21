@@ -20,7 +20,7 @@ from bytecode import (
     dump_bytecode,
 )
 from bytecode.concrete import OFFSET_AS_INSTRUCTION
-from bytecode.utils import PY311, PY313
+from bytecode.utils import PY311, PY312, PY313, PY314
 
 from . import TestCase, disassemble as _disassemble
 
@@ -36,7 +36,7 @@ def disassemble(
         block = blocks[-1]
         test = (
             (block[-1].name == "RETURN_CONST" and block[-1].arg is None)
-            if sys.version_info >= (3, 12)
+            if PY312 and not PY314
             else (
                 block[-2].name == "LOAD_CONST"
                 and block[-2].arg is None
@@ -47,7 +47,7 @@ def disassemble(
             raise ValueError(
                 "unable to find implicit RETURN_VALUE <None>: %s" % block[-2:]
             )
-        if sys.version_info >= (3, 12):
+        if PY312 and not PY314:
             del block[-1]
         else:
             del block[-2:]
@@ -70,7 +70,7 @@ class BlockTests(unittest.TestCase):
         block.extend(
             [
                 Instr(
-                    "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    "JUMP_FORWARD" if PY311 else "JUMP_ABSOLUTE",
                     block2,
                 ),
                 Instr("NOP"),
@@ -87,7 +87,7 @@ class BlockTests(unittest.TestCase):
         block.extend(
             [
                 Instr(
-                    "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    "JUMP_FORWARD" if PY311 else "JUMP_ABSOLUTE",
                     label,
                 )
             ]
@@ -246,7 +246,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if (3, 12) > sys.version_info >= (3, 11)
+                    if PY311 and not PY312
                     else "POP_JUMP_IF_FALSE",
                     blocks[2],
                     lineno=1,
@@ -279,7 +279,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if (3, 12) > sys.version_info >= (3, 11)
+                    if PY311 and not PY312
                     else "POP_JUMP_IF_FALSE",
                     label,
                     lineno=1,
@@ -304,7 +304,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("UNARY_NOT"),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if (3, 12) > sys.version_info >= (3, 11)
+                    if PY311 and not PY312
                     else "POP_JUMP_IF_FALSE",
                     label,
                 ),
@@ -322,7 +322,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("UNARY_NOT"),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if (3, 12) > sys.version_info >= (3, 11)
+                    if PY311 and not PY312
                     else "POP_JUMP_IF_FALSE",
                     cfg[2],
                 ),
@@ -339,7 +339,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if (3, 12) > sys.version_info >= (3, 11)
+                    if PY311 and not PY312
                     else "POP_JUMP_IF_FALSE",
                     label,
                     lineno=1,
@@ -366,7 +366,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if (3, 12) > sys.version_info >= (3, 11)
+                    if PY311 and not PY312
                     else "POP_JUMP_IF_FALSE",
                     label2,
                     lineno=1,
@@ -404,23 +404,23 @@ class BytecodeBlocksTests(TestCase):
                 Instr("COMPARE_OP", Compare.EQ, lineno=2),
                 Instr(
                     "POP_JUMP_BACKWARD_IF_FALSE"
-                    if (3, 12) > sys.version_info >= (3, 11)
+                    if PY311 and not PY312
                     else "POP_JUMP_IF_FALSE",
                     label_loop_start,
                     lineno=2,
                 ),
                 Instr(
-                    "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    "JUMP_FORWARD" if PY311 else "JUMP_ABSOLUTE",
                     label_loop_exit,
                     lineno=3,
                 ),
                 Instr(
-                    "JUMP_BACKWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    "JUMP_BACKWARD" if PY311 else "JUMP_ABSOLUTE",
                     label_loop_start,
                     lineno=4,
                 ),
                 Instr(
-                    "JUMP_BACKWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    "JUMP_BACKWARD" if PY311 else "JUMP_ABSOLUTE",
                     label_loop_start,
                     lineno=4,
                 ),
@@ -441,7 +441,7 @@ class BytecodeBlocksTests(TestCase):
                 Instr("COMPARE_OP", Compare.EQ, lineno=2),
                 Instr(
                     "POP_JUMP_BACKWARD_IF_FALSE"
-                    if (3, 12) > sys.version_info >= (3, 11)
+                    if PY311 and not PY312
                     else "POP_JUMP_IF_FALSE",
                     blocks[1],
                     lineno=2,
@@ -449,21 +449,21 @@ class BytecodeBlocksTests(TestCase):
             ],
             [
                 Instr(
-                    "JUMP_FORWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    "JUMP_FORWARD" if PY311 else "JUMP_ABSOLUTE",
                     blocks[6],
                     lineno=3,
                 )
             ],
             [
                 Instr(
-                    "JUMP_BACKWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    "JUMP_BACKWARD" if PY311 else "JUMP_ABSOLUTE",
                     blocks[1],
                     lineno=4,
                 )
             ],
             [
                 Instr(
-                    "JUMP_BACKWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
+                    "JUMP_BACKWARD" if PY311 else "JUMP_ABSOLUTE",
                     blocks[1],
                     lineno=4,
                 )
@@ -518,10 +518,13 @@ class BytecodeBlocksFunctionalTests(TestCase):
         code = disassemble("x = 1", remove_last_return_none=True)
         self.assertBlocksEqual(
             code,
-            ([Instr("RESUME", 0, lineno=0)] if sys.version_info >= (3, 11) else [])
-            + [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)],
+            ([Instr("RESUME", 0, lineno=0)] if PY311 else [])
+            + [
+                Instr("LOAD_SMALL_INT" if PY314 else "LOAD_CONST", 1, lineno=1),
+                Instr("STORE_NAME", "x", lineno=1),
+            ],
         )
-        if sys.version_info >= (3, 11):
+        if PY311:
             del code[0][0]
         return code
 
@@ -533,7 +536,10 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertIs(label, code[1])
         self.assertBlocksEqual(
             code,
-            [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)],
+            [
+                Instr("LOAD_SMALL_INT" if PY314 else "LOAD_CONST", 1, lineno=1),
+                Instr("STORE_NAME", "x", lineno=1),
+            ],
             [Instr("NOP", lineno=1)],
         )
         self.check_getitem(code)
@@ -542,7 +548,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertIs(label2, code[1])
         self.assertBlocksEqual(
             code,
-            [Instr("LOAD_CONST", 1, lineno=1)],
+            [Instr("LOAD_SMALL_INT" if PY314 else "LOAD_CONST", 1, lineno=1)],
             [Instr("STORE_NAME", "x", lineno=1)],
             [Instr("NOP", lineno=1)],
         )
@@ -563,7 +569,10 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertIs(label, code[1])
         self.assertBlocksEqual(
             code,
-            [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)],
+            [
+                Instr("LOAD_SMALL_INT" if PY314 else "LOAD_CONST", 1, lineno=1),
+                Instr("STORE_NAME", "x", lineno=1),
+            ],
             [],
         )
         self.check_getitem(code)
@@ -574,7 +583,10 @@ class BytecodeBlocksFunctionalTests(TestCase):
         self.assertIs(label, code[1])
         self.assertBlocksEqual(
             code,
-            [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)],
+            [
+                Instr("LOAD_SMALL_INT" if PY314 else "LOAD_CONST", 1, lineno=1),
+                Instr("STORE_NAME", "x", lineno=1),
+            ],
             [],
         )
 
@@ -585,7 +597,11 @@ class BytecodeBlocksFunctionalTests(TestCase):
         block = code.split_block(code[0], 0)
         self.assertIs(block, code[0])
         self.assertBlocksEqual(
-            code, [Instr("LOAD_CONST", 1, lineno=1), Instr("STORE_NAME", "x", lineno=1)]
+            code,
+            [
+                Instr("LOAD_SMALL_INT" if PY314 else "LOAD_CONST", 1, lineno=1),
+                Instr("STORE_NAME", "x", lineno=1),
+            ],
         )
 
     def test_split_block_error(self):
@@ -616,7 +632,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
                 *([Instr("TO_BOOL", lineno=4)] if PY313 else []),
                 Instr(
                     "POP_JUMP_FORWARD_IF_FALSE"
-                    if (3, 12) > sys.version_info >= (3, 11)
+                    if PY311 and not PY312
                     else "POP_JUMP_IF_FALSE",
                     block2,
                     lineno=4,
@@ -951,15 +967,13 @@ class CFGStacksizeComputationTests(TestCase):
                         Instr("LOAD_FAST", "x"),
                         Instr(
                             "POP_JUMP_FORWARD_IF_FALSE"
-                            if (3, 12) > sys.version_info >= (3, 11)
+                            if PY311 and not PY312
                             else "POP_JUMP_IF_FALSE",
                             label_else,
                         ),
                         Instr(
                             "LOAD_GLOBAL",
-                            (False, f"f{i}")
-                            if sys.version_info >= (3, 11)
-                            else f"f{i}",
+                            (False, f"f{i}") if PY311 else f"f{i}",
                         ),
                         Instr("RETURN_VALUE"),
                         label_else,
@@ -979,7 +993,7 @@ class CFGRoundTripTests(TestCase):
         for f in ehc.TEST_CASES:
             # 3.12 use one less exception table entry causing to optimize this case
             # less than we could otherwise
-            if sys.version_info >= (3, 12) and f.__name__ == "try_except_finally":
+            if PY312 and f.__name__ == "try_except_finally":
                 continue
             print(f.__name__)
             with self.subTest(f.__name__):

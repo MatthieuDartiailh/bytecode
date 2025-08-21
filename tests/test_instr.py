@@ -6,6 +6,7 @@ import unittest
 from bytecode import (
     UNSET,
     BasicBlock,
+    BinaryOp,
     CellVar,
     Compare,
     FreeVar,
@@ -14,21 +15,29 @@ from bytecode import (
     SetLineno,
 )
 from bytecode.instr import (
+    BINARY_OPS,
     BITFLAG2_OPCODES,
     BITFLAG_OPCODES,
+    COMMON_CONSTANT_OPS,
     DUAL_ARG_OPCODES,
+    FORMAT_VALUE_OPS,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
+    SMALL_INT_OPS,
+    SPECIAL_OPS,
+    CommonConstant,
+    FormatValue,
     InstrLocation,
     Intrinsic1Op,
     Intrinsic2Op,
+    SpecialMethod,
     opcode_has_argument,
 )
-from bytecode.utils import PY311, PY313
+from bytecode.utils import PY311, PY312, PY313, PY314
 
 from . import TestCase
 
-# XXX  tests for location and lineno setter
+# FIXME  tests for location and lineno setter
 
 # Starting with Python 3.11 jump opcode have changed quite a bit. We define here
 # opcode useful to test for both Python < 3.11 and Python >= 3.11
@@ -141,7 +150,11 @@ class InstrTests(TestCase):
         self.assertIn("_x_", r)
 
     def test_reject_pseudo_opcode(self):
-        if sys.version_info >= (3, 12):
+        if PY314:
+            with self.assertRaises(ValueError) as e:
+                Instr("INSTRUMENTED_END_FOR", "x")
+            self.assertIn("is an instrumented or pseudo opcode", str(e.exception))
+        elif PY312:
             with self.assertRaises(ValueError) as e:
                 Instr("LOAD_METHOD", "x")
             self.assertIn("is an instrumented or pseudo opcode", str(e.exception))
@@ -160,9 +173,9 @@ class InstrTests(TestCase):
         Instr(UNCONDITIONAL_JUMP, block)
 
         # hasfree
-        self.assertRaises(TypeError, Instr, "LOAD_DEREF", "x")
-        Instr("LOAD_DEREF", CellVar("x"))
-        Instr("LOAD_DEREF", FreeVar("x"))
+        self.assertRaises(TypeError, Instr, "STORE_DEREF", "x")
+        Instr("STORE_DEREF", CellVar("x"))
+        Instr("STORE_DEREF", FreeVar("x"))
 
         # haslocal
         self.assertRaises(TypeError, Instr, "LOAD_FAST", 1)
@@ -203,7 +216,10 @@ class InstrTests(TestCase):
             self.assertRaises(TypeError, Instr, name, ("arg",))
             self.assertRaises(TypeError, Instr, name, ("", "arg"))
             self.assertRaises(TypeError, Instr, name, (False, 1))
-            Instr(name, (True, "arg"))
+            if opcode.opmap[name] in FORMAT_VALUE_OPS:
+                Instr(name, (True, FormatValue.ASCII))
+            else:
+                Instr(name, (True, "arg"))
 
         # Instructions using 2 bitflag in their oparg
         for name in (opcode.opname[op] for op in BITFLAG2_OPCODES):
@@ -228,6 +244,39 @@ class InstrTests(TestCase):
         for name in [opcode.opname[i] for i in INTRINSIC_2OP]:
             self.assertRaises(TypeError, Instr, name, 1)
             Instr(name, Intrinsic2Op.INTRINSIC_PREP_RERAISE_STAR)
+
+        for name in (opcode.opname[op] for op in BINARY_OPS):
+            Instr(name, BinaryOp.ADD)
+            Instr(name, BinaryOp.ADD.value)
+            self.assertRaises(TypeError, Instr, name, "")
+
+        for name in (opcode.opname[op] for op in SPECIAL_OPS):
+            Instr(name, SpecialMethod.EXIT)
+            self.assertRaises(TypeError, Instr, name, SpecialMethod.EXIT.value)
+
+        for name in (opcode.opname[op] for op in COMMON_CONSTANT_OPS):
+            Instr(name, CommonConstant.BUILTIN_ALL)
+            self.assertRaises(
+                TypeError,
+                Instr,
+                name,
+                CommonConstant.BUILTIN_ALL.value,
+            )
+
+        for name in (opcode.opname[op] for op in SMALL_INT_OPS):
+            Instr(name, 1)
+            self.assertRaises(ValueError, Instr, name, 256)
+
+        for op, name in ((op, opcode.opname[op]) for op in FORMAT_VALUE_OPS):
+            if op in BITFLAG_OPCODES:
+                Instr(name, (True, FormatValue.STR))
+                Instr(name, (False, FormatValue.STR))
+                self.assertRaises(TypeError, Instr, name, True, FormatValue.STR)
+                self.assertRaises(TypeError, Instr, name, False, FormatValue.STR)
+            else:
+                Instr(name, FormatValue.STR)
+                Instr(name, FormatValue.STR.value)
+                self.assertRaises(TypeError, Instr, name, "STR")
 
     def test_require_arg(self):
         i = Instr(CALL, 3)

@@ -121,7 +121,7 @@ def _collect_functions(module):
                     seen_functions.add(o)
                     o = cast(FullyNamedFunction, o)
                     o.__fullname__ = (
-                        ".".join((c.__fullname__, o.__name__))
+                        ".".join((c.__fullname__, o.__name__ or ""))
                         if c.__fullname__
                         else o.__name__
                     )
