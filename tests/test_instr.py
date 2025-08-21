@@ -163,47 +163,6 @@ class InstrTests(TestCase):
         label = Label()
         block = BasicBlock()
 
-        for name in (opcode.opname[op] for op in BINARY_OPS):
-            assert name == "BINARY_OP", f"expected BINARY_OP but got {name=}"
-            Instr(name, BinaryOp.ADD)
-            Instr(name, BinaryOp.ADD.value)
-            self.assertRaises(TypeError, Instr, name, "")
-
-        for name in (opcode.opname[op] for op in SPECIAL_OPS):
-            assert name == "LOAD_SPECIAL", f"expected LOAD_SPECIAL but got {name=}"
-            Instr("LOAD_SPECIAL", SpecialMethod.EXIT)
-            self.assertRaises(
-                TypeError, Instr, "LOAD_SPECIAL", SpecialMethod.EXIT.value
-            )
-
-        for name in (opcode.opname[op] for op in COMMON_CONSTANT_OPS):
-            assert name == "LOAD_COMMON_CONSTANT", (
-                f"expected LOAD_COMMON_CONSTANT but got {name=}"
-            )
-            Instr("LOAD_COMMON_CONSTANT", CommonConstant.BUILTIN_ALL)
-            self.assertRaises(
-                TypeError,
-                Instr,
-                "LOAD_COMMON_CONSTANT",
-                CommonConstant.BUILTIN_ALL.value,
-            )
-
-        for name in (opcode.opname[op] for op in SMALL_INT_OPS):
-            assert name == "LOAD_SMALL_INT", f"expected LOAD_SMALL_INT but got {name=}"
-            Instr("LOAD_SMALL_INT", 1)
-            self.assertRaises(ValueError, Instr, "LOAD_SMALL_INT", 256)
-
-        for name in (opcode.opname[op] for op in FORMAT_VALUE_OPS):
-            if name in BITFLAG_OPCODES:
-                Instr(name, (True, FormatValue.STR))
-                Instr(name, (False, FormatValue.STR))
-                self.assertRaises(TypeError, Instr, name, True, FormatValue.STR)
-                self.assertRaises(TypeError, Instr, name, False, FormatValue.STR)
-            else:
-                Instr(name, FormatValue.STR)
-                Instr(name, FormatValue.STR.value)
-                self.assertRaises(TypeError, Instr, name, "STR")
-
         # EXTENDED_ARG
         self.assertRaises(ValueError, Instr, "EXTENDED_ARG", 0)
 
@@ -285,6 +244,39 @@ class InstrTests(TestCase):
         for name in [opcode.opname[i] for i in INTRINSIC_2OP]:
             self.assertRaises(TypeError, Instr, name, 1)
             Instr(name, Intrinsic2Op.INTRINSIC_PREP_RERAISE_STAR)
+
+        for name in (opcode.opname[op] for op in BINARY_OPS):
+            Instr(name, BinaryOp.ADD)
+            Instr(name, BinaryOp.ADD.value)
+            self.assertRaises(TypeError, Instr, name, "")
+
+        for name in (opcode.opname[op] for op in SPECIAL_OPS):
+            Instr(name, SpecialMethod.EXIT)
+            self.assertRaises(TypeError, Instr, name, SpecialMethod.EXIT.value)
+
+        for name in (opcode.opname[op] for op in COMMON_CONSTANT_OPS):
+            Instr(name, CommonConstant.BUILTIN_ALL)
+            self.assertRaises(
+                TypeError,
+                Instr,
+                name,
+                CommonConstant.BUILTIN_ALL.value,
+            )
+
+        for name in (opcode.opname[op] for op in SMALL_INT_OPS):
+            Instr(name, 1)
+            self.assertRaises(ValueError, Instr, name, 256)
+
+        for op, name in ((op, opcode.opname[op]) for op in FORMAT_VALUE_OPS):
+            if op in BITFLAG_OPCODES:
+                Instr(name, (True, FormatValue.STR))
+                Instr(name, (False, FormatValue.STR))
+                self.assertRaises(TypeError, Instr, name, True, FormatValue.STR)
+                self.assertRaises(TypeError, Instr, name, False, FormatValue.STR)
+            else:
+                Instr(name, FormatValue.STR)
+                Instr(name, FormatValue.STR.value)
+                self.assertRaises(TypeError, Instr, name, "STR")
 
     def test_require_arg(self):
         i = Instr(CALL, 3)
