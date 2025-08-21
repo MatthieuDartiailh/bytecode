@@ -380,6 +380,7 @@ class BytecodeTests(TestCase):
                     if PY314
                     else Instr("LOAD_FAST", "a", lineno=2),
                     Instr("CONVERT_VALUE", FormatValue.REPR, lineno=2),
+                    Instr("FORMAT_SIMPLE", lineno=2),
                     Instr("RETURN_VALUE", lineno=2),
                 ]
                 if PY313

@@ -195,20 +195,15 @@ class InstrTests(TestCase):
             self.assertRaises(ValueError, Instr, "LOAD_SMALL_INT", 256)
 
         for name in (opcode.opname[op] for op in FORMAT_VALUE_OPS):
-            if name == "CONVERT_VALUE":
-                Instr(name, FormatValue.STR)
-                self.assertRaises(TypeError, Instr, name, FormatValue.STR.value)
-                Instr(name, FormatValue.STR)
-                self.assertRaises(TypeError, Instr, name, FormatValue.STR.value)
-            elif name == "BUILD_INTERPOLATION":
+            if name in BITFLAG_OPCODES:
                 Instr(name, (True, FormatValue.STR))
                 Instr(name, (False, FormatValue.STR))
                 self.assertRaises(TypeError, Instr, name, True, FormatValue.STR)
                 self.assertRaises(TypeError, Instr, name, False, FormatValue.STR)
             else:
-                raise ValueError(
-                    f"expected CONVERT_VALUE or BUILD_INTERPOLATION but got {name=}"
-                )
+                Instr(name, FormatValue.STR)
+                Instr(name, FormatValue.STR.value)
+                self.assertRaises(TypeError, Instr, name, "STR")
 
         # EXTENDED_ARG
         self.assertRaises(ValueError, Instr, "EXTENDED_ARG", 0)

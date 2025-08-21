@@ -985,13 +985,18 @@ class Instr(BaseInstr[InstrArg]):
 
         elif opcode in BINARY_OPS:
             if not isinstance(arg, BinaryOp):
-                try:
-                    arg = BinaryOp(arg)
-                except Exception as e:
-                    raise TypeError(
-                        "operation %s argument type must be "
-                        "coercible to BinaryOp, got %s" % (name, type(arg).__name__)
-                    ) from e
+                if isinstance(arg, int):
+                    try:
+                        arg = BinaryOp(arg)
+                    except Exception as e:
+                        raise TypeError(
+                            "operation %s argument type must be "
+                            "coercible to BinaryOp, got %s" % (name, type(arg).__name__)
+                        ) from e
+                raise TypeError(
+                    "operation %s argument type must be "
+                    "BinaryOp, got %s" % (name, type(arg).__name__)
+                )
 
         # We do not enforce constant immortality since which constants are
         # immortal may differ between recompilation and execution.
@@ -1048,10 +1053,19 @@ class Instr(BaseInstr[InstrArg]):
                         "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
                     )
             elif not isinstance(arg, FormatValue):
-                raise TypeError(
-                    "operation %s argument must be a FormatValue] "
-                    "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
-                )
+                if isinstance(arg, int):
+                    try:
+                        arg = FormatValue(arg)
+                    except Exception as e:
+                        raise TypeError(
+                            "operation %s argument must be a FormatValue] "
+                            "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
+                        ) from e
+                else:
+                    raise TypeError(
+                        "operation %s argument must be a FormatValue] "
+                        "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
+                    )
 
         elif opcode_has_argument(opcode):
             _check_arg_int(arg, name)
