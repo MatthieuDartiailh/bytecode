@@ -25,7 +25,7 @@ from bytecode.instr import (
     INTRINSIC_2OP,
     SMALL_INT_OPS,
     SPECIAL_OPS,
-    CommonConstants,
+    CommonConstant,
     FormatValue,
     InstrLocation,
     Intrinsic1Op,
@@ -181,7 +181,7 @@ class InstrTests(TestCase):
             assert name == "LOAD_COMMON_CONSTANT", (
                 f"expected LOAD_COMMON_CONSTANT but got {name=}"
             )
-            Instr("LOAD_COMMON_CONSTANT", CommonConstants.BUILTIN_ALL)
+            Instr("LOAD_COMMON_CONSTANT", CommonConstant.BUILTIN_ALL)
             self.assertRaises(
                 TypeError,
                 Instr,

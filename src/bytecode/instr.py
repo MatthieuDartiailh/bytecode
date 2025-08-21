@@ -209,7 +209,7 @@ class SpecialMethod(enum.IntEnum):
 
 
 @enum.unique
-class CommonConstants(enum.IntEnum):
+class CommonConstant(enum.IntEnum):
     """Common constants names used with LOAD_COMMON_CONSTANT"""
 
     ASSERTION_ERROR = 0
@@ -872,7 +872,7 @@ InstrArg = Union[
     BinaryOp,
     Intrinsic1Op,
     Intrinsic2Op,
-    CommonConstants,
+    CommonConstant,
     SpecialMethod,
     Tuple[bool, str],
     Tuple[bool, bool, str],
@@ -1034,10 +1034,10 @@ class Instr(BaseInstr[InstrArg]):
                     "SpecialMethod, got %s" % (name, type(arg).__name__)
                 )
         elif opcode in COMMON_CONSTANT_OPS:
-            if not isinstance(arg, CommonConstants):
+            if not isinstance(arg, CommonConstant):
                 raise TypeError(
                     "operation %s argument type must be "
-                    "CommonConstants, got %s" % (name, type(arg).__name__)
+                    "CommonConstant, got %s" % (name, type(arg).__name__)
                 )
 
         elif opcode in FORMAT_VALUE_OPS:

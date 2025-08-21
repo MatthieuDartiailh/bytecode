@@ -42,7 +42,7 @@ from bytecode.instr import (
     BaseInstr,
     BinaryOp,
     CellVar,
-    CommonConstants,
+    CommonConstant,
     Compare,
     FormatValue,
     FreeVar,
@@ -1096,7 +1096,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 elif opcode in BINARY_OPS:
                     arg = BinaryOp(c_arg)
                 elif opcode in COMMON_CONSTANT_OPS:
-                    arg = CommonConstants(c_arg)
+                    arg = CommonConstant(c_arg)
                 elif opcode in SPECIAL_OPS:
                     arg = SpecialMethod(c_arg)
                 elif opcode in FORMAT_VALUE_OPS:
