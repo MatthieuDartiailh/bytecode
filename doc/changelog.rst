@@ -1,6 +1,28 @@
 ChangeLog
 =========
 
+unreleased: Version 0.17.0
+--------------------------
+
+New features:
+
+- Add support for Python 3.14 PR #166
+
+  Support for Python 3.14, comes with a number of changes reflecting changes in
+  CPython bytecode itself:
+
+  - introduced an enum for BINARY_OP argument which now supports subscribe.
+    When disassembling the enum is always used, when creating bytecode from
+    scratch integer values are coerced into the right enum member.
+  - support BUILD_TEMPLATE, BUILD_INTERPOLATION, LOAD_SMALL_INT, LOAD_FAST_BORROW
+    and LOAD_FAST_BORROW_LOAD_FAST_BORROW
+  - LOAD_COMMON_CONSTANT, LOAD_SPECIAL whose argument is described using dedicated
+    enums CommonConstant, SpecialMethod
+  - CONVERT_VALUE (FORMAT_VALUE in Python < 3.13) now use the FormatValue enum.
+    When disassembling the enum is always used, when creating bytecode from
+    scratch integer values are coerced into the right enum member.
+
+
 2025-04-14: Version 0.16.2
 --------------------------
 
