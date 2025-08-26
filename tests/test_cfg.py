@@ -534,6 +534,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
         label = code.split_block(code[0], 2)
         self.assertIs(label, code[1])
+        self.assertIs(code[0].next_block, label)
+        self.assertIs(label.next_block, None)
         self.assertBlocksEqual(
             code,
             [
@@ -546,6 +548,9 @@ class BytecodeBlocksFunctionalTests(TestCase):
 
         label2 = code.split_block(code[0], 1)
         self.assertIs(label2, code[1])
+        self.assertIs(code[0].next_block, label2)
+        self.assertIs(label2.next_block, label)
+        self.assertIs(label.next_block, None)
         self.assertBlocksEqual(
             code,
             [Instr("LOAD_SMALL_INT" if PY314 else "LOAD_CONST", 1, lineno=1)],
@@ -567,6 +572,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
         # split at the end of the last block requires to add a new empty block
         label = code.split_block(code[0], 2)
         self.assertIs(label, code[1])
+        self.assertIs(code[0].next_block, label)
+        self.assertIs(label.next_block, None)
         self.assertBlocksEqual(
             code,
             [
@@ -581,6 +588,8 @@ class BytecodeBlocksFunctionalTests(TestCase):
         # add a new block
         label = code.split_block(code[0], 2)
         self.assertIs(label, code[1])
+        self.assertIs(code[0].next_block, label)
+        self.assertIs(label.next_block, None)
         self.assertBlocksEqual(
             code,
             [
@@ -596,6 +605,7 @@ class BytecodeBlocksFunctionalTests(TestCase):
         # FIXME: is it really useful to support that?
         block = code.split_block(code[0], 0)
         self.assertIs(block, code[0])
+        self.assertIs(code[0].next_block, None)
         self.assertBlocksEqual(
             code,
             [
