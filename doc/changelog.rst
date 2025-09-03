@@ -1,7 +1,7 @@
 ChangeLog
 =========
 
-unreleased: Version 0.17.0
+03-09-2025: Version 0.17.0
 --------------------------
 
 New features:
@@ -22,6 +22,10 @@ New features:
     When disassembling the enum is always used, when creating bytecode from
     scratch integer values are coerced into the right enum member.
 
+Bugfixes:
+
+- properly set the next_block attribute of the new block created by
+  ControlFlowGraph.split_block. PR #170
 
 2025-04-14: Version 0.16.2
 --------------------------
