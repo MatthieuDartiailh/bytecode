@@ -710,6 +710,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         del block[index:]
 
         block2 = BasicBlock(instructions)
+        block2.next_block = block.next_block
         block.next_block = block2
 
         for block in self[block_index + 1 :]:
