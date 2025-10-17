@@ -4,8 +4,9 @@ import opcode as _opcode
 import sys
 from abc import abstractmethod
 from dataclasses import dataclass
+from functools import cache
 from marshal import dumps as _dumps
-from typing import Any, Callable, Dict, Generic, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Generic, Optional, Set, Tuple, TypeVar, Union
 
 try:
     from typing import TypeGuard
@@ -22,68 +23,68 @@ MIN_INSTRUMENTED_OPCODE = getattr(_opcode, "MIN_INSTRUMENTED_OPCODE", 256)
 # Instructions relying on a bit to modify its behavior.
 # The lowest bit is used to encode custom behavior.
 BITFLAG_OPCODES = (
-    (
+    {
         _opcode.opmap["BUILD_INTERPOLATION"],
         _opcode.opmap["LOAD_GLOBAL"],
         _opcode.opmap["LOAD_ATTR"],
-    )
+    }
     if PY314
     else (
-        (_opcode.opmap["LOAD_GLOBAL"], _opcode.opmap["LOAD_ATTR"])
+        {_opcode.opmap["LOAD_GLOBAL"], _opcode.opmap["LOAD_ATTR"]}
         if PY312
-        else ((_opcode.opmap["LOAD_GLOBAL"],) if PY311 else ())
+        else ({_opcode.opmap["LOAD_GLOBAL"]} if PY311 else set())
     )
 )
 
-BITFLAG2_OPCODES = (_opcode.opmap["LOAD_SUPER_ATTR"],) if PY312 else ()
+BITFLAG2_OPCODES = {_opcode.opmap["LOAD_SUPER_ATTR"]} if PY312 else set()
 
 # Binary op opcode which has a dedicated arg
-BINARY_OPS = (_opcode.opmap["BINARY_OP"],) if PY311 else ()
+BINARY_OPS = {_opcode.opmap["BINARY_OP"]} if PY311 else set()
 
 # Intrinsic related opcodes
-INTRINSIC_1OP = (_opcode.opmap["CALL_INTRINSIC_1"],) if PY312 else ()
-INTRINSIC_2OP = (_opcode.opmap["CALL_INTRINSIC_2"],) if PY312 else ()
-INTRINSIC = INTRINSIC_1OP + INTRINSIC_2OP
+INTRINSIC_1OP = {_opcode.opmap["CALL_INTRINSIC_1"]} if PY312 else set()
+INTRINSIC_2OP = {_opcode.opmap["CALL_INTRINSIC_2"]} if PY312 else set()
+INTRINSIC = INTRINSIC_1OP | INTRINSIC_2OP
 
 # Small integer related opcode
-SMALL_INT_OPS = (_opcode.opmap["LOAD_SMALL_INT"],) if PY314 else ()
+SMALL_INT_OPS = {_opcode.opmap["LOAD_SMALL_INT"]} if PY314 else set()
 
 # Special method loading related opcodes
-SPECIAL_OPS = (_opcode.opmap["LOAD_SPECIAL"],) if PY314 else ()
+SPECIAL_OPS = {_opcode.opmap["LOAD_SPECIAL"]} if PY314 else set()
 
 # Common constant loading related opcodes
-COMMON_CONSTANT_OPS = (_opcode.opmap["LOAD_COMMON_CONSTANT"],) if PY314 else ()
+COMMON_CONSTANT_OPS = {_opcode.opmap["LOAD_COMMON_CONSTANT"]} if PY314 else set()
 
 # Value formatting related opcodes (only handle CONVERT_VALUE and BUILD_INTERPOLATION)
 FORMAT_VALUE_OPS = (
-    (
+    {
         _opcode.opmap["CONVERT_VALUE"],
         _opcode.opmap["BUILD_INTERPOLATION"],
-    )
+    }
     if PY314
-    else ((_opcode.opmap["CONVERT_VALUE"],) if PY313 else ())
+    else ({_opcode.opmap["CONVERT_VALUE"]} if PY313 else set())
 )
 
-HASJABS = () if PY313 else _opcode.hasjabs
+HASJABS = set() if PY313 else set(_opcode.hasjabs)
 if sys.version_info >= (3, 13):
-    HASJREL = _opcode.hasjump
+    HASJREL = set(_opcode.hasjump)
 else:
-    HASJREL = _opcode.hasjrel
+    HASJREL = set(_opcode.hasjrel)
 
 #: Opcodes taking 2 arguments (highest 4 bits and lowest 4 bits)
-DUAL_ARG_OPCODES: Tuple[int, ...] = ()
+DUAL_ARG_OPCODES: Set[int] = set()
 DUAL_ARG_OPCODES_SINGLE_OPS: Dict[int, Tuple[str, str]] = {}
 if PY313:
-    DUAL_ARG_OPCODES = (
+    DUAL_ARG_OPCODES = {
         _opcode.opmap["LOAD_FAST_LOAD_FAST"],
         _opcode.opmap["STORE_FAST_LOAD_FAST"],
         _opcode.opmap["STORE_FAST_STORE_FAST"],
-    )
+    }
     if PY314:
-        DUAL_ARG_OPCODES = (
+        DUAL_ARG_OPCODES = {
             *DUAL_ARG_OPCODES,
             _opcode.opmap["LOAD_FAST_BORROW_LOAD_FAST_BORROW"],
-        )
+        }
     DUAL_ARG_OPCODES_SINGLE_OPS = {
         _opcode.opmap["LOAD_FAST_LOAD_FAST"]: ("LOAD_FAST", "LOAD_FAST"),
         _opcode.opmap["STORE_FAST_LOAD_FAST"]: ("STORE_FAST", "LOAD_FAST"),
@@ -345,11 +346,13 @@ def _check_arg_int(arg: Any, name: str) -> TypeGuard[int]:
 
 if sys.version_info >= (3, 12):
 
+    @cache
     def opcode_has_argument(opcode: int) -> bool:
         return opcode in dis.hasarg
 
 else:
 
+    @cache
     def opcode_has_argument(opcode: int) -> bool:
         return opcode >= dis.HAVE_ARGUMENT
 
@@ -727,11 +730,9 @@ class BaseInstr(Generic[A]):
         # 3.12 does the same for LOAD_ATTR
         # 3.14 does this for BUILD_INTERPOLATION
         elif self._opcode in BITFLAG_OPCODES and isinstance(self._arg, tuple):
-            assert len(self._arg) == 2
             arg = self._arg[0]
         # 3.12 does a similar trick for LOAD_SUPER_ATTR
         elif self._opcode in BITFLAG2_OPCODES and isinstance(self._arg, tuple):
-            assert len(self._arg) == 3
             arg = self._arg[0]
         elif not isinstance(self._arg, int) or self._opcode in _opcode.hasconst:
             # Argument is either a non-integer or an integer constant,
