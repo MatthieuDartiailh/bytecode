@@ -261,6 +261,96 @@ class ExceptionTableEntry:
             f"push_lasti={self.push_lasti}"
         )
 
+if PY313:
+
+    def get_instructions(
+        code: types.CodeType,
+    ) -> MutableSequence[Union[SetLineno, ConcreteInstr]]:
+        instructions = []
+        for i in dis.get_instructions(code, show_caches=True):
+            loc = InstrLocation.from_positions(i.positions) if i.positions else None
+            # dis.get_instructions automatically handle extended arg which
+            # we do not want, so we fold back arguments to be between 0 and 255
+            instructions.append(
+                ConcreteInstr(
+                    i.opname,
+                    i.arg % 256 if i.arg is not None else UNSET,
+                    location=loc,
+                )
+            )
+            # cache_info only exist on 3.13+
+            if cache_info := i.cache_info:
+                for _, size, _ in cache_info:
+                    for _ in range(size):
+                        instructions.append(ConcreteInstr("CACHE", 0, location=loc))
+
+        return instructions
+
+
+if PY311:
+
+    def get_instructions(
+        code: types.CodeType,
+    ) -> MutableSequence[Union[SetLineno, ConcreteInstr]]:
+        instructions = []
+        for i in dis.get_instructions(code, show_caches=True):
+            loc = InstrLocation.from_positions(i.positions) if i.positions else None
+            # dis.get_instructions automatically handle extended arg which
+            # we do not want, so we fold back arguments to be between 0 and 255
+            instructions.append(
+                ConcreteInstr(
+                    i.opname,
+                    i.arg % 256 if i.arg is not None else UNSET,
+                    location=loc,
+                )
+            )
+
+        return instructions
+
+elif PY310:
+
+    def get_instructions(
+        code: types.CodeType,
+    ) -> MutableSequence[Union[SetLineno, ConcreteInstr]]:
+        line_starts = {offset: lineno for offset, _, lineno in code.co_lines()}
+        # find block starts
+        instructions = []
+        offset = 0
+        lineno: Optional[int] = code.co_firstlineno
+        while offset < (len(code.co_code) // (2 if OFFSET_AS_INSTRUCTION else 1)):
+            lineno_off = (2 * offset) if OFFSET_AS_INSTRUCTION else offset
+            if lineno_off in line_starts:
+                lineno = line_starts[lineno_off]
+
+            instr = ConcreteInstr.disassemble(lineno, code.co_code, offset)
+
+            instructions.append(instr)
+            offset += (instr.size // 2) if OFFSET_AS_INSTRUCTION else instr.size
+        return instructions
+
+else:
+
+    def get_instructions(
+        code: types.CodeType,
+    ) -> MutableSequence[Union[SetLineno, ConcreteInstr]]:
+        line_starts = dict(dis.findlinestarts(code))
+
+        # find block starts
+        instructions = []
+        offset = 0
+        lineno: Optional[int] = code.co_firstlineno
+        while offset < (len(code.co_code) // (2 if OFFSET_AS_INSTRUCTION else 1)):
+            lineno_off = (2 * offset) if OFFSET_AS_INSTRUCTION else offset
+            if lineno_off in line_starts:
+                lineno = line_starts[lineno_off]
+
+            instr = ConcreteInstr.disassemble(lineno, code.co_code, offset)
+
+            instructions.append(instr)
+            offset += (instr.size // 2) if OFFSET_AS_INSTRUCTION else instr.size
+
+        return instructions
+
 
 class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLineno]]):
     #: List of "constant" objects for the bytecode
@@ -339,45 +429,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
     def from_code(
         code: types.CodeType, *, extended_arg: bool = False
     ) -> "ConcreteBytecode":
-        instructions: MutableSequence[Union[SetLineno, ConcreteInstr]]
-        # For Python 3.11+ we use dis to extract the detailed location information at
-        # reduced maintenance cost.
-        if PY311:
-            instructions = []
-            for i in dis.get_instructions(code, show_caches=True):
-                loc = InstrLocation.from_positions(i.positions) if i.positions else None
-                # dis.get_instructions automatically handle extended arg which
-                # we do not want, so we fold back arguments to be between 0 and 255
-                instructions.append(
-                    ConcreteInstr(
-                        i.opname,
-                        i.arg % 256 if i.arg is not None else UNSET,
-                        location=loc,
-                    )
-                )
-                # cache_info only exist on 3.13+
-                for _, size, _ in (i.cache_info or ()) if PY313 else ():  # type: ignore
-                    for _ in range(size):
-                        instructions.append(ConcreteInstr("CACHE", 0, location=loc))
-        else:
-            if PY310:
-                line_starts = {offset: lineno for offset, _, lineno in code.co_lines()}
-            else:
-                line_starts = dict(dis.findlinestarts(code))
-
-            # find block starts
-            instructions = []
-            offset = 0
-            lineno: Optional[int] = code.co_firstlineno
-            while offset < (len(code.co_code) // (2 if OFFSET_AS_INSTRUCTION else 1)):
-                lineno_off = (2 * offset) if OFFSET_AS_INSTRUCTION else offset
-                if lineno_off in line_starts:
-                    lineno = line_starts[lineno_off]
-
-                instr = ConcreteInstr.disassemble(lineno, code.co_code, offset)
-
-                instructions.append(instr)
-                offset += (instr.size // 2) if OFFSET_AS_INSTRUCTION else instr.size
+        instructions = get_instructions(code)
 
         bytecode = ConcreteBytecode()
 
@@ -453,41 +505,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         return (b"".join(code_str), linenos)
 
-    # Used on 3.8 and 3.9
-    @staticmethod
-    def _assemble_lnotab(
-        first_lineno: int, linenos: List[Tuple[int, int, int, Optional[InstrLocation]]]
-    ) -> bytes:
-        lnotab = []
-        old_offset = 0
-        old_lineno = first_lineno
-        for offset, _, lineno, _ in linenos:
-            dlineno = lineno - old_lineno
-            if dlineno == 0:
-                continue
-            old_lineno = lineno
-
-            doff = offset - old_offset
-            old_offset = offset
-
-            while doff > 255:
-                lnotab.append(b"\xff\x00")
-                doff -= 255
-
-            while dlineno < -128:
-                lnotab.append(struct.pack("Bb", doff, -128))
-                doff = 0
-                dlineno -= -128
-
-            while dlineno > 127:
-                lnotab.append(struct.pack("Bb", doff, 127))
-                doff = 0
-                dlineno -= 127
-
-            lnotab.append(struct.pack("Bb", doff, dlineno))
-
-        return b"".join(lnotab)
-
     @staticmethod
     def _pack_linetable(
         linetable: List[bytes], doff: int, dlineno: Optional[int]
@@ -521,57 +538,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         else:
             linetable.append(struct.pack("Bb", doff, dlineno))
-
-    # Used on 3.10
-    def _assemble_linestable(
-        self,
-        first_lineno: int,
-        linenos: Iterable[Tuple[int, int, int, Optional[InstrLocation]]],
-    ) -> bytes:
-        if not linenos:
-            return b""
-
-        linetable: List[bytes] = []
-        old_offset = 0
-
-        iter_in = iter(linenos)
-
-        offset, i_size, old_lineno, old_location = next(iter_in)
-        if old_location is not None:
-            old_dlineno = (
-                old_location.lineno - first_lineno
-                if old_location.lineno is not None
-                else None
-            )
-        else:
-            old_dlineno = old_lineno - first_lineno
-
-        # i_size is used after we exit the loop
-        for offset, i_size, lineno, location in iter_in:  # noqa
-            if location is not None:
-                dlineno = (
-                    location.lineno - old_lineno
-                    if location.lineno is not None
-                    else None
-                )
-            else:
-                dlineno = lineno - old_lineno
-
-            if dlineno == 0 or (old_dlineno is None and dlineno is None):
-                continue
-            old_lineno = lineno
-
-            doff = offset - old_offset
-            old_offset = offset
-
-            self._pack_linetable(linetable, doff, old_dlineno)
-            old_dlineno = dlineno
-
-        # Pack the line of the last instruction.
-        doff = offset + i_size - old_offset
-        self._pack_linetable(linetable, doff, old_dlineno)
-
-        return b"".join(linetable)
 
     # The formats are describes in CPython/Objects/locations.md
     @staticmethod
@@ -709,42 +675,133 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         return lineno
 
-    def _assemble_locations(
-        self,
-        first_lineno: int,
-        linenos: Iterable[Tuple[int, int, int, Optional[InstrLocation]]],
-    ) -> bytes:
-        if not linenos:
-            return b""
+    if PY311:
 
-        locations: List[bytearray] = []
+        def _assemble_location_info(
+            self,
+            first_lineno: int,
+            linenos: Iterable[Tuple[int, int, int, Optional[InstrLocation]]],
+        ) -> bytes:
+            if not linenos:
+                return b""
 
-        iter_in = iter(linenos)
+            locations: List[bytearray] = []
 
-        _, size, lineno, old_location = next(iter_in)
-        # Infer the line if location is None
-        old_location = old_location or InstrLocation(lineno, None, None, None)
-        lineno = first_lineno
+            iter_in = iter(linenos)
 
-        # We track the last set lineno to be able to compute deltas
-        for _, i_size, _, location in iter_in:
-            # Infer the location if location is None
-            location = location or old_location
+            _, size, lineno, old_location = next(iter_in)
+            # Infer the line if location is None
+            old_location = old_location or InstrLocation(lineno, None, None, None)
+            lineno = first_lineno
 
-            # Group together instruction with equivalent locations
-            if old_location.lineno is not None and old_location == location:
-                size += i_size
-                continue
+            # We track the last set lineno to be able to compute deltas
+            for _, i_size, _, location in iter_in:
+                # Infer the location if location is None
+                location = location or old_location
 
-            lineno = self._push_locations(locations, size, lineno, old_location)
+                # Group together instruction with equivalent locations
+                if old_location.lineno is not None and old_location == location:
+                    size += i_size
+                    continue
 
-            size = i_size
-            old_location = location
+                lineno = self._push_locations(locations, size, lineno, old_location)
 
-        # Pack the line of the last instruction.
-        self._push_locations(locations, size, lineno, old_location)
+                size = i_size
+                old_location = location
 
-        return b"".join(locations)
+            # Pack the line of the last instruction.
+            self._push_locations(locations, size, lineno, old_location)
+
+            return b"".join(locations)
+
+    elif PY310:
+
+        def _assemble_location_info(
+            self,
+            first_lineno: int,
+            linenos: Iterable[Tuple[int, int, int, Optional[InstrLocation]]],
+        ) -> bytes:
+            if not linenos:
+                return b""
+
+            linetable: List[bytes] = []
+            old_offset = 0
+
+            iter_in = iter(linenos)
+
+            offset, i_size, old_lineno, old_location = next(iter_in)
+            if old_location is not None:
+                old_dlineno = (
+                    old_location.lineno - first_lineno
+                    if old_location.lineno is not None
+                    else None
+                )
+            else:
+                old_dlineno = old_lineno - first_lineno
+
+            # i_size is used after we exit the loop
+            for offset, i_size, lineno, location in iter_in:  # noqa
+                if location is not None:
+                    dlineno = (
+                        location.lineno - old_lineno
+                        if location.lineno is not None
+                        else None
+                    )
+                else:
+                    dlineno = lineno - old_lineno
+
+                if dlineno == 0 or (old_dlineno is None and dlineno is None):
+                    continue
+                old_lineno = lineno
+
+                doff = offset - old_offset
+                old_offset = offset
+
+                self._pack_linetable(linetable, doff, old_dlineno)
+                old_dlineno = dlineno
+
+            # Pack the line of the last instruction.
+            doff = offset + i_size - old_offset
+            self._pack_linetable(linetable, doff, old_dlineno)
+
+            return b"".join(linetable)
+
+    else:
+
+        @staticmethod
+        def _assemble_location_info(
+            first_lineno: int,
+            linenos: List[Tuple[int, int, int, Optional[InstrLocation]]],
+        ) -> bytes:
+            lnotab = []
+            old_offset = 0
+            old_lineno = first_lineno
+            for offset, _, lineno, _ in linenos:
+                dlineno = lineno - old_lineno
+                if dlineno == 0:
+                    continue
+                old_lineno = lineno
+
+                doff = offset - old_offset
+                old_offset = offset
+
+                while doff > 255:
+                    lnotab.append(b"\xff\x00")
+                    doff -= 255
+
+                while dlineno < -128:
+                    lnotab.append(struct.pack("Bb", doff, -128))
+                    doff = 0
+                    dlineno -= -128
+
+                while dlineno > 127:
+                    lnotab.append(struct.pack("Bb", doff, 127))
+                    doff = 0
+                    dlineno -= 127
+
+                lnotab.append(struct.pack("Bb", doff, dlineno))
+
+            return b"".join(lnotab)
 
     @staticmethod
     def _remove_extended_args(
@@ -876,15 +933,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # Assemble the code string after round tripping to CFG if necessary.
         code_str, linenos = self._assemble_code()
 
-        lnotab = (
-            self._assemble_locations(self.first_lineno, linenos)
-            if PY311
-            else (
-                self._assemble_linestable(self.first_lineno, linenos)
-                if PY310
-                else self._assemble_lnotab(self.first_lineno, linenos)
-            )
-        )
+        lnotab = self._assemble_location_info(self.first_lineno, linenos)
         nlocals = len(self.varnames)
 
         if sys.version_info >= (3, 11):
