@@ -19,6 +19,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
 )
 
 # alias to keep the 'bytecode' variable free
@@ -640,6 +641,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         # We enforce the end_lineno to be defined
         else:
+            assert end_col_offset is not None
+
             # Short forms
             if (
                 end_lineno == l_lineno
@@ -671,6 +674,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
             # Long form
             else:
+                assert end_lineno is not None
+
                 packed.extend(
                     (
                         self._pack_location_header(14, size),
@@ -1304,8 +1309,9 @@ class _ConvertBytecodeToConcrete:
                 c_arg = self.add_const(arg)
             elif opcode in HAS_LOCAL:
                 if opcode in DUAL_ARG_OPCODES:
-                    arg1_index = self.add(self.varnames, arg[0])
-                    arg2_index = self.add(self.varnames, arg[1])
+                    _arg2 = cast(Tuple[str, str], arg)
+                    arg1_index = self.add(self.varnames, _arg2[0])
+                    arg2_index = self.add(self.varnames, _arg2[1])
                     if arg1_index > 16 or arg2_index > 16:
                         n1, n2 = DUAL_ARG_OPCODES_SINGLE_OPS[opcode]
                         c_instr = ConcreteInstr(n1, arg1_index, location=location)
@@ -1338,15 +1344,9 @@ class _ConvertBytecodeToConcrete:
                         assert False, arg  # noqa
                     c_arg = int(arg[0]) + (index << 1)
                 elif opcode in BITFLAG2_OPCODES:
-                    assert (
-                        isinstance(arg, tuple)
-                        and len(arg) == 3
-                        and isinstance(arg[0], bool)
-                        and isinstance(arg[1], bool)
-                        and isinstance(arg[2], str)
-                    ), arg
-                    index = self.add(self.names, arg[2])
-                    c_arg = int(arg[0]) + 2 * int(arg[1]) + (index << 2)
+                    _arg3 = cast(Tuple[bool, bool, str], arg)
+                    index = self.add(self.names, _arg3[2])
+                    c_arg = int(_arg3[0]) + 2 * int(_arg3[1]) + (index << 2)
                 else:
                     assert isinstance(arg, str), f"Got {arg}, expected a str"
                     c_arg = self.add(self.names, arg)
@@ -1355,6 +1355,7 @@ class _ConvertBytecodeToConcrete:
                     cell_instrs.append(len(self.instructions))
                     c_arg = self.bytecode.cellvars.index(arg.name)
                 else:
+                    assert isinstance(arg, FreeVar)
                     free_instrs.append(len(self.instructions))
                     c_arg = self.bytecode.freevars.index(arg.name)
             elif opcode in HAS_COMPARE:

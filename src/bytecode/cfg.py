@@ -840,6 +840,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 # The last instruction is final, if the current instruction is a
                 # TryEnd insert it in the same block and move to the next instruction
                 if last_instr.is_final() and isinstance(instr, TryEnd):
+                    assert active_try_begin is not None
                     nte = instr.copy()
                     nte.entry = try_begins[active_try_begin][-1]
                     old_block.append(nte)
