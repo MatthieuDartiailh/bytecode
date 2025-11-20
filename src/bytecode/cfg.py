@@ -588,7 +588,6 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             if compute_exception_stack_depths:
                 for tb in common.try_begins:
                     size = common.exception_block_startsize[id(tb.target)]
-                    assert size >= 0
                     tb.stack_depth = size
 
             return args
@@ -841,7 +840,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                 # The last instruction is final, if the current instruction is a
                 # TryEnd insert it in the same block and move to the next instruction
                 if last_instr.is_final() and isinstance(instr, TryEnd):
-                    assert active_try_begin
+                    assert active_try_begin is not None
                     nte = instr.copy()
                     nte.entry = try_begins[active_try_begin][-1]
                     old_block.append(nte)
@@ -888,7 +887,6 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
             if isinstance(instr, (Instr, TryBegin, TryEnd)):
                 new = instr.copy()
                 if isinstance(instr, TryBegin):
-                    assert active_try_begin is None
                     active_try_begin = instr
                     try_begin_inserted_in_block = True
                     assert isinstance(new, TryBegin)
@@ -982,9 +980,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                         # If due to jumps and split TryBegin, we encounter a TryBegin
                         # while we still have a TryBegin ensure they can be fused.
                         if last_try_begin is not None:
-                            cfg_tb, byt_tb = last_try_begin
-                            assert instr.target is cfg_tb.target
-                            assert instr.push_lasti == cfg_tb.push_lasti
+                            _, byt_tb = last_try_begin
                             byt_tb.stack_depth = min(
                                 byt_tb.stack_depth, instr.stack_depth
                             )
@@ -1003,7 +999,6 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                                 # If we did not yet compute the required stack depth
                                 # keep the value as UNSET
                                 if entry.stack_depth is UNSET:
-                                    assert instr.stack_depth is UNSET
                                     byt_te.entry.stack_depth = UNSET
                                 else:
                                     byt_te.entry.stack_depth = min(

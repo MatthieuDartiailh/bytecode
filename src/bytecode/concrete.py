@@ -19,6 +19,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    cast,
 )
 
 # alias to keep the 'bytecode' variable free
@@ -66,6 +67,12 @@ from bytecode.utils import PY310, PY311, PY312, PY313
 # - lineno use bytes (dis.findlinestarts(code))
 # - dis displays bytes
 OFFSET_AS_INSTRUCTION = PY310
+
+HAS_CONST = set(_opcode.hasconst)
+HAS_LOCAL = set(_opcode.haslocal)
+HAS_NAME = set(_opcode.hasname)
+HAS_FREE = set(_opcode.hasfree)
+HAS_COMPARE = set(_opcode.hascompare)
 
 
 def _set_docstring(code: _bytecode.BaseBytecode, consts: Sequence) -> None:
@@ -478,9 +485,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 doff = 0
                 dlineno -= 127
 
-            assert 0 <= doff <= 255
-            assert -128 <= dlineno <= 127
-
             lnotab.append(struct.pack("Bb", doff, dlineno))
 
         return b"".join(lnotab)
@@ -500,7 +504,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 linetable.append(struct.pack("Bb", 0, 127))
                 dlineno -= 127
 
-            assert -127 <= dlineno <= 127
         else:
             dlineno = -128
 
@@ -519,8 +522,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         else:
             linetable.append(struct.pack("Bb", doff, dlineno))
-
-        assert 0 <= doff <= 254
 
     # Used on 3.10
     def _assemble_linestable(
@@ -640,7 +641,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         # We enforce the end_lineno to be defined
         else:
-            assert end_lineno is not None
             assert end_col_offset is not None
 
             # Short forms
@@ -674,6 +674,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
             # Long form
             else:
+                assert end_lineno is not None
+
                 packed.extend(
                     (
                         self._pack_location_header(14, size),
@@ -812,7 +814,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
     def _parse_exception_table(
         self, exception_table: bytes
     ) -> List[ExceptionTableEntry]:
-        assert PY311
         table = []
         iterator = iter(exception_table)
         try:
@@ -833,7 +834,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # Encode value as a varint on 7 bits (MSB should come first) and set
         # the begin marker if requested.
         temp: List[int] = []
-        assert value >= 0
         while value:
             temp.append(value & 63 | (64 if temp else 0))
             value >>= 6
@@ -967,7 +967,6 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         for entry in self.exception_table:
             # Ensure we do not have more than one entry with identical starting
             # offsets
-            assert entry.start_offset not in ex_start
             ex_start[entry.start_offset] = entry
             ex_end.setdefault(entry.stop_offset, []).append(entry)
 
@@ -1046,7 +1045,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             # We are careful to first advance the offset and check that the CACHE
             # is not a jump target. It should never be the case but we double check.
             if prune_caches and c_instr.name == "CACHE":
-                assert jump_target is None
+                if jump_target is not None:
+                    msg = "cache instruction cannot have jump target"
+                    raise ValueError(msg)
 
             # We may need to insert a TryEnd after a CACHE so we need to run the
             # through the last block.
@@ -1055,14 +1056,14 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 arg: InstrArg
                 c_arg = c_instr.arg
                 # FIXME: better error reporting
-                if opcode in _opcode.hasconst:
+                if opcode in HAS_CONST:
                     arg = self.consts[c_arg]
                 elif opcode in _opcode.haslocal:
                     if opcode in DUAL_ARG_OPCODES:
                         arg = (locals_lookup[c_arg >> 4], locals_lookup[c_arg & 15])
                     else:
                         arg = locals_lookup[c_arg]
-                elif opcode in _opcode.hasname:
+                elif opcode in HAS_NAME:
                     if opcode in BITFLAG_OPCODES:
                         arg = (
                             bool(c_arg & 1),
@@ -1072,7 +1073,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                         arg = (bool(c_arg & 1), bool(c_arg & 2), self.names[c_arg >> 2])
                     else:
                         arg = self.names[c_arg]
-                elif opcode in _opcode.hasfree:
+                elif opcode in HAS_FREE:
                     if c_arg < ncells:
                         n_or_cell = cells_lookup[c_arg]
                         arg = (
@@ -1083,7 +1084,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                     else:
                         name = self.freevars[c_arg - ncells]
                         arg = FreeVar(name)
-                elif opcode in _opcode.hascompare:
+                elif opcode in HAS_COMPARE:
                     arg = Compare(
                         (c_arg >> 5) + ((1 << 4) if (c_arg & 16) else 0)
                         if PY313
@@ -1175,7 +1176,6 @@ class _ConvertBytecodeToConcrete:
     _compute_jumps_passes = 10
 
     def __init__(self, code: _bytecode.Bytecode) -> None:
-        assert isinstance(code, _bytecode.Bytecode)
         self.bytecode = code
 
         # temporary variables
@@ -1248,8 +1248,8 @@ class _ConvertBytecodeToConcrete:
                             ConcreteInstr(
                                 "CACHE", 0, location=self.instructions[-1].location
                             )
-                            for i in range(self.required_caches)
                         ]
+                        * self.required_caches
                     )
                     self.required_caches = 0
                     self.seen_manual_cache = False
@@ -1272,7 +1272,6 @@ class _ConvertBytecodeToConcrete:
 
             if isinstance(instr, TryBegin):
                 # We expect the stack depth to have be provided or computed earlier
-                assert instr.stack_depth is not UNSET
                 # NOTE here we store the index of the instruction at which the
                 # exception table entry starts. This is not the final value we want,
                 # we want the offset in the bytecode but that requires to compute
@@ -1306,18 +1305,13 @@ class _ConvertBytecodeToConcrete:
                 # fake value, real value is set in compute_jumps()
                 c_arg = 0
                 is_jump = True
-            elif opcode in _opcode.hasconst:
+            elif opcode in HAS_CONST:
                 c_arg = self.add_const(arg)
-            elif opcode in _opcode.haslocal:
+            elif opcode in HAS_LOCAL:
                 if opcode in DUAL_ARG_OPCODES:
-                    assert (
-                        isinstance(arg, tuple)
-                        and len(arg) == 2
-                        and isinstance(arg[0], str)
-                        and isinstance(arg[1], str)
-                    )
-                    arg1_index = self.add(self.varnames, arg[0])
-                    arg2_index = self.add(self.varnames, arg[1])
+                    _arg2 = cast(Tuple[str, str], arg)
+                    arg1_index = self.add(self.varnames, _arg2[0])
+                    arg2_index = self.add(self.varnames, _arg2[1])
                     if arg1_index > 16 or arg2_index > 16:
                         n1, n2 = DUAL_ARG_OPCODES_SINGLE_OPS[opcode]
                         c_instr = ConcreteInstr(n1, arg1_index, location=location)
@@ -1335,7 +1329,7 @@ class _ConvertBytecodeToConcrete:
                 else:
                     assert isinstance(arg, str)
                     c_arg = self.add(self.varnames, arg)
-            elif opcode in _opcode.hasname:
+            elif opcode in HAS_NAME:
                 if opcode in BITFLAG_OPCODES:
                     assert (
                         isinstance(arg, tuple)
@@ -1350,19 +1344,13 @@ class _ConvertBytecodeToConcrete:
                         assert False, arg  # noqa
                     c_arg = int(arg[0]) + (index << 1)
                 elif opcode in BITFLAG2_OPCODES:
-                    assert (
-                        isinstance(arg, tuple)
-                        and len(arg) == 3
-                        and isinstance(arg[0], bool)
-                        and isinstance(arg[1], bool)
-                        and isinstance(arg[2], str)
-                    ), arg
-                    index = self.add(self.names, arg[2])
-                    c_arg = int(arg[0]) + 2 * int(arg[1]) + (index << 2)
+                    _arg3 = cast(Tuple[bool, bool, str], arg)
+                    index = self.add(self.names, _arg3[2])
+                    c_arg = int(_arg3[0]) + 2 * int(_arg3[1]) + (index << 2)
                 else:
                     assert isinstance(arg, str), f"Got {arg}, expected a str"
                     c_arg = self.add(self.names, arg)
-            elif opcode in _opcode.hasfree:
+            elif opcode in HAS_FREE:
                 if isinstance(arg, CellVar):
                     cell_instrs.append(len(self.instructions))
                     c_arg = self.bytecode.cellvars.index(arg.name)
@@ -1370,7 +1358,7 @@ class _ConvertBytecodeToConcrete:
                     assert isinstance(arg, FreeVar)
                     free_instrs.append(len(self.instructions))
                     c_arg = self.bytecode.freevars.index(arg.name)
-            elif opcode in _opcode.hascompare:
+            elif opcode in HAS_COMPARE:
                 if isinstance(arg, Compare):
                     # In Python 3.13 the 4 lowest bits are used for caching
                     # and the 5th one indicate a cast to bool
