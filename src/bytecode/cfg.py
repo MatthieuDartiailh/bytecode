@@ -1,4 +1,3 @@
-import sys
 import types
 from collections import defaultdict
 from dataclasses import dataclass
@@ -23,7 +22,7 @@ import bytecode as _bytecode
 from bytecode.concrete import ConcreteInstr
 from bytecode.flags import CompilerFlags
 from bytecode.instr import UNSET, Instr, Label, SetLineno, TryBegin, TryEnd
-from bytecode.utils import PY310, PY311, PY313
+from bytecode.utils import PY313
 
 T = TypeVar("T", bound="BasicBlock")
 U = TypeVar("U", bound="ControlFlowGraph")
@@ -447,18 +446,10 @@ class _StackSizeComputer:
     def _is_stacksize_computation_relevant(
         self, block_id: int, fingerprint: Tuple[int, Optional[bool]]
     ) -> bool:
-        if PY311:
-            # The computation is relevant if the block was not visited previously
-            # with the same starting size and exception handler status than the
-            # one in use
-            return fingerprint not in self.common.blocks_startsizes[block_id]
-        else:
-            # The computation is relevant if the block was only visited with smaller
-            # starting sizes than the one in use
-            if sizes := self.common.blocks_startsizes[block_id]:
-                return fingerprint[0] > max(f[0] for f in sizes)
-            else:
-                return True
+        # The computation is relevant if the block was not visited previously
+        # with the same starting size and exception handler status than the
+        # one in use
+        return fingerprint not in self.common.blocks_startsizes[block_id]
 
 
 class ControlFlowGraph(_bytecode.BaseBytecode):
@@ -521,11 +512,10 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         )
 
         # Starting with Python 3.10, generator and coroutines start with one object
-        # on the stack (None, anything is an error).
+        # on the stack (None, anything else is an error).
         initial_stack_size = 0
         if (
             not PY313  # under 3.13+ RETURN_GENERATOR make this explicit
-            and PY310
             and self.flags
             & (
                 CompilerFlags.GENERATOR
@@ -628,7 +618,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
                         # argument rather than a Label. This is fine for comparison
                         # purposes which is our sole goal here.
                         c_instr = ConcreteInstr(
-                            instr.name,
+                            instr._name,
                             self.get_block_index(target_block),
                             location=instr.location,
                         )

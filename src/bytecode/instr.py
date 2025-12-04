@@ -6,7 +6,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from functools import cache
 from marshal import dumps as _dumps
-from typing import Any, Callable, Dict, Generic, Optional, Set, Tuple, TypeVar, Union
+from typing import Any, Callable, Final, Generic, Optional, TypeVar, Union
 
 try:
     from typing import TypeGuard
@@ -14,15 +14,15 @@ except ImportError:
     from typing_extensions import TypeGuard  # type: ignore
 
 import bytecode as _bytecode
-from bytecode.utils import PY311, PY312, PY313, PY314
+from bytecode.utils import PY312, PY313, PY314
 
 # --- Instruction argument tools and
 
-MIN_INSTRUMENTED_OPCODE = getattr(_opcode, "MIN_INSTRUMENTED_OPCODE", 256)
+MIN_INSTRUMENTED_OPCODE: Final[int] = getattr(_opcode, "MIN_INSTRUMENTED_OPCODE", 256)
 
 # Instructions relying on a bit to modify its behavior.
 # The lowest bit is used to encode custom behavior.
-BITFLAG_OPCODES = (
+BITFLAG_OPCODES: Final[set[int]] = (
     {
         _opcode.opmap["BUILD_INTERPOLATION"],
         _opcode.opmap["LOAD_GLOBAL"],
@@ -32,31 +32,35 @@ BITFLAG_OPCODES = (
     else (
         {_opcode.opmap["LOAD_GLOBAL"], _opcode.opmap["LOAD_ATTR"]}
         if PY312
-        else ({_opcode.opmap["LOAD_GLOBAL"]} if PY311 else set())
+        else {_opcode.opmap["LOAD_GLOBAL"]}
     )
 )
 
-BITFLAG2_OPCODES = {_opcode.opmap["LOAD_SUPER_ATTR"]} if PY312 else set()
+BITFLAG2_OPCODES: Final[set[int]] = (
+    {_opcode.opmap["LOAD_SUPER_ATTR"]} if PY312 else set()
+)
 
 # Binary op opcode which has a dedicated arg
-BINARY_OPS = {_opcode.opmap["BINARY_OP"]} if PY311 else set()
+BINARY_OPS: Final[set[int]] = {_opcode.opmap["BINARY_OP"]}
 
 # Intrinsic related opcodes
-INTRINSIC_1OP = {_opcode.opmap["CALL_INTRINSIC_1"]} if PY312 else set()
-INTRINSIC_2OP = {_opcode.opmap["CALL_INTRINSIC_2"]} if PY312 else set()
-INTRINSIC = INTRINSIC_1OP | INTRINSIC_2OP
+INTRINSIC_1OP: Final[set[int]] = {_opcode.opmap["CALL_INTRINSIC_1"]} if PY312 else set()
+INTRINSIC_2OP: Final[set[int]] = {_opcode.opmap["CALL_INTRINSIC_2"]} if PY312 else set()
+INTRINSIC: Final[set[int]] = INTRINSIC_1OP | INTRINSIC_2OP
 
 # Small integer related opcode
-SMALL_INT_OPS = {_opcode.opmap["LOAD_SMALL_INT"]} if PY314 else set()
+SMALL_INT_OPS: Final[set[int]] = {_opcode.opmap["LOAD_SMALL_INT"]} if PY314 else set()
 
 # Special method loading related opcodes
-SPECIAL_OPS = {_opcode.opmap["LOAD_SPECIAL"]} if PY314 else set()
+SPECIAL_OPS: Final[set[int]] = {_opcode.opmap["LOAD_SPECIAL"]} if PY314 else set()
 
 # Common constant loading related opcodes
-COMMON_CONSTANT_OPS = {_opcode.opmap["LOAD_COMMON_CONSTANT"]} if PY314 else set()
+COMMON_CONSTANT_OPS: Final[set[int]] = (
+    {_opcode.opmap["LOAD_COMMON_CONSTANT"]} if PY314 else set()
+)
 
 # Value formatting related opcodes (only handle CONVERT_VALUE and BUILD_INTERPOLATION)
-FORMAT_VALUE_OPS = (
+FORMAT_VALUE_OPS: Final[set[int]] = (
     {
         _opcode.opmap["CONVERT_VALUE"],
         _opcode.opmap["BUILD_INTERPOLATION"],
@@ -65,31 +69,77 @@ FORMAT_VALUE_OPS = (
     else ({_opcode.opmap["CONVERT_VALUE"]} if PY313 else set())
 )
 
-HASJABS = set() if PY313 else set(_opcode.hasjabs)
-if sys.version_info >= (3, 13):
-    HASJREL = set(_opcode.hasjump)
-else:
-    HASJREL = set(_opcode.hasjrel)
+
+HAS_ABSOLUTE_JUMP: Final[set[int]] = set() if PY313 else set(_opcode.hasjabs)
+
+_relative_jumps = set(_opcode.hasjump) if PY313 else set(_opcode.hasjrel)  # type: ignore
+HAS_FORWARD_RELATIVE_JUMP: Final[set[int]] = {
+    op
+    for op in _relative_jumps
+    if "BACKWARD" not in _opcode.opname[op]
+    and "END_ASYNC_FOR" not in _opcode.opname[op]
+}
+HAS_BACKWARD_RELATIVE_JUMP: Final[set[int]] = {
+    op
+    for op in _relative_jumps
+    if "BACKWARD" in _opcode.opname[op] or "END_ASYNC_FOR" in _opcode.opname[op]
+}
+
+HAS_JUMP: Final[set[int]] = HAS_ABSOLUTE_JUMP | _relative_jumps
+
+# Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
+HAS_CONDITIONAL_JUMP: Final[set[int]] = {
+    op
+    for op in HAS_JUMP
+    if "IF_" in _opcode.opname[op]
+    or "END_ASYNC_FOR" in _opcode.opname[op]
+    or "FOR_ITER" in _opcode.opname[op]
+    or "SEND" in _opcode.opname[op]
+}
+
+HAS_UNCONDITIONAL_JUMP: Final[set[int]] = {
+    op for op in HAS_JUMP if op not in HAS_CONDITIONAL_JUMP
+}
+
+IS_INSTR_FINAL: Final[set[int]] = HAS_UNCONDITIONAL_JUMP | {
+    _opcode.opmap.get(n, -1)
+    for n in (
+        "RETURN_VALUE",
+        "RETURN_CONST",
+        "RAISE_VARARGS",
+        "RERAISE",
+        "BREAK_LOOP",
+        "CONTINUE_LOOP",
+    )
+}
 
 #: Opcodes taking 2 arguments (highest 4 bits and lowest 4 bits)
-DUAL_ARG_OPCODES: Set[int] = set()
-DUAL_ARG_OPCODES_SINGLE_OPS: Dict[int, Tuple[str, str]] = {}
-if PY313:
-    DUAL_ARG_OPCODES = {
+DUAL_ARG_OPCODES: Final[set[int]] = (
+    {
         _opcode.opmap["LOAD_FAST_LOAD_FAST"],
         _opcode.opmap["STORE_FAST_LOAD_FAST"],
         _opcode.opmap["STORE_FAST_STORE_FAST"],
     }
-    if PY314:
-        DUAL_ARG_OPCODES = {
-            *DUAL_ARG_OPCODES,
-            _opcode.opmap["LOAD_FAST_BORROW_LOAD_FAST_BORROW"],
-        }
-    DUAL_ARG_OPCODES_SINGLE_OPS = {
+    | ({_opcode.opmap["LOAD_FAST_BORROW_LOAD_FAST_BORROW"]} if PY314 else set())
+    if PY313
+    else set()
+)
+
+
+DUAL_ARG_OPCODES_SINGLE_OPS: Final[dict[int, tuple[str, str]]] = (
+    {
         _opcode.opmap["LOAD_FAST_LOAD_FAST"]: ("LOAD_FAST", "LOAD_FAST"),
         _opcode.opmap["STORE_FAST_LOAD_FAST"]: ("STORE_FAST", "LOAD_FAST"),
         _opcode.opmap["STORE_FAST_STORE_FAST"]: ("STORE_FAST", "STORE_FAST"),
     }
+    if PY313
+    else {}
+)
+
+EXTENDEDARG_OPCODE: Final[int] = _opcode.opmap["EXTENDED_ARG"]
+NOP_OPCODE: Final[int] = _opcode.opmap.get("NOP", -1)
+CACHE_OPCODE: Final[int] = _opcode.opmap.get("CACHE", -1)
+RESUME_OPCODE: Final[int] = _opcode.opmap.get("RESUME", -1)
 
 
 # Used for COMPARE_OP opcode argument
@@ -101,12 +151,6 @@ class Compare(enum.IntEnum):
     NE = 3
     GT = 4
     GE = 5
-    if sys.version_info < (3, 9):
-        IN = 6
-        NOT_IN = 7
-        IS = 8
-        IS_NOT = 9
-        EXC_MATCH = 10
 
     if PY312:
 
@@ -286,7 +330,7 @@ for op in [
 UNSET = _UNSET()
 
 
-def const_key(obj: Any) -> Union[bytes, Tuple[type, int]]:
+def const_key(obj: Any) -> bytes | tuple[type, int]:
     try:
         return _dumps(obj)
     except ValueError:
@@ -338,13 +382,13 @@ def _check_arg_int(arg: Any, name: str) -> TypeGuard[int]:
 
     if not (0 <= arg <= 2147483647):
         raise ValueError(
-            "operation %s argument must be in the range 0..2,147,483,647" % name
+            "operation %s argument must be in the range 0..2_147_483_647" % name
         )
 
     return True
 
 
-if sys.version_info >= (3, 12):
+if PY312:
 
     @cache
     def opcode_has_argument(opcode: int) -> bool:
@@ -364,114 +408,122 @@ else:
 # and what is pushed back on the stack after the execution is complete.
 
 # Stack effects that do not depend on the argument of the instruction
-STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
-    "ROT_TWO": (-2, 2),
-    "ROT_THREE": (-3, 3),
-    "ROT_FOUR": (-4, 4),
-    "DUP_TOP": (-1, 2),
-    "DUP_TOP_TWO": (-2, 4),
-    "GET_LEN": (-1, 2),
-    "GET_ITER": (-1, 1),
-    "GET_YIELD_FROM_ITER": (-1, 1),
-    "GET_AWAITABLE": (-1, 1),
-    "GET_AITER": (-1, 1),
-    "GET_ANEXT": (-1, 2),
-    "LIST_TO_TUPLE": (-1, 1),
-    "LIST_EXTEND": (-2, 1),
-    "SET_UPDATE": (-2, 1),
-    "DICT_UPDATE": (-2, 1),
-    "DICT_MERGE": (-2, 1),
-    "COMPARE_OP": (-2, 1),
-    "IS_OP": (-2, 1),
-    "CONTAINS_OP": (-2, 1),
-    "IMPORT_NAME": (-2, 1),
-    "ASYNC_GEN_WRAP": (-1, 1),
-    "PUSH_EXC_INFO": (-1, 2),
-    # Pop TOS and push TOS.__aexit__ and result of TOS.__aenter__()
-    "BEFORE_ASYNC_WITH": (-1, 2),
-    # Replace TOS based on TOS and TOS1
-    "IMPORT_FROM": (-1, 2),
-    "COPY_DICT_WITHOUT_KEYS": (-2, 2),
-    # Call a function at position 7 (4 3.11+) on the stack and push the return value
-    "WITH_EXCEPT_START": (-4, 5) if PY311 else (-7, 8),
-    # Starting with Python 3.11 MATCH_CLASS does not push a boolean anymore
-    "MATCH_CLASS": (-3, 1 if PY311 else 2),
-    "MATCH_MAPPING": (-1, 2),
-    "MATCH_SEQUENCE": (-1, 2),
-    "MATCH_KEYS": (-2, 3 if PY311 else 4),
-    "CHECK_EXC_MATCH": (-2, 2),  # (TOS1, TOS) -> (TOS1, bool)
-    "CHECK_EG_MATCH": (-2, 2),  # (TOS, TOS1) -> non-matched, matched or TOS1, None)
-    "PREP_RERAISE_STAR": (-2, 1),  # (TOS1, TOS) -> new exception group)
-    **dict.fromkeys((o for o in _opcode.opmap if o.startswith("UNARY_")), (-1, 1)),
-    **dict.fromkeys(
-        (
-            o
-            for o in _opcode.opmap
-            if o.startswith("BINARY_") or o.startswith("INPLACE_")
+STATIC_STACK_EFFECTS: Final[dict[int, tuple[int, int]]] = {
+    _opcode.opmap[k]: v
+    for k, v in {
+        "ROT_TWO": (-2, 2),
+        "ROT_THREE": (-3, 3),
+        "ROT_FOUR": (-4, 4),
+        "DUP_TOP": (-1, 2),
+        "DUP_TOP_TWO": (-2, 4),
+        "GET_LEN": (-1, 2),
+        "GET_ITER": (-1, 1),
+        "GET_YIELD_FROM_ITER": (-1, 1),
+        "GET_AWAITABLE": (-1, 1),
+        "GET_AITER": (-1, 1),
+        "GET_ANEXT": (-1, 2),
+        "LIST_TO_TUPLE": (-1, 1),
+        "LIST_EXTEND": (-2, 1),
+        "SET_UPDATE": (-2, 1),
+        "DICT_UPDATE": (-2, 1),
+        "DICT_MERGE": (-2, 1),
+        "COMPARE_OP": (-2, 1),
+        "IS_OP": (-2, 1),
+        "CONTAINS_OP": (-2, 1),
+        "IMPORT_NAME": (-2, 1),
+        "ASYNC_GEN_WRAP": (-1, 1),
+        "PUSH_EXC_INFO": (-1, 2),
+        # Pop TOS and push TOS.__aexit__ and result of TOS.__aenter__()
+        "BEFORE_ASYNC_WITH": (-1, 2),
+        # Replace TOS based on TOS and TOS1
+        "IMPORT_FROM": (-1, 2),
+        "COPY_DICT_WITHOUT_KEYS": (-2, 2),
+        # Call a function at position 7 (4 3.11+) on the stack and push the return value
+        "WITH_EXCEPT_START": (-4, 5),
+        # Starting with Python 3.11 MATCH_CLASS does not push a boolean anymore
+        "MATCH_CLASS": (-3, 1),
+        "MATCH_MAPPING": (-1, 2),
+        "MATCH_SEQUENCE": (-1, 2),
+        "MATCH_KEYS": (-2, 3),
+        "CHECK_EXC_MATCH": (-2, 2),  # (TOS1, TOS) -> (TOS1, bool)
+        "CHECK_EG_MATCH": (-2, 2),  # (TOS, TOS1) -> non-matched, matched or TOS1, None)
+        "PREP_RERAISE_STAR": (-2, 1),  # (TOS1, TOS) -> new exception group)
+        **dict.fromkeys((o for o in _opcode.opmap if o.startswith("UNARY_")), (-1, 1)),
+        **dict.fromkeys(
+            (
+                o
+                for o in _opcode.opmap
+                if o.startswith("BINARY_") or o.startswith("INPLACE_")
+            ),
+            (-2, 1),
         ),
-        (-2, 1),
-    ),
-    # Python 3.12 changes not covered by dis.stack_effect
-    "BINARY_SLICE": (-3, 1),
-    # "STORE_SLICE" handled by dis.stack_effect
-    "LOAD_FROM_DICT_OR_GLOBALS": (-1, 1),
-    "LOAD_FROM_DICT_OR_DEREF": (-1, 1),
-    "LOAD_INTRISIC_1": (-1, 1),
-    "LOAD_INTRISIC_2": (-2, 1),
-    "SET_FUNCTION_ATTRIBUTE": (-2, 1),  # new in 3.13
-    "CONVERT_VALUE": (-1, 1),  # new in 3.13
-    "FORMAT_SIMPLE": (-1, 1),  # new in 3.13
-    "FORMAT_SPEC": (-2, 1),  # new in 3.13
-    "TO_BOOL": (-1, 1),  # new in 3.13
-    "BUILD_TEMPLATE": (-2, 1),  # new in 3.14
+        # Python 3.12 changes not covered by dis.stack_effect
+        "BINARY_SLICE": (-3, 1),
+        # "STORE_SLICE" handled by dis.stack_effect
+        "LOAD_FROM_DICT_OR_GLOBALS": (-1, 1),
+        "LOAD_FROM_DICT_OR_DEREF": (-1, 1),
+        "LOAD_INTRISIC_1": (-1, 1),
+        "LOAD_INTRISIC_2": (-2, 1),
+        "SET_FUNCTION_ATTRIBUTE": (-2, 1),  # new in 3.13
+        "CONVERT_VALUE": (-1, 1),  # new in 3.13
+        "FORMAT_SIMPLE": (-1, 1),  # new in 3.13
+        "FORMAT_SPEC": (-2, 1),  # new in 3.13
+        "TO_BOOL": (-1, 1),  # new in 3.13
+        "BUILD_TEMPLATE": (-2, 1),  # new in 3.14
+    }.items()
+    if k in _opcode.opmap
 }
 
 
-DYNAMIC_STACK_EFFECTS: Dict[
-    str, Callable[[int, Any, Optional[bool]], Tuple[int, int]]
+DYNAMIC_STACK_EFFECTS: Final[
+    dict[int, Callable[[int, Any, Optional[bool]], tuple[int, int]]]
 ] = {
-    # PRECALL pops all arguments (as per its stack effect) and leaves
-    # the callable and either self or NULL
-    # CALL pops the 2 above items and push the return
-    # (when PRECALL does not exist it pops more as encoded by the effect)
-    "CALL": lambda effect, arg, jump: (
-        -2 - arg if PY312 else -2,
-        1,
-    ),
-    # 3.13 only
-    "CALL_KW": lambda effect, arg, jump: (-3 - arg, 1),
-    # 3.12 changed the behavior of LOAD_ATTR
-    "LOAD_ATTR": lambda effect, arg, jump: (-1, 1 + effect),
-    "LOAD_SUPER_ATTR": lambda effect, arg, jump: (-3, 3 + effect),
-    "SWAP": lambda effect, arg, jump: (-arg, arg),
-    "COPY": lambda effect, arg, jump: (-arg, arg + effect),
-    "ROT_N": lambda effect, arg, jump: (-arg, arg),
-    "SET_ADD": lambda effect, arg, jump: (-arg, arg - 1),
-    "LIST_APPEND": lambda effect, arg, jump: (-arg, arg - 1),
-    "MAP_ADD": lambda effect, arg, jump: (-arg, arg - 2),
-    "FORMAT_VALUE": lambda effect, arg, jump: (effect - 1, 1),
-    # FOR_ITER needs TOS to be an iterator, hence a prerequisite of 1 on the stack
-    "FOR_ITER": lambda effect, arg, jump: (effect, 0) if jump else (-1, 2),
-    "BUILD_INTERPOLATION": lambda effect, arg, jump: (-(2 + (arg & 1)), 1),
-    **{
-        # Instr(UNPACK_* , n) pops 1 and pushes n
-        k: lambda effect, arg, jump: (-1, effect + 1)
-        for k in (
-            "UNPACK_SEQUENCE",
-            "UNPACK_EX",
-        )
-    },
-    **{
-        k: lambda effect, arg, jump: (effect - 1, 1)
-        for k in (
-            "MAKE_FUNCTION",
-            "CALL_FUNCTION",
-            "CALL_FUNCTION_EX",
-            "CALL_FUNCTION_KW",
-            "CALL_METHOD",
-            *(o for o in _opcode.opmap if o.startswith("BUILD_")),
-        )
-    },
+    _opcode.opmap[k]: v
+    for k, v in {
+        # PRECALL pops all arguments (as per its stack effect) and leaves
+        # the callable and either self or NULL
+        # CALL pops the 2 above items and push the return
+        # (when PRECALL does not exist it pops more as encoded by the effect)
+        "CALL": lambda effect, arg, jump: (
+            -2 - arg if PY312 else -2,
+            1,
+        ),
+        # 3.13 only
+        "CALL_KW": lambda effect, arg, jump: (-3 - arg, 1),
+        # 3.12 changed the behavior of LOAD_ATTR
+        "LOAD_ATTR": lambda effect, arg, jump: (-1, 1 + effect),
+        "LOAD_SUPER_ATTR": lambda effect, arg, jump: (-3, 3 + effect),
+        "SWAP": lambda effect, arg, jump: (-arg, arg),
+        "COPY": lambda effect, arg, jump: (-arg, arg + effect),
+        "ROT_N": lambda effect, arg, jump: (-arg, arg),
+        "SET_ADD": lambda effect, arg, jump: (-arg, arg - 1),
+        "LIST_APPEND": lambda effect, arg, jump: (-arg, arg - 1),
+        "MAP_ADD": lambda effect, arg, jump: (-arg, arg - 2),
+        "FORMAT_VALUE": lambda effect, arg, jump: (effect - 1, 1),
+        # FOR_ITER needs TOS to be an iterator, hence a prerequisite of 1 on the stack
+        "FOR_ITER": lambda effect, arg, jump: (effect, 0) if jump else (-1, 2),
+        "BUILD_INTERPOLATION": lambda effect, arg, jump: (-(2 + (arg & 1)), 1),
+        **{
+            # Instr(UNPACK_* , n) pops 1 and pushes n
+            k: lambda effect, arg, jump: (-1, effect + 1)
+            for k in (
+                "UNPACK_SEQUENCE",
+                "UNPACK_EX",
+            )
+        },
+        **{
+            k: lambda effect, arg, jump: (effect - 1, 1)
+            for k in (
+                "MAKE_FUNCTION",
+                "CALL_FUNCTION",
+                "CALL_FUNCTION_EX",
+                "CALL_FUNCTION_KW",
+                "CALL_METHOD",
+                *(o for o in _opcode.opmap if o.startswith("BUILD_")),
+            )
+        },
+    }.items()
+    if k in _opcode.opmap
 }
 
 
@@ -523,7 +575,7 @@ class InstrLocation:
         object.__setattr__(self, "col_offset", col_offset)
         object.__setattr__(self, "end_col_offset", end_col_offset)
         # In Python 3.11 0 is a valid lineno for some instructions (RESUME for example)
-        _check_location(lineno, "lineno", 0 if PY311 else 1)
+        _check_location(lineno, "lineno", 0)
         _check_location(end_lineno, "end_lineno", 1)
         _check_location(col_offset, "col_offset", 0)
         _check_location(end_col_offset, "end_col_offset", 0)
@@ -573,7 +625,7 @@ class SetLineno:
 
     def __init__(self, lineno: int) -> None:
         # In Python 3.11 0 is a valid lineno for some instructions (RESUME for example)
-        _check_location(lineno, "lineno", 0 if PY311 else 1)
+        _check_location(lineno, "lineno", 0)
         self._lineno: int = lineno
 
     @property
@@ -594,13 +646,13 @@ class TryBegin:
 
     def __init__(
         self,
-        target: Union[Label, "_bytecode.BasicBlock"],
+        target: "Label | _bytecode.BasicBlock",
         push_lasti: bool,
-        stack_depth: Union[int, _UNSET] = UNSET,
+        stack_depth: int | _UNSET = UNSET,
     ) -> None:
-        self.target: Union[Label, "_bytecode.BasicBlock"] = target
+        self.target: "Label | _bytecode.BasicBlock" = target
         self.push_lasti: bool = push_lasti
-        self.stack_depth: Union[int, _UNSET] = stack_depth
+        self.stack_depth: int | _UNSET = stack_depth
 
     def copy(self) -> "TryBegin":
         return TryBegin(self.target, self.push_lasti, self.stack_depth)
@@ -631,7 +683,7 @@ class BaseInstr(Generic[A]):
         name: str,
         arg: A = UNSET,  # type: ignore
         *,
-        lineno: Union[int, None, _UNSET] = UNSET,
+        lineno: int | None | _UNSET = UNSET,
         location: Optional[InstrLocation] = None,
     ) -> None:
         self._set(name, arg)
@@ -690,11 +742,11 @@ class BaseInstr(Generic[A]):
         self._set(self._name, arg)
 
     @property
-    def lineno(self) -> Union[int, _UNSET, None]:
+    def lineno(self) -> int | _UNSET | None:
         return self._location.lineno if self._location is not None else UNSET
 
     @lineno.setter
-    def lineno(self, lineno: Union[int, _UNSET, None]) -> None:
+    def lineno(self, lineno: int | _UNSET | None) -> None:
         loc = self._location
         if loc and (
             loc.end_lineno is not None
@@ -743,15 +795,15 @@ class BaseInstr(Generic[A]):
 
         return dis.stack_effect(self._opcode, arg, jump=jump)
 
-    def pre_and_post_stack_effect(self, jump: Optional[bool] = None) -> Tuple[int, int]:
+    def pre_and_post_stack_effect(self, jump: Optional[bool] = None) -> tuple[int, int]:
         # Allow to check that execution will not cause a stack underflow
         _effect = self.stack_effect(jump=jump)
 
-        n = self.name
-        if n in STATIC_STACK_EFFECTS:
-            return STATIC_STACK_EFFECTS[n]
-        elif n in DYNAMIC_STACK_EFFECTS:
-            return DYNAMIC_STACK_EFFECTS[n](_effect, self.arg, jump)
+        op = self._opcode
+        if op in STATIC_STACK_EFFECTS:
+            return STATIC_STACK_EFFECTS[op]
+        elif op in DYNAMIC_STACK_EFFECTS:
+            return DYNAMIC_STACK_EFFECTS[op](_effect, self.arg, jump)
         else:
             # For instruction with no special value we simply consider the effect apply
             # before execution
@@ -765,47 +817,26 @@ class BaseInstr(Generic[A]):
 
     def is_cond_jump(self) -> bool:
         """Is a conditional jump?"""
-        # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
-        # IN 3.11+ the JUMP and the IF are no necessary adjacent in the name.
-        name = self._name
-        return "JUMP_" in name and "IF_" in name
+        return self._opcode in HAS_CONDITIONAL_JUMP
 
     def is_uncond_jump(self) -> bool:
         """Is an unconditional jump?"""
-        # JUMP_BACKWARD has been introduced in 3.11+
-        # JUMP_ABSOLUTE was removed in 3.11+
-        return self.name in {
-            "JUMP_FORWARD",
-            "JUMP_ABSOLUTE",
-            "JUMP_BACKWARD",
-            "JUMP_BACKWARD_NO_INTERRUPT",
-        }
+        return self._opcode in HAS_UNCONDITIONAL_JUMP
 
     def is_abs_jump(self) -> bool:
         """Is an absolute jump."""
-        return self._opcode in HASJABS
+        return self._opcode in HAS_ABSOLUTE_JUMP
 
     def is_forward_rel_jump(self) -> bool:
         """Is a forward relative jump."""
-        return self._opcode in HASJREL and "BACKWARD" not in self._name
+        return self._opcode in HAS_FORWARD_RELATIVE_JUMP
 
     def is_backward_rel_jump(self) -> bool:
         """Is a backward relative jump."""
-        return self._opcode in HASJREL and "BACKWARD" in self._name
+        return self._opcode in HAS_BACKWARD_RELATIVE_JUMP
 
     def is_final(self) -> bool:
-        if self._name in {
-            "RETURN_VALUE",
-            "RETURN_CONST",
-            "RAISE_VARARGS",
-            "RERAISE",
-            "BREAK_LOOP",
-            "CONTINUE_LOOP",
-        }:
-            return True
-        if self.is_uncond_jump():
-            return True
-        return False
+        return self._opcode in IS_INSTR_FINAL
 
     def __repr__(self) -> str:
         if self._arg is not UNSET:
@@ -850,14 +881,14 @@ class BaseInstr(Generic[A]):
 
     @staticmethod
     def _has_jump(opcode) -> bool:
-        return opcode in _opcode.hasjrel or opcode in _opcode.hasjabs
+        return opcode in HAS_JUMP
 
     @abstractmethod
     def _check_arg(self, name: str, opcode: int, arg: A) -> None:
         pass
 
     @abstractmethod
-    def _cmp_key(self) -> Tuple[Optional[InstrLocation], str, Any]:
+    def _cmp_key(self) -> tuple[Optional[InstrLocation], str, Any]:
         pass
 
 
@@ -875,24 +906,24 @@ InstrArg = Union[
     Intrinsic2Op,
     CommonConstant,
     SpecialMethod,
-    Tuple[bool, str],
-    Tuple[bool, bool, str],
-    Tuple[bool, FormatValue],
-    Tuple[Union[str, CellVar, FreeVar], Union[str, CellVar, FreeVar]],
+    tuple[bool, str],
+    tuple[bool, bool, str],
+    tuple[bool, FormatValue],
+    tuple[str | CellVar | FreeVar, str | CellVar | FreeVar],
 ]
 
 
 class Instr(BaseInstr[InstrArg]):
     __slots__ = ()
 
-    def _cmp_key(self) -> Tuple[Optional[InstrLocation], str, Any]:
+    def _cmp_key(self) -> tuple[InstrLocation | None, str, Any]:
         arg: Any = self._arg
         if self._opcode in _opcode.hasconst:
             arg = const_key(arg)
         return (self._location, self._name, arg)
 
     def _check_arg(self, name: str, opcode: int, arg: InstrArg) -> None:  # noqa: C901
-        if name == "EXTENDED_ARG":
+        if opcode == EXTENDEDARG_OPCODE:
             raise ValueError(
                 "only concrete instruction can contain EXTENDED_ARG, "
                 "highlevel instruction can represent arbitrary argument without it"

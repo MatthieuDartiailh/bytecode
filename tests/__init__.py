@@ -1,5 +1,4 @@
 import dis
-import sys
 import textwrap
 import types
 import unittest
@@ -14,6 +13,7 @@ from bytecode import (
     Instr,
     Label,
 )
+from bytecode.utils import PY312
 
 
 def _format_instr_list(block, labels, lineno):
@@ -132,9 +132,9 @@ def get_code(source, *, filename="<string>", function=False):
         sub_code = [
             const for const in code.co_consts if isinstance(const, types.CodeType)
         ]
-        if len(sub_code) != 1:
+        if len(sub_code) == 0:
             raise ValueError("unable to find function code")
-        code = sub_code[0]
+        code = sub_code[-1]
     return code
 
 
@@ -146,8 +146,7 @@ def disassemble(source, *, filename="<string>", function=False):
 class TestCase(unittest.TestCase):
     def assertInstructionListEqual(self, l1, l2):
         # DO not check location information
-        self.assertEqual(len(l1), len(l2))
-        for i1, i2 in zip(l1, l2):
+        for i1, i2 in zip(l1, l2, strict=True):
             if isinstance(i1, Instr):
                 self.assertEqual(i1.name, i2.name)
                 if not isinstance(i1.arg, Label):
@@ -164,25 +163,14 @@ class TestCase(unittest.TestCase):
         self.assertSequenceEqual(code1.co_cellvars, code2.co_cellvars)
         self.assertSequenceEqual(code1.co_freevars, code2.co_freevars)
         self.assertSetEqual(set(code1.co_varnames), set(code2.co_varnames))
-        if sys.version_info >= (3, 11):
-            self.assertSequenceEqual(code1.co_exceptiontable, code2.co_exceptiontable)
-            # We do not compare linetables because CPython does not always optimize
-            # the packing of the table
-            self.assertSequenceEqual(
-                list(code1.co_positions()), list(code2.co_positions())
-            )
-            self.assertEqual(code1.co_qualname, code2.co_qualname)
-        elif sys.version_info >= (3, 10):
-            self.assertSequenceEqual(list(code1.co_lines()), list(code2.co_lines()))
-        else:
-            # This is safer than directly comparing co_lnotab that sometimes contains
-            # cruft
-            self.assertSequenceEqual(
-                list(dis.findlinestarts(code1)), list(dis.findlinestarts(code2))
-            )
+        self.assertSequenceEqual(code1.co_exceptiontable, code2.co_exceptiontable)
+        # We do not compare linetables because CPython does not always optimize
+        # the packing of the table
+        self.assertSequenceEqual(list(code1.co_positions()), list(code2.co_positions()))
+        self.assertEqual(code1.co_qualname, code2.co_qualname)
 
         # If names or consts have been re-ordered compared the output of dis.instructions
-        if sys.version_info >= (3, 12) and (
+        if PY312 and (
             code1.co_consts != code2.co_consts
             or code1.co_names != code2.co_names
             or code1.co_varnames != code2.co_varnames
@@ -190,48 +178,19 @@ class TestCase(unittest.TestCase):
             instrs1 = list(dis.get_instructions(code1))
             instrs2 = list(dis.get_instructions(code2))
             self.assertEqual(len(instrs1), len(instrs2))
-            for i1, i2 in zip(instrs1, instrs2):
+            for i1, i2 in zip(instrs1, instrs2, strict=False):
                 self.assertEqual(i1.opcode, i2.opcode)
                 if isinstance(i1.argval, types.CodeType):
                     pass
                 else:
                     self.assertEqual(i1.argval, i2.argval)
-        elif sys.version_info >= (3, 9):
-            self.assertSequenceEqual(code1.co_code, code2.co_code)
-        # On Python 3.8 it happens that fast storage index vary in a roundtrip
         else:
-            import opcode
-
-            fast_storage = opcode.opmap["LOAD_FAST"], opcode.opmap["STORE_FAST"]
-            load_const = opcode.opmap["LOAD_CONST"]
-            load_by_name = (
-                opcode.opmap["LOAD_GLOBAL"],
-                opcode.opmap["LOAD_NAME"],
-                opcode.opmap["LOAD_METHOD"],
-            )
-            if code1.co_code != code2.co_code:
-                for b1, a1, b2, a2 in zip(
-                    code1.co_code[::2],
-                    code1.co_code[1::2],
-                    code2.co_code[::2],
-                    code2.co_code[1::2],
-                ):
-                    if b1 != b2:
-                        self.assertSequenceEqual(code1.co_code, code2.co_code)
-                    # Do not check the argument of fast storage manipulation opcode
-                    elif b1 in fast_storage:
-                        pass
-                    elif b1 == load_const:
-                        self.assertEqual(code1.co_consts[a1], code2.co_consts[a2])
-                    elif b1 in load_by_name:
-                        self.assertEqual(code1.co_names[a1], code2.co_names[a2])
-                    elif a1 != a2:
-                        self.assertSequenceEqual(code1.co_code, code2.co_code)
+            self.assertSequenceEqual(code1.co_code, code2.co_code)
 
         self.assertEqual(code1.co_flags, code2.co_flags)
 
     def assertBlocksEqual(self, code, *expected_blocks):
         self.assertEqual(len(code), len(expected_blocks))
 
-        for block1, block2 in zip(code, expected_blocks):
+        for block1, block2 in zip(code, expected_blocks, strict=False):
             self.assertInstructionListEqual(list(block1), block2)

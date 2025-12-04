@@ -8,7 +8,7 @@ import unittest
 
 from bytecode import Bytecode, ConcreteInstr, FreeVar, Instr, Label, SetLineno
 from bytecode.instr import BinaryOp, FormatValue, InstrLocation
-from bytecode.utils import PY310, PY311, PY312, PY313, PY314
+from bytecode.utils import PY312, PY313, PY314
 
 from . import TestCase, get_code
 
@@ -167,7 +167,6 @@ class BytecodeTests(TestCase):
         )
         bytecode = Bytecode.from_code(code)
         label_else = Label()
-        label_exit = Label()
         if PY314:
             self.assertInstructionListEqual(
                 bytecode,
@@ -221,7 +220,7 @@ class BytecodeTests(TestCase):
                     Instr("RETURN_CONST", None, lineno=4),
                 ],
             )
-        elif PY311:
+        else:
             self.assertInstructionListEqual(
                 bytecode,
                 [
@@ -235,42 +234,6 @@ class BytecodeTests(TestCase):
                     label_else,
                     Instr("LOAD_CONST", 2, lineno=4),
                     Instr("STORE_NAME", "x", lineno=4),
-                    Instr("LOAD_CONST", None, lineno=4),
-                    Instr("RETURN_VALUE", lineno=4),
-                ],
-            )
-        elif PY310:
-            # Control flow handling appears to have changed under Python 3.10
-            self.assertEqual(
-                bytecode,
-                [
-                    Instr("LOAD_NAME", "test", lineno=1),
-                    Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
-                    Instr("LOAD_CONST", 1, lineno=2),
-                    Instr("STORE_NAME", "x", lineno=2),
-                    Instr("LOAD_CONST", None, lineno=2),
-                    Instr("RETURN_VALUE", lineno=2),
-                    label_else,
-                    Instr("LOAD_CONST", 2, lineno=4),
-                    Instr("STORE_NAME", "x", lineno=4),
-                    Instr("LOAD_CONST", None, lineno=4),
-                    Instr("RETURN_VALUE", lineno=4),
-                ],
-            )
-
-        else:
-            self.assertEqual(
-                bytecode,
-                [
-                    Instr("LOAD_NAME", "test", lineno=1),
-                    Instr("POP_JUMP_IF_FALSE", label_else, lineno=1),
-                    Instr("LOAD_CONST", 1, lineno=2),
-                    Instr("STORE_NAME", "x", lineno=2),
-                    Instr("JUMP_FORWARD", label_exit, lineno=2),
-                    label_else,
-                    Instr("LOAD_CONST", 2, lineno=4),
-                    Instr("STORE_NAME", "x", lineno=4),
-                    label_exit,
                     Instr("LOAD_CONST", None, lineno=4),
                     Instr("RETURN_VALUE", lineno=4),
                 ],
@@ -298,15 +261,9 @@ class BytecodeTests(TestCase):
         bytecode = Bytecode.from_code(code)
         self.assertInstructionListEqual(
             bytecode,
-            (
-                [
-                    Instr("COPY_FREE_VARS", 1, lineno=None),
-                    Instr("RESUME", 0, lineno=4),
-                ]
-                if sys.version_info >= (3, 11)
-                else []
-            )
-            + [
+            [
+                Instr("COPY_FREE_VARS", 1, lineno=None),
+                Instr("RESUME", 0, lineno=4),
                 Instr("LOAD_DEREF", FreeVar("x"), lineno=5),
                 Instr("RETURN_VALUE", lineno=5),
             ],
@@ -324,14 +281,8 @@ class BytecodeTests(TestCase):
         code = Bytecode.from_code(code)
         self.assertInstructionListEqual(
             code,
-            (
-                [
-                    Instr("RESUME", 0, lineno=1),
-                ]
-                if PY311
-                else []
-            )
-            + [
+            [
+                Instr("RESUME", 0, lineno=1),
                 Instr("LOAD_SMALL_INT", 33, lineno=2)
                 if PY314
                 else Instr("LOAD_CONST", 33, lineno=2),
@@ -370,12 +321,6 @@ class BytecodeTests(TestCase):
             (
                 [
                     Instr("RESUME", 0, lineno=1),
-                ]
-                if PY311
-                else []
-            )
-            + (
-                [
                     Instr("LOAD_FAST_BORROW", "a", lineno=2)
                     if PY314
                     else Instr("LOAD_FAST", "a", lineno=2),
@@ -385,6 +330,7 @@ class BytecodeTests(TestCase):
                 ]
                 if PY313
                 else [
+                    Instr("RESUME", 0, lineno=1),
                     Instr("LOAD_FAST", "a", lineno=2),
                     Instr("FORMAT_VALUE", 2, lineno=2),
                     Instr("RETURN_VALUE", lineno=2),
@@ -451,14 +397,14 @@ class BytecodeTests(TestCase):
             [
                 Instr("LOAD_NAME", "print"),
                 Instr("LOAD_CONST", "%s"),
-                Instr("LOAD_GLOBAL", (False, "a") if PY311 else "a"),
-                Instr("BINARY_OP", BinaryOp.ADD) if PY311 else Instr("BINARY_ADD"),
+                Instr("LOAD_GLOBAL", (False, "a")),
+                Instr("BINARY_OP", BinaryOp.ADD),
             ]
             # For 3.12+ we need a NULL before a CALL to a free function
             + ([Instr("PUSH_NULL")] if PY312 else [])
             + [
                 # On 3.11 we should have a pre-call
-                Instr("CALL" if PY311 else "CALL_FUNCTION", 1),
+                Instr("CALL", 1),
                 Instr("RETURN_VALUE"),
             ]
         )
@@ -478,7 +424,7 @@ class BytecodeTests(TestCase):
         )
         for opname in opnames:
             # Replaced by an intrinsic in 3.12
-            if sys.version_info >= (3, 12) and opname == "UNARY_POSITIVE":
+            if PY312 and opname == "UNARY_POSITIVE":
                 continue
             with self.subTest(opname):
                 code = Bytecode()
@@ -496,7 +442,7 @@ class BytecodeTests(TestCase):
         )
         for opname in opnames:
             # Replaced by an intrinsic in 3.12
-            if sys.version_info >= (3, 12) and opname == "UNARY_POSITIVE":
+            if PY312 and opname == "UNARY_POSITIVE":
                 continue
             with self.subTest(opname):
                 code = Bytecode()
@@ -523,10 +469,7 @@ class BytecodeTests(TestCase):
             "XOR",
             "OR",
         )
-        if PY311:
-            operations += ("REMAINDER",)
-        else:
-            operations += ("MODULO",)
+        operations += ("REMAINDER",)
 
         for opname in operations:
             ops = (opname,)
@@ -536,15 +479,10 @@ class BytecodeTests(TestCase):
                 with self.subTest(op):
                     code = Bytecode()
                     code.first_lineno = 1
-                    if PY311:
-                        if op == "SUBSCR" and not PY314:
-                            i = Instr("BINARY_SUBSCR")
-                        else:
-                            i = Instr("BINARY_OP", getattr(BinaryOp, op))
+                    if op == "SUBSCR" and not PY314:
+                        i = Instr("BINARY_SUBSCR")
                     else:
-                        if "INPLACE" not in op:
-                            op = "BINARY_" + op
-                        i = Instr(op)
+                        i = Instr("BINARY_OP", getattr(BinaryOp, op))
 
                     code.extend([Instr("LOAD_CONST", 1), i])
                     with self.assertRaises(RuntimeError):
@@ -565,11 +503,8 @@ class BytecodeTests(TestCase):
             "AND",
             "XOR",
             "OR",
+            "REMAINDER",
         )
-        if sys.version_info >= (3, 11):
-            operations += ("REMAINDER",)
-        else:
-            operations += ("MODULO",)
 
         for opname in operations:
             ops = (opname,)
@@ -579,15 +514,10 @@ class BytecodeTests(TestCase):
                 with self.subTest(op):
                     code = Bytecode()
                     code.first_lineno = 1
-                    if PY311:
-                        if op == "SUBSCR" and not PY314:
-                            i = Instr("BINARY_SUBSCR")
-                        else:
-                            i = Instr("BINARY_OP", getattr(BinaryOp, op))
+                    if op == "SUBSCR" and not PY314:
+                        i = Instr("BINARY_SUBSCR")
                     else:
-                        if "INPLACE" not in op:
-                            op = "BINARY_" + op
-                        i = Instr(op)
+                        i = Instr("BINARY_OP", getattr(BinaryOp, op))
 
                     code.extend([Instr("LOAD_CONST", 1), i])
                     co = code.to_code(check_pre_and_post=False)
@@ -596,9 +526,7 @@ class BytecodeTests(TestCase):
     def test_negative_size_call(self):
         code = Bytecode()
         code.first_lineno = 1
-        code.extend(
-            [Instr("CALL" if sys.version_info >= (3, 11) else "CALL_FUNCTION", 0)]
-        )
+        code.extend([Instr("CALL", 0)])
         with self.assertRaises(RuntimeError):
             code.compute_stacksize()
 
@@ -659,51 +587,7 @@ class BytecodeTests(TestCase):
         co = code.to_code(check_pre_and_post=False)
         self.assertEqual(co.co_stacksize, 1)
 
-    def test_empty_dup(self):
-        if sys.version_info >= (3, 11):
-            self.skipTest("Instructions DUP_TOP do not exist in 3.11+")
-        code = Bytecode()
-        code.first_lineno = 1
-        code.extend([Instr("DUP_TOP")])
-        with self.assertRaises(RuntimeError):
-            code.compute_stacksize()
-
-    def test_not_enough_dup(self):
-        if sys.version_info >= (3, 11):
-            self.skipTest("Instructions DUP_TOP_TWO do not exist in 3.11+")
-        code = Bytecode()
-        code.first_lineno = 1
-        code.extend([Instr("LOAD_CONST", 1), Instr("DUP_TOP_TWO")])
-        with self.assertRaises(RuntimeError):
-            code.compute_stacksize()
-
-    def test_not_enough_rot(self):
-        if sys.version_info >= (3, 11):
-            self.skipTest("Instructions ROT_* do not exist in 3.11+")
-        opnames = ["ROT_TWO", "ROT_THREE", "ROT_FOUR"]
-        for opname in opnames:
-            with self.subTest(opname):
-                code = Bytecode()
-                code.first_lineno = 1
-                code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
-                with self.assertRaises(RuntimeError):
-                    code.compute_stacksize()
-
-    def test_not_enough_rot_with_disable_check_of_pre_and_post(self):
-        if sys.version_info >= (3, 11):
-            self.skipTest("Instructions ROT_* do not exist in 3.11+")
-        opnames = ["ROT_TWO", "ROT_THREE", "ROT_FOUR"]
-        for opname in opnames:
-            with self.subTest(opname):
-                code = Bytecode()
-                code.first_lineno = 1
-                code.extend([Instr("LOAD_CONST", 1), Instr(opname)])
-                co = code.to_code(check_pre_and_post=False)
-                self.assertEqual(co.co_stacksize, 1)
-
     def test_not_enough_copy(self):
-        if sys.version_info < (3, 11):
-            self.skipTest("Instruction COPY does not exist before 3.11")
         code = Bytecode()
         code.first_lineno = 1
         code.extend([Instr("LOAD_CONST", 1), Instr("COPY", 2)])
@@ -711,8 +595,6 @@ class BytecodeTests(TestCase):
             code.compute_stacksize()
 
     def test_not_enough_copy_with_disable_check_of_pre_and_post(self):
-        if sys.version_info < (3, 11):
-            self.skipTest("Instruction COPY does not exist before 3.11")
         code = Bytecode()
         code.first_lineno = 1
         code.extend([Instr("LOAD_CONST", 1), Instr("COPY", 2)])
@@ -720,8 +602,6 @@ class BytecodeTests(TestCase):
         self.assertEqual(co.co_stacksize, 2)
 
     def test_not_enough_swap(self):
-        if sys.version_info < (3, 11):
-            self.skipTest("Instruction SWAP does not exist before 3.11")
         code = Bytecode()
         code.first_lineno = 1
         code.extend([Instr("LOAD_CONST", 1), Instr("SWAP", 2)])
@@ -729,8 +609,6 @@ class BytecodeTests(TestCase):
             code.compute_stacksize()
 
     def test_not_enough_swap_with_disable_check_of_pre_and_post(self):
-        if sys.version_info < (3, 11):
-            self.skipTest("Instruction SWAP does not exist before 3.11")
         code = Bytecode()
         code.first_lineno = 1
         code.extend([Instr("LOAD_CONST", 1), Instr("SWAP", 2)])
@@ -747,10 +625,7 @@ class BytecodeTests(TestCase):
                 lab1,
                 Instr("FOR_ITER", lab2),
                 Instr("STORE_FAST", "i"),
-                Instr(
-                    "JUMP_BACKWARD" if sys.version_info >= (3, 11) else "JUMP_ABSOLUTE",
-                    lab1,
-                ),
+                Instr("JUMP_BACKWARD", lab1),
                 lab2,
             ]
         )
@@ -780,9 +655,7 @@ class BytecodeTests(TestCase):
                 )
                 self.assertCodeObjectEqual(origin, as_code)
                 if inspect.iscoroutinefunction(f):
-                    # contextlib.nullcontext support async context only in 3.10+
-                    if PY310:
-                        asyncio.run(f())
+                    asyncio.run(f())
                 else:
                     f()
 
@@ -813,9 +686,6 @@ class BytecodeTests(TestCase):
                     pass
 
     def test_empty_try_block(self):
-        if not PY311:
-            self.skipTest("Exception tables were introduced in 3.11")
-
         import bytecode as b
 
         def foo():
@@ -850,9 +720,6 @@ class BytecodeTests(TestCase):
         for the branching instruction. We then test that we can compile and
         de-compile the code object without issues.
         """
-        if sys.version_info < (3, 11):
-            self.skipTest("Exception tables were introduced in 3.11")
-
         import bytecode as b
 
         def foo():
