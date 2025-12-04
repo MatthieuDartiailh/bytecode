@@ -7,8 +7,7 @@ import unittest
 
 import bytecode
 from bytecode import BasicBlock, Bytecode, ControlFlowGraph, Instr, Label
-from bytecode.concrete import OFFSET_AS_INSTRUCTION
-from bytecode.utils import PY311, PY312, PY313, PY314
+from bytecode.utils import PY312, PY313, PY314
 
 from . import disassemble
 
@@ -84,7 +83,7 @@ label_instr12:
     RETURN_CONST 3
 
     """
-        elif PY311:
+        else:
             expected = f"""
     RESUME 0
     LOAD_FAST 'test'
@@ -107,28 +106,6 @@ label_instr14:
     RETURN_VALUE
 
     """
-        else:
-            expected = f"""
-    LOAD_FAST 'test'
-    LOAD_CONST 1
-    COMPARE_OP {enum_repr}
-    POP_JUMP_IF_FALSE <label_instr6>
-    LOAD_CONST 1
-    RETURN_VALUE
-
-label_instr6:
-    LOAD_FAST 'test'
-    LOAD_CONST 2
-    COMPARE_OP {enum_repr}
-    POP_JUMP_IF_FALSE <label_instr13>
-    LOAD_CONST 2
-    RETURN_VALUE
-
-label_instr13:
-    LOAD_CONST 3
-    RETURN_VALUE
-
-        """
         self.check_dump_bytecode(code, expected[1:].rstrip(" "))
 
         # with line numbers
@@ -177,7 +154,7 @@ label_instr12:
     L.  6  13: RETURN_CONST 3
 
     """
-        elif PY311:
+        else:
             expected = f"""
     L.  1   0: RESUME 0
     L.  2   1: LOAD_FAST 'test'
@@ -200,28 +177,6 @@ label_instr14:
            16: RETURN_VALUE
 
     """
-        else:
-            expected = f"""
-    L.  2   0: LOAD_FAST 'test'
-            1: LOAD_CONST 1
-            2: COMPARE_OP {enum_repr}
-            3: POP_JUMP_IF_FALSE <label_instr6>
-    L.  3   4: LOAD_CONST 1
-            5: RETURN_VALUE
-
-label_instr6:
-    L.  4   7: LOAD_FAST 'test'
-            8: LOAD_CONST 2
-            9: COMPARE_OP {enum_repr}
-           10: POP_JUMP_IF_FALSE <label_instr13>
-    L.  5  11: LOAD_CONST 2
-           12: RETURN_VALUE
-
-label_instr13:
-    L.  6  14: LOAD_CONST 3
-           15: RETURN_VALUE
-
-        """
         self.check_dump_bytecode(code, expected[1:].rstrip(" "), lineno=True)
 
     def test_bytecode_broken_label(self):
@@ -322,7 +277,7 @@ label_instr13:
 
             """
             )
-        elif PY311:
+        else:
             expected = textwrap.dedent(
                 f"""
             block1:
@@ -351,37 +306,6 @@ label_instr13:
             block5:
                 LOAD_CONST 3
                 RETURN_VALUE
-
-            """
-            )
-        else:
-            expected = textwrap.dedent(
-                f"""
-                block1:
-                    LOAD_FAST 'test'
-                    LOAD_CONST 1
-                    COMPARE_OP {enum_repr}
-                    POP_JUMP_IF_FALSE <block3>
-                    -> block2
-
-                block2:
-                    LOAD_CONST 1
-                    RETURN_VALUE
-
-                block3:
-                    LOAD_FAST 'test'
-                    LOAD_CONST 2
-                    COMPARE_OP {enum_repr}
-                    POP_JUMP_IF_FALSE <block5>
-                    -> block4
-
-                block4:
-                    LOAD_CONST 2
-                    RETURN_VALUE
-
-                block5:
-                    LOAD_CONST 3
-                    RETURN_VALUE
 
             """
             )
@@ -451,7 +375,7 @@ label_instr13:
 
             """
             )
-        elif PY311:
+        else:
             expected = textwrap.dedent(
                 f"""
             block1:
@@ -480,37 +404,6 @@ label_instr13:
             block5:
                 L.  6   0: LOAD_CONST 3
                         1: RETURN_VALUE
-
-            """
-            )
-        else:
-            expected = textwrap.dedent(
-                f"""
-                block1:
-                    L.  2   0: LOAD_FAST 'test'
-                            1: LOAD_CONST 1
-                            2: COMPARE_OP {enum_repr}
-                            3: POP_JUMP_IF_FALSE <block3>
-                    -> block2
-
-                block2:
-                    L.  3   0: LOAD_CONST 1
-                            1: RETURN_VALUE
-
-                block3:
-                    L.  4   0: LOAD_FAST 'test'
-                            1: LOAD_CONST 2
-                            2: COMPARE_OP {enum_repr}
-                            3: POP_JUMP_IF_FALSE <block5>
-                    -> block4
-
-                block4:
-                    L.  5   0: LOAD_CONST 2
-                            1: RETURN_VALUE
-
-                block5:
-                    L.  6   0: LOAD_CONST 3
-                            1: RETURN_VALUE
 
             """
             )
@@ -593,7 +486,7 @@ label_instr13:
  24    RETURN_CONST 2
  26    RETURN_CONST 3
 """
-        elif PY311:
+        else:
             expected = """
   0    RESUME 0
   2    LOAD_FAST 0
@@ -614,23 +507,6 @@ label_instr13:
  32    RETURN_VALUE
  34    LOAD_CONST 3
  36    RETURN_VALUE
-"""
-        else:
-            expected = f"""
-  0    LOAD_FAST 0
-  2    LOAD_CONST 1
-  4    COMPARE_OP 2
-  6    POP_JUMP_IF_FALSE {6 if OFFSET_AS_INSTRUCTION else 12}
-  8    LOAD_CONST 1
- 10    RETURN_VALUE
- 12    LOAD_FAST 0
- 14    LOAD_CONST 2
- 16    COMPARE_OP 2
- 18    POP_JUMP_IF_FALSE {12 if OFFSET_AS_INSTRUCTION else 24}
- 20    LOAD_CONST 2
- 22    RETURN_VALUE
- 24    LOAD_CONST 3
- 26    RETURN_VALUE
 """
         self.check_dump_bytecode(code, expected.lstrip("\n"))
 
@@ -695,7 +571,7 @@ L.  4  14: LOAD_FAST 0
 L.  5  24: RETURN_CONST 2
 L.  6  26: RETURN_CONST 3
 """
-        elif PY311:
+        else:
             expected = """
 L.  1   0: RESUME 0
 L.  2   2: LOAD_FAST 0
@@ -716,23 +592,6 @@ L.  5  30: LOAD_CONST 2
        32: RETURN_VALUE
 L.  6  34: LOAD_CONST 3
        36: RETURN_VALUE
-"""
-        else:
-            expected = f"""
-L.  2   0: LOAD_FAST 0
-        2: LOAD_CONST 1
-        4: COMPARE_OP 2
-        6: POP_JUMP_IF_FALSE {6 if OFFSET_AS_INSTRUCTION else 12}
-L.  3   8: LOAD_CONST 1
-       10: RETURN_VALUE
-L.  4  12: LOAD_FAST 0
-       14: LOAD_CONST 2
-       16: COMPARE_OP 2
-       18: POP_JUMP_IF_FALSE {12 if OFFSET_AS_INSTRUCTION else 24}
-L.  5  20: LOAD_CONST 2
-       22: RETURN_VALUE
-L.  6  24: LOAD_CONST 3
-       26: RETURN_VALUE
 """
         self.check_dump_bytecode(code, expected.lstrip("\n"), lineno=True)
 
