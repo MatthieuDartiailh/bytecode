@@ -330,6 +330,7 @@ class BytecodeTests(TestCase):
                 ]
                 if PY313
                 else [
+                    Instr("RESUME", 0, lineno=1),
                     Instr("LOAD_FAST", "a", lineno=2),
                     Instr("FORMAT_VALUE", 2, lineno=2),
                     Instr("RETURN_VALUE", lineno=2),
