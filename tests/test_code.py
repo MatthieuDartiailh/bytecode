@@ -84,6 +84,19 @@ class CodeTests(TestCase):
             function=True,
         )
 
+    def test_async_gen(self):
+        self.check(
+            """
+        async def async_stream():
+            yield 42
+
+        async def func():
+            async for _ in async_stream():
+                pass
+        """,
+            function=True,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover
