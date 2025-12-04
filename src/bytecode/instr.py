@@ -69,11 +69,6 @@ FORMAT_VALUE_OPS: Final[set[int]] = (
     else ({_opcode.opmap["CONVERT_VALUE"]} if PY313 else set())
 )
 
-HASJABS = set() if PY313 else set(_opcode.hasjabs)
-if sys.version_info >= (3, 13):
-    HASJREL = set(_opcode.hasjump)
-else:
-    HASJREL = set(_opcode.hasjrel)
 
 HAS_ABSOLUTE_JUMP: Final[set[int]] = set() if PY313 else set(_opcode.hasjabs)
 
@@ -481,7 +476,7 @@ STATIC_STACK_EFFECTS: Final[dict[int, tuple[int, int]]] = {
 
 
 DYNAMIC_STACK_EFFECTS: Final[
-    dict[str, Callable[[int, Any, Optional[bool]], tuple[int, int]]]
+    dict[int, Callable[[int, Any, Optional[bool]], tuple[int, int]]]
 ] = {
     _opcode.opmap[k]: v
     for k, v in {
