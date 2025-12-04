@@ -5,7 +5,7 @@ from typing import Optional
 # alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 
-from .instr import DUAL_ARG_OPCODES, CellVar, FreeVar
+from .instr import DUAL_ARG_OPCODES, RESUME_OPCODE, CellVar, FreeVar
 from .utils import PY312, PY313, PY314
 
 
@@ -130,7 +130,7 @@ def infer_flags(
                 ),
             ):
                 pass
-            assert ni.name == "RESUME"
+            assert ni._opcode == RESUME_OPCODE
             if (ni.arg & 3) != 3:
                 known_generator = True
             else:

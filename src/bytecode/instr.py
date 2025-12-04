@@ -69,11 +69,49 @@ FORMAT_VALUE_OPS: Final[set[int]] = (
     else ({_opcode.opmap["CONVERT_VALUE"]} if PY313 else set())
 )
 
-HASJABS = set() if PY313 else set(_opcode.hasjabs)
-if sys.version_info >= (3, 13):
-    HASJREL = set(_opcode.hasjump)
-else:
-    HASJREL = set(_opcode.hasjrel)
+
+HAS_ABSOLUTE_JUMP: Final[set[int]] = set() if PY313 else set(_opcode.hasjabs)
+
+_relative_jumps = set(_opcode.hasjump) if PY313 else set(_opcode.hasjrel)  # type: ignore
+HAS_FORWARD_RELATIVE_JUMP: Final[set[int]] = {
+    op
+    for op in _relative_jumps
+    if "BACKWARD" not in _opcode.opname[op]
+    and "END_ASYNC_FOR" not in _opcode.opname[op]
+}
+HAS_BACKWARD_RELATIVE_JUMP: Final[set[int]] = {
+    op
+    for op in _relative_jumps
+    if "BACKWARD" in _opcode.opname[op] or "END_ASYNC_FOR" in _opcode.opname[op]
+}
+
+HAS_JUMP: Final[set[int]] = HAS_ABSOLUTE_JUMP | _relative_jumps
+
+# Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
+HAS_CONDITIONAL_JUMP: Final[set[int]] = {
+    op
+    for op in HAS_JUMP
+    if "IF_" in _opcode.opname[op]
+    or "END_ASYNC_FOR" in _opcode.opname[op]
+    or "FOR_ITER" in _opcode.opname[op]
+    or "SEND" in _opcode.opname[op]
+}
+
+HAS_UNCONDITIONAL_JUMP: Final[set[int]] = {
+    op for op in HAS_JUMP if op not in HAS_CONDITIONAL_JUMP
+}
+
+IS_INSTR_FINAL: Final[set[int]] = HAS_UNCONDITIONAL_JUMP | {
+    _opcode.opmap.get(n, -1)
+    for n in (
+        "RETURN_VALUE",
+        "RETURN_CONST",
+        "RAISE_VARARGS",
+        "RERAISE",
+        "BREAK_LOOP",
+        "CONTINUE_LOOP",
+    )
+}
 
 #: Opcodes taking 2 arguments (highest 4 bits and lowest 4 bits)
 DUAL_ARG_OPCODES: Final[set[int]] = (
@@ -97,6 +135,11 @@ DUAL_ARG_OPCODES_SINGLE_OPS: Final[dict[int, tuple[str, str]]] = (
     if PY313
     else {}
 )
+
+EXTENDEDARG_OPCODE: Final[int] = _opcode.opmap["EXTENDED_ARG"]
+NOP_OPCODE: Final[int] = _opcode.opmap.get("NOP", -1)
+CACHE_OPCODE: Final[int] = _opcode.opmap.get("CACHE", -1)
+RESUME_OPCODE: Final[int] = _opcode.opmap.get("RESUME", -1)
 
 
 # Used for COMPARE_OP opcode argument
@@ -365,114 +408,122 @@ else:
 # and what is pushed back on the stack after the execution is complete.
 
 # Stack effects that do not depend on the argument of the instruction
-STATIC_STACK_EFFECTS: dict[str, tuple[int, int]] = {
-    "ROT_TWO": (-2, 2),
-    "ROT_THREE": (-3, 3),
-    "ROT_FOUR": (-4, 4),
-    "DUP_TOP": (-1, 2),
-    "DUP_TOP_TWO": (-2, 4),
-    "GET_LEN": (-1, 2),
-    "GET_ITER": (-1, 1),
-    "GET_YIELD_FROM_ITER": (-1, 1),
-    "GET_AWAITABLE": (-1, 1),
-    "GET_AITER": (-1, 1),
-    "GET_ANEXT": (-1, 2),
-    "LIST_TO_TUPLE": (-1, 1),
-    "LIST_EXTEND": (-2, 1),
-    "SET_UPDATE": (-2, 1),
-    "DICT_UPDATE": (-2, 1),
-    "DICT_MERGE": (-2, 1),
-    "COMPARE_OP": (-2, 1),
-    "IS_OP": (-2, 1),
-    "CONTAINS_OP": (-2, 1),
-    "IMPORT_NAME": (-2, 1),
-    "ASYNC_GEN_WRAP": (-1, 1),
-    "PUSH_EXC_INFO": (-1, 2),
-    # Pop TOS and push TOS.__aexit__ and result of TOS.__aenter__()
-    "BEFORE_ASYNC_WITH": (-1, 2),
-    # Replace TOS based on TOS and TOS1
-    "IMPORT_FROM": (-1, 2),
-    "COPY_DICT_WITHOUT_KEYS": (-2, 2),
-    # Call a function at position 7 (4 3.11+) on the stack and push the return value
-    "WITH_EXCEPT_START": (-4, 5),
-    # Starting with Python 3.11 MATCH_CLASS does not push a boolean anymore
-    "MATCH_CLASS": (-3, 1),
-    "MATCH_MAPPING": (-1, 2),
-    "MATCH_SEQUENCE": (-1, 2),
-    "MATCH_KEYS": (-2, 3),
-    "CHECK_EXC_MATCH": (-2, 2),  # (TOS1, TOS) -> (TOS1, bool)
-    "CHECK_EG_MATCH": (-2, 2),  # (TOS, TOS1) -> non-matched, matched or TOS1, None)
-    "PREP_RERAISE_STAR": (-2, 1),  # (TOS1, TOS) -> new exception group)
-    **dict.fromkeys((o for o in _opcode.opmap if o.startswith("UNARY_")), (-1, 1)),
-    **dict.fromkeys(
-        (
-            o
-            for o in _opcode.opmap
-            if o.startswith("BINARY_") or o.startswith("INPLACE_")
+STATIC_STACK_EFFECTS: Final[dict[int, tuple[int, int]]] = {
+    _opcode.opmap[k]: v
+    for k, v in {
+        "ROT_TWO": (-2, 2),
+        "ROT_THREE": (-3, 3),
+        "ROT_FOUR": (-4, 4),
+        "DUP_TOP": (-1, 2),
+        "DUP_TOP_TWO": (-2, 4),
+        "GET_LEN": (-1, 2),
+        "GET_ITER": (-1, 1),
+        "GET_YIELD_FROM_ITER": (-1, 1),
+        "GET_AWAITABLE": (-1, 1),
+        "GET_AITER": (-1, 1),
+        "GET_ANEXT": (-1, 2),
+        "LIST_TO_TUPLE": (-1, 1),
+        "LIST_EXTEND": (-2, 1),
+        "SET_UPDATE": (-2, 1),
+        "DICT_UPDATE": (-2, 1),
+        "DICT_MERGE": (-2, 1),
+        "COMPARE_OP": (-2, 1),
+        "IS_OP": (-2, 1),
+        "CONTAINS_OP": (-2, 1),
+        "IMPORT_NAME": (-2, 1),
+        "ASYNC_GEN_WRAP": (-1, 1),
+        "PUSH_EXC_INFO": (-1, 2),
+        # Pop TOS and push TOS.__aexit__ and result of TOS.__aenter__()
+        "BEFORE_ASYNC_WITH": (-1, 2),
+        # Replace TOS based on TOS and TOS1
+        "IMPORT_FROM": (-1, 2),
+        "COPY_DICT_WITHOUT_KEYS": (-2, 2),
+        # Call a function at position 7 (4 3.11+) on the stack and push the return value
+        "WITH_EXCEPT_START": (-4, 5),
+        # Starting with Python 3.11 MATCH_CLASS does not push a boolean anymore
+        "MATCH_CLASS": (-3, 1),
+        "MATCH_MAPPING": (-1, 2),
+        "MATCH_SEQUENCE": (-1, 2),
+        "MATCH_KEYS": (-2, 3),
+        "CHECK_EXC_MATCH": (-2, 2),  # (TOS1, TOS) -> (TOS1, bool)
+        "CHECK_EG_MATCH": (-2, 2),  # (TOS, TOS1) -> non-matched, matched or TOS1, None)
+        "PREP_RERAISE_STAR": (-2, 1),  # (TOS1, TOS) -> new exception group)
+        **dict.fromkeys((o for o in _opcode.opmap if o.startswith("UNARY_")), (-1, 1)),
+        **dict.fromkeys(
+            (
+                o
+                for o in _opcode.opmap
+                if o.startswith("BINARY_") or o.startswith("INPLACE_")
+            ),
+            (-2, 1),
         ),
-        (-2, 1),
-    ),
-    # Python 3.12 changes not covered by dis.stack_effect
-    "BINARY_SLICE": (-3, 1),
-    # "STORE_SLICE" handled by dis.stack_effect
-    "LOAD_FROM_DICT_OR_GLOBALS": (-1, 1),
-    "LOAD_FROM_DICT_OR_DEREF": (-1, 1),
-    "LOAD_INTRISIC_1": (-1, 1),
-    "LOAD_INTRISIC_2": (-2, 1),
-    "SET_FUNCTION_ATTRIBUTE": (-2, 1),  # new in 3.13
-    "CONVERT_VALUE": (-1, 1),  # new in 3.13
-    "FORMAT_SIMPLE": (-1, 1),  # new in 3.13
-    "FORMAT_SPEC": (-2, 1),  # new in 3.13
-    "TO_BOOL": (-1, 1),  # new in 3.13
-    "BUILD_TEMPLATE": (-2, 1),  # new in 3.14
+        # Python 3.12 changes not covered by dis.stack_effect
+        "BINARY_SLICE": (-3, 1),
+        # "STORE_SLICE" handled by dis.stack_effect
+        "LOAD_FROM_DICT_OR_GLOBALS": (-1, 1),
+        "LOAD_FROM_DICT_OR_DEREF": (-1, 1),
+        "LOAD_INTRISIC_1": (-1, 1),
+        "LOAD_INTRISIC_2": (-2, 1),
+        "SET_FUNCTION_ATTRIBUTE": (-2, 1),  # new in 3.13
+        "CONVERT_VALUE": (-1, 1),  # new in 3.13
+        "FORMAT_SIMPLE": (-1, 1),  # new in 3.13
+        "FORMAT_SPEC": (-2, 1),  # new in 3.13
+        "TO_BOOL": (-1, 1),  # new in 3.13
+        "BUILD_TEMPLATE": (-2, 1),  # new in 3.14
+    }.items()
+    if k in _opcode.opmap
 }
 
 
-DYNAMIC_STACK_EFFECTS: dict[
-    str, Callable[[int, Any, Optional[bool]], tuple[int, int]]
+DYNAMIC_STACK_EFFECTS: Final[
+    dict[int, Callable[[int, Any, Optional[bool]], tuple[int, int]]]
 ] = {
-    # PRECALL pops all arguments (as per its stack effect) and leaves
-    # the callable and either self or NULL
-    # CALL pops the 2 above items and push the return
-    # (when PRECALL does not exist it pops more as encoded by the effect)
-    "CALL": lambda effect, arg, jump: (
-        -2 - arg if PY312 else -2,
-        1,
-    ),
-    # 3.13 only
-    "CALL_KW": lambda effect, arg, jump: (-3 - arg, 1),
-    # 3.12 changed the behavior of LOAD_ATTR
-    "LOAD_ATTR": lambda effect, arg, jump: (-1, 1 + effect),
-    "LOAD_SUPER_ATTR": lambda effect, arg, jump: (-3, 3 + effect),
-    "SWAP": lambda effect, arg, jump: (-arg, arg),
-    "COPY": lambda effect, arg, jump: (-arg, arg + effect),
-    "ROT_N": lambda effect, arg, jump: (-arg, arg),
-    "SET_ADD": lambda effect, arg, jump: (-arg, arg - 1),
-    "LIST_APPEND": lambda effect, arg, jump: (-arg, arg - 1),
-    "MAP_ADD": lambda effect, arg, jump: (-arg, arg - 2),
-    "FORMAT_VALUE": lambda effect, arg, jump: (effect - 1, 1),
-    # FOR_ITER needs TOS to be an iterator, hence a prerequisite of 1 on the stack
-    "FOR_ITER": lambda effect, arg, jump: (effect, 0) if jump else (-1, 2),
-    "BUILD_INTERPOLATION": lambda effect, arg, jump: (-(2 + (arg & 1)), 1),
-    **{
-        # Instr(UNPACK_* , n) pops 1 and pushes n
-        k: lambda effect, arg, jump: (-1, effect + 1)
-        for k in (
-            "UNPACK_SEQUENCE",
-            "UNPACK_EX",
-        )
-    },
-    **{
-        k: lambda effect, arg, jump: (effect - 1, 1)
-        for k in (
-            "MAKE_FUNCTION",
-            "CALL_FUNCTION",
-            "CALL_FUNCTION_EX",
-            "CALL_FUNCTION_KW",
-            "CALL_METHOD",
-            *(o for o in _opcode.opmap if o.startswith("BUILD_")),
-        )
-    },
+    _opcode.opmap[k]: v
+    for k, v in {
+        # PRECALL pops all arguments (as per its stack effect) and leaves
+        # the callable and either self or NULL
+        # CALL pops the 2 above items and push the return
+        # (when PRECALL does not exist it pops more as encoded by the effect)
+        "CALL": lambda effect, arg, jump: (
+            -2 - arg if PY312 else -2,
+            1,
+        ),
+        # 3.13 only
+        "CALL_KW": lambda effect, arg, jump: (-3 - arg, 1),
+        # 3.12 changed the behavior of LOAD_ATTR
+        "LOAD_ATTR": lambda effect, arg, jump: (-1, 1 + effect),
+        "LOAD_SUPER_ATTR": lambda effect, arg, jump: (-3, 3 + effect),
+        "SWAP": lambda effect, arg, jump: (-arg, arg),
+        "COPY": lambda effect, arg, jump: (-arg, arg + effect),
+        "ROT_N": lambda effect, arg, jump: (-arg, arg),
+        "SET_ADD": lambda effect, arg, jump: (-arg, arg - 1),
+        "LIST_APPEND": lambda effect, arg, jump: (-arg, arg - 1),
+        "MAP_ADD": lambda effect, arg, jump: (-arg, arg - 2),
+        "FORMAT_VALUE": lambda effect, arg, jump: (effect - 1, 1),
+        # FOR_ITER needs TOS to be an iterator, hence a prerequisite of 1 on the stack
+        "FOR_ITER": lambda effect, arg, jump: (effect, 0) if jump else (-1, 2),
+        "BUILD_INTERPOLATION": lambda effect, arg, jump: (-(2 + (arg & 1)), 1),
+        **{
+            # Instr(UNPACK_* , n) pops 1 and pushes n
+            k: lambda effect, arg, jump: (-1, effect + 1)
+            for k in (
+                "UNPACK_SEQUENCE",
+                "UNPACK_EX",
+            )
+        },
+        **{
+            k: lambda effect, arg, jump: (effect - 1, 1)
+            for k in (
+                "MAKE_FUNCTION",
+                "CALL_FUNCTION",
+                "CALL_FUNCTION_EX",
+                "CALL_FUNCTION_KW",
+                "CALL_METHOD",
+                *(o for o in _opcode.opmap if o.startswith("BUILD_")),
+            )
+        },
+    }.items()
+    if k in _opcode.opmap
 }
 
 
@@ -748,11 +799,11 @@ class BaseInstr(Generic[A]):
         # Allow to check that execution will not cause a stack underflow
         _effect = self.stack_effect(jump=jump)
 
-        n = self.name
-        if n in STATIC_STACK_EFFECTS:
-            return STATIC_STACK_EFFECTS[n]
-        elif n in DYNAMIC_STACK_EFFECTS:
-            return DYNAMIC_STACK_EFFECTS[n](_effect, self.arg, jump)
+        op = self._opcode
+        if op in STATIC_STACK_EFFECTS:
+            return STATIC_STACK_EFFECTS[op]
+        elif op in DYNAMIC_STACK_EFFECTS:
+            return DYNAMIC_STACK_EFFECTS[op](_effect, self.arg, jump)
         else:
             # For instruction with no special value we simply consider the effect apply
             # before execution
@@ -766,47 +817,26 @@ class BaseInstr(Generic[A]):
 
     def is_cond_jump(self) -> bool:
         """Is a conditional jump?"""
-        # Ex: POP_JUMP_IF_TRUE, JUMP_IF_FALSE_OR_POP
-        # IN 3.11+ the JUMP and the IF are no necessary adjacent in the name.
-        name = self._name
-        return "JUMP_" in name and "IF_" in name
+        return self._opcode in HAS_CONDITIONAL_JUMP
 
     def is_uncond_jump(self) -> bool:
         """Is an unconditional jump?"""
-        # JUMP_BACKWARD has been introduced in 3.11+
-        # JUMP_ABSOLUTE was removed in 3.11+
-        return self.name in {
-            "JUMP_FORWARD",
-            "JUMP_ABSOLUTE",
-            "JUMP_BACKWARD",
-            "JUMP_BACKWARD_NO_INTERRUPT",
-        }
+        return self._opcode in HAS_UNCONDITIONAL_JUMP
 
     def is_abs_jump(self) -> bool:
         """Is an absolute jump."""
-        return self._opcode in HASJABS
+        return self._opcode in HAS_ABSOLUTE_JUMP
 
     def is_forward_rel_jump(self) -> bool:
         """Is a forward relative jump."""
-        return self._opcode in HASJREL and "BACKWARD" not in self._name
+        return self._opcode in HAS_FORWARD_RELATIVE_JUMP
 
     def is_backward_rel_jump(self) -> bool:
         """Is a backward relative jump."""
-        return self._opcode in HASJREL and "BACKWARD" in self._name
+        return self._opcode in HAS_BACKWARD_RELATIVE_JUMP
 
     def is_final(self) -> bool:
-        if self._name in {
-            "RETURN_VALUE",
-            "RETURN_CONST",
-            "RAISE_VARARGS",
-            "RERAISE",
-            "BREAK_LOOP",
-            "CONTINUE_LOOP",
-        }:
-            return True
-        if self.is_uncond_jump():
-            return True
-        return False
+        return self._opcode in IS_INSTR_FINAL
 
     def __repr__(self) -> str:
         if self._arg is not UNSET:
@@ -851,7 +881,7 @@ class BaseInstr(Generic[A]):
 
     @staticmethod
     def _has_jump(opcode) -> bool:
-        return opcode in _opcode.hasjrel or opcode in _opcode.hasjabs
+        return opcode in HAS_JUMP
 
     @abstractmethod
     def _check_arg(self, name: str, opcode: int, arg: A) -> None:
@@ -893,7 +923,7 @@ class Instr(BaseInstr[InstrArg]):
         return (self._location, self._name, arg)
 
     def _check_arg(self, name: str, opcode: int, arg: InstrArg) -> None:  # noqa: C901
-        if name == "EXTENDED_ARG":
+        if opcode == EXTENDEDARG_OPCODE:
             raise ValueError(
                 "only concrete instruction can contain EXTENDED_ARG, "
                 "highlevel instruction can represent arbitrary argument without it"

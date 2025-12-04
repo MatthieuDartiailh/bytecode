@@ -29,13 +29,16 @@ from bytecode.instr import (
     BINARY_OPS,
     BITFLAG2_OPCODES,
     BITFLAG_OPCODES,
+    CACHE_OPCODE,
     COMMON_CONSTANT_OPS,
     DUAL_ARG_OPCODES,
     DUAL_ARG_OPCODES_SINGLE_OPS,
+    EXTENDEDARG_OPCODE,
     FORMAT_VALUE_OPS,
     INTRINSIC,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
+    NOP_OPCODE,
     PLACEHOLDER_LABEL,
     SPECIAL_OPS,
     UNSET,
@@ -614,7 +617,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 index += 1
                 continue
 
-            if instr.name == "EXTENDED_ARG":
+            if instr._opcode == EXTENDEDARG_OPCODE:
                 nb_extended_args += 1
                 if extended_arg is not None:
                     extended_arg = (extended_arg << 8) + instr.arg
@@ -625,11 +628,15 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 continue
 
             if extended_arg is not None:
-                arg = UNSET if instr.name == "NOP" else (extended_arg << 8) + instr.arg
+                arg = (
+                    UNSET
+                    if instr._opcode == NOP_OPCODE
+                    else (extended_arg << 8) + instr.arg
+                )
                 extended_arg = None
 
                 instr = ConcreteInstr(
-                    instr.name,
+                    instr._name,
                     arg,
                     location=instr.location,
                     extended_args=nb_extended_args,
@@ -854,7 +861,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             # on Python 3.11+ remove CACHE opcodes if we are requested to do so.
             # We are careful to first advance the offset and check that the CACHE
             # is not a jump target. It should never be the case but we double check.
-            if prune_caches and c_instr._name == "CACHE":
+            if prune_caches and c_instr._opcode == CACHE_OPCODE:
                 if jump_target is not None:
                     msg = "cache instruction cannot have jump target"
                     raise ValueError(msg)
@@ -1043,7 +1050,7 @@ class _ConvertBytecodeToConcrete:
         for instr in itertools.chain(self.bytecode, [None]):
             # Enforce proper use of CACHE opcode on Python 3.11+ by checking we get the
             # number we expect or directly generate the needed ones.
-            if isinstance(instr, Instr) and instr._name == "CACHE":
+            if isinstance(instr, Instr) and instr._opcode == CACHE_OPCODE:
                 if not self.required_caches:
                     raise RuntimeError("Found a CACHE opcode when none was expected.")
                 self.seen_manual_cache = True
