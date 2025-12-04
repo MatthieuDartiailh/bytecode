@@ -72,7 +72,7 @@ FORMAT_VALUE_OPS: Final[set[int]] = (
 
 HAS_ABSOLUTE_JUMP: Final[set[int]] = set() if PY313 else set(_opcode.hasjabs)
 
-_relative_jumps = set(_opcode.hasjump) if PY313 else set(_opcode.hasjrel)
+_relative_jumps = set(_opcode.hasjump) if PY313 else set(_opcode.hasjrel)  # type: ignore
 HAS_FORWARD_RELATIVE_JUMP: Final[set[int]] = {
     op
     for op in _relative_jumps
