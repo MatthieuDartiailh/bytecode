@@ -33,21 +33,15 @@ from bytecode.instr import (
     SpecialMethod,
     opcode_has_argument,
 )
-from bytecode.utils import PY311, PY312, PY313, PY314
+from bytecode.utils import PY312, PY313, PY314
 
 from . import TestCase
 
 # FIXME  tests for location and lineno setter
 
-# Starting with Python 3.11 jump opcode have changed quite a bit. We define here
-# opcode useful to test for both Python < 3.11 and Python >= 3.11
-UNCONDITIONAL_JUMP = "JUMP_FORWARD" if PY311 else "JUMP_ABSOLUTE"
-CONDITIONAL_JUMP = (
-    "POP_JUMP_FORWARD_IF_TRUE"
-    if (3, 12) > sys.version_info >= (3, 11)
-    else "POP_JUMP_IF_TRUE"
-)
-CALL = "CALL" if PY311 else "CALL_FUNCTION"
+UNCONDITIONAL_JUMP = "JUMP_FORWARD"
+CONDITIONAL_JUMP = "POP_JUMP_IF_TRUE" if PY312 else "POP_JUMP_FORWARD_IF_TRUE"
+CALL = "CALL"
 
 
 class SetLinenoTests(TestCase):
@@ -126,7 +120,7 @@ class InstrTests(TestCase):
         with self.assertRaises(TypeError):
             Instr("NOP", lineno="x")
         with self.assertRaises(ValueError):
-            Instr("NOP", lineno=-1 if sys.version_info >= (3, 11) else 0)
+            Instr("NOP", lineno=-1)
 
         # invalid name
         with self.assertRaises(TypeError):
@@ -292,13 +286,7 @@ class InstrTests(TestCase):
         self.assertEqual(instr.lineno, 5)
 
         # invalid values/types
-        self.assertRaises(
-            ValueError,
-            setattr,
-            instr,
-            "lineno",
-            -1 if sys.version_info >= (3, 11) else 0,
-        )
+        self.assertRaises(ValueError, setattr, instr, "lineno", -1)
         self.assertRaises(TypeError, setattr, instr, "lineno", 1.0)
         self.assertRaises(TypeError, setattr, instr, "name", 5)
         self.assertRaises(TypeError, setattr, instr, "opcode", 1.0)
@@ -444,7 +432,7 @@ class InstrTests(TestCase):
                 self.assertEqual(jump, no_jump)
 
         for name, op in opcode.opmap.items():
-            if sys.version_info >= (3, 12) and op >= opcode.MIN_INSTRUMENTED_OPCODE:
+            if PY312 and op >= opcode.MIN_INSTRUMENTED_OPCODE:
                 continue
             print(name)
             with self.subTest(name):
@@ -522,15 +510,17 @@ class CompareTests(TestCase):
         def f():
             pass
 
-        params = zip(iter(Compare), (True, True, False, True, False, False))
+        params = zip(
+            iter(Compare), (True, True, False, True, False, False), strict=False
+        )
         for cmp, expected in params:
             for cast in (False, True) if PY313 else (False,):
                 with self.subTest(cmp):
                     operation = Compare(cmp + (16 if cast else 0))
                     print(f"Subtest: {operation.name}")
                     bcode = Bytecode(
-                        ([Instr("RESUME", 0)] if sys.version_info >= (3, 11) else [])
-                        + [
+                        [
+                            Instr("RESUME", 0),
                             Instr("LOAD_CONST", 24),
                             Instr("LOAD_CONST", 42),
                             Instr("COMPARE_OP", operation),

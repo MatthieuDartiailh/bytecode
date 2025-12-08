@@ -20,8 +20,8 @@ from bytecode import (
     Label,
     SetLineno,
 )
-from bytecode.concrete import OFFSET_AS_INSTRUCTION, ExceptionTableEntry
-from bytecode.utils import PY310, PY311, PY312, PY313, PY314
+from bytecode.concrete import ExceptionTableEntry
+from bytecode.utils import PY312, PY313, PY314
 
 from . import TestCase, get_code
 
@@ -134,7 +134,7 @@ class ConcreteInstrTests(TestCase):
         instr = ConcreteInstr.disassemble(1, code, 0)
         self.assertEqual(instr, ConcreteInstr("NOP", lineno=1))
 
-        instr = ConcreteInstr.disassemble(2, code, 1 if OFFSET_AS_INSTRUCTION else 2)
+        instr = ConcreteInstr.disassemble(2, code, 1)
         self.assertEqual(instr, ConcreteInstr("LOAD_CONST", 3, lineno=2))
 
         code = bytes(
@@ -184,14 +184,8 @@ class ConcreteInstrTests(TestCase):
         )
 
     def test_get_jump_target(self):
-        if sys.version_info < (3, 11):
-            jump_abs = ConcreteInstr("JUMP_ABSOLUTE", 3)
-            self.assertEqual(jump_abs.get_jump_target(100), 3)
-
         jump_forward = ConcreteInstr("JUMP_FORWARD", 5)
-        self.assertEqual(
-            jump_forward.get_jump_target(10), 16 if OFFSET_AS_INSTRUCTION else 17
-        )
+        self.assertEqual(jump_forward.get_jump_target(10), 16)
 
 
 class ConcreteBytecodeTests(TestCase):
@@ -256,7 +250,7 @@ class ConcreteBytecodeTests(TestCase):
         self.assertEqual(code.freevars, [])
         self.assertInstructionListEqual(
             list(code),
-            ([ConcreteInstr("RESUME", 0, lineno=0)] if PY311 else [])
+            ([ConcreteInstr("RESUME", 0, lineno=0)])
             + [
                 ConcreteInstr("LOAD_CONST", 0, lineno=1),
                 ConcreteInstr("STORE_NAME", 0, lineno=1),
@@ -305,12 +299,9 @@ class ConcreteBytecodeTests(TestCase):
         concrete.varnames = ["x", "y", "z"]
         concrete.first_lineno = fl
         concrete.extend(
-            (
-                [ConcreteInstr("RESUME", 0), SetLineno(1)]
-                if sys.version_info >= (3, 11)
-                else []
-            )
-            + [
+            [
+                ConcreteInstr("RESUME", 0),
+                SetLineno(1),
                 SetLineno(fl + 3),
                 ConcreteInstr(
                     "LOAD_SMALL_INT" if PY314 else "LOAD_CONST", 7 if PY314 else 1
@@ -346,15 +337,10 @@ class ConcreteBytecodeTests(TestCase):
 
         code = concrete.to_code()
         self.assertSequenceEqual(code.co_code, f.__code__.co_code)
-        if sys.version_info >= (3, 11):
-            # Offset cannot be right so only check the lines
-            self.assertSequenceEqual(
-                list(dis.findlinestarts(code)), list(dis.findlinestarts(f.__code__))
-            )
-        else:
-            self.assertEqual(code.co_lnotab, f.__code__.co_lnotab)
-            if PY310:
-                self.assertEqual(code.co_linetable, f.__code__.co_linetable)
+        # Offset cannot be right so only check the lines
+        self.assertSequenceEqual(
+            list(dis.findlinestarts(code)), list(dis.findlinestarts(f.__code__))
+        )
 
     def test_negative_lnotab(self):
         # x = 7
@@ -388,7 +374,7 @@ class ConcreteBytecodeTests(TestCase):
         )
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 5)
-        if sys.version_info >= (3, 12):
+        if PY312:
             self.skipTest("lnotab is deprecated in Python 3.12+")
         self.assertEqual(code.co_lnotab, b"\x04\xfd")
 
@@ -427,20 +413,15 @@ class ConcreteBytecodeTests(TestCase):
         )
         self.assertEqual(code.co_code, expected)
         self.assertEqual(code.co_firstlineno, 1)
-        if sys.version_info >= (3, 11):
-            self.assertSequenceEqual(
-                list(code.co_positions()),
-                [
-                    (1, 1, None, None),
-                    (129, 129, None, None),
-                    (130, 130, None, None),
-                    (1, 1, None, None),
-                ],
-            )
-        else:
-            self.assertEqual(
-                code.co_lnotab, b"\x02\x7f\x00\x01\x02\x01\x02\x80\x00\xff"
-            )
+        self.assertSequenceEqual(
+            list(code.co_positions()),
+            [
+                (1, 1, None, None),
+                (129, 129, None, None),
+                (130, 130, None, None),
+                (1, 1, None, None),
+            ],
+        )
 
     def test_extended_lnotab2(self):
         # x = 7
@@ -448,12 +429,9 @@ class ConcreteBytecodeTests(TestCase):
         # y = 8
         base_code = compile("x = 7" + "\n" * 200 + "y = 8", "", "exec")
         concrete = ConcreteBytecode(
-            (
-                [ConcreteInstr("RESUME", 0, lineno=0), SetLineno(1)]
-                if sys.version_info >= (3, 11)
-                else []
-            )
-            + [
+            [
+                ConcreteInstr("RESUME", 0, lineno=0),
+                SetLineno(1),
                 ConcreteInstr(
                     "LOAD_SMALL_INT" if PY314 else "LOAD_CONST", 7 if PY314 else 0
                 ),
@@ -487,15 +465,10 @@ class ConcreteBytecodeTests(TestCase):
         code = concrete.to_code()
         self.assertSequenceEqual(code.co_code, base_code.co_code)
         self.assertEqual(code.co_firstlineno, base_code.co_firstlineno)
-        if sys.version_info >= (3, 11):
-            # Offset cannot be right so only check the lines
-            self.assertSequenceEqual(
-                list(dis.findlinestarts(code)), list(dis.findlinestarts(base_code))
-            )
-        else:
-            self.assertSequenceEqual(code.co_lnotab, base_code.co_lnotab)
-            if PY310:
-                self.assertSequenceEqual(code.co_linetable, base_code.co_linetable)
+        # Offset cannot be right so only check the lines
+        self.assertSequenceEqual(
+            list(dis.findlinestarts(code)), list(dis.findlinestarts(base_code))
+        )
 
     def test_to_bytecode_consts(self):
         # x = -0.0
@@ -602,12 +575,8 @@ class ConcreteBytecodeTests(TestCase):
         )
 
     def test_load_classderef(self):
-        i_name = (
-            "LOAD_FROM_DICT_OR_DEREF"
-            if sys.version_info >= (3, 12)
-            else "LOAD_CLASSDEREF"
-        )
-        i_arg = 2 if sys.version_info >= (3, 11) else 1
+        i_name = "LOAD_FROM_DICT_OR_DEREF" if PY312 else "LOAD_CLASSDEREF"
+        i_arg = 2
         concrete = ConcreteBytecode()
         concrete.varnames = ["a"]
         concrete.cellvars = ["__class__"]
@@ -760,67 +729,13 @@ class ConcreteBytecodeTests(TestCase):
 
 
 class ConcreteFromCodeTests(TestCase):
-    def test_extended_arg(self):
-        # Create a code object from arbitrary bytecode
-        co_code = b"\x90\x12\x904\x90\xabd\xcd"
-        code = get_code("x=1")
-        if sys.version_info >= (3, 11):
-            self.skipTest("Under Python 3.11 we cannot easily disassemble invalid code")
-        else:
-            args = (
-                code.co_argcount,
-                code.co_posonlyargcount,
-                code.co_kwonlyargcount,
-                code.co_nlocals,
-                code.co_stacksize,
-                code.co_flags,
-                co_code,
-                code.co_consts,
-                code.co_names,
-                code.co_varnames,
-                code.co_filename,
-                code.co_name,
-                code.co_firstlineno,
-                code.co_linetable if PY310 else code.co_lnotab,
-                code.co_freevars,
-                code.co_cellvars,
-            )
-
-        new_code = types.CodeType(*args)
-
-        # without EXTENDED_ARG opcode
-        bytecode = ConcreteBytecode.from_code(new_code)
-        self.assertInstructionListEqual(
-            list(bytecode), [ConcreteInstr("LOAD_CONST", 0x1234ABCD, lineno=1)]
-        )
-
-        # with EXTENDED_ARG opcode
-        bytecode = ConcreteBytecode.from_code(new_code, extended_arg=True)
-        expected = [
-            ConcreteInstr("EXTENDED_ARG", 0x12, lineno=1),
-            ConcreteInstr("EXTENDED_ARG", 0x34, lineno=1),
-            ConcreteInstr("EXTENDED_ARG", 0xAB, lineno=1),
-            ConcreteInstr("LOAD_CONST", 0xCD, lineno=1),
-        ]
-        self.assertInstructionListEqual(list(bytecode), expected)
-
     def test_extended_arg_make_function(self):
-        if (3, 9) <= sys.version_info < (3, 10):
-            from .util_annotation import get_code as get_code_future
-
-            code_obj = get_code_future(
-                """
-                def foo(x: int, y: int):
-                    pass
-                """
-            )
-        else:
-            code_obj = get_code(
-                """
-                def foo(x: int, y: int):
-                    pass
-                """
-            )
+        code_obj = get_code(
+            """
+            def foo(x: int, y: int):
+                pass
+            """
+        )
 
         # without EXTENDED_ARG
         concrete = ConcreteBytecode.from_code(code_obj)
@@ -837,7 +752,7 @@ class ConcreteFromCodeTests(TestCase):
                 ConcreteInstr("MAKE_FUNCTION", lineno=1),
                 ConcreteInstr("LOAD_CONST", 1, lineno=1),
             ]
-        elif PY311:
+        else:
             func_code = concrete.consts[2]
             names = ["int", "foo"]
             consts = ["x", "y", func_code, None]
@@ -849,52 +764,6 @@ class ConcreteFromCodeTests(TestCase):
                 ConcreteInstr("LOAD_CONST", 1, lineno=1),
                 ConcreteInstr("LOAD_NAME", 0, lineno=1),
                 ConcreteInstr("BUILD_TUPLE", 4, lineno=1),
-                ConcreteInstr("LOAD_CONST", 1 + const_offset, lineno=1),
-                ConcreteInstr("LOAD_CONST", 2 + const_offset, lineno=1),
-            ]
-        elif PY310:
-            func_code = concrete.consts[2]
-            names = ["int", "foo"]
-            consts = ["x", "y", func_code, "foo", None]
-            const_offset = 1
-            name_offset = 1
-            first_instrs = [
-                ConcreteInstr("LOAD_CONST", 0, lineno=1),
-                ConcreteInstr("LOAD_NAME", 0, lineno=1),
-                ConcreteInstr("LOAD_CONST", 1, lineno=1),
-                ConcreteInstr("LOAD_NAME", 0, lineno=1),
-                ConcreteInstr("BUILD_TUPLE", 4, lineno=1),
-                ConcreteInstr("LOAD_CONST", 1 + const_offset, lineno=1),
-                ConcreteInstr("LOAD_CONST", 2 + const_offset, lineno=1),
-            ]
-        elif (
-            sys.version_info >= (3, 7)
-            and concrete.flags & CompilerFlags.FUTURE_ANNOTATIONS
-        ):
-            func_code = concrete.consts[2]
-            names = ["foo"]
-            consts = ["int", ("x", "y"), func_code, "foo", None]
-            const_offset = 1
-            name_offset = 0
-            first_instrs = [
-                ConcreteInstr("LOAD_CONST", 0, lineno=1),
-                ConcreteInstr("LOAD_CONST", 0, lineno=1),
-                ConcreteInstr("LOAD_CONST", 0 + const_offset, lineno=1),
-                ConcreteInstr("BUILD_CONST_KEY_MAP", 2, lineno=1),
-                ConcreteInstr("LOAD_CONST", 1 + const_offset, lineno=1),
-                ConcreteInstr("LOAD_CONST", 2 + const_offset, lineno=1),
-            ]
-        else:
-            func_code = concrete.consts[1]
-            names = ["int", "foo"]
-            consts = [("x", "y"), func_code, "foo", None]
-            const_offset = 0
-            name_offset = 1
-            first_instrs = [
-                ConcreteInstr("LOAD_NAME", 0, lineno=1),
-                ConcreteInstr("LOAD_NAME", 0, lineno=1),
-                ConcreteInstr("LOAD_CONST", 0 + const_offset, lineno=1),
-                ConcreteInstr("BUILD_CONST_KEY_MAP", 2, lineno=1),
                 ConcreteInstr("LOAD_CONST", 1 + const_offset, lineno=1),
                 ConcreteInstr("LOAD_CONST", 2 + const_offset, lineno=1),
             ]
@@ -938,24 +807,10 @@ class ConcreteFromCodeTests(TestCase):
             func_code = concrete.consts[1]
             names = ["foo"]
             consts = [ann_code, func_code, None]
-        elif PY311:
+        else:
             func_code = concrete.consts[2]
             names = ["int", "foo"]
             consts = ["x", "y", func_code, None]
-        # With future annotation the int annotation is stringified and
-        # stored as constant this is the default behavior under Python 3.10
-        elif PY310:
-            func_code = concrete.consts[2]
-            names = ["int", "foo"]
-            consts = ["x", "y", func_code, "foo", None]
-        elif concrete.flags & CompilerFlags.FUTURE_ANNOTATIONS:
-            func_code = concrete.consts[2]
-            names = ["foo"]
-            consts = ["int", ("x", "y"), func_code, "foo", None]
-        else:
-            func_code = concrete.consts[1]
-            names = ["int", "foo"]
-            consts = [("x", "y"), func_code, "foo", None]
 
         self.assertEqual(concrete.names, names)
         self.assertEqual(concrete.consts, consts)
@@ -999,11 +854,9 @@ class ConcreteFromCodeTests(TestCase):
             (),
             (),
         ]
-        if sys.version_info >= (3, 8):
-            codetype_list.insert(1, 0)
-        if sys.version_info >= (3, 11):
-            codetype_list.insert(12, "code")
-            codetype_list.insert(14, bytes())
+        codetype_list.insert(1, 0)
+        codetype_list.insert(12, "code")
+        codetype_list.insert(14, bytes())
         codetype_args = tuple(codetype_list)
         code = types.CodeType(*codetype_args)
         # Check it can be encoded and decoded
@@ -1419,8 +1272,7 @@ class ConcreteFromCodeTests(TestCase):
                 self.assertCodeObjectEqual(origin, as_code)
                 f.__code__ = as_code
                 if inspect.iscoroutinefunction(f):
-                    if PY310:
-                        asyncio.run(f())
+                    asyncio.run(f())
                 else:
                     f()
 
@@ -1476,9 +1328,7 @@ class BytecodeToConcreteTests(TestCase):
             [
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
-                    "POP_JUMP_FORWARD_IF_FALSE"
-                    if (3, 12) > sys.version_info >= (3, 11)
-                    else "POP_JUMP_IF_FALSE",
+                    "POP_JUMP_IF_FALSE" if PY312 else "POP_JUMP_FORWARD_IF_FALSE",
                     label,
                 ),
                 Instr("LOAD_CONST", 5, lineno=2),
@@ -1496,16 +1346,14 @@ class BytecodeToConcreteTests(TestCase):
         expected = [
             ConcreteInstr("LOAD_NAME", 0, lineno=1),
             ConcreteInstr(
-                "POP_JUMP_FORWARD_IF_FALSE"
-                if (3, 12) > sys.version_info >= (3, 11)
-                else "POP_JUMP_IF_FALSE",
-                7 if OFFSET_AS_INSTRUCTION else 14,
+                "POP_JUMP_IF_FALSE" if PY312 else "POP_JUMP_FORWARD_IF_FALSE",
+                7,
                 lineno=1,
             ),
             *([ConcreteInstr("CACHE")] if PY313 else []),
             ConcreteInstr("LOAD_CONST", 0, lineno=2),
             ConcreteInstr("STORE_NAME", 1, lineno=2),
-            ConcreteInstr("JUMP_FORWARD", 2 if OFFSET_AS_INSTRUCTION else 4, lineno=2),
+            ConcreteInstr("JUMP_FORWARD", 2, lineno=2),
             ConcreteInstr("LOAD_CONST", 1, lineno=4),
             ConcreteInstr("STORE_NAME", 1, lineno=4),
             ConcreteInstr("LOAD_CONST", 2, lineno=4),
@@ -1618,7 +1466,7 @@ class BytecodeToConcreteTests(TestCase):
 
     def test_extended_jump(self):
         # code using jumps > 0xffff to test extended arg
-        nb_nop = 2**16 if OFFSET_AS_INSTRUCTION else 2**15
+        nb_nop = 2**16
         # The length of the jump is independent of the number of instruction
         # per the above logic.
         jump = 2**16
@@ -1663,9 +1511,7 @@ class BytecodeToConcreteTests(TestCase):
             [
                 Instr("LOAD_NAME", "test", lineno=1),
                 Instr(
-                    "POP_JUMP_FORWARD_IF_FALSE"
-                    if (3, 12) > sys.version_info >= (3, 11)
-                    else "POP_JUMP_IF_FALSE",
+                    "POP_JUMP_IF_FALSE" if PY312 else "POP_JUMP_FORWARD_IF_FALSE",
                     label_else,
                 ),
                 Instr("LOAD_CONST", 12, lineno=2),
@@ -1684,16 +1530,14 @@ class BytecodeToConcreteTests(TestCase):
         expected = [
             ConcreteInstr("LOAD_NAME", 0, lineno=1),
             ConcreteInstr(
-                "POP_JUMP_FORWARD_IF_FALSE"
-                if (3, 12) > sys.version_info >= (3, 11)
-                else "POP_JUMP_IF_FALSE",
-                5 if OFFSET_AS_INSTRUCTION else 10,
+                "POP_JUMP_IF_FALSE" if PY312 else "POP_JUMP_FORWARD_IF_FALSE",
+                5,
                 lineno=1,
             ),
             *([ConcreteInstr("CACHE")] if PY313 else []),
             ConcreteInstr("LOAD_CONST", 0, lineno=2),
             ConcreteInstr("STORE_NAME", 1, lineno=2),
-            ConcreteInstr("JUMP_FORWARD", 2 if OFFSET_AS_INSTRUCTION else 4, lineno=2),
+            ConcreteInstr("JUMP_FORWARD", 2, lineno=2),
             ConcreteInstr("LOAD_CONST", 1, lineno=4),
             ConcreteInstr("STORE_NAME", 1, lineno=4),
             ConcreteInstr("LOAD_CONST", 2, lineno=4),
@@ -1771,13 +1615,13 @@ class BytecodeToConcreteTests(TestCase):
         code.append(Instr("JUMP_FORWARD", label1))
         code.append(Instr("JUMP_FORWARD", label2))
         # range excludes the last point ...
-        for _ in range(4, 511 if OFFSET_AS_INSTRUCTION else 255, 2):
+        for _ in range(4, 511, 2):
             code.append(Instr(nop))
         code.append(label1)
         code.append(Instr(nop))
         for _ in range(
-            514 if OFFSET_AS_INSTRUCTION else 256,
-            600 if OFFSET_AS_INSTRUCTION else 300,
+            514,
+            600,
             2,
         ):
             code.append(Instr(nop))
@@ -1814,8 +1658,7 @@ class BytecodeToConcreteTests(TestCase):
         N = max_unextended_offset // unextended_branch_instr_size
 
         # When using instruction rather than bytes in the offset multiply by 2
-        if OFFSET_AS_INSTRUCTION:
-            N *= 2
+        N *= 2
 
         nop = "UNARY_NEGATIVE"  # don't use NOP, dis.stack_effect will raise
 
@@ -1887,7 +1730,7 @@ class BytecodeToConcreteTests(TestCase):
 
     # FIXME test more cases for line encoding in particular with extended args
 
-    @unittest.skipIf(sys.version_info < (3, 13), "Apply only to 3.13+")
+    @unittest.skipIf(not PY313, "Apply only to 3.13+")
     def test_handling_dual_opcodes(self):
         code = Bytecode()
         code.extend(
