@@ -12,7 +12,7 @@ from bytecode import (
 )
 from bytecode.flags import infer_flags
 from bytecode.instr import UNSET, FreeVar, Instr
-from bytecode.utils import PY311, PY312
+from bytecode.utils import PY312
 
 
 def trivial():
@@ -124,16 +124,13 @@ class FlagsTests(unittest.TestCase):
         code.append(
             ConcreteInstr("YIELD_VALUE", 0) if PY312 else ConcreteInstr("YIELD_VALUE")
         )
-        if PY311:
-            code.append(ConcreteInstr("RESUME", 1))
+        code.append(ConcreteInstr("RESUME", 1))
         code.update_flags()
         self.assertTrue(bool(code.flags & CompilerFlags.GENERATOR))
 
         # Infer coroutine
         code = ConcreteBytecode()
-        code.append(
-            ConcreteInstr("GET_AWAITABLE", 0 if sys.version_info >= (3, 11) else UNSET)
-        )
+        code.append(ConcreteInstr("GET_AWAITABLE", 0))
         code.update_flags()
         self.assertTrue(bool(code.flags & CompilerFlags.COROUTINE))
 
@@ -143,17 +140,13 @@ class FlagsTests(unittest.TestCase):
             ("YIELD_VALUE", 2, CompilerFlags.ASYNC_GENERATOR),
             # YIELD_VALUE is used for normal await flow in Py 3.11+ when followed
             # by a RESUME whose lowest two bits are set to 3
-            *((("YIELD_VALUE", 3, CompilerFlags.COROUTINE),) if PY311 else ()),
-            ("YIELD_FROM", 0, CompilerFlags.COROUTINE),
+            *((("YIELD_VALUE", 3, CompilerFlags.COROUTINE),)),
         ):
             with self.subTest(i):
-                if PY311 and i == "YIELD_FROM":
-                    self.skipTest("YIELD_FROM does not exist on 3.11")
                 code = ConcreteBytecode()
-                code.append(ConcreteInstr("GET_AWAITABLE", 0 if PY311 else UNSET))
+                code.append(ConcreteInstr("GET_AWAITABLE", 0))
                 code.append(ConcreteInstr(i, 0) if PY312 else ConcreteInstr(i))
-                if PY311:
-                    code.append(ConcreteInstr("RESUME", r))
+                code.append(ConcreteInstr("RESUME", r))
                 code.update_flags()
                 self.assertTrue(bool(code.flags & expected))
 
@@ -171,16 +164,12 @@ class FlagsTests(unittest.TestCase):
             ("YIELD_VALUE", 2, CompilerFlags.ASYNC_GENERATOR),
             # YIELD_VALUE is used for normal await flow in Py 3.11+ when followed
             # by a RESUME whose lowest two bits are set to 3
-            *((("YIELD_VALUE", 3, CompilerFlags.COROUTINE),) if PY311 else ()),
-            ("YIELD_FROM", 0, CompilerFlags.COROUTINE),
+            *((("YIELD_VALUE", 3, CompilerFlags.COROUTINE),)),
         ):
             with self.subTest(i):
-                if PY311 and i == "YIELD_FROM":
-                    self.skipTest("YIELD_FROM does not exist on 3.11")
                 code = ConcreteBytecode()
                 code.append(ConcreteInstr(i, 0) if PY312 else ConcreteInstr(i))
-                if PY311:
-                    code.append(ConcreteInstr("RESUME", r))
+                code.append(ConcreteInstr("RESUME", r))
                 code.update_flags(is_async=True)
                 self.assertEqual(code.flags & expected, expected)
 
@@ -192,17 +181,14 @@ class FlagsTests(unittest.TestCase):
         code.append(
             ConcreteInstr("YIELD_VALUE", 0) if PY312 else ConcreteInstr("YIELD_VALUE")
         )
-        if PY311:
-            code.append(ConcreteInstr("RESUME", 1))
+        code.append(ConcreteInstr("RESUME", 1))
         code.flags = CompilerFlags(CompilerFlags.COROUTINE)
         code.update_flags(is_async=False)
         self.assertTrue(bool(code.flags & CompilerFlags.GENERATOR))
 
         # Abort on coroutine
         code = ConcreteBytecode()
-        code.append(
-            ConcreteInstr("GET_AWAITABLE", 0 if sys.version_info >= (3, 11) else UNSET)
-        )
+        code.append(ConcreteInstr("GET_AWAITABLE", 0))
         code.flags = CompilerFlags(CompilerFlags.COROUTINE)
         with self.assertRaises(ValueError):
             code.update_flags(is_async=False)
@@ -218,8 +204,7 @@ class FlagsTests(unittest.TestCase):
                 if PY312
                 else ConcreteInstr("YIELD_VALUE")
             )
-            if PY311:
-                code.append(ConcreteInstr("RESUME", 1))
+            code.append(ConcreteInstr("RESUME", 1))
             for f, expected in (
                 (CompilerFlags.COROUTINE, CompilerFlags.ASYNC_GENERATOR),
                 (CompilerFlags.ASYNC_GENERATOR, CompilerFlags.ASYNC_GENERATOR),
@@ -229,25 +214,9 @@ class FlagsTests(unittest.TestCase):
                 code.update_flags(is_async=is_async)
                 self.assertTrue(bool(code.flags & expected))
 
-            # Infer coroutine
-            if not PY311:
-                code = ConcreteBytecode()
-                code.append(ConcreteInstr("YIELD_FROM"))
-                for f, expected in (
-                    (CompilerFlags.COROUTINE, CompilerFlags.COROUTINE),
-                    (CompilerFlags.ASYNC_GENERATOR, CompilerFlags.COROUTINE),
-                    (
-                        CompilerFlags.ITERABLE_COROUTINE,
-                        CompilerFlags.ITERABLE_COROUTINE,
-                    ),
-                ):
-                    code.flags = CompilerFlags(f)
-                    code.update_flags(is_async=is_async)
-                    self.assertTrue(bool(code.flags & expected))
-
             # Crash on ITERABLE_COROUTINE with async bytecode
             code = ConcreteBytecode()
-            code.append(ConcreteInstr("GET_AWAITABLE", 0 if PY311 else UNSET))
+            code.append(ConcreteInstr("GET_AWAITABLE", 0))
             code.flags = CompilerFlags(CompilerFlags.ITERABLE_COROUTINE)
             with self.assertRaises(ValueError):
                 code.update_flags(is_async=is_async)

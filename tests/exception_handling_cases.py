@@ -250,17 +250,12 @@ def try_finally_in_finally():
     return a
 
 
-# Trick since the syntax does not exist pre-3.11
-if sys.version_info >= (3, 11):
-    src = """
 def try_except_group():
     try:
         a = 1
     except* ValueError:
         b = min(1, 2)
     return a
-"""
-    exec(src)
 
 
 def with_no_store():
@@ -355,20 +350,8 @@ TEST_CASES = [
     async_with_try,
 ]
 
-if sys.version_info >= (3, 11):
-    TEST_CASES.insert(0, try_except_group)  # type: ignore
+TEST_CASES.insert(0, try_except_group)  # type: ignore
 
-# On 3.8 those two cases fail due to a re-ordering of the fast variables
-if sys.version_info < (3, 9):
-    TEST_CASES.remove(try_except_else_finally)
-    TEST_CASES.remove(try_except_finally)
-    # Fail due to a varname re-ordering
-    TEST_CASES.remove(try_finally)
-    TEST_CASES.remove(nested_try_finally)
-    TEST_CASES.remove(try_finally_in_except)
-    TEST_CASES.remove(nested_try_with_looping_construct)
-    TEST_CASES.remove(try_except_with_extended_arg)
-    TEST_CASES.remove(try_except_with_extended_arg2)
 
 if __name__ == "__main__":
     import dis

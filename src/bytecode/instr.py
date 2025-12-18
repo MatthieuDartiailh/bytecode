@@ -6,7 +6,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from functools import cache
 from marshal import dumps as _dumps
-from typing import Any, Callable, Dict, Generic, Optional, Set, Tuple, TypeVar, Union
+from typing import Any, Callable, Final, Generic, Optional, TypeVar, Union
 
 try:
     from typing import TypeGuard
@@ -14,15 +14,15 @@ except ImportError:
     from typing_extensions import TypeGuard  # type: ignore
 
 import bytecode as _bytecode
-from bytecode.utils import PY311, PY312, PY313, PY314
+from bytecode.utils import PY312, PY313, PY314
 
 # --- Instruction argument tools and
 
-MIN_INSTRUMENTED_OPCODE = getattr(_opcode, "MIN_INSTRUMENTED_OPCODE", 256)
+MIN_INSTRUMENTED_OPCODE: Final[int] = getattr(_opcode, "MIN_INSTRUMENTED_OPCODE", 256)
 
 # Instructions relying on a bit to modify its behavior.
 # The lowest bit is used to encode custom behavior.
-BITFLAG_OPCODES = (
+BITFLAG_OPCODES: Final[set[int]] = (
     {
         _opcode.opmap["BUILD_INTERPOLATION"],
         _opcode.opmap["LOAD_GLOBAL"],
@@ -32,31 +32,35 @@ BITFLAG_OPCODES = (
     else (
         {_opcode.opmap["LOAD_GLOBAL"], _opcode.opmap["LOAD_ATTR"]}
         if PY312
-        else ({_opcode.opmap["LOAD_GLOBAL"]} if PY311 else set())
+        else {_opcode.opmap["LOAD_GLOBAL"]}
     )
 )
 
-BITFLAG2_OPCODES = {_opcode.opmap["LOAD_SUPER_ATTR"]} if PY312 else set()
+BITFLAG2_OPCODES: Final[set[int]] = (
+    {_opcode.opmap["LOAD_SUPER_ATTR"]} if PY312 else set()
+)
 
 # Binary op opcode which has a dedicated arg
-BINARY_OPS = {_opcode.opmap["BINARY_OP"]} if PY311 else set()
+BINARY_OPS: Final[set[int]] = {_opcode.opmap["BINARY_OP"]}
 
 # Intrinsic related opcodes
-INTRINSIC_1OP = {_opcode.opmap["CALL_INTRINSIC_1"]} if PY312 else set()
-INTRINSIC_2OP = {_opcode.opmap["CALL_INTRINSIC_2"]} if PY312 else set()
-INTRINSIC = INTRINSIC_1OP | INTRINSIC_2OP
+INTRINSIC_1OP: Final[set[int]] = {_opcode.opmap["CALL_INTRINSIC_1"]} if PY312 else set()
+INTRINSIC_2OP: Final[set[int]] = {_opcode.opmap["CALL_INTRINSIC_2"]} if PY312 else set()
+INTRINSIC: Final[set[int]] = INTRINSIC_1OP | INTRINSIC_2OP
 
 # Small integer related opcode
-SMALL_INT_OPS = {_opcode.opmap["LOAD_SMALL_INT"]} if PY314 else set()
+SMALL_INT_OPS: Final[set[int]] = {_opcode.opmap["LOAD_SMALL_INT"]} if PY314 else set()
 
 # Special method loading related opcodes
-SPECIAL_OPS = {_opcode.opmap["LOAD_SPECIAL"]} if PY314 else set()
+SPECIAL_OPS: Final[set[int]] = {_opcode.opmap["LOAD_SPECIAL"]} if PY314 else set()
 
 # Common constant loading related opcodes
-COMMON_CONSTANT_OPS = {_opcode.opmap["LOAD_COMMON_CONSTANT"]} if PY314 else set()
+COMMON_CONSTANT_OPS: Final[set[int]] = (
+    {_opcode.opmap["LOAD_COMMON_CONSTANT"]} if PY314 else set()
+)
 
 # Value formatting related opcodes (only handle CONVERT_VALUE and BUILD_INTERPOLATION)
-FORMAT_VALUE_OPS = (
+FORMAT_VALUE_OPS: Final[set[int]] = (
     {
         _opcode.opmap["CONVERT_VALUE"],
         _opcode.opmap["BUILD_INTERPOLATION"],
@@ -72,24 +76,27 @@ else:
     HASJREL = set(_opcode.hasjrel)
 
 #: Opcodes taking 2 arguments (highest 4 bits and lowest 4 bits)
-DUAL_ARG_OPCODES: Set[int] = set()
-DUAL_ARG_OPCODES_SINGLE_OPS: Dict[int, Tuple[str, str]] = {}
-if PY313:
-    DUAL_ARG_OPCODES = {
+DUAL_ARG_OPCODES: Final[set[int]] = (
+    {
         _opcode.opmap["LOAD_FAST_LOAD_FAST"],
         _opcode.opmap["STORE_FAST_LOAD_FAST"],
         _opcode.opmap["STORE_FAST_STORE_FAST"],
     }
-    if PY314:
-        DUAL_ARG_OPCODES = {
-            *DUAL_ARG_OPCODES,
-            _opcode.opmap["LOAD_FAST_BORROW_LOAD_FAST_BORROW"],
-        }
-    DUAL_ARG_OPCODES_SINGLE_OPS = {
+    | ({_opcode.opmap["LOAD_FAST_BORROW_LOAD_FAST_BORROW"]} if PY314 else set())
+    if PY313
+    else set()
+)
+
+
+DUAL_ARG_OPCODES_SINGLE_OPS: Final[dict[int, tuple[str, str]]] = (
+    {
         _opcode.opmap["LOAD_FAST_LOAD_FAST"]: ("LOAD_FAST", "LOAD_FAST"),
         _opcode.opmap["STORE_FAST_LOAD_FAST"]: ("STORE_FAST", "LOAD_FAST"),
         _opcode.opmap["STORE_FAST_STORE_FAST"]: ("STORE_FAST", "STORE_FAST"),
     }
+    if PY313
+    else {}
+)
 
 
 # Used for COMPARE_OP opcode argument
@@ -101,12 +108,6 @@ class Compare(enum.IntEnum):
     NE = 3
     GT = 4
     GE = 5
-    if sys.version_info < (3, 9):
-        IN = 6
-        NOT_IN = 7
-        IS = 8
-        IS_NOT = 9
-        EXC_MATCH = 10
 
     if PY312:
 
@@ -286,7 +287,7 @@ for op in [
 UNSET = _UNSET()
 
 
-def const_key(obj: Any) -> Union[bytes, Tuple[type, int]]:
+def const_key(obj: Any) -> bytes | tuple[type, int]:
     try:
         return _dumps(obj)
     except ValueError:
@@ -338,13 +339,13 @@ def _check_arg_int(arg: Any, name: str) -> TypeGuard[int]:
 
     if not (0 <= arg <= 2147483647):
         raise ValueError(
-            "operation %s argument must be in the range 0..2,147,483,647" % name
+            "operation %s argument must be in the range 0..2_147_483_647" % name
         )
 
     return True
 
 
-if sys.version_info >= (3, 12):
+if PY312:
 
     @cache
     def opcode_has_argument(opcode: int) -> bool:
@@ -364,7 +365,7 @@ else:
 # and what is pushed back on the stack after the execution is complete.
 
 # Stack effects that do not depend on the argument of the instruction
-STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
+STATIC_STACK_EFFECTS: dict[str, tuple[int, int]] = {
     "ROT_TWO": (-2, 2),
     "ROT_THREE": (-3, 3),
     "ROT_FOUR": (-4, 4),
@@ -393,12 +394,12 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
     "IMPORT_FROM": (-1, 2),
     "COPY_DICT_WITHOUT_KEYS": (-2, 2),
     # Call a function at position 7 (4 3.11+) on the stack and push the return value
-    "WITH_EXCEPT_START": (-4, 5) if PY311 else (-7, 8),
+    "WITH_EXCEPT_START": (-4, 5),
     # Starting with Python 3.11 MATCH_CLASS does not push a boolean anymore
-    "MATCH_CLASS": (-3, 1 if PY311 else 2),
+    "MATCH_CLASS": (-3, 1),
     "MATCH_MAPPING": (-1, 2),
     "MATCH_SEQUENCE": (-1, 2),
-    "MATCH_KEYS": (-2, 3 if PY311 else 4),
+    "MATCH_KEYS": (-2, 3),
     "CHECK_EXC_MATCH": (-2, 2),  # (TOS1, TOS) -> (TOS1, bool)
     "CHECK_EG_MATCH": (-2, 2),  # (TOS, TOS1) -> non-matched, matched or TOS1, None)
     "PREP_RERAISE_STAR": (-2, 1),  # (TOS1, TOS) -> new exception group)
@@ -427,8 +428,8 @@ STATIC_STACK_EFFECTS: Dict[str, Tuple[int, int]] = {
 }
 
 
-DYNAMIC_STACK_EFFECTS: Dict[
-    str, Callable[[int, Any, Optional[bool]], Tuple[int, int]]
+DYNAMIC_STACK_EFFECTS: dict[
+    str, Callable[[int, Any, Optional[bool]], tuple[int, int]]
 ] = {
     # PRECALL pops all arguments (as per its stack effect) and leaves
     # the callable and either self or NULL
@@ -523,7 +524,7 @@ class InstrLocation:
         object.__setattr__(self, "col_offset", col_offset)
         object.__setattr__(self, "end_col_offset", end_col_offset)
         # In Python 3.11 0 is a valid lineno for some instructions (RESUME for example)
-        _check_location(lineno, "lineno", 0 if PY311 else 1)
+        _check_location(lineno, "lineno", 0)
         _check_location(end_lineno, "end_lineno", 1)
         _check_location(col_offset, "col_offset", 0)
         _check_location(end_col_offset, "end_col_offset", 0)
@@ -573,7 +574,7 @@ class SetLineno:
 
     def __init__(self, lineno: int) -> None:
         # In Python 3.11 0 is a valid lineno for some instructions (RESUME for example)
-        _check_location(lineno, "lineno", 0 if PY311 else 1)
+        _check_location(lineno, "lineno", 0)
         self._lineno: int = lineno
 
     @property
@@ -594,13 +595,13 @@ class TryBegin:
 
     def __init__(
         self,
-        target: Union[Label, "_bytecode.BasicBlock"],
+        target: "Label | _bytecode.BasicBlock",
         push_lasti: bool,
-        stack_depth: Union[int, _UNSET] = UNSET,
+        stack_depth: int | _UNSET = UNSET,
     ) -> None:
-        self.target: Union[Label, "_bytecode.BasicBlock"] = target
+        self.target: "Label | _bytecode.BasicBlock" = target
         self.push_lasti: bool = push_lasti
-        self.stack_depth: Union[int, _UNSET] = stack_depth
+        self.stack_depth: int | _UNSET = stack_depth
 
     def copy(self) -> "TryBegin":
         return TryBegin(self.target, self.push_lasti, self.stack_depth)
@@ -631,7 +632,7 @@ class BaseInstr(Generic[A]):
         name: str,
         arg: A = UNSET,  # type: ignore
         *,
-        lineno: Union[int, None, _UNSET] = UNSET,
+        lineno: int | None | _UNSET = UNSET,
         location: Optional[InstrLocation] = None,
     ) -> None:
         self._set(name, arg)
@@ -690,11 +691,11 @@ class BaseInstr(Generic[A]):
         self._set(self._name, arg)
 
     @property
-    def lineno(self) -> Union[int, _UNSET, None]:
+    def lineno(self) -> int | _UNSET | None:
         return self._location.lineno if self._location is not None else UNSET
 
     @lineno.setter
-    def lineno(self, lineno: Union[int, _UNSET, None]) -> None:
+    def lineno(self, lineno: int | _UNSET | None) -> None:
         loc = self._location
         if loc and (
             loc.end_lineno is not None
@@ -743,7 +744,7 @@ class BaseInstr(Generic[A]):
 
         return dis.stack_effect(self._opcode, arg, jump=jump)
 
-    def pre_and_post_stack_effect(self, jump: Optional[bool] = None) -> Tuple[int, int]:
+    def pre_and_post_stack_effect(self, jump: Optional[bool] = None) -> tuple[int, int]:
         # Allow to check that execution will not cause a stack underflow
         _effect = self.stack_effect(jump=jump)
 
@@ -857,7 +858,7 @@ class BaseInstr(Generic[A]):
         pass
 
     @abstractmethod
-    def _cmp_key(self) -> Tuple[Optional[InstrLocation], str, Any]:
+    def _cmp_key(self) -> tuple[Optional[InstrLocation], str, Any]:
         pass
 
 
@@ -875,17 +876,17 @@ InstrArg = Union[
     Intrinsic2Op,
     CommonConstant,
     SpecialMethod,
-    Tuple[bool, str],
-    Tuple[bool, bool, str],
-    Tuple[bool, FormatValue],
-    Tuple[Union[str, CellVar, FreeVar], Union[str, CellVar, FreeVar]],
+    tuple[bool, str],
+    tuple[bool, bool, str],
+    tuple[bool, FormatValue],
+    tuple[str | CellVar | FreeVar, str | CellVar | FreeVar],
 ]
 
 
 class Instr(BaseInstr[InstrArg]):
     __slots__ = ()
 
-    def _cmp_key(self) -> Tuple[Optional[InstrLocation], str, Any]:
+    def _cmp_key(self) -> tuple[InstrLocation | None, str, Any]:
         arg: Any = self._arg
         if self._opcode in _opcode.hasconst:
             arg = const_key(arg)
