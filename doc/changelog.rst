@@ -1,6 +1,15 @@
 ChangeLog
 =========
 
+unreleased: Version 0.18.0
+--------------------------
+
+- drop support for Python 3.9 and 3.10 PR #180
+
+Bugfixes:
+
+- Fix handling of END_ASYNC_FOR which is a backward jump PR #179
+
 03-09-2025: Version 0.17.0
 --------------------------
 
