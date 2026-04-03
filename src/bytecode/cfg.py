@@ -343,9 +343,11 @@ class _StackSizeComputer:
                     None,
                     # Do not propagate the TryBegin if a final instruction is followed
                     # by a TryEnd.
-                    None
-                    if instr.is_final() and self.block.get_trailing_try_end(i)
-                    else self._current_try_begin,
+                    (
+                        None
+                        if instr.is_final() and self.block.get_trailing_try_end(i)
+                        else self._current_try_begin
+                    ),
                 )
 
                 # Update the maximum used size by the usage implied by the following
@@ -362,8 +364,10 @@ class _StackSizeComputer:
                     # start with a TryEnd relevant only when reaching this block
                     # through a particular jump. So we are lenient here.
                     if (
-                        te := self.block.get_trailing_try_end(i)
-                    ) and te.entry is self._current_try_begin:
+                        (te := self.block.get_trailing_try_end(i))
+                        and self._current_try_begin is not None
+                        and te.entry is self._current_try_begin
+                    ):
                         assert isinstance(te.entry.target, BasicBlock)
                         yield from self._compute_exception_handler_stack_usage(
                             te.entry.target,
