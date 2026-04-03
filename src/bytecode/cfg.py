@@ -363,7 +363,7 @@ class _StackSizeComputer:
                     # through a particular jump. So we are lenient here.
                     if (
                         te := self.block.get_trailing_try_end(i)
-                    ) and te.entry is self._current_try_begin:
+                    ) and self._current_try_begin is not None and te.entry is self._current_try_begin:
                         assert isinstance(te.entry.target, BasicBlock)
                         yield from self._compute_exception_handler_stack_usage(
                             te.entry.target,
