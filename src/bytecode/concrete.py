@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dis
 import inspect
 import itertools
@@ -332,7 +334,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
     @staticmethod
     def from_code(
         code: types.CodeType, *, extended_arg: bool = False
-    ) -> "ConcreteBytecode":
+    ) -> ConcreteBytecode:
         instructions: MutableSequence[Union[SetLineno, ConcreteInstr]] = []
         for i in dis.get_instructions(code, show_caches=True):
             loc = InstrLocation.from_positions(i.positions) if i.positions else None
