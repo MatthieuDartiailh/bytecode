@@ -1,4 +1,3 @@
-# alias to keep the 'bytecode' variable free
 import types
 from abc import abstractmethod
 from typing import (
@@ -15,6 +14,7 @@ from typing import (
     overload,
 )
 
+# alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 from bytecode.flags import CompilerFlags, infer_flags
 from bytecode.instr import (
