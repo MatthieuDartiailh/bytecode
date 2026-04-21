@@ -1,4 +1,5 @@
-# alias to keep the 'bytecode' variable free
+from __future__ import annotations
+
 import types
 from abc import abstractmethod
 from typing import (
@@ -15,6 +16,7 @@ from typing import (
     overload,
 )
 
+# alias to keep the 'bytecode' variable free
 import bytecode as _bytecode
 from bytecode.flags import CompilerFlags, infer_flags
 from bytecode.instr import (
@@ -48,7 +50,7 @@ class BaseBytecode:
         self.freevars: List[str] = []
         self._flags: CompilerFlags = CompilerFlags(0)
 
-    def _copy_attr_from(self, bytecode: "BaseBytecode") -> None:
+    def _copy_attr_from(self, bytecode: BaseBytecode) -> None:
         self.argcount = bytecode.argcount
         self.posonlyargcount = bytecode.posonlyargcount
         self.kwonlyargcount = bytecode.kwonlyargcount
@@ -275,7 +277,7 @@ class Bytecode(
         code: types.CodeType,
         prune_caches: bool = True,
         conserve_exception_block_stackdepth: bool = False,
-    ) -> "Bytecode":
+    ) -> Bytecode:
         concrete = _bytecode.ConcreteBytecode.from_code(code)
         return concrete.to_bytecode(
             prune_caches=prune_caches,
@@ -317,7 +319,7 @@ class Bytecode(
         self,
         compute_jumps_passes: Optional[int] = None,
         compute_exception_stack_depths: bool = True,
-    ) -> "_bytecode.ConcreteBytecode":
+    ) -> _bytecode.ConcreteBytecode:
         converter = _bytecode._ConvertBytecodeToConcrete(self)
         return converter.to_concrete_bytecode(
             compute_jumps_passes=compute_jumps_passes,

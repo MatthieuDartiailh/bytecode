@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import sys
 import typing as t
@@ -124,7 +126,7 @@ class BaseModuleWatchdog:
     Invokes ``after_import`` every time a new module is imported.
     """
 
-    _instance: t.Optional["BaseModuleWatchdog"] = None
+    _instance: t.Optional[BaseModuleWatchdog] = None
 
     def __init__(self) -> None:
         self._finding: t.Set[str] = set()

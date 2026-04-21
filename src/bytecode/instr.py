@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dis
 import enum
 import opcode as _opcode
@@ -267,7 +269,7 @@ class CommonConstant(enum.IntEnum):
 # This make type checking happy but means it won't catch attempt to manipulate an unset
 # statically. We would need guard on object attribute narrowed down through methods
 class _UNSET(int):
-    instance: Optional["_UNSET"] = None
+    instance: Optional[_UNSET] = None
 
     def __new__(cls):
         if cls.instance is None:
@@ -611,7 +613,7 @@ class InstrLocation:
                 )
 
     @classmethod
-    def from_positions(cls, position: "dis.Positions") -> "InstrLocation":  # type: ignore
+    def from_positions(cls, position: dis.Positions) -> InstrLocation:  # type: ignore
         return InstrLocation(
             position.lineno,
             position.end_lineno,
@@ -654,7 +656,7 @@ class TryBegin:
         self.push_lasti: bool = push_lasti
         self.stack_depth: int | _UNSET = stack_depth
 
-    def copy(self) -> "TryBegin":
+    def copy(self) -> TryBegin:
         return TryBegin(self.target, self.push_lasti, self.stack_depth)
 
 
@@ -664,7 +666,7 @@ class TryEnd:
     def __init__(self, entry: TryBegin) -> None:
         self.entry: TryBegin = entry
 
-    def copy(self) -> "TryEnd":
+    def copy(self) -> TryEnd:
         return TryEnd(self.entry)
 
 
