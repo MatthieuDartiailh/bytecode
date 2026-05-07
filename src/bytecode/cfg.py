@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import types
 from collections import defaultdict
 from dataclasses import dataclass
@@ -36,7 +38,7 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
         ] = None,
     ) -> None:
         # a BasicBlock object, or None
-        self.next_block: Optional["BasicBlock"] = None
+        self.next_block: Optional[BasicBlock] = None
         if instructions:
             super().__init__(instructions)
 
@@ -129,7 +131,7 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
 
         return current_lineno
 
-    def get_jump(self) -> Optional["BasicBlock"]:
+    def get_jump(self) -> Optional[BasicBlock]:
         if not self:
             return None
 
@@ -243,7 +245,7 @@ class _StackSizeComputer:
         self.pending_try_begin = pending_try_begin
         self._current_try_begin = pending_try_begin
 
-    def run(self) -> Generator[Union["_StackSizeComputer", int], int, None]:
+    def run(self) -> Generator[Union[_StackSizeComputer, int], int, None]:
         """Iterate over the block instructions to compute stack usage."""
         # Blocks are not hashable but in this particular context we know we won't be
         # modifying blocks in place so we can safely use their id as hash rather than
@@ -343,9 +345,11 @@ class _StackSizeComputer:
                     None,
                     # Do not propagate the TryBegin if a final instruction is followed
                     # by a TryEnd.
-                    None
-                    if instr.is_final() and self.block.get_trailing_try_end(i)
-                    else self._current_try_begin,
+                    (
+                        None
+                        if instr.is_final() and self.block.get_trailing_try_end(i)
+                        else self._current_try_begin
+                    ),
                 )
 
                 # Update the maximum used size by the usage implied by the following
@@ -362,8 +366,10 @@ class _StackSizeComputer:
                     # start with a TryEnd relevant only when reaching this block
                     # through a particular jump. So we are lenient here.
                     if (
-                        te := self.block.get_trailing_try_end(i)
-                    ) and te.entry is self._current_try_begin:
+                        (te := self.block.get_trailing_try_end(i))
+                        and self._current_try_begin is not None
+                        and te.entry is self._current_try_begin
+                    ):
                         assert isinstance(te.entry.target, BasicBlock)
                         yield from self._compute_exception_handler_stack_usage(
                             te.entry.target,
@@ -426,7 +432,7 @@ class _StackSizeComputer:
 
     def _compute_exception_handler_stack_usage(
         self, block: BasicBlock, push_lasti: bool
-    ) -> Generator[Union["_StackSizeComputer", int], int, None]:
+    ) -> Generator[Union[_StackSizeComputer, int], int, None]:
         b_id = id(block)
         if self.minsize < self.common.exception_block_startsize[b_id]:
             block_size = yield _StackSizeComputer(
@@ -737,7 +743,7 @@ class ControlFlowGraph(_bytecode.BaseBytecode):
         return [b for b in self if id(b) not in seen_block_ids]
 
     @staticmethod
-    def from_bytecode(bytecode: _bytecode.Bytecode) -> "ControlFlowGraph":
+    def from_bytecode(bytecode: _bytecode.Bytecode) -> ControlFlowGraph:
         # label => instruction index
         label_to_block_index = {}
         jumps = []
