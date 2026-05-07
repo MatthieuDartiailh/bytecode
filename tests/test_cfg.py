@@ -19,7 +19,7 @@ from bytecode import (
     SetLineno,
     dump_bytecode,
 )
-from bytecode.utils import PY312, PY313, PY314
+from bytecode.utils import PY312, PY313, PY314, PY315
 
 from . import TestCase, disassemble as _disassemble
 

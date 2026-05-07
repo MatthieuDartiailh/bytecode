@@ -16,7 +16,7 @@ except ImportError:
     from typing_extensions import TypeGuard  # type: ignore
 
 import bytecode as _bytecode
-from bytecode.utils import PY312, PY313, PY314
+from bytecode.utils import PY312, PY313, PY314, PY315
 
 # --- Instruction argument tools and
 
@@ -52,6 +52,11 @@ INTRINSIC: Final[set[int]] = INTRINSIC_1OP | INTRINSIC_2OP
 
 # Small integer related opcode
 SMALL_INT_OPS: Final[set[int]] = {_opcode.opmap["LOAD_SMALL_INT"]} if PY314 else set()
+
+# Opcodes that gained a cache-only argument in 3.15 (arg is always 0 and not user-visible)
+CACHE_ONLY_ARG_OPCODES: Final[set[int]] = (
+    {_opcode.opmap["GET_ITER"]} if PY315 else set()
+)
 
 # Special method loading related opcodes
 SPECIAL_OPS: Final[set[int]] = {_opcode.opmap["LOAD_SPECIAL"]} if PY314 else set()
@@ -419,8 +424,11 @@ STATIC_STACK_EFFECTS: Final[dict[int, tuple[int, int]]] = {
         "DUP_TOP": (-1, 2),
         "DUP_TOP_TWO": (-2, 4),
         "GET_LEN": (-1, 2),
-        "GET_ITER": (-1, 1),
-        "GET_YIELD_FROM_ITER": (-1, 1),
+        "GET_ITER": (-1, 2) if PY315 else (-1, 1),
+        "GET_YIELD_FROM_ITER": (
+            -1,
+            1,
+        ),  # removed in 3.15, filtered by if k in _opcode.opmap
         "GET_AWAITABLE": (-1, 1),
         "GET_AITER": (-1, 1),
         "GET_ANEXT": (-1, 2),
@@ -503,7 +511,12 @@ DYNAMIC_STACK_EFFECTS: Final[
         "MAP_ADD": lambda effect, arg, jump: (-arg, arg - 2),
         "FORMAT_VALUE": lambda effect, arg, jump: (effect - 1, 1),
         # FOR_ITER needs TOS to be an iterator, hence a prerequisite of 1 on the stack
-        "FOR_ITER": lambda effect, arg, jump: (effect, 0) if jump else (-1, 2),
+        # In 3.15, GET_ITER pushes (iter, null_or_index); FOR_ITER always pushes the
+        # next value (+1). When exhausted it jumps to END_FOR (which pops it) then
+        # POP_ITER cleans up (iter, null_or_index). Matches dis.stack_effect = 1 always.
+        "FOR_ITER": (lambda __effect, __arg, __jump: (0, 1))
+        if PY315
+        else (lambda effect, __arg, jump: (effect, 0) if jump else (-1, 2)),
         "BUILD_INTERPOLATION": lambda effect, arg, jump: (-(2 + (arg & 1)), 1),
         **{
             # Instr(UNPACK_* , n) pops 1 and pushes n
@@ -874,6 +887,9 @@ class BaseInstr(Generic[A]):
                 f"operation {name} is an instrumented or pseudo opcode. "
                 "Only base opcodes are supported"
             )
+
+        if arg is UNSET and opcode in CACHE_ONLY_ARG_OPCODES:
+            arg = 0  # type: ignore
 
         self._check_arg(name, opcode, arg)
 
