@@ -28,10 +28,12 @@ def pretend_cython():
     ]
 
 
+_pure_python = os.getenv("BYTECODE_PURE_PYTHON")
+
 setup(
     name="bytecode",
-    setup_requires=["setuptools_scm[toml]>=4", "cython", "cmake>=3.24.2,<3.28"],
-    ext_modules=cythonize(
+    setup_requires=["setuptools_scm[toml]>=4"] + ([] if _pure_python else ["cython", "cmake>=3.24.2,<3.28"]),
+    ext_modules=[] if _pure_python else cythonize(
         pretend_cython(),
         force=True,
         compiler_directives={
