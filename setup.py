@@ -29,6 +29,7 @@ def pretend_cython():
 
 
 _pure_python = os.getenv("BYTECODE_PURE_PYTHON")
+print(f"bytecode: building {'pure-Python' if _pure_python else 'Cython'} version")
 
 setup(
     name="bytecode",
