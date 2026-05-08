@@ -812,7 +812,12 @@ class BaseInstr(Generic[A]):
             return (_effect, 0)
 
     def copy(self: T) -> T:
-        return self.__class__(self._name, self._arg, location=self._location)
+        new = object.__new__(self.__class__)
+        new._name = self._name
+        new._opcode = self._opcode
+        new._arg = self._arg
+        new._location = self._location
+        return new
 
     def has_jump(self) -> bool:
         return self._has_jump(self._opcode)

@@ -164,12 +164,6 @@ class _BaseBytecodeList(BaseBytecode, list, Generic[U]):
         for i in reversed(lineno_pos):
             del self[i]
 
-    def __iter__(self) -> Iterator[U]:
-        instructions = super().__iter__()
-        for instr in instructions:
-            self._check_instr(instr)
-            yield instr
-
     def _check_instr(self, instr):
         raise NotImplementedError()
 
