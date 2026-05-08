@@ -348,7 +348,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         ] = iter(code.co_positions()) if hasattr(code, "co_positions") else None
         for offset in range(0, len(bc), 2):
             op = bc[offset]
-            arg = bc[offset + 1] if opcode_has_argument(bc[offset]) else UNSET
+            arg = bc[offset + 1] if opcode_has_argument(op) else UNSET
             if pos_iter is not None:
                 pos = next(pos_iter, None)
                 loc: Optional[InstrLocation] = (
