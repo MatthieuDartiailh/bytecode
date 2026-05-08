@@ -577,7 +577,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         _, size, lineno, old_location = next(iter_in)
         # Infer the line if location is None
-        old_location = old_location or InstrLocation(lineno, None, None, None)
+        old_location = old_location or InstrLocation._from_tuple(
+            lineno, None, None, None
+        )
         lineno = first_lineno
 
         # We track the last set lineno to be able to compute deltas
@@ -932,14 +934,18 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 else:
                     arg = c_arg
 
-                location = c_instr.location or InstrLocation(lineno, None, None, None)
+                location = c_instr.location or InstrLocation._from_tuple(
+                    lineno, None, None, None
+                )
 
                 if jump_target is not None:
                     arg = PLACEHOLDER_LABEL
                     instr_index = len(instructions)
                     jumps.append((instr_index, jump_target))
 
-                instructions.append(Instr(c_instr.name, arg, location=location))
+                instructions.append(
+                    Instr._from_trusted(c_instr._name, c_instr._opcode, arg, location)
+                )
 
             # We now insert the TryEnd entries
             if current_instr_offset in ex_end:
@@ -1032,7 +1038,9 @@ class _ConvertBytecodeToConcrete:
         return index
 
     def concrete_instructions(self) -> None:
-        location = InstrLocation(self.bytecode.first_lineno, None, None, None)
+        location = InstrLocation._from_tuple(
+            self.bytecode.first_lineno, None, None, None
+        )
         # Track instruction (index) using cell vars and free vars to be able to update
         # the index used once all the names are known.
         cell_instrs: list[int] = []
@@ -1088,7 +1096,7 @@ class _ConvertBytecodeToConcrete:
                 continue
 
             if isinstance(instr, SetLineno):
-                location = InstrLocation(instr.lineno, None, None, None)
+                location = InstrLocation._from_tuple(instr.lineno, None, None, None)
                 continue
 
             if isinstance(instr, TryBegin):
