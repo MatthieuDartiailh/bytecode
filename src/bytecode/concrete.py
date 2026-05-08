@@ -336,21 +336,27 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         code: types.CodeType, *, extended_arg: bool = False
     ) -> ConcreteBytecode:
         instructions: MutableSequence[Union[SetLineno, ConcreteInstr]] = []
-        for i in dis.get_instructions(code, show_caches=True):
-            loc = InstrLocation.from_positions(i.positions) if i.positions else None
-            # dis.get_instructions automatically handle extended arg which
-            # we do not want, so we fold back arguments to be between 0 and 255
-            instructions.append(
-                ConcreteInstr(
-                    i.opname,
-                    i.arg % 256 if i.arg is not None else UNSET,
-                    location=loc,
+        bc = code.co_code
+        opname = _opcode.opname
+        # co_positions() yields one (lineno, end_lineno, col_offset,
+        # end_col_offset) per instruction word (including CACHE entries),
+        # available from Python 3.11+. CACHE entries are already inline in
+        # co_code on all supported versions, so iterating co_code directly
+        # handles all versions without dis overhead.
+        pos_iter: Optional[
+            Iterator[Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]]
+        ] = iter(code.co_positions()) if hasattr(code, "co_positions") else None
+        for offset in range(0, len(bc), 2):
+            op = bc[offset]
+            arg = bc[offset + 1] if opcode_has_argument(bc[offset]) else UNSET
+            if pos_iter is not None:
+                pos = next(pos_iter, None)
+                loc: Optional[InstrLocation] = (
+                    InstrLocation(*pos) if pos is not None else None
                 )
-            )
-            # cache_info only exist on 3.13+
-            for _, size, _ in (i.cache_info or ()) if PY313 else ():  # type: ignore
-                for _ in range(size):
-                    instructions.append(ConcreteInstr("CACHE", 0, location=loc))
+            else:
+                loc = None
+            instructions.append(ConcreteInstr(opname[op], arg, location=loc))
 
         bytecode = ConcreteBytecode()
 
