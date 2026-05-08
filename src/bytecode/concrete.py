@@ -350,7 +350,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             arg = bc[offset + 1] if opcode_has_argument(op := bc[offset]) else UNSET
             pos = next(pos_iter, None)
             loc: Optional[InstrLocation] = (
-                InstrLocation(*pos) if pos is not None else None
+                InstrLocation._from_tuple(*pos) if pos is not None else None
             )
             instructions.append(ConcreteInstr(opname[op], arg, location=loc))
 
