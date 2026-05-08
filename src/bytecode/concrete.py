@@ -343,19 +343,15 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # available from Python 3.11+. CACHE entries are already inline in
         # co_code on all supported versions, so iterating co_code directly
         # handles all versions without dis overhead.
-        pos_iter: Optional[
-            Iterator[Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]]
-        ] = iter(code.co_positions()) if hasattr(code, "co_positions") else None
+        pos_iter: Iterator[
+            Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]
+        ] = iter(code.co_positions())
         for offset in range(0, len(bc), 2):
-            op = bc[offset]
-            arg = bc[offset + 1] if opcode_has_argument(op) else UNSET
-            if pos_iter is not None:
-                pos = next(pos_iter, None)
-                loc: Optional[InstrLocation] = (
-                    InstrLocation(*pos) if pos is not None else None
-                )
-            else:
-                loc = None
+            arg = bc[offset + 1] if opcode_has_argument(op := bc[offset]) else UNSET
+            pos = next(pos_iter, None)
+            loc: Optional[InstrLocation] = (
+                InstrLocation(*pos) if pos is not None else None
+            )
             instructions.append(ConcreteInstr(opname[op], arg, location=loc))
 
         bytecode = ConcreteBytecode()
