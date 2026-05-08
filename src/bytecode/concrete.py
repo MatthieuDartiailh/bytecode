@@ -347,7 +347,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]
         ] = iter(code.co_positions())
         for offset in range(0, len(bc), 2):
-            arg = bc[offset + 1] if opcode_has_argument(op := bc[offset]) else UNSET
+            op = bc[offset]
+            arg = bc[offset + 1] if opcode_has_argument(op) else UNSET
             pos = next(pos_iter, None)
             loc: Optional[InstrLocation] = (
                 InstrLocation._from_tuple(*pos) if pos is not None else None
