@@ -621,6 +621,22 @@ class InstrLocation:
             position.end_col_offset,
         )
 
+    @classmethod
+    def _from_tuple(
+        cls,
+        lineno: Optional[int],
+        end_lineno: Optional[int],
+        col_offset: Optional[int],
+        end_col_offset: Optional[int],
+    ) -> InstrLocation:
+        """Fast path for trusted position data (e.g. from co_positions())."""
+        new = object.__new__(cls)
+        object.__setattr__(new, "lineno", lineno)
+        object.__setattr__(new, "end_lineno", end_lineno)
+        object.__setattr__(new, "col_offset", col_offset)
+        object.__setattr__(new, "end_col_offset", end_col_offset)
+        return new
+
 
 class SetLineno:
     __slots__ = ("_lineno",)
@@ -817,6 +833,22 @@ class BaseInstr(Generic[A]):
         new._opcode = self._opcode
         new._arg = self._arg
         new._location = self._location
+        return new
+
+    @classmethod
+    def _from_trusted(
+        cls: type[T],
+        name: str,
+        opcode: int,
+        arg: A,
+        location: Optional[InstrLocation],
+    ) -> T:
+        """Fast path for internal construction from already-validated data."""
+        new = object.__new__(cls)
+        new._name = name
+        new._opcode = opcode
+        new._arg = arg
+        new._location = location
         return new
 
     def has_jump(self) -> bool:
