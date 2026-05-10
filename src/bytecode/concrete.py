@@ -182,6 +182,24 @@ class ConcreteInstr(BaseInstr[int]):
         return bytes(b)
 
     @classmethod
+    def _from_opcode(
+        cls: Type[T],
+        name: str,
+        opcode: int,
+        arg: int,
+        location: Optional[InstrLocation],
+    ) -> T:
+        """Fast path for from_code: arg is a raw byte (0-255), size is always 2."""
+        new = object.__new__(cls)
+        new._name = name
+        new._opcode = opcode
+        new._arg = arg
+        new._location = location
+        new._extended_args = None
+        new._size = 2
+        return new
+
+    @classmethod
     def disassemble(cls: Type[T], lineno: Optional[int], code: bytes, offset: int) -> T:
         index = 2 * offset
         op = code[index]
@@ -353,7 +371,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             loc: Optional[InstrLocation] = (
                 InstrLocation._from_tuple(*pos) if pos is not None else None
             )
-            instructions.append(ConcreteInstr(opname[op], arg, location=loc))
+            instructions.append(ConcreteInstr._from_opcode(opname[op], op, arg, loc))
 
         bytecode = ConcreteBytecode()
 
