@@ -182,6 +182,24 @@ class ConcreteInstr(BaseInstr[int]):
         return bytes(b)
 
     @classmethod
+    def _from_opcode(
+        cls: Type[T],
+        name: str,
+        opcode: int,
+        arg: int,
+        location: Optional[InstrLocation],
+    ) -> T:
+        """Fast path for from_code: arg is a raw byte (0-255), size is always 2."""
+        new = object.__new__(cls)
+        new._name = name
+        new._opcode = opcode
+        new._arg = arg
+        new._location = location
+        new._extended_args = None
+        new._size = 2
+        return new
+
+    @classmethod
     def disassemble(cls: Type[T], lineno: Optional[int], code: bytes, offset: int) -> T:
         index = 2 * offset
         op = code[index]
@@ -336,21 +354,24 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         code: types.CodeType, *, extended_arg: bool = False
     ) -> ConcreteBytecode:
         instructions: MutableSequence[Union[SetLineno, ConcreteInstr]] = []
-        for i in dis.get_instructions(code, show_caches=True):
-            loc = InstrLocation.from_positions(i.positions) if i.positions else None
-            # dis.get_instructions automatically handle extended arg which
-            # we do not want, so we fold back arguments to be between 0 and 255
-            instructions.append(
-                ConcreteInstr(
-                    i.opname,
-                    i.arg % 256 if i.arg is not None else UNSET,
-                    location=loc,
-                )
+        bc = code.co_code
+        opname = _opcode.opname
+        # co_positions() yields one (lineno, end_lineno, col_offset,
+        # end_col_offset) per instruction word (including CACHE entries),
+        # available from Python 3.11+. CACHE entries are already inline in
+        # co_code on all supported versions, so iterating co_code directly
+        # handles all versions without dis overhead.
+        pos_iter: Iterator[
+            Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]
+        ] = iter(code.co_positions())
+        for offset in range(0, len(bc), 2):
+            op = bc[offset]
+            arg = bc[offset + 1] if opcode_has_argument(op) else UNSET
+            pos = next(pos_iter, None)
+            loc: Optional[InstrLocation] = (
+                InstrLocation._from_tuple(*pos) if pos is not None else None
             )
-            # cache_info only exist on 3.13+
-            for _, size, _ in (i.cache_info or ()) if PY313 else ():  # type: ignore
-                for _ in range(size):
-                    instructions.append(ConcreteInstr("CACHE", 0, location=loc))
+            instructions.append(ConcreteInstr._from_opcode(opname[op], op, arg, loc))
 
         bytecode = ConcreteBytecode()
 
@@ -575,7 +596,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         _, size, lineno, old_location = next(iter_in)
         # Infer the line if location is None
-        old_location = old_location or InstrLocation(lineno, None, None, None)
+        old_location = old_location or InstrLocation._from_tuple(
+            lineno, None, None, None
+        )
         lineno = first_lineno
 
         # We track the last set lineno to be able to compute deltas
@@ -930,14 +953,18 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 else:
                     arg = c_arg
 
-                location = c_instr.location or InstrLocation(lineno, None, None, None)
+                location = c_instr.location or InstrLocation._from_tuple(
+                    lineno, None, None, None
+                )
 
                 if jump_target is not None:
                     arg = PLACEHOLDER_LABEL
                     instr_index = len(instructions)
                     jumps.append((instr_index, jump_target))
 
-                instructions.append(Instr(c_instr.name, arg, location=location))
+                instructions.append(
+                    Instr._from_trusted(c_instr._name, c_instr._opcode, arg, location)
+                )
 
             # We now insert the TryEnd entries
             if current_instr_offset in ex_end:
@@ -1030,7 +1057,9 @@ class _ConvertBytecodeToConcrete:
         return index
 
     def concrete_instructions(self) -> None:
-        location = InstrLocation(self.bytecode.first_lineno, None, None, None)
+        location = InstrLocation._from_tuple(
+            self.bytecode.first_lineno, None, None, None
+        )
         # Track instruction (index) using cell vars and free vars to be able to update
         # the index used once all the names are known.
         cell_instrs: list[int] = []
@@ -1086,7 +1115,7 @@ class _ConvertBytecodeToConcrete:
                 continue
 
             if isinstance(instr, SetLineno):
-                location = InstrLocation(instr.lineno, None, None, None)
+                location = InstrLocation._from_tuple(instr.lineno, None, None, None)
                 continue
 
             if isinstance(instr, TryBegin):
