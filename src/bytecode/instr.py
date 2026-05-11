@@ -8,7 +8,19 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from functools import cache
 from marshal import dumps as _dumps
-from typing import Any, Callable, Final, Generic, Optional, TypeVar, Union
+from typing import Any, Callable, Final, Optional, TypeVar, Union
+
+try:
+    import cython
+except ImportError:
+
+    class cython:  # type: ignore[no-redef]
+        compiled = False
+
+        @staticmethod
+        def cclass(cls: Any) -> Any:
+            return cls
+
 
 try:
     from typing import TypeGuard
@@ -545,6 +557,7 @@ def _check_location(
         )
 
 
+@cython.cclass
 @dataclass(frozen=True)
 class InstrLocation:
     """Location information for an instruction."""
@@ -571,11 +584,17 @@ class InstrLocation:
         col_offset: Optional[int],
         end_col_offset: Optional[int],
     ) -> None:
-        # Needed because we want the class to be frozen
-        object.__setattr__(self, "lineno", lineno)
-        object.__setattr__(self, "end_lineno", end_lineno)
-        object.__setattr__(self, "col_offset", col_offset)
-        object.__setattr__(self, "end_col_offset", end_col_offset)
+        if cython.compiled:
+            self.lineno = lineno
+            self.end_lineno = end_lineno
+            self.col_offset = col_offset
+            self.end_col_offset = end_col_offset
+        else:
+            # Needed because we want the class to be frozen in pure Python
+            object.__setattr__(self, "lineno", lineno)
+            object.__setattr__(self, "end_lineno", end_lineno)
+            object.__setattr__(self, "col_offset", col_offset)
+            object.__setattr__(self, "end_col_offset", end_col_offset)
         # In Python 3.11 0 is a valid lineno for some instructions (RESUME for example)
         _check_location(lineno, "lineno", 0)
         _check_location(end_lineno, "end_lineno", 1)
@@ -630,11 +649,17 @@ class InstrLocation:
         end_col_offset: Optional[int],
     ) -> InstrLocation:
         """Fast path for trusted position data (e.g. from co_positions())."""
-        new = object.__new__(cls)
-        object.__setattr__(new, "lineno", lineno)
-        object.__setattr__(new, "end_lineno", end_lineno)
-        object.__setattr__(new, "col_offset", col_offset)
-        object.__setattr__(new, "end_col_offset", end_col_offset)
+        new = cls.__new__(cls)
+        if cython.compiled:
+            new.lineno = lineno
+            new.end_lineno = end_lineno
+            new.col_offset = col_offset
+            new.end_col_offset = end_col_offset
+        else:
+            object.__setattr__(new, "lineno", lineno)
+            object.__setattr__(new, "end_lineno", end_lineno)
+            object.__setattr__(new, "col_offset", col_offset)
+            object.__setattr__(new, "end_col_offset", end_col_offset)
         return new
 
 
@@ -690,10 +715,14 @@ T = TypeVar("T", bound="BaseInstr")
 A = TypeVar("A", bound=object)
 
 
-class BaseInstr(Generic[A]):
+@cython.cclass
+class BaseInstr:
     """Abstract instruction."""
 
     __slots__ = ("_arg", "_location", "_name", "_opcode")
+
+    def __class_getitem__(cls, item: Any) -> Any:
+        return cls
 
     # Work around an issue with the default value of arg
     def __init__(
@@ -828,7 +857,7 @@ class BaseInstr(Generic[A]):
             return (_effect, 0)
 
     def copy(self: T) -> T:
-        new = object.__new__(self.__class__)
+        new = self.__class__.__new__(self.__class__)
         new._name = self._name
         new._opcode = self._opcode
         new._arg = self._arg
@@ -844,7 +873,7 @@ class BaseInstr(Generic[A]):
         location: Optional[InstrLocation],
     ) -> T:
         """Fast path for internal construction from already-validated data."""
-        new = object.__new__(cls)
+        new = cls.__new__(cls)
         new._name = name
         new._opcode = opcode
         new._arg = arg
@@ -889,14 +918,6 @@ class BaseInstr(Generic[A]):
         return self._cmp_key() == other._cmp_key()
 
     # --- Private API
-
-    _name: str
-
-    _location: Optional[InstrLocation]
-
-    _opcode: int
-
-    _arg: A
 
     def _set(self, name: str, arg: A) -> None:
         if not isinstance(name, str):
@@ -952,7 +973,8 @@ InstrArg = Union[
 ]
 
 
-class Instr(BaseInstr[InstrArg]):
+@cython.cclass
+class Instr(BaseInstr):
     __slots__ = ()
 
     def _cmp_key(self) -> tuple[InstrLocation | None, str, Any]:

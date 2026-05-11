@@ -92,5 +92,11 @@ __version__ = "{version}"
   follow_imports  = "normal"
   strict_optional = true
 
+[[tool.mypy.overrides]]
+  # cython stubs are not available to mypy; the cythonize branch intentionally
+  # removes Generic[A] from BaseInstr which cascades type errors.
+  module = ["bytecode.instr", "bytecode.concrete", "bytecode.bytecode", "bytecode.cfg"]
+  ignore_errors = true
+
 [tool.pytest.ini_options]
   minversion = "6.0"
