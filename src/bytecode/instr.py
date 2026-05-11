@@ -788,6 +788,10 @@ class BaseInstr:
     def arg(self, arg: A):
         self._set(self._name, arg)
 
+    @arg.deleter
+    def arg(self) -> None:
+        raise AttributeError("can't delete attribute")
+
     @property
     def lineno(self) -> int | _UNSET | None:
         return self._location.lineno if self._location is not None else UNSET
