@@ -63,6 +63,11 @@ class BlockTests(unittest.TestCase):
             block.extend([Label()])
         with self.assertRaises(ValueError):
             block.insert(0, Label())
+        block.append(Instr("NOP"))
+        with self.assertRaises(ValueError):
+            block[0] = Label()
+        with self.assertRaises(ValueError):
+            block[:] = [Label()]
 
         # Only one jump allowed and only at the end
         block = BasicBlock()
