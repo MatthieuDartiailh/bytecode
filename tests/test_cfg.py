@@ -69,6 +69,19 @@ class BlockTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             block[:] = [Label()]
 
+        # Valid types are accepted via all insertion methods
+        nop = Instr("NOP")
+        block = BasicBlock()
+        block.append(nop)
+        self.assertEqual(block[0], nop)
+        block.insert(0, nop)
+        self.assertEqual(len(block), 2)
+        block.extend([nop])
+        self.assertEqual(len(block), 3)
+        block[0] = nop
+        block[:] = [nop]
+        self.assertEqual(len(block), 1)
+
         # Only one jump allowed and only at the end
         block = BasicBlock()
         block2 = BasicBlock()
