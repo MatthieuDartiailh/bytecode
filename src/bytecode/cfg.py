@@ -42,17 +42,49 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
         if instructions:
             super().__init__(instructions)
 
+    _VALID_TYPES = (SetLineno, Instr, TryBegin, TryEnd)
+
+    @staticmethod
+    def _check_instr(instr: Any) -> None:
+        if not isinstance(instr, (SetLineno, Instr, TryBegin, TryEnd)):
+            raise ValueError(
+                "BasicBlock must only contain SetLineno and Instr objects, "
+                "but %s was found" % instr.__class__.__name__
+            )
+
+    def append(self, instr: Union[Instr, SetLineno, TryBegin, TryEnd]) -> None:
+        self._check_instr(instr)
+        super().append(instr)
+
+    def insert(
+        self, index: SupportsIndex, instr: Union[Instr, SetLineno, TryBegin, TryEnd]
+    ) -> None:
+        self._check_instr(instr)
+        super().insert(index, instr)
+
+    def extend(
+        self, instrs: Iterable[Union[Instr, SetLineno, TryBegin, TryEnd]]
+    ) -> None:
+        instrs = list(instrs)
+        for instr in instrs:
+            self._check_instr(instr)
+        super().extend(instrs)
+
+    def __setitem__(self, index, value):
+        if isinstance(index, slice):
+            values = list(value)
+            for instr in values:
+                self._check_instr(instr)
+            super().__setitem__(index, values)
+        else:
+            self._check_instr(value)
+            super().__setitem__(index, value)
+
     def __iter__(self) -> Iterator[Union[Instr, SetLineno, TryBegin, TryEnd]]:
         index = 0
         while index < len(self):
             instr = self[index]
             index += 1
-
-            if not isinstance(instr, (SetLineno, Instr, TryBegin, TryEnd)):
-                raise ValueError(
-                    "BasicBlock must only contain SetLineno and Instr objects, "
-                    "but %s was found" % instr.__class__.__name__
-                )
 
             if isinstance(instr, Instr) and instr.has_jump():
                 if index < len(self) and any(

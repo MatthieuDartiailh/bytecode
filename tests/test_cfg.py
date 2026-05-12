@@ -55,13 +55,32 @@ def disassemble(
 
 class BlockTests(unittest.TestCase):
     def test_iter_invalid_types(self):
-        # Labels are not allowed in basic blocks
+        # Labels are not allowed in basic blocks — caught at insertion time
         block = BasicBlock()
-        block.append(Label())
         with self.assertRaises(ValueError):
-            list(block)
+            block.append(Label())
         with self.assertRaises(ValueError):
-            block.legalize(1)
+            block.extend([Label()])
+        with self.assertRaises(ValueError):
+            block.insert(0, Label())
+        block.append(Instr("NOP"))
+        with self.assertRaises(ValueError):
+            block[0] = Label()
+        with self.assertRaises(ValueError):
+            block[:] = [Label()]
+
+        # Valid types are accepted via all insertion methods
+        nop = Instr("NOP")
+        block = BasicBlock()
+        block.append(nop)
+        self.assertEqual(block[0], nop)
+        block.insert(0, nop)
+        self.assertEqual(len(block), 2)
+        block.extend([nop])
+        self.assertEqual(len(block), 3)
+        block[0] = nop
+        block[:] = [nop]
+        self.assertEqual(len(block), 1)
 
         # Only one jump allowed and only at the end
         block = BasicBlock()
