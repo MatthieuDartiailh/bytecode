@@ -269,6 +269,13 @@ class CommonConstant(enum.IntEnum):
     BUILTIN_TUPLE = 2
     BUILTIN_ALL = 3
     BUILTIN_ANY = 4
+    BUILTIN_LIST = 5
+    BUILTIN_SET = 6
+    CONSTANT_NONE = 7
+    CONSTANT_EMPTY_STR = 8
+    CONSTANT_TRUE = 9
+    CONSTANT_FALSE = 10
+    CONSTANT_MINUS_ONE = 11
 
 
 # This make type checking happy but means it won't catch attempt to manipulate an unset
