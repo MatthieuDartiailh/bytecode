@@ -113,6 +113,19 @@ class InstrLocationTests(TestCase):
                 else:
                     InstrLocation(*args)
 
+    def test_immutable(self):
+        import importlib.util
+
+        spec = importlib.util.find_spec("bytecode.concrete")
+        is_pure = spec and spec.origin and spec.origin.endswith(".py")
+        if not is_pure:
+            self.skipTest("immutability is only enforced in the pure-Python build")
+        loc = InstrLocation(1, 2, 3, 4)
+        with self.assertRaises((AttributeError, TypeError)):
+            loc.lineno = 99  # type: ignore[misc]
+        with self.assertRaises((AttributeError, TypeError)):
+            del loc.lineno  # type: ignore[misc]
+
 
 class InstrTests(TestCase):
     def test_constructor(self):

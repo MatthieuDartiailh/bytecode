@@ -3,7 +3,7 @@ from __future__ import annotations
 import dis
 import enum
 import opcode as _opcode
-import sys
+import types
 from abc import abstractmethod
 from dataclasses import dataclass
 from functools import cache
@@ -721,8 +721,8 @@ class BaseInstr:
 
     __slots__ = ("_arg", "_location", "_name", "_opcode")
 
-    def __class_getitem__(cls, item: Any) -> Any:
-        return cls
+    def __class_getitem__(cls, item: Any) -> types.GenericAlias:
+        return types.GenericAlias(cls, item)
 
     # Work around an issue with the default value of arg
     def __init__(
