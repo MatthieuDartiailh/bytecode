@@ -167,6 +167,30 @@ class _BaseBytecodeList(BaseBytecode, list, Generic[U]):
     def _check_instr(self, instr):
         raise NotImplementedError()
 
+    def append(self, instr: U) -> None:  # type: ignore[override]
+        self._check_instr(instr)
+        super().append(instr)
+
+    def insert(self, index: SupportsIndex, instr: U) -> None:  # type: ignore[override]
+        self._check_instr(instr)
+        super().insert(index, instr)
+
+    def extend(self, instrs) -> None:  # type: ignore[override]
+        instrs = list(instrs)
+        for instr in instrs:
+            self._check_instr(instr)
+        super().extend(instrs)
+
+    def __setitem__(self, index, value):
+        if isinstance(index, slice):
+            values = list(value)
+            for v in values:
+                self._check_instr(v)
+            super().__setitem__(index, values)
+        else:
+            self._check_instr(value)
+            super().__setitem__(index, value)
+
 
 V = TypeVar("V")
 
@@ -236,15 +260,11 @@ class Bytecode(
     ) -> None:
         BaseBytecode.__init__(self)
         self.argnames: List[str] = []
-        for instr in instructions:
-            self._check_instr(instr)
         self.extend(instructions)
 
     def __iter__(self) -> Iterator[Union[Instr, Label, TryBegin, TryEnd, SetLineno]]:
-        instructions = super().__iter__()
         seen_try_begin = False
-        for instr in instructions:
-            self._check_instr(instr)
+        for instr in super().__iter__():
             if isinstance(instr, TryBegin):
                 if seen_try_begin:
                     raise RuntimeError("TryBegin pseudo instructions cannot be nested.")

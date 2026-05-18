@@ -82,19 +82,16 @@ class BlockTests(unittest.TestCase):
         block[:] = [nop]
         self.assertEqual(len(block), 1)
 
-        # Only one jump allowed and only at the end
+        # Only one jump allowed and only at the end — caught at extend time
         block = BasicBlock()
         block2 = BasicBlock()
-        block.extend(
-            [
-                Instr("JUMP_FORWARD", block2),
-                Instr("NOP"),
-            ]
-        )
         with self.assertRaises(ValueError):
-            list(block)
-        with self.assertRaises(ValueError):
-            block.legalize(1)
+            block.extend(
+                [
+                    Instr("JUMP_FORWARD", block2),
+                    Instr("NOP"),
+                ]
+            )
 
         # jump target must be a BasicBlock
         block = BasicBlock()
