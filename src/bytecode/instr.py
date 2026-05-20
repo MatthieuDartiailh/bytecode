@@ -577,6 +577,22 @@ class InstrLocation:
 
     __slots__ = ["col_offset", "end_col_offset", "end_lineno", "lineno"]
 
+    def _unsafe_set(
+        self,
+        lineno: Optional[int],
+        end_lineno: Optional[int],
+        col_offset: Optional[int],
+        end_col_offset: Optional[int],
+    ) -> None:
+        # When Cython-compiled, `self` is statically typed as InstrLocation so
+        # these assignments compile to direct C struct writes, bypassing the
+        # readonly Python descriptor.  In pure Python mode callers use
+        # object.__setattr__ instead and never reach this method.
+        self.lineno = lineno  # type: ignore[misc]
+        self.end_lineno = end_lineno  # type: ignore[misc]
+        self.col_offset = col_offset  # type: ignore[misc]
+        self.end_col_offset = end_col_offset  # type: ignore[misc]
+
     def __init__(
         self,
         lineno: Optional[int],
@@ -585,10 +601,7 @@ class InstrLocation:
         end_col_offset: Optional[int],
     ) -> None:
         if cython.compiled:
-            self.lineno = lineno
-            self.end_lineno = end_lineno
-            self.col_offset = col_offset
-            self.end_col_offset = end_col_offset
+            self._unsafe_set(lineno, end_lineno, col_offset, end_col_offset)
         else:
             # Needed because we want the class to be frozen in pure Python
             object.__setattr__(self, "lineno", lineno)
@@ -649,12 +662,9 @@ class InstrLocation:
         end_col_offset: Optional[int],
     ) -> InstrLocation:
         """Fast path for trusted position data (e.g. from co_positions())."""
-        new = cls.__new__(cls)
+        new: InstrLocation = cls.__new__(cls)
         if cython.compiled:
-            new.lineno = lineno
-            new.end_lineno = end_lineno
-            new.col_offset = col_offset
-            new.end_col_offset = end_col_offset
+            new._unsafe_set(lineno, end_lineno, col_offset, end_col_offset)
         else:
             object.__setattr__(new, "lineno", lineno)
             object.__setattr__(new, "end_lineno", end_lineno)
@@ -916,10 +926,10 @@ class BaseInstr:
         else:
             return "<%s location=%s>" % (self._name, self._location)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if type(self) is not type(other):
             return False
-        return self._cmp_key() == other._cmp_key()
+        return self._cmp_key() == other._cmp_key()  # type: ignore[union-attr]
 
     # --- Private API
 
