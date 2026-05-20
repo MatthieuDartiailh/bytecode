@@ -927,9 +927,9 @@ class BaseInstr:
             return "<%s location=%s>" % (self._name, self._location)
 
     def __eq__(self, other: object) -> bool:
-        if type(self) is not type(other):
+        if not isinstance(other, BaseInstr):
             return False
-        return self._cmp_key() == other._cmp_key()  # type: ignore[union-attr]
+        return self._cmp_key() == other._cmp_key()
 
     # --- Private API
 
