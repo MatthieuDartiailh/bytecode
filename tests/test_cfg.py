@@ -17,6 +17,7 @@ from bytecode import (
     Instr,
     Label,
     SetLineno,
+    TryBegin,
     dump_bytecode,
 )
 from bytecode.utils import PY312, PY313, PY314
@@ -54,7 +55,7 @@ def disassemble(
 
 
 class BlockTests(unittest.TestCase):
-    def test_iter_invalid_types(self):
+    def test_inserting_invalid_types(self):
         # Labels are not allowed in basic blocks — caught at insertion time
         block = BasicBlock()
         with self.assertRaises(ValueError):
@@ -85,16 +86,24 @@ class BlockTests(unittest.TestCase):
         # Only one jump allowed and only at the end
         block = BasicBlock()
         block2 = BasicBlock()
-        block.extend(
-            [
-                Instr("JUMP_FORWARD", block2),
-                Instr("NOP"),
-            ]
-        )
+        # caught at extend time (within batch)
         with self.assertRaises(ValueError):
-            list(block)
+            block.extend(
+                [
+                    Instr("JUMP_FORWARD", block2),
+                    Instr("NOP"),
+                ]
+            )
+        # caught at append time (cross-boundary)
+        block = BasicBlock()
+        block.append(Instr("JUMP_FORWARD", block2))
         with self.assertRaises(ValueError):
-            block.legalize(1)
+            block.append(Instr("NOP"))
+        # caught at extend time (cross-boundary)
+        block = BasicBlock()
+        block.append(Instr("JUMP_FORWARD", block2))
+        with self.assertRaises(ValueError):
+            block.extend([Instr("NOP")])
 
         # jump target must be a BasicBlock
         block = BasicBlock()
@@ -104,6 +113,12 @@ class BlockTests(unittest.TestCase):
             list(block)
         with self.assertRaises(ValueError):
             block.legalize(1)
+
+        # TryBegin target must be a BasicBlock
+        block = BasicBlock()
+        block.extend([TryBegin(label, push_lasti=False)])
+        with self.assertRaises(ValueError):
+            list(block)
 
     def test_slice(self):
         block = BasicBlock([Instr("NOP")])

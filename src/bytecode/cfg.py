@@ -54,6 +54,12 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
 
     def append(self, instr: Union[Instr, SetLineno, TryBegin, TryEnd]) -> None:
         self._check_instr(instr)
+        if isinstance(instr, Instr):
+            last = self.get_last_non_artificial_instruction()
+            if last is not None and last.has_jump():
+                raise ValueError(
+                    "Only the last instruction of a basic block can be a jump"
+                )
         super().append(instr)
 
     def insert(
@@ -68,6 +74,17 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
         instrs = list(instrs)
         for instr in instrs:
             self._check_instr(instr)
+        existing_last = self.get_last_non_artificial_instruction()
+        last_new_instr: Optional[Instr] = None
+        for instr in instrs:
+            if isinstance(instr, Instr):
+                if (existing_last is not None and existing_last.has_jump()) or (
+                    last_new_instr is not None and last_new_instr.has_jump()
+                ):
+                    raise ValueError(
+                        "Only the last instruction of a basic block can be a jump"
+                    )
+                last_new_instr = instr
         super().extend(instrs)
 
     def __setitem__(self, index, value):
@@ -81,32 +98,19 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
             super().__setitem__(index, value)
 
     def __iter__(self) -> Iterator[Union[Instr, SetLineno, TryBegin, TryEnd]]:
-        index = 0
-        while index < len(self):
-            instr = self[index]
-            index += 1
-
+        for instr in super().__iter__():
             if isinstance(instr, Instr) and instr.has_jump():
-                if index < len(self) and any(
-                    isinstance(self[i], Instr) for i in range(index, len(self))
-                ):
-                    raise ValueError(
-                        "Only the last instruction of a basic block can be a jump"
-                    )
-
                 if not isinstance(instr.arg, BasicBlock):
                     raise ValueError(
-                        "Jump target must a BasicBlock, got %s",
-                        type(instr.arg).__name__,
+                        "Jump target must a BasicBlock, got %s"
+                        % type(instr.arg).__name__
                     )
-
-            if isinstance(instr, TryBegin):
+            elif isinstance(instr, TryBegin):
                 if not isinstance(instr.target, BasicBlock):
                     raise ValueError(
-                        "TryBegin target must a BasicBlock, got %s",
-                        type(instr.target).__name__,
+                        "TryBegin target must a BasicBlock, got %s"
+                        % type(instr.target).__name__
                     )
-
             yield instr
 
     @overload
@@ -126,10 +130,9 @@ class BasicBlock(_bytecode._InstrList[Union[Instr, SetLineno, TryBegin, TryEnd]]
         return value
 
     def get_last_non_artificial_instruction(self) -> Optional[Instr]:
-        for instr in reversed(self):
+        for instr in super().__reversed__():
             if isinstance(instr, Instr):
                 return instr
-
         return None
 
     def copy(self: T) -> T:

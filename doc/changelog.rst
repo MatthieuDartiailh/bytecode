@@ -8,6 +8,14 @@ unreleased: Version 0.18.0
 - Replace string literal type annotations with postponed evaluation using
   ``from __future__ import annotations`` PR #191
 
+Breaking changes:
+
+- ``BasicBlock``, ``Bytecode``, and ``ConcreteBytecode`` now validate inserted
+  instructions at insertion time (``append``, ``extend``, ``insert``,
+  ``__setitem__``) rather than during iteration. Code that relied on catching
+  ``ValueError`` from ``list(block)`` or ``for instr in block:`` must wrap the
+  insertion call instead. PR #199
+
 Bugfixes:
 
 - Fix handling of END_ASYNC_FOR which is a backward jump PR #179
