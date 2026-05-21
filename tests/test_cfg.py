@@ -17,6 +17,7 @@ from bytecode import (
     Instr,
     Label,
     SetLineno,
+    TryBegin,
     dump_bytecode,
 )
 from bytecode.utils import PY312, PY313, PY314
@@ -54,7 +55,7 @@ def disassemble(
 
 
 class BlockTests(unittest.TestCase):
-    def test_iter_invalid_types(self):
+    def test_inserting_invalid_types(self):
         # Labels are not allowed in basic blocks — caught at insertion time
         block = BasicBlock()
         with self.assertRaises(ValueError):
@@ -112,6 +113,12 @@ class BlockTests(unittest.TestCase):
             list(block)
         with self.assertRaises(ValueError):
             block.legalize(1)
+
+        # TryBegin target must be a BasicBlock
+        block = BasicBlock()
+        block.extend([TryBegin(label, push_lasti=False)])
+        with self.assertRaises(ValueError):
+            list(block)
 
     def test_slice(self):
         block = BasicBlock([Instr("NOP")])
