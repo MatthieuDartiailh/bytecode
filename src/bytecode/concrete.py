@@ -782,16 +782,19 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         c_instructions = self[:]
         self._remove_extended_args(c_instructions)
 
-        # Find jump targets
+        # Find jump targets; stash (size, jump_target) to avoid recomputing in the main loop
         jump_targets: Set[int] = set()
+        _instr_props: List[Tuple[int, Optional[int]]] = []
         offset = 0
         for c_instr in c_instructions:
             if isinstance(c_instr, SetLineno):
                 continue
+            size = c_instr.size
             target = c_instr.get_jump_target(offset)
+            _instr_props.append((size, target))
             if target is not None:
                 jump_targets.add(target)
-            offset += c_instr.size // 2
+            offset += size // 2
 
         # On 3.11+ we need to also look at the exception table for jump targets
         for ex_entry in self.exception_table:
@@ -839,6 +842,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         else:
             locals_lookup = self.varnames
 
+        _props_iter = iter(_instr_props)
         for lineno, c_instr in self._normalize_lineno(
             c_instructions, self.first_lineno
         ):
@@ -864,8 +868,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                     tb_instrs[entry] = tb_instr
                     instructions.append(tb_instr)
 
-            jump_target = c_instr.get_jump_target(offset)
-            size = c_instr.size
+            size, jump_target = next(_props_iter)
             # If an instruction uses extended args, those appear before the instruction
             # causing the instruction to appear at offset that accounts for extended
             # args. So we first update the offset to account for extended args, then
