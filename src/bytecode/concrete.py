@@ -200,6 +200,30 @@ class ConcreteInstr(BaseInstr[int]):
         return new
 
     @classmethod
+    def _from_trusted(
+        cls: Type[T],
+        name: str,
+        opcode: int,
+        arg: int,
+        location: Optional[InstrLocation],
+    ) -> T:
+        """Fast path for concrete_instructions: skip validation, compute size from arg."""
+        new = object.__new__(cls)
+        new._name = name
+        new._opcode = opcode
+        new._arg = arg
+        new._location = location
+        new._extended_args = None
+        size = 2
+        if arg is not UNSET:
+            _arg = arg
+            while _arg > 0xFF:
+                size += 2
+                _arg >>= 8
+        new._size = size
+        return new
+
+    @classmethod
     def disassemble(cls: Type[T], lineno: Optional[int], code: bytes, offset: int) -> T:
         index = 2 * offset
         op = code[index]
@@ -1145,12 +1169,14 @@ class _ConvertBytecodeToConcrete:
 
             assert isinstance(instr, Instr)
 
-            if instr.location is not UNSET and instr.location is not None:
-                location = instr.location
+            # Access private slots directly — avoids property descriptor overhead on
+            # every iteration; safe because instr is a validated Instr at this point.
+            if instr._location is not UNSET and instr._location is not None:
+                location = instr._location
 
-            instr_name = instr.name
+            instr_name = instr._name
             opcode = instr._opcode
-            arg = instr.arg
+            arg = instr._arg
             is_jump = False
             if isinstance(arg, Label):
                 label = arg
@@ -1234,7 +1260,7 @@ class _ConvertBytecodeToConcrete:
                 c_arg = arg
 
             # The above should have performed all the necessary conversion
-            c_instr = ConcreteInstr(instr_name, c_arg, location=location)
+            c_instr = ConcreteInstr._from_trusted(instr_name, opcode, c_arg, location)
             if is_jump:
                 self.jumps.append((len(self.instructions), label, c_instr))
 
