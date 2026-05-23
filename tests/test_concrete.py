@@ -275,11 +275,12 @@ class ConcreteBytecodeTests(TestCase):
 
     def test_invalid_types(self):
         code = ConcreteBytecode()
-        code.append(Label())
         with self.assertRaises(ValueError):
-            list(code)
+            code.append(Label())
         with self.assertRaises(ValueError):
-            code.legalize()
+            code.extend([Label()])
+        with self.assertRaises(ValueError):
+            code.insert(0, Label())
         with self.assertRaises(ValueError):
             ConcreteBytecode([Label()])
 

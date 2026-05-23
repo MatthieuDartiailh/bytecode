@@ -25,11 +25,12 @@ class BytecodeTests(TestCase):
 
     def test_invalid_types(self):
         code = Bytecode()
-        code.append(123)
         with self.assertRaises(ValueError):
-            list(code)
+            code.append(123)
         with self.assertRaises(ValueError):
-            code.legalize()
+            code.extend([123])
+        with self.assertRaises(ValueError):
+            code.insert(0, 123)
         with self.assertRaises(ValueError):
             Bytecode([123])
 
