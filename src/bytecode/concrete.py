@@ -218,7 +218,7 @@ class ConcreteInstr(BaseInstr):
         location: Optional[InstrLocation],
     ) -> T:
         """Fast path for concrete_instructions: skip validation, compute size from arg."""
-        new = object.__new__(cls)
+        new = cls.__new__(cls)
         new._name = name
         new._opcode = opcode
         new._arg = arg

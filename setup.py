@@ -31,13 +31,15 @@ def pretend_cython():
 _pure_python = os.getenv("BYTECODE_PURE_PYTHON")
 print(f"bytecode: building {'pure-Python' if _pure_python else 'Cython'} version")
 
-# Include .pxd declaration files only in Cython builds so they are available
-# to downstream Cython users who want to cimport from bytecode.
-_package_data = {} if _pure_python else {"bytecode": ["*.pxd"]}
+# Always include .pyi stubs; also include .pxd declaration files in Cython
+# builds so downstream Cython users can cimport from bytecode.
+_package_data: dict = {"bytecode": ["*.pyi"]}
+if not _pure_python:
+    _package_data["bytecode"].append("*.pxd")
 
 setup(
     name="bytecode",
-    setup_requires=["setuptools_scm[toml]>=4", "cython"] + ([] if _pure_python else ["cmake>=3.24.2,<3.28"]),
+    setup_requires=["setuptools_scm[toml]>=4"] + ([] if _pure_python else ["cython"]),
     package_data=_package_data,
     ext_modules=[] if _pure_python else cythonize(
         pretend_cython(),
