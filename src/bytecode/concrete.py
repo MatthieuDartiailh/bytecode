@@ -390,13 +390,20 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         pos_iter: Iterator[
             Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]
         ] = iter(code.co_positions())
+        _last_pos: Optional[
+            Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]
+        ] = None
+        _last_loc: Optional[InstrLocation] = None
         for offset in range(0, len(bc), 2):
             op = bc[offset]
             arg = bc[offset + 1] if opcode_has_argument(op) else UNSET
             pos = next(pos_iter, None)
-            loc: Optional[InstrLocation] = (
-                InstrLocation._from_tuple(*pos) if pos is not None else None
-            )
+            if pos == _last_pos:
+                loc: Optional[InstrLocation] = _last_loc
+            else:
+                loc = InstrLocation._from_tuple(*pos) if pos is not None else None
+                _last_pos = pos
+                _last_loc = loc
             instructions.append(ConcreteInstr._from_opcode(opname[op], op, arg, loc))
 
         bytecode = ConcreteBytecode()
