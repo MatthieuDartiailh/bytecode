@@ -1,0 +1,74 @@
+name: Benchmarks
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/benchmarks.yml
+      - scripts/benchmark.py
+      - bytecode/**
+      - src/**
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out PR
+        uses: actions/checkout@v4
+        with:
+          path: bytecode-dev
+
+      - name: Check out base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: bytecode-base
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install base version
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: "0.0.0"
+        run: |
+          python -m venv .venv-base
+          .venv-base/bin/pip install --upgrade pip
+          .venv-base/bin/pip install -r bytecode-dev/scripts/requirements-bm.txt
+          .venv-base/bin/pip install ./bytecode-base
+
+      - name: Install dev version
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: "0.0.0"
+        run: |
+          python -m venv .venv-dev
+          .venv-dev/bin/pip install --upgrade pip
+          .venv-dev/bin/pip install -r bytecode-dev/scripts/requirements-bm.txt
+          .venv-dev/bin/pip install ./bytecode-dev
+
+      - name: Run benchmark (base)
+        run: |
+          .venv-base/bin/python bytecode-dev/scripts/benchmark.py \
+            --version base \
+            --output results-base.json
+
+      - name: Run benchmark (dev)
+        run: |
+          .venv-dev/bin/python bytecode-dev/scripts/benchmark.py \
+            --version dev \
+            --output results-dev.json
+
+      - name: Render report
+        run: |
+          .venv-dev/bin/python bytecode-dev/scripts/benchmark.py \
+            --merge results-base.json results-dev.json \
+            --format markdown \
+            > comment.txt
+          cat comment.txt
+
+      - name: Post results on PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: benchmarks
+          path: comment.txt
