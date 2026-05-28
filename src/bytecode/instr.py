@@ -693,7 +693,7 @@ A = TypeVar("A", bound=object)
 class BaseInstr(Generic[A]):
     """Abstract instruction."""
 
-    __slots__ = ("_arg", "_location", "_name", "_opcode")
+    __slots__ = ("_arg", "_is_jump", "_location", "_name", "_opcode")
 
     # Work around an issue with the default value of arg
     def __init__(
@@ -831,6 +831,7 @@ class BaseInstr(Generic[A]):
         new = object.__new__(self.__class__)
         new._name = self._name
         new._opcode = self._opcode
+        new._is_jump = self._is_jump
         new._arg = self._arg
         new._location = self._location
         return new
@@ -847,12 +848,13 @@ class BaseInstr(Generic[A]):
         new = object.__new__(cls)
         new._name = name
         new._opcode = opcode
+        new._is_jump = opcode in HAS_JUMP
         new._arg = arg
         new._location = location
         return new
 
     def has_jump(self) -> bool:
-        return self._has_jump(self._opcode)
+        return self._is_jump
 
     def is_cond_jump(self) -> bool:
         """Is a conditional jump?"""
@@ -916,6 +918,7 @@ class BaseInstr(Generic[A]):
 
         self._name = name
         self._opcode = opcode
+        self._is_jump = opcode in HAS_JUMP
         self._arg = arg
 
     @staticmethod

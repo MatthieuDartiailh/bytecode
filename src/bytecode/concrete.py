@@ -37,6 +37,7 @@ from bytecode.instr import (
     DUAL_ARG_OPCODES_SINGLE_OPS,
     EXTENDEDARG_OPCODE,
     FORMAT_VALUE_OPS,
+    HAS_JUMP,
     INTRINSIC,
     INTRINSIC_1OP,
     INTRINSIC_2OP,
@@ -193,6 +194,7 @@ class ConcreteInstr(BaseInstr[int]):
         new = object.__new__(cls)
         new._name = name
         new._opcode = opcode
+        new._is_jump = opcode in HAS_JUMP
         new._arg = arg
         new._location = location
         new._extended_args = None
@@ -211,6 +213,7 @@ class ConcreteInstr(BaseInstr[int]):
         new = object.__new__(cls)
         new._name = name
         new._opcode = opcode
+        new._is_jump = opcode in HAS_JUMP
         new._arg = arg
         new._location = location
         new._extended_args = None
@@ -491,10 +494,8 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         return (1 << 7) + (code << 3) + (size - 1 if size <= 8 else 7)
 
     def _pack_location(
-        self, size: int, lineno: int, location: Optional[InstrLocation]
-    ) -> bytearray:
-        packed = bytearray()
-
+        self, buf: bytearray, size: int, lineno: int, location: Optional[InstrLocation]
+    ) -> None:
         l_lineno: Optional[int]
         # The location was not set so we infer a line.
         if location is None:
@@ -514,7 +515,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
 
         # We have no location information so the code is 15
         if l_lineno is None:
-            packed.append(self._pack_location_header(15, size))
+            buf.append(self._pack_location_header(15, size))
 
         # No column info, code 13
         elif col_offset is None:
@@ -523,7 +524,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                     "An instruction cannot have no column offset and span "
                     f"multiple lines (lineno: {l_lineno}, end lineno: {end_lineno}"
                 )
-            packed.extend(
+            buf.extend(
                 (
                     self._pack_location_header(13, size),
                     *self._encode_location_svarint(l_lineno - lineno),
@@ -541,7 +542,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 and col_offset < 72
                 and (end_col_offset - col_offset) <= 15
             ):
-                packed.extend(
+                buf.extend(
                     (
                         self._pack_location_header(col_offset // 8, size),
                         ((col_offset % 8) << 4) + (end_col_offset - col_offset),
@@ -555,7 +556,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 and col_offset < 256
                 and end_col_offset < 256
             ):
-                packed.extend(
+                buf.extend(
                     (
                         self._pack_location_header(10 + l_lineno - lineno, size),
                         col_offset,
@@ -567,7 +568,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
             else:
                 assert end_lineno is not None
 
-                packed.extend(
+                buf.extend(
                     (
                         self._pack_location_header(14, size),
                         *self._encode_location_svarint(l_lineno - lineno),
@@ -579,11 +580,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                     )
                 )
 
-        return packed
-
     def _push_locations(
         self,
-        locations: List[bytearray],
+        buf: bytearray,
         size: int,
         lineno: int,
         location: InstrLocation,
@@ -595,7 +594,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # elements. We recompute each time since in practice we will
         # rarely loop.
         while True:
-            locations.append(self._pack_location(size, lineno, location))
+            self._pack_location(buf, size, lineno, location)
             # Update the lineno since if we need more than one entry the
             # reference for the delta of the lineno change
             lineno = location.lineno if location.lineno is not None else lineno
@@ -613,7 +612,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         if not linenos:
             return b""
 
-        locations: List[bytearray] = []
+        buf = bytearray()
 
         iter_in = iter(linenos)
 
@@ -634,15 +633,15 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 size += i_size
                 continue
 
-            lineno = self._push_locations(locations, size, lineno, old_location)
+            lineno = self._push_locations(buf, size, lineno, old_location)
 
             size = i_size
             old_location = location
 
         # Pack the line of the last instruction.
-        self._push_locations(locations, size, lineno, old_location)
+        self._push_locations(buf, size, lineno, old_location)
 
-        return b"".join(locations)
+        return bytes(buf)
 
     @staticmethod
     def _remove_extended_args(
