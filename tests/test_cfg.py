@@ -20,7 +20,8 @@ from bytecode import (
     TryBegin,
     dump_bytecode,
 )
-from bytecode.utils import PY312, PY313, PY314
+from bytecode.instr import CommonConstant
+from bytecode.utils import PY312, PY313, PY314, PY315
 
 from . import TestCase, disassemble as _disassemble
 
@@ -34,15 +35,20 @@ def disassemble(
         # drop LOAD_CONST+RETURN_VALUE to only keep 2 instructions,
         # to make unit tests shorter
         block = blocks[-1]
-        test = (
-            (block[-1].name == "RETURN_CONST" and block[-1].arg is None)
-            if PY312 and not PY314
-            else (
+        if PY315:
+            test = (
+                block[-2].name == "LOAD_COMMON_CONSTANT"
+                and block[-2].arg == CommonConstant.CONSTANT_NONE
+                and block[-1].name == "RETURN_VALUE"
+            )
+        elif PY312 and not PY314:
+            test = block[-1].name == "RETURN_CONST" and block[-1].arg is None
+        else:
+            test = (
                 block[-2].name == "LOAD_CONST"
                 and block[-2].arg is None
                 and block[-1].name == "RETURN_VALUE"
             )
-        )
         if not test:
             raise ValueError(
                 "unable to find implicit RETURN_VALUE <None>: %s" % block[-2:]

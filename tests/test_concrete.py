@@ -21,7 +21,8 @@ from bytecode import (
     SetLineno,
 )
 from bytecode.concrete import ExceptionTableEntry
-from bytecode.utils import PY312, PY313, PY314
+from bytecode.instr import CommonConstant
+from bytecode.utils import PY312, PY313, PY314, PY315
 
 from . import TestCase, get_code
 
@@ -244,30 +245,43 @@ class ConcreteBytecodeTests(TestCase):
     def test_attr(self):
         code_obj = get_code("x = 5")
         code = ConcreteBytecode.from_code(code_obj)
-        self.assertEqual(code.consts, [5, None])
+        self.assertEqual(code.consts, [5] if PY315 else [5, None])
         self.assertEqual(code.names, ["x"])
         self.assertEqual(code.varnames, [])
         self.assertEqual(code.freevars, [])
         self.assertInstructionListEqual(
             list(code),
-            ([ConcreteInstr("RESUME", 0, lineno=0)])
-            + [
-                ConcreteInstr("LOAD_CONST", 0, lineno=1),
-                ConcreteInstr("STORE_NAME", 0, lineno=1),
-            ]
-            + (
+            (
                 [
-                    ConcreteInstr("LOAD_SMALL_INT", 1, lineno=1),
+                    ConcreteInstr("RESUME", 0, lineno=0),
+                    ConcreteInstr("CACHE", 0, lineno=0),
+                    ConcreteInstr("LOAD_SMALL_INT", 5, lineno=1),
+                    ConcreteInstr("STORE_NAME", 0, lineno=1),
+                    ConcreteInstr("LOAD_COMMON_CONSTANT", 7, lineno=1),
                     ConcreteInstr("RETURN_VALUE", lineno=1),
                 ]
-                if PY314
+                if PY315
                 else (
-                    [ConcreteInstr("RETURN_CONST", 1, lineno=1)]
-                    if PY312
-                    else [
-                        ConcreteInstr("LOAD_CONST", 1, lineno=1),
-                        ConcreteInstr("RETURN_VALUE", lineno=1),
+                    [ConcreteInstr("RESUME", 0, lineno=0)]
+                    + [
+                        ConcreteInstr("LOAD_CONST", 0, lineno=1),
+                        ConcreteInstr("STORE_NAME", 0, lineno=1),
                     ]
+                    + (
+                        [
+                            ConcreteInstr("LOAD_SMALL_INT", 1, lineno=1),
+                            ConcreteInstr("RETURN_VALUE", lineno=1),
+                        ]
+                        if PY314
+                        else (
+                            [ConcreteInstr("RETURN_CONST", 1, lineno=1)]
+                            if PY312
+                            else [
+                                ConcreteInstr("LOAD_CONST", 1, lineno=1),
+                                ConcreteInstr("RETURN_VALUE", lineno=1),
+                            ]
+                        )
+                    )
                 )
             ),
         )
@@ -321,7 +335,9 @@ class ConcreteBytecodeTests(TestCase):
             ]
             + (
                 [
-                    ConcreteInstr("LOAD_CONST", 1),
+                    ConcreteInstr("LOAD_COMMON_CONSTANT", CommonConstant.CONSTANT_NONE)
+                    if PY315
+                    else ConcreteInstr("LOAD_CONST", 1),
                     ConcreteInstr("RETURN_VALUE"),
                 ]
                 if PY314
@@ -445,7 +461,9 @@ class ConcreteBytecodeTests(TestCase):
             ]
             + (
                 [
-                    ConcreteInstr("LOAD_CONST", 1),
+                    ConcreteInstr("LOAD_COMMON_CONSTANT", CommonConstant.CONSTANT_NONE)
+                    if PY315
+                    else ConcreteInstr("LOAD_CONST", 1),
                     ConcreteInstr("RETURN_VALUE"),
                 ]
                 if PY314
@@ -740,6 +758,32 @@ class ConcreteFromCodeTests(TestCase):
 
         # without EXTENDED_ARG
         concrete = ConcreteBytecode.from_code(code_obj)
+        if PY315:
+            ann_code = concrete.consts[0]
+            func_code = concrete.consts[1]
+            expected_py315 = [
+                ConcreteInstr("RESUME", 0, lineno=0),
+                ConcreteInstr("CACHE", 0, lineno=0),
+                ConcreteInstr("LOAD_CONST", 0, lineno=1),
+                ConcreteInstr("MAKE_FUNCTION", lineno=1),
+                ConcreteInstr("LOAD_CONST", 1, lineno=1),
+                ConcreteInstr("MAKE_FUNCTION", lineno=1),
+                ConcreteInstr("SET_FUNCTION_ATTRIBUTE", 16, lineno=1),
+                ConcreteInstr("STORE_NAME", 0, lineno=1),
+                ConcreteInstr("LOAD_COMMON_CONSTANT", 7, lineno=1),
+                ConcreteInstr("RETURN_VALUE", lineno=1),
+            ]
+            expected_consts = [ann_code, func_code]
+            self.assertSequenceEqual(concrete.names, ["foo"])
+            self.assertSequenceEqual(concrete.consts, expected_consts)
+            self.assertInstructionListEqual(list(concrete), expected_py315)
+            concrete = ConcreteBytecode.from_code(code_obj, extended_arg=True)
+            ann_code = concrete.consts[0]
+            func_code = concrete.consts[1]
+            self.assertEqual(concrete.names, ["foo"])
+            self.assertEqual(concrete.consts, expected_consts)
+            self.assertInstructionListEqual(list(concrete), expected_py315)
+            return
         if PY314:
             ann_code = concrete.consts[0]
             func_code = concrete.consts[1]
