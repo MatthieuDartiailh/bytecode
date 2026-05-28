@@ -31,18 +31,20 @@
 
 
 [build-system]
-  requires      = ["setuptools>=61.2", "wheel", "setuptools_scm[toml]>=3.4.3"]
+  requires      = ["setuptools>=61.2", "wheel", "setuptools_scm[toml]>=3.4.3", "cython"]
   build-backend = "setuptools.build_meta"
 
 [dependency-groups]
   dev = [
     "mypy>=1.16.1",
     "pytest>=8",
+    "pytest-benchmark>=5",
     "pytest-cov>=6",
     "ruff>=0.12.0",
   ]
   test = [
     "pytest>=8",
+    "pytest-benchmark>=5",
     "pytest-cov",
   ]
 
@@ -89,6 +91,12 @@ __version__ = "{version}"
 [tool.mypy]
   follow_imports  = "normal"
   strict_optional = true
+
+[[tool.mypy.overrides]]
+  # cython stubs are not available to mypy; the cythonize branch intentionally
+  # removes Generic[A] from BaseInstr which cascades type errors.
+  module = ["bytecode.instr", "bytecode.concrete", "bytecode.bytecode", "bytecode.cfg"]
+  ignore_errors = true
 
 [tool.pytest.ini_options]
   minversion = "6.0"

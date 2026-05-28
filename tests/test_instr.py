@@ -113,6 +113,13 @@ class InstrLocationTests(TestCase):
                 else:
                     InstrLocation(*args)
 
+    def test_immutable(self):
+        loc = InstrLocation(1, 2, 3, 4)
+        with self.assertRaises((AttributeError, TypeError)):
+            loc.lineno = 99  # type: ignore[misc]
+        with self.assertRaises((AttributeError, TypeError)):
+            del loc.lineno  # type: ignore[misc]
+
 
 class InstrTests(TestCase):
     def test_constructor(self):

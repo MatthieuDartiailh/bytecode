@@ -120,8 +120,9 @@ def infer_flags(
         elif opcode in ASYNC_OPCODES:
             known_async = True
         elif opcode == YIELD_VALUE_OPCODE:
+            ni = next(instr_iter)
             while isinstance(
-                ni := next(instr_iter),
+                ni,
                 (
                     _bytecode.SetLineno,
                     _bytecode.Label,
@@ -129,7 +130,7 @@ def infer_flags(
                     _bytecode.TryEnd,
                 ),
             ):
-                pass
+                ni = next(instr_iter)
             assert ni._opcode == RESUME_OPCODE
             if (ni.arg & 3) != 3:
                 known_generator = True

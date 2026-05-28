@@ -1,5 +1,17 @@
 from __future__ import annotations
 
+try:
+    import cython
+except ImportError:
+
+    class cython:  # type: ignore[no-redef]
+        compiled = False
+
+        @staticmethod
+        def cclass(cls: Any) -> Any:
+            return cls
+
+
 import dis
 import inspect
 import itertools
@@ -86,7 +98,8 @@ def _set_docstring(code: _bytecode.BaseBytecode, consts: Sequence) -> None:
 T = TypeVar("T", bound="ConcreteInstr")
 
 
-class ConcreteInstr(BaseInstr[int]):
+@cython.cclass
+class ConcreteInstr(BaseInstr):
     """Concrete instruction.
 
     arg must be an integer in the range 0..2147483647.
@@ -94,9 +107,6 @@ class ConcreteInstr(BaseInstr[int]):
     It has a read-only size attribute.
 
     """
-
-    # For ConcreteInstr the argument is always an integer
-    _arg: int
 
     __slots__ = ("_extended_args", "_size")
 
@@ -191,7 +201,7 @@ class ConcreteInstr(BaseInstr[int]):
         location: Optional[InstrLocation],
     ) -> T:
         """Fast path for from_code: arg is a raw byte (0-255), size is always 2."""
-        new = object.__new__(cls)
+        new = cls.__new__(cls)
         new._name = name
         new._opcode = opcode
         new._is_jump = opcode in HAS_JUMP
@@ -210,7 +220,7 @@ class ConcreteInstr(BaseInstr[int]):
         location: Optional[InstrLocation],
     ) -> T:
         """Fast path for concrete_instructions: skip validation, compute size from arg."""
-        new = object.__new__(cls)
+        new = cls.__new__(cls)
         new._name = name
         new._opcode = opcode
         new._is_jump = opcode in HAS_JUMP
