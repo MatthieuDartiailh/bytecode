@@ -1,12 +1,15 @@
 ChangeLog
 =========
 
-unreleased: Version 0.18.0
+03-06-2026: Version 0.18.0
 --------------------------
 
 - drop support for Python 3.9 and 3.10 PR #180
 - Replace string literal type annotations with postponed evaluation using
   ``from __future__ import annotations`` PR #191
+- multiple performance improvements
+  PRs #172, #193, #196, #194, #197, #198, #199, #200, #201,
+  #202, #203
 
 Breaking changes:
 
