@@ -1,7 +1,7 @@
 ChangeLog
 =========
 
-Unreleased
+Unreleased: 0.18.1
 ----------
 
 Bugfixes:
