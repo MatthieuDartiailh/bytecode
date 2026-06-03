@@ -491,10 +491,12 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         return (1 << 7) + (code << 3) + (size - 1 if size <= 8 else 7)
 
     def _pack_location(
-        self, size: int, lineno: int, location: Optional[InstrLocation]
-    ) -> bytearray:
-        packed = bytearray()
-
+        self,
+        packed: bytearray,
+        size: int,
+        lineno: int,
+        location: Optional[InstrLocation],
+    ) -> None:
         l_lineno: Optional[int]
         # The location was not set so we infer a line.
         if location is None:
@@ -579,11 +581,9 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                     )
                 )
 
-        return packed
-
     def _push_locations(
         self,
-        locations: List[bytearray],
+        packed: bytearray,
         size: int,
         lineno: int,
         location: InstrLocation,
@@ -595,7 +595,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # elements. We recompute each time since in practice we will
         # rarely loop.
         while True:
-            locations.append(self._pack_location(size, lineno, location))
+            self._pack_location(packed, size, lineno, location)
             # Update the lineno since if we need more than one entry the
             # reference for the delta of the lineno change
             lineno = location.lineno if location.lineno is not None else lineno
@@ -613,7 +613,7 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         if not linenos:
             return b""
 
-        locations: List[bytearray] = []
+        packed = bytearray()
 
         iter_in = iter(linenos)
 
@@ -634,15 +634,15 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                 size += i_size
                 continue
 
-            lineno = self._push_locations(locations, size, lineno, old_location)
+            lineno = self._push_locations(packed, size, lineno, old_location)
 
             size = i_size
             old_location = location
 
         # Pack the line of the last instruction.
-        self._push_locations(locations, size, lineno, old_location)
+        self._push_locations(packed, size, lineno, old_location)
 
-        return b"".join(locations)
+        return bytes(packed)
 
     @staticmethod
     def _remove_extended_args(
@@ -656,23 +656,20 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
         # offsets in jump targets can end up being wrong.
         nb_extended_args = 0
         extended_arg = None
-        index = 0
-        while index < len(instructions):
-            instr = instructions[index]
-
+        result: List[Union[SetLineno, ConcreteInstr]] = []
+        for instr in instructions:
             # Skip SetLineno meta instruction
             if isinstance(instr, SetLineno):
-                index += 1
+                result.append(instr)
                 continue
 
             if instr._opcode == EXTENDEDARG_OPCODE:
                 nb_extended_args += 1
-                if extended_arg is not None:
-                    extended_arg = (extended_arg << 8) + instr.arg
-                else:
-                    extended_arg = instr.arg
-
-                del instructions[index]
+                extended_arg = (
+                    (extended_arg << 8) + instr.arg
+                    if extended_arg is not None
+                    else instr.arg
+                )
                 continue
 
             if extended_arg is not None:
@@ -682,20 +679,19 @@ class ConcreteBytecode(_bytecode._BaseBytecodeList[Union[ConcreteInstr, SetLinen
                     else (extended_arg << 8) + instr.arg
                 )
                 extended_arg = None
-
                 instr = ConcreteInstr(
                     instr._name,
                     arg,
                     location=instr.location,
                     extended_args=nb_extended_args,
                 )
-                instructions[index] = instr
                 nb_extended_args = 0
 
-            index += 1
+            result.append(instr)
 
         if extended_arg is not None:
             raise ValueError("EXTENDED_ARG at the end of the code")
+        instructions[:] = result
 
     # Taken and adapted from exception_handling_notes.txt in cpython/Objects
     @staticmethod
