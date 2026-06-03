@@ -343,7 +343,17 @@ class _StackSizeComputer:
                 # current try begin. However inside the CFG some blocks may
                 # start with a TryEnd relevant only when reaching this block
                 # through a particular jump. So we are lenient here.
-                if instr.entry is not self._current_try_begin:
+                #
+                # We match on the exception handler (the TryBegin target block)
+                # rather than on the TryBegin instance: a single exception region
+                # can be split into several TryBegin copies that share the same
+                # handler (see ``from_bytecode``), and the copy carried over as
+                # ``pending_try_begin`` through a jump is not necessarily the same
+                # instance as the one referenced by this block's leading TryEnd.
+                if (
+                    self._current_try_begin is None
+                    or instr.entry.target is not self._current_try_begin.target
+                ):
                     continue
 
                 # Compute the stack usage of the exception handler
@@ -403,7 +413,7 @@ class _StackSizeComputer:
                     if (
                         (te := self.block.get_trailing_try_end(i))
                         and self._current_try_begin is not None
-                        and te.entry is self._current_try_begin
+                        and te.entry.target is self._current_try_begin.target
                     ):
                         assert isinstance(te.entry.target, BasicBlock)
                         yield from self._compute_exception_handler_stack_usage(
