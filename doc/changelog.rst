@@ -1,6 +1,17 @@
 ChangeLog
 =========
 
+Unreleased
+----------
+
+Bugfixes:
+
+- Fix an ``AssertionError`` in stack-size computation when a single exception
+  region is split into multiple ``TryBegin`` instances sharing one handler (as
+  produced by bytecode-rewriting tools that wrap a whole function body in a
+  single handler). ``TryBegin``/``TryEnd`` are now matched on the handler block
+  rather than on ``TryBegin`` identity.
+
 03-06-2026: Version 0.18.0
 --------------------------
 
