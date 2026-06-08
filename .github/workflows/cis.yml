@@ -36,20 +36,13 @@ jobs:
           tox
 
   tests:
-    name: Unit tests
+    name: "Unit tests (Python ${{ matrix.python-version }}, ${{ matrix.pure_python && 'pure' || 'cython' }})"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - python-version: "3.11"
-            toxenv: py311
-          - python-version: "3.12"
-            toxenv: py312
-          - python-version: "3.13"
-            toxenv: py313
-          - python-version: "3.14"
-            toxenv: py314
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        pure_python: ["", "1"]
     steps:
       - uses: actions/checkout@v6
       - name: Get history and tags for SCM versioning to work
@@ -66,9 +59,9 @@ jobs:
           python -m pip install tox
       - name: Test
         env:
-          TOXENV: ${{ matrix.toxenv }}
+          BYTECODE_PURE_PYTHON: ${{ matrix.pure_python }}
         run: |
-          tox
+          tox -e py$(echo '${{ matrix.python-version }}' | tr -d .)
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         if: github.event_name != 'schedule'
