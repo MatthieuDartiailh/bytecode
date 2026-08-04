@@ -21,3 +21,5 @@ coverage.xml
 .pytest_cache
 .cache
 .venv
+*.c
+*.so
