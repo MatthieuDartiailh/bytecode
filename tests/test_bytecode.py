@@ -7,8 +7,8 @@ import types
 import unittest
 
 from bytecode import Bytecode, ConcreteInstr, FreeVar, Instr, Label, SetLineno
-from bytecode.instr import BinaryOp, FormatValue, InstrLocation
-from bytecode.utils import PY312, PY313, PY314
+from bytecode.instr import BinaryOp, CommonConstant, FormatValue, InstrLocation
+from bytecode.utils import PY312, PY313, PY314, PY315
 
 from . import TestCase, get_code
 
@@ -169,6 +169,18 @@ class BytecodeTests(TestCase):
         bytecode = Bytecode.from_code(code)
         label_else = Label()
         if PY314:
+
+            def _ret_none(lineno):
+                return (
+                    Instr(
+                        "LOAD_COMMON_CONSTANT",
+                        CommonConstant.CONSTANT_NONE,
+                        lineno=lineno,
+                    )
+                    if PY315
+                    else Instr("LOAD_CONST", None, lineno=lineno)
+                )
+
             self.assertInstructionListEqual(
                 bytecode,
                 [
@@ -179,12 +191,12 @@ class BytecodeTests(TestCase):
                     Instr("NOT_TAKEN", lineno=1),
                     Instr("LOAD_SMALL_INT", 1, lineno=2),
                     Instr("STORE_NAME", "x", lineno=2),
-                    Instr("LOAD_CONST", None, lineno=2),
+                    _ret_none(2),
                     Instr("RETURN_VALUE", lineno=2),
                     label_else,
                     Instr("LOAD_SMALL_INT", 2, lineno=4),
                     Instr("STORE_NAME", "x", lineno=4),
-                    Instr("LOAD_CONST", None, lineno=4),
+                    _ret_none(4),
                     Instr("RETURN_VALUE", lineno=4),
                 ],
             )
@@ -293,7 +305,11 @@ class BytecodeTests(TestCase):
             ]
             + (
                 [
-                    Instr("LOAD_CONST", None, lineno=3),
+                    Instr(
+                        "LOAD_COMMON_CONSTANT" if PY315 else "LOAD_CONST",
+                        CommonConstant.CONSTANT_NONE if PY315 else None,
+                        lineno=3,
+                    ),
                     Instr("RETURN_VALUE", lineno=3),
                 ]
                 if PY314

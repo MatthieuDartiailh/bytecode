@@ -84,6 +84,17 @@ class CodeTests(TestCase):
             function=True,
         )
 
+    def test_import(self):
+        # In 3.15 IMPORT_NAME gained lazy/eager flag bits packed into its arg
+        # (like LOAD_SUPER_ATTR), which a naive plain-name decode misses.
+        self.check(
+            """
+            import os
+            import os.path as osp
+            from os import path
+        """
+        )
+
     def test_async_gen(self):
         self.check(
             """

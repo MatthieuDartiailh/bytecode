@@ -16,7 +16,7 @@ except ImportError:
     from typing_extensions import TypeGuard  # type: ignore
 
 import bytecode as _bytecode
-from bytecode.utils import PY312, PY313, PY314
+from bytecode.utils import PY312, PY313, PY314, PY315
 
 # --- Instruction argument tools and
 
@@ -39,7 +39,9 @@ BITFLAG_OPCODES: Final[set[int]] = (
 )
 
 BITFLAG2_OPCODES: Final[set[int]] = (
-    {_opcode.opmap["LOAD_SUPER_ATTR"]} if PY312 else set()
+    {_opcode.opmap["LOAD_SUPER_ATTR"], _opcode.opmap["IMPORT_NAME"]}
+    if PY315
+    else ({_opcode.opmap["LOAD_SUPER_ATTR"]} if PY312 else set())
 )
 
 # Binary op opcode which has a dedicated arg
@@ -52,6 +54,11 @@ INTRINSIC: Final[set[int]] = INTRINSIC_1OP | INTRINSIC_2OP
 
 # Small integer related opcode
 SMALL_INT_OPS: Final[set[int]] = {_opcode.opmap["LOAD_SMALL_INT"]} if PY314 else set()
+
+# Opcodes that gained a cache-only argument in 3.15 (arg is always 0 and not user-visible)
+CACHE_ONLY_ARG_OPCODES: Final[set[int]] = (
+    {_opcode.opmap["GET_ITER"]} if PY315 else set()
+)
 
 # Special method loading related opcodes
 SPECIAL_OPS: Final[set[int]] = {_opcode.opmap["LOAD_SPECIAL"]} if PY314 else set()
@@ -265,6 +272,15 @@ class CommonConstant(enum.IntEnum):
     BUILTIN_ALL = 3
     BUILTIN_ANY = 4
 
+    if PY315:
+        BUILTIN_LIST = 5
+        BUILTIN_SET = 6
+        CONSTANT_NONE = 7
+        CONSTANT_EMPTY_STR = 8
+        CONSTANT_TRUE = 9
+        CONSTANT_FALSE = 10
+        CONSTANT_MINUS_ONE = 11
+
 
 # This make type checking happy but means it won't catch attempt to manipulate an unset
 # statically. We would need guard on object attribute narrowed down through methods
@@ -419,7 +435,8 @@ STATIC_STACK_EFFECTS: Final[dict[int, tuple[int, int]]] = {
         "DUP_TOP": (-1, 2),
         "DUP_TOP_TWO": (-2, 4),
         "GET_LEN": (-1, 2),
-        "GET_ITER": (-1, 1),
+        "GET_ITER": (-1, 2) if PY315 else (-1, 1),
+        # removed in 3.15, filtered by if k in _opcode.opmap
         "GET_YIELD_FROM_ITER": (-1, 1),
         "GET_AWAITABLE": (-1, 1),
         "GET_AITER": (-1, 1),
@@ -503,7 +520,14 @@ DYNAMIC_STACK_EFFECTS: Final[
         "MAP_ADD": lambda effect, arg, jump: (-arg, arg - 2),
         "FORMAT_VALUE": lambda effect, arg, jump: (effect - 1, 1),
         # FOR_ITER needs TOS to be an iterator, hence a prerequisite of 1 on the stack
-        "FOR_ITER": lambda effect, arg, jump: (effect, 0) if jump else (-1, 2),
+        # In 3.15, GET_ITER pushes (iter, null_or_index) as two stack slots, so
+        # FOR_ITER now requires both on the stack (-2) and always pushes them back
+        # plus one more slot (+3): the next value when continuing, or a marker
+        # consumed by END_FOR when exhausted before POP_ITER cleans up (iter,
+        # null_or_index). Net effect is +1 in both cases, matching dis.stack_effect.
+        "FOR_ITER": (lambda __effect, __arg, __jump: (-2, 3))
+        if PY315
+        else (lambda effect, __arg, jump: (effect, 0) if jump else (-1, 2)),
         "BUILD_INTERPOLATION": lambda effect, arg, jump: (-(2 + (arg & 1)), 1),
         **{
             # Instr(UNPACK_* , n) pops 1 and pushes n
@@ -701,7 +725,7 @@ class BaseInstr(Generic[A]):
         name: str,
         arg: A = UNSET,  # type: ignore
         *,
-        lineno: int | None | _UNSET = UNSET,
+        lineno: int | _UNSET | None = UNSET,
         location: Optional[InstrLocation] = None,
     ) -> None:
         self._set(name, arg)
@@ -913,6 +937,9 @@ class BaseInstr(Generic[A]):
                 f"operation {name} is an instrumented or pseudo opcode. "
                 "Only base opcodes are supported"
             )
+
+        if arg is UNSET and opcode in CACHE_ONLY_ARG_OPCODES:
+            arg = 0  # type: ignore
 
         self._check_arg(name, opcode, arg)
 

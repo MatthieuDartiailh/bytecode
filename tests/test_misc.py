@@ -7,7 +7,7 @@ import unittest
 
 import bytecode
 from bytecode import BasicBlock, Bytecode, ControlFlowGraph, Instr, Label
-from bytecode.utils import PY312, PY313, PY314
+from bytecode.utils import PY312, PY313, PY314, PY315
 
 from . import disassemble
 
@@ -422,7 +422,33 @@ label_instr14:
         code = code.to_concrete_bytecode()
 
         # without line numbers
-        if PY314:
+        if PY315:
+            # RESUME gained a CACHE entry in 3.15, shifting all offsets by 2
+            expected = """
+  0    RESUME 0
+  2    CACHE 0
+  4    LOAD_FAST_BORROW 0
+  6    LOAD_SMALL_INT 1
+  8    COMPARE_OP 88
+ 10    CACHE 0
+ 12    POP_JUMP_IF_FALSE 3
+ 14    CACHE 0
+ 16    NOT_TAKEN
+ 18    LOAD_SMALL_INT 1
+ 20    RETURN_VALUE
+ 22    LOAD_FAST_BORROW 0
+ 24    LOAD_SMALL_INT 2
+ 26    COMPARE_OP 88
+ 28    CACHE 0
+ 30    POP_JUMP_IF_FALSE 3
+ 32    CACHE 0
+ 34    NOT_TAKEN
+ 36    LOAD_SMALL_INT 2
+ 38    RETURN_VALUE
+ 40    LOAD_SMALL_INT 3
+ 42    RETURN_VALUE
+"""
+        elif PY314:
             # COMPARE_OP use the 4 lowest bits as a cache
             expected = """
   0    RESUME 0
@@ -511,7 +537,32 @@ label_instr14:
         self.check_dump_bytecode(code, expected.lstrip("\n"))
 
         # with line numbers
-        if PY314:
+        if PY315:
+            expected = """
+L.  1   0: RESUME 0
+        2: CACHE 0
+L.  2   4: LOAD_FAST_BORROW 0
+        6: LOAD_SMALL_INT 1
+        8: COMPARE_OP 88
+       10: CACHE 0
+       12: POP_JUMP_IF_FALSE 3
+       14: CACHE 0
+       16: NOT_TAKEN
+L.  3  18: LOAD_SMALL_INT 1
+       20: RETURN_VALUE
+L.  4  22: LOAD_FAST_BORROW 0
+       24: LOAD_SMALL_INT 2
+       26: COMPARE_OP 88
+       28: CACHE 0
+       30: POP_JUMP_IF_FALSE 3
+       32: CACHE 0
+       34: NOT_TAKEN
+L.  5  36: LOAD_SMALL_INT 2
+       38: RETURN_VALUE
+L.  6  40: LOAD_SMALL_INT 3
+       42: RETURN_VALUE
+"""
+        elif PY314:
             expected = """
 L.  1   0: RESUME 0
 L.  2   2: LOAD_FAST_BORROW 0

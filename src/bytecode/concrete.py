@@ -105,7 +105,7 @@ class ConcreteInstr(BaseInstr[int]):
         name: str,
         arg: int = UNSET,
         *,
-        lineno: Union[int, None, _UNSET] = UNSET,
+        lineno: Union[int, _UNSET, None] = UNSET,
         location: Optional[InstrLocation] = None,
         extended_args: Optional[int] = None,
     ):

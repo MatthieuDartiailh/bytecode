@@ -40,7 +40,7 @@ class BaseBytecode:
         self.name = "<module>"
         self.qualname = self.name
         self.filename = "<string>"
-        self.docstring: Union[str, None, _UNSET] = UNSET
+        self.docstring: Union[str, _UNSET, None] = UNSET
         # We cannot recreate cellvars/freevars from instructions because of super()
         # special-case, which involves an implicit __class__ cell/free variable
         # We could try to detect it.
