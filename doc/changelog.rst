@@ -1,6 +1,11 @@
 ChangeLog
 =========
 
+21-08-2026: Version 0.19.0
+--------------------------
+
+- Add support for Python 3.15 (tested against Python 3.15 rc) PR #192
+
 03-06-2026: Version 0.18.1
 --------------------------
 
