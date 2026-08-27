@@ -41,6 +41,8 @@ jobs:
   newsfragment:
     name: Check Towncrier fragment
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -48,11 +50,13 @@ jobs:
           fetch-depth: 0
       - name: Ensure a news fragment exists
         if: ${{ !contains(join(github.event.pull_request.labels.*.name, ','), 'no-news-required') }}
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          git fetch origin "${{ github.base_ref }}" --depth=1
+          git fetch origin "$BASE_REF" --depth=1
           python -m pip install --upgrade pip
           python -m pip install towncrier
-          python -m towncrier check --compare-with origin/${{ github.base_ref }}
+          python -m towncrier check --compare-with "origin/$BASE_REF"
 
   tests:
     name: Unit tests
