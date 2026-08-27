@@ -10,8 +10,11 @@ on:
       - main
     paths:
       - .github/workflows/cis.yml
+      - ".github/**"
       - "src/**"
       - "tests/*"
+      - "newsfragments/**"
+      - "doc/changelog.rst"
       - pyproject.toml
       - tox.ini
 
@@ -34,6 +37,22 @@ jobs:
           TOXENV: lint
         run: |
           tox
+
+  newsfragment:
+    name: Check Towncrier fragment
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Ensure a news fragment exists
+        if: ${{ !contains(join(github.event.pull_request.labels.*.name, ','), 'no-news-required') }}
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          python -m pip install --upgrade pip
+          python -m pip install towncrier
+          python -m towncrier check --compare-with origin/${{ github.base_ref }}
 
   tests:
     name: Unit tests
