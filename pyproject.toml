@@ -40,6 +40,7 @@
    "pytest>=8",
    "pytest-cov>=6",
    "ruff>=0.12.0",
+   "towncrier>=24.8",
  ]
  test = [
    "pytest>=8",
@@ -51,6 +52,46 @@
 
 [tool.hatch.build.targets.wheel]
  packages = ["src/bytecode"]
+
+[tool.towncrier]
+ package = "bytecode"
+ package_dir = "src"
+ filename = "doc/changelog.rst"
+ directory = "newsfragments"
+ start_string = ".. towncrier release notes start\n"
+ title_format = "{version} ({project_date})"
+ issue_pattern = "(?P<issue>\\d+)"
+ underlines = ["-", "~", "^"]
+
+ [[tool.towncrier.type]]
+   directory = "feature"
+   name = "Features"
+   showcontent = true
+
+ [[tool.towncrier.type]]
+   directory = "bugfix"
+   name = "Bugfixes"
+   showcontent = true
+
+ [[tool.towncrier.type]]
+   directory = "doc"
+   name = "Documentation"
+   showcontent = true
+
+ [[tool.towncrier.type]]
+   directory = "removal"
+   name = "Removals"
+   showcontent = true
+
+ [[tool.towncrier.type]]
+   directory = "misc"
+   name = "Miscellaneous"
+   showcontent = true
+
+ [[tool.towncrier.type]]
+   directory = "security"
+   name = "Security"
+   showcontent = true
 
 [tool.ruff]
   src            = ["src"]
