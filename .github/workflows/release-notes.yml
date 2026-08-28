@@ -1,5 +1,3 @@
-# Keep the changelog and tag lifecycle in a dedicated workflow instead of
-# adopting release-please for this project.
 name: Release notes automation
 
 on:
