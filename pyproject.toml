@@ -50,6 +50,12 @@
 [tool.hatch.version]
  source = "vcs"
 
+[tool.hatch.build.hooks.vcs]
+ version-file = "src/bytecode/version.py"
+ template = """
+__version__ = "{version}"
+"""
+
 [tool.hatch.build.targets.wheel]
  packages = ["src/bytecode"]
 
@@ -86,11 +92,6 @@
  [[tool.towncrier.type]]
    directory = "misc"
    name = "Miscellaneous"
-   showcontent = true
-
- [[tool.towncrier.type]]
-   directory = "security"
-   name = "Security"
    showcontent = true
 
 [tool.ruff]

@@ -22,4 +22,3 @@ Valid fragment types:
 - `doc`
 - `removal`
 - `misc`
-- `security`

@@ -7,7 +7,7 @@ on:
     inputs:
       version:
         description: "Release version to use for the changelog update (for example 0.20.0)"
-        required: false
+        required: true
         type: string
   push:
     branches:
@@ -23,7 +23,6 @@ on:
 
 jobs:
   prepare_release_notes:
-    if: ${{ (github.event_name == 'workflow_dispatch') || (github.event_name == 'push' && !contains(github.event.head_commit.message, 'chore: update release notes')) }}
     permissions:
       contents: write
       pull-requests: write
