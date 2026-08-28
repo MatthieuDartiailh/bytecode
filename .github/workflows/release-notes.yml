@@ -61,8 +61,6 @@ jobs:
           delete-branch: true
           body: |
             This PR refreshes `doc/changelog.rst` from the Towncrier fragments in `newsfragments/`.
-
-            The repository intentionally keeps release-note management in a dedicated workflow instead of adopting `release-please`, because the project already relies on fragment-driven changelog updates.
           labels: release-notes
 
   tag_release:
