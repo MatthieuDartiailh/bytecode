@@ -22,7 +22,7 @@ jobs:
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Set up Python
@@ -57,13 +57,11 @@ jobs:
       startsWith(github.event.pull_request.head.ref, 'release-notes-') &&
       startsWith(github.event.pull_request.title, 'Prepare release notes for ')
     name: Create release tag
-    environment:
-      name: release
     permissions:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Extract the release version
@@ -74,10 +72,21 @@ jobs:
         run: |
           title="${PR_TITLE}"
           version="${title#Prepare release notes for }"
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Unexpected release-notes PR title: ${PR_TITLE}" >&2
-            exit 1
-          fi
+          version="$(python - "$version" <<'PY'
+          import re
+          import sys
+          from packaging.version import InvalidVersion, Version
+
+          version = sys.argv[1]
+
+          try:
+              parsed = Version(version)
+          except InvalidVersion as exc:
+              raise SystemExit(f"Unexpected release-notes PR title: {version!r} ({exc})") from exc
+
+          print(version)
+          PY
+          )"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
       - name: Create and push the release tag
         env:
