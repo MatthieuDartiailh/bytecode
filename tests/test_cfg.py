@@ -982,6 +982,21 @@ class CFGStacksizeComputationTests(TestCase):
         self.assertEqual(trigger({}, True), 99)
         self.assertEqual(trigger({"c": 1}, False), 99)
 
+    def test_stack_size_computation_consecutive_async_for_try_except(self):
+        async def test(a, b, d):  # pragma: no cover
+            async for x in a:
+                try:
+                    d[x] = 1
+                except Exception as e:
+                    d[x] = e
+            async for y in b:
+                try:
+                    d[y] = 2
+                except Exception as e:
+                    d[y] = e
+
+        self.check_stack_size(test)
+
     def test_stack_size_with_dead_code(self):
         # Simply demonstrate more directly the previously mentioned issue.
         def test(*args):  # pragma: no cover

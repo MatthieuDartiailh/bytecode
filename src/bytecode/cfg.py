@@ -23,7 +23,15 @@ from typing import (
 import bytecode as _bytecode
 from bytecode.concrete import ConcreteInstr
 from bytecode.flags import CompilerFlags
-from bytecode.instr import UNSET, Instr, Label, SetLineno, TryBegin, TryEnd
+from bytecode.instr import (
+    MONITORING_ONLY_JUMP_OPS,
+    UNSET,
+    Instr,
+    Label,
+    SetLineno,
+    TryBegin,
+    TryEnd,
+)
 from bytecode.utils import PY313
 
 T = TypeVar("T", bound="BasicBlock")
@@ -367,7 +375,7 @@ class _StackSizeComputer:
 
             # For instructions with a jump first compute the stacksize required when the
             # jump is taken.
-            if instr.has_jump():
+            if instr.has_jump() and instr.opcode not in MONITORING_ONLY_JUMP_OPS:
                 effect = (
                     instr.pre_and_post_stack_effect(jump=True)
                     if self.common.check_pre_and_post

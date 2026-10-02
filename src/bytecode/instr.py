@@ -110,6 +110,13 @@ HAS_UNCONDITIONAL_JUMP: Final[set[int]] = {
     op for op in HAS_JUMP if op not in HAS_CONDITIONAL_JUMP
 }
 
+# Since Python 3.14 END_ASYNC_FOR carries a backward jump argument that only
+# provides the source offset for monitoring: execution never follows it, and
+# CPython's calculate_stackdepth skips this edge as well.
+MONITORING_ONLY_JUMP_OPS: Final[set[int]] = (
+    {_opcode.opmap["END_ASYNC_FOR"]} if PY314 else set()
+)
+
 IS_INSTR_FINAL: Final[set[int]] = HAS_UNCONDITIONAL_JUMP | {
     _opcode.opmap.get(n, -1)
     for n in (
