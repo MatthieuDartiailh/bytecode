@@ -9,7 +9,7 @@ Bugfixes:
 - Fix an ``AssertionError`` in stack-size computation on Python 3.14 for code
   containing several ``async for`` loops with ``try`` blocks. The jump argument
   of ``END_ASYNC_FOR``, which only provides the source offset for monitoring, is
-  no longer followed.
+  no longer followed. PR #214
 
 21-08-2026: Version 0.19.0
 --------------------------
