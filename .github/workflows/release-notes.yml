@@ -1,0 +1,99 @@
+name: Prepare release notes
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to use for the changelog update (for example 0.20.0)"
+        required: true
+        type: string
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  prepare-release-pr:
+    if: github.event_name == 'workflow_dispatch'
+    name: Create release notes PR
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install Towncrier
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install towncrier
+      - name: Build release notes
+        run: python -m towncrier build --yes --version "${{ inputs.version }}"
+      - name: Create a pull request for the release notes
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: "release-notes-${{ inputs.version }}"
+          title: "Prepare release notes for ${{ inputs.version }}"
+          commit-message: "chore: prepare release notes for ${{ inputs.version }}"
+          delete-branch: true
+          body: |
+            This PR was prepared to collect the Towncrier fragments for version ${{ inputs.version }}.
+
+            Once it is merged, the tag workflow will create the corresponding release tag.
+
+  create-tag:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.user.login == 'github-actions[bot]' &&
+      startsWith(github.event.pull_request.head.ref, 'release-notes-') &&
+      startsWith(github.event.pull_request.title, 'Prepare release notes for ')
+    name: Create release tag
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Extract the release version
+        id: version
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        shell: bash
+        run: |
+          title="${PR_TITLE}"
+          version="${title#Prepare release notes for }"
+          version="$(python - "$version" <<'PY'
+          import re
+          import sys
+          from packaging.version import InvalidVersion, Version
+
+          version = sys.argv[1]
+
+          try:
+              parsed = Version(version)
+          except InvalidVersion as exc:
+              raise SystemExit(f"Unexpected release-notes PR title: {version!r} ({exc})") from exc
+
+          print(version)
+          PY
+          )"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+      - name: Create and push the release tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          git push origin "v${VERSION}"

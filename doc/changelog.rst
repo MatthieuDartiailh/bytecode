@@ -1,6 +1,8 @@
 ChangeLog
 =========
 
+.. towncrier release notes start
+
 07-09-2026: Version 0.19.1
 --------------------------
 

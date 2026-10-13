@@ -1,0 +1,1 @@
+Added hatchling-based packaging and towncrier-managed release notes for the project maintenance workflow.
