@@ -36,7 +36,7 @@ jobs:
       - name: Build release notes
         run: python -m towncrier build --yes --version "${{ inputs.version }}"
       - name: Create a pull request for the release notes
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: "release-notes-${{ inputs.version }}"
