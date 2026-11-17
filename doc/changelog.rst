@@ -3,6 +3,23 @@ ChangeLog
 
 .. towncrier release notes start
 
+0.19.2 (2026-11-17)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- Start exception table entries at the ``EXTENDED_ARG`` prefix of their first instruction,
+  as CPython does. On Python 3.14, re-assembling code whose entry began at a prefixed jump
+  produced an entry of size -1 and looped forever in ``_encode_varint``. (#217)
+
+
+Miscellaneous
+~~~~~~~~~~~~~
+
+- Added hatchling-based packaging and towncrier-managed release notes for the project maintenance workflow. (#212)
+
+
 07-09-2026: Version 0.19.1
 --------------------------
 
