@@ -1345,6 +1345,53 @@ class ConcreteFromCodeTests(TestCase):
 
 
 class BytecodeToConcreteTests(TestCase):
+    def test_exception_table_start_includes_extended_arg(self):
+        # On Python 3.14, the back-edge of a long loop inside async with has an
+        # exception table entry of its own, and the jump needs EXTENDED_ARG. The
+        # entry must start at the EXTENDED_ARG, as CPython emits it. Otherwise the
+        # second round trip of this function computes an entry of size -1 and
+        # _encode_varint never returns.
+        async def f(client, stop, log, done):
+            async with client as c:
+                while not stop():
+                    try:
+                        for item in await c.receive():
+                            try:
+                                if not item:
+                                    log.error("missing", item=item)
+                                    await c.delete(item)
+                                    continue
+                                for part in item["parts"]:
+                                    key = (item["id"], part["ts"])
+                                    if key in done:
+                                        done[key].update(part["data"])
+                                        log.info(
+                                            "updated", key=key, keys=list(done[key])
+                                        )
+                                    else:
+                                        done[key] = dict(part["data"])
+                                        log.info(
+                                            "created", key=key, keys=list(done[key])
+                                        )
+                                await c.delete(item)
+                                log.debug("deleted", item=item)
+                            except Exception:
+                                log.exception("failed", item=item)
+                                try:
+                                    await c.delete(item)
+                                except Exception:
+                                    log.exception("delete failed", item=item)
+                        log.report()
+                    except Exception:
+                        log.exception("receive failed")
+                        await c.sleep(5)
+
+        code = f.__code__
+        once = Bytecode.from_code(code).to_code()
+        self.assertEqual(code.co_exceptiontable, once.co_exceptiontable)
+        twice = Bytecode.from_code(once).to_code()
+        self.assertEqual(code.co_exceptiontable, twice.co_exceptiontable)
+
     def test_label(self):
         code = Bytecode()
         label = Label()

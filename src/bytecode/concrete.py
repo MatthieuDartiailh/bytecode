@@ -1303,9 +1303,10 @@ class _ConvertBytecodeToConcrete:
             c_instr.arg += free_offset
 
     def compute_jumps(self) -> bool:
-        # For labels we need the offset before the instruction at a given index but for
-        # exception table entries we need the offset of the instruction which can differ
-        # in the presence of extended args...
+        # Labels and the start of exception table entries use the offset before the
+        # instruction at a given index, including any extended args, as CPython does.
+        # The end of an exception table entry uses the offset of the instruction itself,
+        # which differs in the presence of extended args.
         label_offsets = []
         instruction_offsets = []
         offset = 0
@@ -1348,8 +1349,10 @@ class _ConvertBytecodeToConcrete:
         # Resolve labels for exception handling entries
         for tb, entry in self.exception_handling_blocks.items():
             # Set the offset for the start and end offset from the instruction
-            # index stored when assembling the concrete instructions.
-            entry.start_offset = instruction_offsets[entry.start_offset]
+            # index stored when assembling the concrete instructions. The start
+            # includes the extended args of the first instruction so that the entry
+            # does not begin in the middle of an instruction.
+            entry.start_offset = label_offsets[entry.start_offset]
             entry.stop_offset = instruction_offsets[entry.stop_offset]
 
             # Set the offset to the target instruction
