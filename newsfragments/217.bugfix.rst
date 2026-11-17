@@ -1,3 +1,0 @@
-Start exception table entries at the ``EXTENDED_ARG`` prefix of their first instruction,
-as CPython does. On Python 3.14, re-assembling code whose entry began at a prefixed jump
-produced an entry of size -1 and looped forever in ``_encode_varint``.
