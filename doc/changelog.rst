@@ -17,7 +17,7 @@ Bugfixes
 Miscellaneous
 ~~~~~~~~~~~~~
 
-- Added hatchling-based packaging and towncrier-managed release notes for the project maintenance workflow. (#0)
+- Added hatchling-based packaging and towncrier-managed release notes for the project maintenance workflow. (#212)
 
 
 07-09-2026: Version 0.19.1
