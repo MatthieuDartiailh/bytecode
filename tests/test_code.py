@@ -1,6 +1,7 @@
 import unittest
 
 from bytecode import Bytecode, ConcreteBytecode, ControlFlowGraph
+from bytecode.utils import PY313
 
 from . import TestCase, get_code
 
@@ -104,6 +105,15 @@ class CodeTests(TestCase):
         async def func():
             async for _ in async_stream():
                 pass
+        """,
+            function=True,
+        )
+
+    @unittest.skipIf(not PY313, "PEP 696 requires Python 3.13+")
+    def test_type_param_default(self):
+        self.check(
+            """
+            type Alias[T = int] = list[T]
         """,
             function=True,
         )

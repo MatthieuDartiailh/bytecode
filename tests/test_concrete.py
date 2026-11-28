@@ -1840,6 +1840,48 @@ class BytecodeToConcreteTests(TestCase):
         )
         concrete = code.to_concrete_bytecode()
         assert len(concrete) == 10
+        self.assertEqual(concrete[-2].opcode, opcode.opmap["LOAD_FAST"])
+        self.assertEqual(concrete[-1].opcode, opcode.opmap["LOAD_FAST"])
+
+    @unittest.skipIf(not PY313, "Apply only to 3.13+")
+    def test_dual_opcodes_cell_and_free_vars(self):
+        op_name = (
+            "LOAD_FAST_BORROW_LOAD_FAST_BORROW" if PY314 else "LOAD_FAST_LOAD_FAST"
+        )
+        single_op = "LOAD_FAST_BORROW" if PY314 else "LOAD_FAST"
+
+        code = Bytecode(
+            [
+                Instr(op_name, (CellVar("c"), FreeVar("f")), lineno=1),
+                Instr(op_name, ("a", FreeVar("f")), lineno=1),
+                Instr("RETURN_VALUE", lineno=1),
+            ]
+        )
+        code.cellvars = ["c"]
+        code.freevars = ["f"]
+        concrete = code.to_concrete_bytecode()
+        self.assertEqual(concrete.varnames, ["a"])
+        roundtrip = concrete.to_bytecode()
+        self.assertEqual(roundtrip[0].arg, (CellVar("c"), FreeVar("f")))
+        self.assertEqual(roundtrip[1].arg, ("a", FreeVar("f")))
+
+        # Exceeding 15 locals forces dual-arg cell/free references to split.
+        many_locals = [Instr("LOAD_FAST", f"v{i}", lineno=1) for i in range(16)]
+        code2 = Bytecode(
+            [
+                *many_locals,
+                Instr(op_name, (CellVar("c"), FreeVar("f")), lineno=1),
+                Instr("RETURN_VALUE", lineno=1),
+            ]
+        )
+        code2.cellvars = ["c"]
+        code2.freevars = ["f"]
+        concrete2 = code2.to_concrete_bytecode()
+        self.assertEqual(concrete2.varnames, [f"v{i}" for i in range(16)])
+        self.assertEqual(concrete2[-3].opcode, opcode.opmap[single_op])
+        self.assertEqual(concrete2[-2].opcode, opcode.opmap[single_op])
+        self.assertEqual(concrete2[-3].arg, 16)
+        self.assertEqual(concrete2[-2].arg, 17)
 
 
 if __name__ == "__main__":

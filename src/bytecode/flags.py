@@ -142,7 +142,10 @@ def infer_flags(
         elif (
             not is_concrete
             and opcode in DUAL_ARG_OPCODES
-            and (isinstance(instr.arg[0], CellVar) or isinstance(instr.arg[1], CellVar))
+            and (
+                isinstance(instr.arg[0], (CellVar, FreeVar))
+                or isinstance(instr.arg[1], (CellVar, FreeVar))
+            )
         ):
             has_free = True
         elif (

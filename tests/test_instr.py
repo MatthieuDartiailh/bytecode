@@ -230,6 +230,8 @@ class InstrTests(TestCase):
             self.assertRaises(TypeError, Instr, name, ("arg",))
             self.assertRaises(TypeError, Instr, name, ("", True))
             Instr(name, ("arg1", "arg2"))
+            Instr(name, (CellVar("a"), FreeVar("b")))
+            Instr(name, (FreeVar("a"), CellVar("b")))
 
         for name in [opcode.opname[i] for i in INTRINSIC_1OP]:
             self.assertRaises(TypeError, Instr, name, 1)
@@ -238,6 +240,8 @@ class InstrTests(TestCase):
         for name in [opcode.opname[i] for i in INTRINSIC_2OP]:
             self.assertRaises(TypeError, Instr, name, 1)
             Instr(name, Intrinsic2Op.INTRINSIC_PREP_RERAISE_STAR)
+            if PY313:
+                Instr(name, Intrinsic2Op.INTRINSIC_SET_TYPEPARAM_DEFAULT)
 
         for name in (opcode.opname[op] for op in BINARY_OPS):
             Instr(name, BinaryOp.ADD)

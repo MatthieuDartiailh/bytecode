@@ -148,6 +148,16 @@ DUAL_ARG_OPCODES_SINGLE_OPS: Final[dict[int, tuple[str, str]]] = (
         _opcode.opmap["STORE_FAST_LOAD_FAST"]: ("STORE_FAST", "LOAD_FAST"),
         _opcode.opmap["STORE_FAST_STORE_FAST"]: ("STORE_FAST", "STORE_FAST"),
     }
+    | (
+        {
+            _opcode.opmap["LOAD_FAST_BORROW_LOAD_FAST_BORROW"]: (
+                "LOAD_FAST_BORROW",
+                "LOAD_FAST_BORROW",
+            )
+        }
+        if PY314
+        else {}
+    )
     if PY313
     else {}
 )
@@ -250,6 +260,8 @@ class Intrinsic2Op(enum.IntEnum):
     INTRINSIC_TYPEVAR_WITH_BOUND = 2
     INTRINSIC_TYPEVAR_WITH_CONSTRAINTS = 3
     INTRINSIC_SET_FUNCTION_TYPE_PARAMS = 4
+    if PY313:
+        INTRINSIC_SET_TYPEPARAM_DEFAULT = 5
 
 
 @enum.unique
@@ -1056,11 +1068,12 @@ class Instr(BaseInstr[InstrArg]):
                 if not (
                     isinstance(arg, tuple)
                     and len(arg) == 2
-                    and isinstance(arg[0], (str, CellVar))
-                    and isinstance(arg[1], (str, CellVar))
+                    and isinstance(arg[0], (str, CellVar, FreeVar))
+                    and isinstance(arg[1], (str, CellVar, FreeVar))
                 ):
                     raise TypeError(
-                        "operation %s argument must be a tuple[str, str], "
+                        "operation %s argument must be a "
+                        "tuple[str | CellVar | FreeVar, str | CellVar | FreeVar], "
                         "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
                     )
 

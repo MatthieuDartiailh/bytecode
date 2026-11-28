@@ -12,7 +12,7 @@ from bytecode import (
 )
 from bytecode.flags import infer_flags
 from bytecode.instr import UNSET, FreeVar, Instr
-from bytecode.utils import PY312
+from bytecode.utils import PY312, PY313
 
 
 def trivial():
@@ -100,6 +100,11 @@ class FlagsTests(unittest.TestCase):
         code.update_flags()
         self.assertFalse(bool(code.flags & CompilerFlags.OPTIMIZED))
         self.assertFalse(bool(code.flags & CompilerFlags.NOFREE))
+
+        if PY313:
+            dual_code = Bytecode([Instr("LOAD_FAST_LOAD_FAST", ("a", FreeVar("b")))])
+            dual_flags = infer_flags(dual_code)
+            self.assertFalse(bool(dual_flags & CompilerFlags.NOFREE))
 
     def test_function_rountrip(self):
         for f in FLAG_INFERENCE_TEST_CASES:

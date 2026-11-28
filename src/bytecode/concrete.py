@@ -1090,25 +1090,61 @@ class _ConvertBytecodeToConcrete:
             self.varnames.append(name)
         return index
 
+    def _prepare_local_names(self) -> tuple[dict[int, int], int]:
+        # On 3.13+, register names used in dual-arg opcodes first so they get
+        # small (< 16) indices whenever possible.
+        if PY313:
+            for binstr in self.bytecode:
+                if isinstance(binstr, Instr) and binstr._opcode in DUAL_ARG_OPCODES:
+                    assert isinstance(binstr._arg, tuple)
+                    for parg in binstr._arg:
+                        if isinstance(parg, str):
+                            self.add_varname(parg)
+
+        for binstr in self.bytecode:
+            if (
+                isinstance(binstr, Instr)
+                and binstr._opcode in HAS_LOCAL
+                and binstr._opcode not in DUAL_ARG_OPCODES
+                and isinstance(binstr._arg, str)
+            ):
+                self.add_varname(binstr._arg)
+
+        # On Python 3.11+ varnames and cells can share names. Map naive cell
+        # indices to the unified localsplus index and compute the freevar offset.
+        shared_name_indexes: dict[int, int] = {}
+        n_shared = 0
+        n_unshared = 0
+        for i, name in enumerate(self.bytecode.cellvars):
+            var_idx = self.varnames_map.get(name)
+            if var_idx is not None:
+                shared_name_indexes[i] = var_idx
+                n_shared += 1
+            else:
+                shared_name_indexes[i] = len(self.varnames) + n_unshared
+                n_unshared += 1
+
+        free_offset = len(self.varnames) + len(self.bytecode.cellvars) - n_shared
+        return shared_name_indexes, free_offset
+
+    def _local_or_free_index(
+        self,
+        arg: str | CellVar | FreeVar,
+        shared_name_indexes: dict[int, int],
+        free_offset: int,
+    ) -> int:
+        if isinstance(arg, CellVar):
+            return shared_name_indexes[self.bytecode.cellvars.index(arg.name)]
+        if isinstance(arg, FreeVar):
+            return free_offset + self.bytecode.freevars.index(arg.name)
+        assert isinstance(arg, str)
+        return self.add_varname(arg)
+
     def concrete_instructions(self) -> None:
         location = InstrLocation._from_tuple(
             self.bytecode.first_lineno, None, None, None
         )
-        # Track instruction (index) using cell vars and free vars to be able to update
-        # the index used once all the names are known.
-        cell_instrs: list[int] = []
-        free_instrs: list[int] = []
-
-        # On 3.13+, try to use small indexes for names used in dual arg opcode
-        # to improve the chances to be able to use them (since we cannot use
-        # only the 15 first names.
-        if PY313:
-            for binstr in self.bytecode:
-                if isinstance(binstr, Instr) and binstr._opcode in DUAL_ARG_OPCODES:
-                    assert isinstance(binstr.arg, tuple)
-                    for parg in binstr.arg:
-                        assert isinstance(parg, str)
-                        self.add_varname(parg)
+        shared_name_indexes, free_offset = self._prepare_local_names()
 
         # We use None as a sentinel to ensure caches for the last instruction are
         # properly generated.
@@ -1193,23 +1229,28 @@ class _ConvertBytecodeToConcrete:
                 c_arg = self.add_const(arg)
             elif opcode in HAS_LOCAL:
                 if opcode in DUAL_ARG_OPCODES:
-                    _arg2 = cast(Tuple[str, str], arg)
-                    arg1_index = self.add_varname(_arg2[0])
-                    arg2_index = self.add_varname(_arg2[1])
-                    if arg1_index > 16 or arg2_index > 16:
+                    _arg2 = cast(
+                        tuple[str | CellVar | FreeVar, str | CellVar | FreeVar], arg
+                    )
+                    arg1_index = self._local_or_free_index(
+                        _arg2[0], shared_name_indexes, free_offset
+                    )
+                    arg2_index = self._local_or_free_index(
+                        _arg2[1], shared_name_indexes, free_offset
+                    )
+                    if arg1_index > 15 or arg2_index > 15:
                         n1, n2 = DUAL_ARG_OPCODES_SINGLE_OPS[opcode]
                         c_instr = ConcreteInstr(n1, arg1_index, location=location)
                         self.instructions.append(c_instr)
                         instr_name = n2
+                        opcode = _opcode.opmap[n2]
                         c_arg = arg2_index
                     else:
                         c_arg = (arg1_index << 4) + arg2_index
-                elif PY313 and isinstance(arg, CellVar):
-                    cell_instrs.append(len(self.instructions))
-                    c_arg = self.bytecode.cellvars.index(arg.name)
-                elif PY313 and isinstance(arg, FreeVar):
-                    free_instrs.append(len(self.instructions))
-                    c_arg = self.bytecode.freevars.index(arg.name)
+                elif PY313 and isinstance(arg, (CellVar, FreeVar)):
+                    c_arg = self._local_or_free_index(
+                        arg, shared_name_indexes, free_offset
+                    )
                 else:
                     assert isinstance(arg, str)
                     c_arg = self.add_varname(arg)
@@ -1235,13 +1276,8 @@ class _ConvertBytecodeToConcrete:
                     assert isinstance(arg, str), f"Got {arg}, expected a str"
                     c_arg = self.add_name(arg)
             elif opcode in HAS_FREE:
-                if isinstance(arg, CellVar):
-                    cell_instrs.append(len(self.instructions))
-                    c_arg = self.bytecode.cellvars.index(arg.name)
-                else:
-                    assert isinstance(arg, FreeVar)
-                    free_instrs.append(len(self.instructions))
-                    c_arg = self.bytecode.freevars.index(arg.name)
+                assert isinstance(arg, (CellVar, FreeVar))
+                c_arg = self._local_or_free_index(arg, shared_name_indexes, free_offset)
             elif opcode in HAS_COMPARE:
                 if isinstance(arg, Compare):
                     # In Python 3.13 the 4 lowest bits are used for caching
@@ -1275,32 +1311,6 @@ class _ConvertBytecodeToConcrete:
             self.seen_manual_cache = False
 
             self.instructions.append(c_instr)
-
-        # On Python 3.11 varnames and cells can share some names. Wind the shared
-        # names and update the arg argument of instructions using cell vars.
-        # We also track by how much to offset free vars which are stored in a
-        # contiguous array after the cell vars
-        # Map naive cell index to shared index
-        shared_name_indexes: Dict[int, int] = {}
-        n_shared = 0
-        n_unshared = 0
-        for i, name in enumerate(self.bytecode.cellvars):
-            if name in self.varnames:
-                shared_name_indexes[i] = self.varnames.index(name)
-                n_shared += 1
-            else:
-                shared_name_indexes[i] = len(self.varnames) + n_unshared
-                n_unshared += 1
-
-        for index in cell_instrs:
-            c_instr = self.instructions[index]
-            c_instr.arg = shared_name_indexes[c_instr.arg]
-
-        free_offset = len(self.varnames) + len(self.bytecode.cellvars) - n_shared
-
-        for index in free_instrs:
-            c_instr = self.instructions[index]
-            c_instr.arg += free_offset
 
     def compute_jumps(self) -> bool:
         # Labels and the start of exception table entries use the offset before the
