@@ -16,7 +16,7 @@ except ImportError:
     from typing_extensions import TypeGuard  # type: ignore
 
 import bytecode as _bytecode
-from bytecode.utils import PY312, PY313, PY314, PY315
+from bytecode.utils import PY312, PY313, PY314, PY315, PY316
 
 # --- Instruction argument tools and
 
@@ -251,6 +251,8 @@ class Intrinsic1Op(enum.IntEnum):
     INTRINSIC_TYPEVARTUPLE = 9
     INTRINSIC_SUBSCRIPT_GENERIC = 10
     INTRINSIC_TYPEALIAS = 11
+    if PY316:
+        INTRINSIC_BUILD_FROZENSET = 12
 
 
 @enum.unique
@@ -262,6 +264,9 @@ class Intrinsic2Op(enum.IntEnum):
     INTRINSIC_SET_FUNCTION_TYPE_PARAMS = 4
     if PY313:
         INTRINSIC_SET_TYPEPARAM_DEFAULT = 5
+    if PY316:
+        INTRINSIC_ADD_CONDITIONAL_ANNOTATION = 6
+        INTRINSIC_MATCH_CLASS_ISINSTANCE = 7
 
 
 @enum.unique
@@ -299,6 +304,10 @@ class CommonConstant(enum.IntEnum):
         CONSTANT_TRUE = 9
         CONSTANT_FALSE = 10
         CONSTANT_MINUS_ONE = 11
+
+    if PY316:
+        BUILTIN_FROZENSET = 12
+        CONSTANT_EMPTY_TUPLE = 13
 
 
 # This make type checking happy but means it won't catch attempt to manipulate an unset
