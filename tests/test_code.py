@@ -1,6 +1,7 @@
 import unittest
 
 from bytecode import Bytecode, ConcreteBytecode, ControlFlowGraph
+from bytecode.utils import PY313
 
 from . import TestCase, get_code
 
@@ -104,6 +105,49 @@ class CodeTests(TestCase):
         async def func():
             async for _ in async_stream():
                 pass
+        """,
+            function=True,
+        )
+
+    def test_frozenset_and_empty_tuple(self):
+        self.check(
+            """
+            def make_frozenset(x):
+                return frozenset({x, 1})
+        """,
+            function=True,
+        )
+        self.check(
+            """
+            def make_empty_tuple():
+                return ()
+        """,
+            function=True,
+        )
+
+    def test_match_class_and_del(self):
+        self.check(
+            """
+            def check_int(x):
+                match x:
+                    case int():
+                        return 1
+                return 0
+        """,
+            function=True,
+        )
+        self.check(
+            """
+            y = 1
+            del y
+        """
+        )
+
+    @unittest.skipIf(not PY313, "PEP 696 requires Python 3.13+")
+    def test_type_param_default(self):
+        self.check(
+            """
+            type Alias[T = int] = list[T]
         """,
             function=True,
         )

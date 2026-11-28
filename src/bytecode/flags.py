@@ -6,7 +6,7 @@ from typing import Optional
 import bytecode as _bytecode
 
 from .instr import DUAL_ARG_OPCODES, RESUME_OPCODE, CellVar, FreeVar
-from .utils import PY312, PY313, PY314
+from .utils import PY312, PY313, PY314, PY316
 
 
 class CompilerFlags(IntFlag):
@@ -41,7 +41,7 @@ class CompilerFlags(IntFlag):
 UNOPTIMIZED_OPCODES = (
     _opcode.opmap["STORE_NAME"],
     _opcode.opmap["LOAD_NAME"],
-    _opcode.opmap["DELETE_NAME"],
+    *((_opcode.opmap["DELETE_NAME"],) if not PY316 else ()),  # Removed in 3.16+
 )
 
 ASYNC_OPCODES = (
@@ -142,7 +142,10 @@ def infer_flags(
         elif (
             not is_concrete
             and opcode in DUAL_ARG_OPCODES
-            and (isinstance(instr.arg[0], CellVar) or isinstance(instr.arg[1], CellVar))
+            and (
+                isinstance(instr.arg[0], (CellVar, FreeVar))
+                or isinstance(instr.arg[1], (CellVar, FreeVar))
+            )
         ):
             has_free = True
         elif (

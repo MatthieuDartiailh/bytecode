@@ -16,7 +16,7 @@ except ImportError:
     from typing_extensions import TypeGuard  # type: ignore
 
 import bytecode as _bytecode
-from bytecode.utils import PY312, PY313, PY314, PY315
+from bytecode.utils import PY312, PY313, PY314, PY315, PY316
 
 # --- Instruction argument tools and
 
@@ -148,6 +148,16 @@ DUAL_ARG_OPCODES_SINGLE_OPS: Final[dict[int, tuple[str, str]]] = (
         _opcode.opmap["STORE_FAST_LOAD_FAST"]: ("STORE_FAST", "LOAD_FAST"),
         _opcode.opmap["STORE_FAST_STORE_FAST"]: ("STORE_FAST", "STORE_FAST"),
     }
+    | (
+        {
+            _opcode.opmap["LOAD_FAST_BORROW_LOAD_FAST_BORROW"]: (
+                "LOAD_FAST_BORROW",
+                "LOAD_FAST_BORROW",
+            )
+        }
+        if PY314
+        else {}
+    )
     if PY313
     else {}
 )
@@ -241,6 +251,8 @@ class Intrinsic1Op(enum.IntEnum):
     INTRINSIC_TYPEVARTUPLE = 9
     INTRINSIC_SUBSCRIPT_GENERIC = 10
     INTRINSIC_TYPEALIAS = 11
+    if PY316:
+        INTRINSIC_BUILD_FROZENSET = 12
 
 
 @enum.unique
@@ -250,6 +262,11 @@ class Intrinsic2Op(enum.IntEnum):
     INTRINSIC_TYPEVAR_WITH_BOUND = 2
     INTRINSIC_TYPEVAR_WITH_CONSTRAINTS = 3
     INTRINSIC_SET_FUNCTION_TYPE_PARAMS = 4
+    if PY313:
+        INTRINSIC_SET_TYPEPARAM_DEFAULT = 5
+    if PY316:
+        INTRINSIC_ADD_CONDITIONAL_ANNOTATION = 6
+        INTRINSIC_MATCH_CLASS_ISINSTANCE = 7
 
 
 @enum.unique
@@ -287,6 +304,10 @@ class CommonConstant(enum.IntEnum):
         CONSTANT_TRUE = 9
         CONSTANT_FALSE = 10
         CONSTANT_MINUS_ONE = 11
+
+    if PY316:
+        BUILTIN_FROZENSET = 12
+        CONSTANT_EMPTY_TUPLE = 13
 
 
 # This make type checking happy but means it won't catch attempt to manipulate an unset
@@ -1056,11 +1077,12 @@ class Instr(BaseInstr[InstrArg]):
                 if not (
                     isinstance(arg, tuple)
                     and len(arg) == 2
-                    and isinstance(arg[0], (str, CellVar))
-                    and isinstance(arg[1], (str, CellVar))
+                    and isinstance(arg[0], (str, CellVar, FreeVar))
+                    and isinstance(arg[1], (str, CellVar, FreeVar))
                 ):
                     raise TypeError(
-                        "operation %s argument must be a tuple[str, str], "
+                        "operation %s argument must be a "
+                        "tuple[str | CellVar | FreeVar, str | CellVar | FreeVar], "
                         "got %s (value=%s)" % (name, type(arg).__name__, str(arg))
                     )
 

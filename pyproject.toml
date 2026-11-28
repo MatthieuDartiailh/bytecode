@@ -17,6 +17,8 @@
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Programming Language :: Python :: 3.16",
     "Topic :: Software Development :: Libraries :: Python Modules",
   ]
   dependencies = ["typing_extensions;python_version<'3.10'"]

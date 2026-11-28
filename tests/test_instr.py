@@ -33,7 +33,7 @@ from bytecode.instr import (
     SpecialMethod,
     opcode_has_argument,
 )
-from bytecode.utils import PY312, PY313, PY314
+from bytecode.utils import PY312, PY313, PY314, PY316
 
 from . import TestCase
 
@@ -230,14 +230,23 @@ class InstrTests(TestCase):
             self.assertRaises(TypeError, Instr, name, ("arg",))
             self.assertRaises(TypeError, Instr, name, ("", True))
             Instr(name, ("arg1", "arg2"))
+            Instr(name, (CellVar("a"), FreeVar("b")))
+            Instr(name, (FreeVar("a"), CellVar("b")))
 
         for name in [opcode.opname[i] for i in INTRINSIC_1OP]:
             self.assertRaises(TypeError, Instr, name, 1)
             Instr(name, Intrinsic1Op.INTRINSIC_PRINT)
+            if PY316:
+                Instr(name, Intrinsic1Op.INTRINSIC_BUILD_FROZENSET)
 
         for name in [opcode.opname[i] for i in INTRINSIC_2OP]:
             self.assertRaises(TypeError, Instr, name, 1)
             Instr(name, Intrinsic2Op.INTRINSIC_PREP_RERAISE_STAR)
+            if PY313:
+                Instr(name, Intrinsic2Op.INTRINSIC_SET_TYPEPARAM_DEFAULT)
+            if PY316:
+                Instr(name, Intrinsic2Op.INTRINSIC_ADD_CONDITIONAL_ANNOTATION)
+                Instr(name, Intrinsic2Op.INTRINSIC_MATCH_CLASS_ISINSTANCE)
 
         for name in (opcode.opname[op] for op in BINARY_OPS):
             Instr(name, BinaryOp.ADD)
@@ -250,6 +259,9 @@ class InstrTests(TestCase):
 
         for name in (opcode.opname[op] for op in COMMON_CONSTANT_OPS):
             Instr(name, CommonConstant.BUILTIN_ALL)
+            if PY316:
+                Instr(name, CommonConstant.BUILTIN_FROZENSET)
+                Instr(name, CommonConstant.CONSTANT_EMPTY_TUPLE)
             self.assertRaises(
                 TypeError,
                 Instr,
